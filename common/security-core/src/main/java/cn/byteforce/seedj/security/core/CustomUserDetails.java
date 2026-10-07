@@ -109,12 +109,12 @@ public class CustomUserDetails implements UserDetails {
     public String getDepartment() { return department; }
 
     /**
-     * 获取权限集合（不可变视图）。
+     * 获取权限集合（不可变副本，保持 {@code List} 语义）。
      *
      * @return 权限集合
      */
     @Override public Collection<? extends GrantedAuthority> getAuthorities() {
-        return Collections.unmodifiableCollection(authorities);
+        return Collections.unmodifiableList(new ArrayList<>(authorities));
     }
     @Override public String getPassword() { return password; }
     @Override public String getUsername() { return username; }
