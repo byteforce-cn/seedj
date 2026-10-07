@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>cn.byteforce.seedj</groupId>
+        <artifactId>starter-root</artifactId>
+        <version>${revision}</version>
+    </parent>
+
+    <artifactId>starter-web</artifactId>
+    <packaging>jar</packaging>
+
+    <name>Byteforce :: Starter Web</name>
+    <description>ByteForce Web 运行时 Starter：全局异常处理（统一错误响应契约）与请求上下文
+        （traceId / 用户 / 租户，MDC 联动），承载 seedj ADR-0002</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>web-core</artifactId>
+        </dependency>
+        <!-- JSON 契约（CodeEnum code 映射 / Long 字符串化）由 starter-core 保证 -->
+        <dependency>
+            <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>starter-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc</artifactId>
+        </dependency>
+        <!-- 参数校验（Bean Validation）基线 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>cn.byteforce.seedj</groupId>
+        <artifactId>starter-root</artifactId>
+        <version>${revision}</version>
+    </parent>
+
+    <artifactId>starter-coord</artifactId>
+    <packaging>jar</packaging>
+
+    <name>Byteforce :: Coord</name>
+    <description>Byteforce Coord Starter：coord-java-sdk 的 Spring Boot 消费侧接线（配置外部化 / 生命周期 / 健康检查 / 客户端 Bean）</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>starter-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cn.byteforce</groupId>
+            <artifactId>coord-java-sdk</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+        </dependency>
+        <!-- Actuator 健康检查 SPI（Boot 4：HealthIndicator 位于 spring-boot-health）；
+             可选依赖：使用方引入 actuator 时健康指示器才生效 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-health</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <!-- 生成 spring-configuration-metadata.json，提供 IDE 属性提示 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

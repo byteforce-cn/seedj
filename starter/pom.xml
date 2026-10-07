@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>cn.byteforce.seedj</groupId>
+        <artifactId>root</artifactId>
+        <version>${revision}</version>
+    </parent>
+
+    <artifactId>starter-root</artifactId>
+    <packaging>pom</packaging>
+
+    <name>Byteforce :: Starter Root</name>
+    <description>Byteforce 横切能力 Starter 聚合</description>
+
+    <modules>
+        <module>core</module>
+        <module>web</module>
+        <module>resource</module>
+        <module>authorization</module>
+        <module>data-mybatis</module>
+        <module>coord</module>
+        <module>coord-registry</module>
+        <module>coord-config</module>
+        <module>coord-client</module>
+        <module>coord-observability</module>
+        <module>coord-it</module>
+    </modules>
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>bom</artifactId>
+                <version>${revision}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+</project>

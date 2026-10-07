@@ -1,0 +1,28 @@
+# coord Agent —— 集成测试专用配置
+#
+# 与 server.toml 同口径：loopback + 免鉴权（非 loopback 绑定要求 auth+TLS）。
+# [services] 逐项显式开启（ADR-0001 默认全关），覆盖 starter-coord 需要验证的
+# 分布式能力：config / registry / cache / mq / workflow / transit 及其周边原语。
+agent_addr = "127.0.0.1:19527"
+http_addr = "127.0.0.1:19528"
+data_dir = "/var/lib/coord/it/agent"
+discovery_mode = "static"
+static_peers = ["127.0.0.1:50051"]
+
+[auth]
+enabled = false
+
+[services]
+registry = true
+config_center = true
+lock = true
+idgen = true
+leader_election = true
+event_notification = true
+cache = true
+mq = true
+workflow = true
+transit = true
+circuit_breaker = true
+rate_limiter = true
+feature_flags = true

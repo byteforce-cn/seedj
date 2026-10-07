@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>cn.byteforce.seedj</groupId>
+        <artifactId>common-root</artifactId>
+        <version>${revision}</version>
+    </parent>
+
+    <artifactId>data-core</artifactId>
+    <packaging>jar</packaging>
+
+    <name>Byteforce :: Data Core</name>
+    <description>Byteforce 数据核心模块：实体基类（审计/逻辑删除/多租户）与分页模型</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.data</groupId>
+            <artifactId>spring-data-commons</artifactId>
+        </dependency>
+        <!-- 仅注解（@TableId/@TableField/@TableLogic 等），运行时由 MyBatis-Plus 提供 -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-annotation</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- 测试期解析 @TableField/@TableLogic 注解需要 MyBatis 运行时类型（JdbcType 等） -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

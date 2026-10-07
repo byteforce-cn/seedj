@@ -1,0 +1,14 @@
+# coord Server —— 集成测试专用配置
+#
+# 保持 loopback 监听 + 免鉴权：非 loopback 绑定会触发 fail-closed 拒绝启动
+# （auth 关闭时不允许非 loopback；Raft R-SEC-03 要求 mTLS 或共享密钥），
+# 且测试容器无需对外暴露 Server 端口——宿主只经转发器访问 Agent。
+[node]
+id = 1
+
+[network]
+grpc_addr = "127.0.0.1:50051"
+raft_addr = "127.0.0.1:50052"
+
+[security]
+auth_enabled = false

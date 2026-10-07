@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    SpotBugs 排除规则（`-Panalysis` 生效）。
+    仅登记「有意接受」的发现，每条必须注释原因；新增排除需评审。
+    维护约定见 docs/ROADMAP.md（静态分析登记项）。
+
+    评估记录：2026-10-07 静态分析试点（seedj 生产化落地轮，全仓 28 项发现逐条归类）。
+-->
+<FindBugsFilter>
+
+    <!--
+        EI_EXPOSE_REP / EI_EXPOSE_REP2（Medium）——全仓排除：
+        本仓库为 Spring 集成类库，以下两类结构是框架契约要求、无法也不应消除：
+        1) @ConfigurationProperties 属性绑定：嵌套配置组 / 集合属性必须暴露可变对象供
+           Binder 写入与索引绑定（getter 返回可变类型、setter 接收可变对象均为绑定语义）；
+        2) 组件持有容器注入协作者（JsonMapper、MeterRegistry、BeanFactory 等）：
+           生命周期由容器管理，注入即所有权转移。
+        数据模型侧的不可变契约已在代码层单独修复并以单测固化
+        （CustomUserDetails 权限集合防御性快照、PageResult 记录集不可变包装），
+        不依赖本规则兜底；数据模型新增字段时仍须按不可变性评审。
+    -->
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP"/>
+        <Class name="~cn\.byteforce\.seedj\..*"/>
+    </Match>
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+        <Class name="~cn\.byteforce\.seedj\..*"/>
+    </Match>
+
+    <!--
+        CT_CONSTRUCTOR_THROW（Medium）：以下类在构造期对参数做 fail-fast 校验
+        （非法输入必须立即拒绝，不允许构造出半成品对象）。
+        - BaseException 家族：有意保持非 final（业务可继承定义自有异常，属对外扩展点）；
+        - CodeEnumDeserializer / CodeEnumTypeHandler：Jackson / MyBatis 表 SPI，
+          类为内部实现、无对外扩展承诺（final 化属后续 API 决策，本轮接受提示）。
+    -->
+    <Match>
+        <Bug pattern="CT_CONSTRUCTOR_THROW"/>
+        <Class name="~cn\.byteforce\.seedj\.core\.exception\..*"/>
+    </Match>
+    <Match>
+        <Bug pattern="CT_CONSTRUCTOR_THROW"/>
+        <Class name="cn.byteforce.seedj.starter.core.jackson.CodeEnumDeserializer"/>
+    </Match>
+    <Match>
+        <Bug pattern="CT_CONSTRUCTOR_THROW"/>
+        <Class name="cn.byteforce.seedj.starter.data.mybatis.handler.CodeEnumTypeHandler"/>
+    </Match>
+
+</FindBugsFilter>

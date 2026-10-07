@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>cn.byteforce.seedj</groupId>
+        <artifactId>root</artifactId>
+        <version>${revision}</version>
+    </parent>
+
+    <artifactId>common-root</artifactId>
+    <packaging>pom</packaging>
+
+    <name>Byteforce :: Common Root</name>
+    <description>Byteforce 通用基础模块聚合：API 模型、工具类与上下文能力</description>
+
+    <modules>
+        <module>core</module>
+        <module>security-core</module>
+        <module>web-core</module>
+        <module>data-core</module>
+    </modules>
+    <dependencies>
+        <dependency>
+            <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>codegen</artifactId>
+        </dependency>
+    </dependencies>
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>bom</artifactId>
+                <version>${revision}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>

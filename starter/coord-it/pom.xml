@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>cn.byteforce.seedj</groupId>
+        <artifactId>starter-root</artifactId>
+        <version>${revision}</version>
+    </parent>
+
+    <artifactId>starter-coord-it</artifactId>
+    <packaging>jar</packaging>
+
+    <name>Byteforce :: Coord Integration Tests</name>
+    <description>coord 集成套件（Testcontainers 真实 coord 环境）：starter-coord 一族的
+        端到端验证，全部 *IntegrationTest 本模块统一承载（seedj ADR-0001 / ROADMAP 测试策略 T4）</description>
+
+    <properties>
+        <!--
+            测试套件模块：不产出可消费构件（空 jar），禁止 install / deploy；
+            消费方不得依赖本模块（已从 BOM 移除）。
+        -->
+        <maven.install.skip>true</maven.install.skip>
+        <maven.deploy.skip>true</maven.deploy.skip>
+        <!-- 集成套件不产出可消费构件：API 兼容门禁（-Pcompat）豁免 -->
+        <seedj.compat.skip>true</seedj.compat.skip>
+    </properties>
+
+    <dependencies>
+        <!-- 被测模块族（全部上线模块均纳入套件） -->
+        <dependency>
+            <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>starter-coord</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>starter-coord-registry</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>starter-coord-config</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>starter-coord-client</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>starter-coord-observability</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Testcontainers 核心 API（GenericContainer 等）；版本由 Boot BOM 统一管理 -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- 自动注册 IT 需要真实 web 容器（WebServerInitializedEvent 端口获取） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- 观测桥 IT：SimpleMeterRegistry（micrometer-core 在上线模块中为 optional，
+             不随传递依赖进入，测试侧显式声明） -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- 健康检查 IT：HealthIndicator / Health / Status（在 starter-coord 中为 optional，
+             不随传递依赖进入，测试侧显式声明） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-health</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!--
+                本模块只承载集成套件：默认 `mvn verify` 不跑任何用例（无单测）；
+                `mvn verify -Pit` 只跑 *IntegrationTest（Testcontainers 真实环境）。
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>**/*IntegrationTest.java</exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <!--
+            `-Pit`：跑全部集成套件（Testcontainers 单容器 server+agent 真实环境）。
+            前置条件：本机 Docker 可用 + coord 镜像已拉取（默认
+            ghcr.io/byteforce-cn/coord:v0.2.0，可用 -Dcoord.it.image=<image> 覆盖）。
+            镜像/容器不可用时硬失败、不静默跳过——集成验证必须产生真实证据。
+        -->
+        <profile>
+            <id>it</id>
+            <properties>
+                <!-- 覆盖率门槛由各上线模块的默认 verify（单测）保障；集成跑不参与 jacoco 校验 -->
+                <jacoco.skip>true</jacoco.skip>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <excludes combine.self="override"/>
+                            <includes>
+                                <include>**/*IntegrationTest.java</include>
+                            </includes>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>

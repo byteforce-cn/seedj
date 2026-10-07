@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>cn.byteforce.seedj</groupId>
+        <artifactId>starter-root</artifactId>
+        <version>${revision}</version>
+    </parent>
+
+    <artifactId>starter-coord-registry</artifactId>
+    <packaging>jar</packaging>
+
+    <name>Byteforce :: Coord Registry</name>
+    <description>Byteforce Coord Registry：服务自动注册 / 注销与发现消费（TTL 缓存降级），
+        承载 seedj ADR-0001 Phase 1 的注册面能力</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>starter-coord</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+        </dependency>
+        <!-- 实例 metadata 的 JSON 构建 / 解析（Jackson 3，版本由 Boot BOM 统一管理） -->
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <!-- WebServerInitializedEvent（Boot 4 模块）；可选：仅 web 应用运行时需要，
+             非 web 应用缺失时自动注册退化为「无端口 → 跳过并告警」 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-web-server</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <!-- 生成 spring-configuration-metadata.json，提供 IDE 属性提示 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

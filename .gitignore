@@ -1,0 +1,19 @@
+# 构建产物
+target/
+
+# flatten-maven-plugin 产物
+.flattened-pom.xml
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/settings.json
+
+# 日志与临时
+*.log
+*.tmp
+
+# OS
+.DS_Store

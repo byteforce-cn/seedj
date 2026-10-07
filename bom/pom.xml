@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>cn.byteforce.seedj</groupId>
+        <artifactId>root</artifactId>
+        <version>${revision}</version>
+    </parent>
+    <artifactId>bom</artifactId>
+    <packaging>pom</packaging>
+
+    <name>Byteforce :: Dependencies (BOM)</name>
+    <description>Byteforce BOM：统一管理 seedj 各模块、Spring Boot 平台与第三方构件的版本（只管版本，不引包）</description>
+
+    <properties>
+        <!-- spring-boot.version 由根 POM 统一定义（随父链继承解析，单一维护点） -->
+        <coord-java-sdk.version>0.2.0</coord-java-sdk.version>
+        <mybatis-plus.version>3.5.17</mybatis-plus.version>
+        <error-prone.version>2.50.0</error-prone.version>
+        <compile-testing.version>0.23.0</compile-testing.version>
+
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- Spring Boot 4 平台 -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>codegen</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>core</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>web-core</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>security-core</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>data-core</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>starter-core</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>starter-web</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>starter-resource</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>starter-authorization</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>starter-data-mybatis</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>starter-coord</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>starter-coord-registry</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>starter-coord-config</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>starter-coord-client</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>starter-coord-observability</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <!-- starter-coord-it 为测试套件模块（不产出可消费构件），不进入 BOM -->
+
+            <!-- 第三方构件 -->
+            <dependency>
+                <groupId>org.projectlombok</groupId>
+                <artifactId>lombok</artifactId>
+                <version>${lombok.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce</groupId>
+                <artifactId>coord-java-sdk</artifactId>
+                <version>${coord-java-sdk.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
+                <version>${mybatis-plus.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-annotation</artifactId>
+                <version>${mybatis-plus.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-core</artifactId>
+                <version>${mybatis-plus.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-jsqlparser</artifactId>
+                <version>${mybatis-plus.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.google.errorprone</groupId>
+                <artifactId>error_prone_annotations</artifactId>
+                <version>${error-prone.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.google.testing.compile</groupId>
+                <artifactId>compile-testing</artifactId>
+                <version>${compile-testing.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+</project>

@@ -1,0 +1,14 @@
+# 统一行尾：仓库内文本一律 LF（AGENTS.md §3）；二进制由 git 自动识别
+* text=auto eol=lf
+
+# Windows 批处理保留 CRLF（cmd.exe 传统约定）
+*.cmd text eol=crlf
+
+# 构建与 IDE 产物按二进制处理，避免换行转换
+*.jar binary
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary

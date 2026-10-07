@@ -1,0 +1,5 @@
+# coord 配置导入（启动期）：ConfigData 扩展点经 spring.factories 注册（Boot 4.1.1 实证机制）
+org.springframework.boot.context.config.ConfigDataLocationResolver=\
+cn.byteforce.seedj.starter.coord.config.bootstrap.CoordConfigDataLocationResolver
+org.springframework.boot.context.config.ConfigDataLoader=\
+cn.byteforce.seedj.starter.coord.config.bootstrap.CoordConfigDataLoader

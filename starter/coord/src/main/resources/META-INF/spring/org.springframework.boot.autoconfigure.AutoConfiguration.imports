@@ -1,0 +1,3 @@
+cn.byteforce.seedj.starter.coord.CoordAutoConfiguration
+cn.byteforce.seedj.starter.coord.lock.CoordLockAutoConfiguration
+cn.byteforce.seedj.starter.coord.ratelimiter.CoordRateLimiterAutoConfiguration

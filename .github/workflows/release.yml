@@ -1,0 +1,78 @@
+# seedj 发布流水线：手动触发；dry-run 默认（构建 + 制品归档），deploy 走受保护环境人工审批
+# 手册：docs/releasing.md（§3 投放、§6 CI 承接）；Agent 不得自动执行 deploy（AGENTS.md §5）
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: '发布模式：dry-run（仅构建归档）/ deploy（投放私服，需审批）'
+        type: choice
+        options: [dry-run, deploy]
+        default: dry-run
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Release 构建（verify + source/javadoc + SBOM）
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: 全量验证（单测 + 覆盖率门禁）
+        run: ./mvnw -B -T1C verify
+
+      - name: Release 制品（source + javadoc）
+        run: ./mvnw -B -Prelease -DskipTests package
+
+      - name: SBOM（CycloneDX）
+        run: ./mvnw -B -Psbom -DskipTests package
+
+      - name: 归档发布制品
+        uses: actions/upload-artifact@v4
+        with:
+          name: seedj-release-${{ github.run_number }}
+          path: |
+            target/seedj-sbom.json
+            **/target/*.jar
+          if-no-files-found: error
+
+  deploy:
+    name: 私服投放（受保护环境审批后执行）
+    needs: build
+    if: inputs.mode == 'deploy'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: release   # 受保护环境：配置审批人与以下 secrets 方可生效
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: 注入私服凭据（settings.xml 由 secret 提供，ids 与 repoId 一致）
+        env:
+          MAVEN_SETTINGS_XML: ${{ secrets.MAVEN_SETTINGS_XML }}
+        run: |
+          mkdir -p ~/.m2
+          printf '%s' "$MAVEN_SETTINGS_XML" > ~/.m2/settings.xml
+
+      - name: Deploy（显式指定目标仓库；不依赖 POM distributionManagement）
+        run: >-
+          ./mvnw -B -Prelease -DskipTests deploy
+          -DaltReleaseDeploymentRepository="${{ secrets.SEEDJ_RELEASE_REPO_ID }}::default::${{ secrets.SEEDJ_RELEASE_REPO_URL }}"

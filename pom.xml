@@ -1,0 +1,549 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>cn.byteforce.seedj</groupId>
+    <artifactId>root</artifactId>
+    <version>${revision}</version>
+    <packaging>pom</packaging>
+
+    <name>seedj</name>
+    <description>seedj — ByteForce 业务基础类库（Base Library）：统一契约、Web 运行时、安全接入、数据访问与分布式协调</description>
+    <url>https://github.com/byteforce-cn/seedj</url>
+
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <organization>
+        <name>ByteForce</name>
+        <url>https://github.com/byteforce-cn</url>
+    </organization>
+
+    <developers>
+        <developer>
+            <id>byteforce-cn</id>
+            <name>ByteForce</name>
+            <organization>ByteForce</organization>
+            <organizationUrl>https://github.com/byteforce-cn</organizationUrl>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:https://github.com/byteforce-cn/seedj.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/byteforce-cn/seedj.git</developerConnection>
+        <url>https://github.com/byteforce-cn/seedj</url>
+        <tag>HEAD</tag>
+    </scm>
+
+    <modules>
+        <module>codegen</module>
+        <module>bom</module>
+        <module>common</module>
+        <module>starter</module>
+    </modules>
+
+    <properties>
+        <!-- 版本属性 -->
+        <revision>1.0.0-SNAPSHOT</revision>
+        <java.version>21</java.version>
+        <lombok.version>1.18.40</lombok.version>
+        <!--
+            平台版本：本仓库单一维护点（bom 的 dependencyManagement 与
+            annotationProcessorPaths 的 configuration-processor 版本同源引用）。
+        -->
+        <spring-boot.version>4.1.1</spring-boot.version>
+
+        <!-- 构建属性 -->
+        <maven.compiler.source>${java.version}</maven.compiler.source>
+        <maven.compiler.target>${java.version}</maven.compiler.target>
+        <maven.compiler.release>${java.version}</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+
+        <!-- 插件版本 -->
+        <flatten-maven-plugin.version>1.6.0</flatten-maven-plugin.version>
+        <jacoco-maven-plugin.version>0.8.15</jacoco-maven-plugin.version>
+        <maven-enforcer-plugin.version>3.6.3</maven-enforcer-plugin.version>
+        <maven-source-plugin.version>3.4.0</maven-source-plugin.version>
+        <maven-javadoc-plugin.version>3.12.0</maven-javadoc-plugin.version>
+        <maven-compiler-plugin.version>3.16.0</maven-compiler-plugin.version>
+        <maven-surefire-plugin.version>3.5.6</maven-surefire-plugin.version>
+        <maven-antrun-plugin.version>3.1.0</maven-antrun-plugin.version>
+        <maven-resources-plugin.version>3.3.1</maven-resources-plugin.version>
+        <maven-gpg-plugin.version>3.2.8</maven-gpg-plugin.version>
+        <japicmp-maven-plugin.version>0.26.3</japicmp-maven-plugin.version>
+        <cyclonedx-maven-plugin.version>2.9.3</cyclonedx-maven-plugin.version>
+        <spotbugs-maven-plugin.version>4.10.4.1</spotbugs-maven-plugin.version>
+
+        <!-- 兼容门禁：测试套件模块（starter/coord-it）在自身 POM 覆盖为 true -->
+        <seedj.compat.skip>false</seedj.compat.skip>
+
+        <!-- SpotBugs 排除文件（可经 -Dspotbugs.excludeFilterFile=<path> 覆盖） -->
+        <spotbugs.excludeFilterFile>${maven.multiModuleProjectDirectory}/config/spotbugs-exclude.xml</spotbugs.excludeFilterFile>
+
+    </properties>
+    
+    <build>
+
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>${maven-compiler-plugin.version}</version>
+                    <configuration>
+                        <release>${java.version}</release>
+                        <target>${java.version}</target>
+                        <parameters>true</parameters>
+                        <annotationProcessorPaths>
+                            <path>
+                                <groupId>org.projectlombok</groupId>
+                                <artifactId>lombok</artifactId>
+                                <version>${lombok.version}</version>
+                            </path>
+                            <path>
+                                <groupId>cn.byteforce.seedj</groupId>
+                                <artifactId>codegen</artifactId>
+                                <version>${revision}</version>
+                            </path>
+                            <!--
+                                配置元数据（IDE 提示 / 配置参考）必须在此声明：显式
+                                annotationProcessorPaths 会取代 classpath 探测，仅把
+                                configuration-processor 写在模块依赖里永远不会被执行
+                                （2026-10-07 评估实证：10 个模块声明、0 个元数据产物）。
+                            -->
+                            <path>
+                                <groupId>org.springframework.boot</groupId>
+                                <artifactId>spring-boot-configuration-processor</artifactId>
+                                <version>${spring-boot.version}</version>
+                            </path>
+                        </annotationProcessorPaths>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>${maven-surefire-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-source-plugin</artifactId>
+                    <version>${maven-source-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-javadoc-plugin</artifactId>
+                    <version>${maven-javadoc-plugin.version}</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+        <plugins>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>flatten-maven-plugin</artifactId>
+                <version>${flatten-maven-plugin.version}</version>
+                <configuration>
+                    <updatePomFile>true</updatePomFile>
+                    <flattenMode>resolveCiFriendliesOnly</flattenMode>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>flatten</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>flatten</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>flatten-clean</id>
+                        <phase>clean</phase>
+                        <goals>
+                            <goal>clean</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>${maven-enforcer-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>enforce-rules</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <banDuplicatePomDependencyVersions/>
+                                <dependencyConvergence/>
+                                <requireJavaVersion>
+                                    <version>[21,)</version>
+                                </requireJavaVersion>
+                                <requireMavenVersion>
+                                    <version>[3.9.0,)</version>
+                                </requireMavenVersion>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${jacoco-maven-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>check-core</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <configuration>
+                            <!--
+                                注意：includes 匹配的是 class 文件路径（以“/”分隔），
+                                不能写成点分包名——点分模式永远匹配不到类，门禁会真空通过。
+                            -->
+                            <includes>
+                                <include>cn/byteforce/seedj/core/**</include>
+                                <include>cn/byteforce/seedj/web/**</include>
+                                <include>cn/byteforce/seedj/security/**</include>
+                                <include>cn/byteforce/seedj/data/**</include>
+                            </includes>
+                            <rules>
+                                <rule>
+                                    <element>BUNDLE</element>
+                                    <limits>
+                                        <limit>
+                                            <counter>LINE</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.80</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                            </rules>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>check-starter</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <configuration>
+                            <!-- includes 为 class 文件路径模式（“/”分隔），与 check-core 一致 -->
+                            <includes>
+                                <include>cn/byteforce/seedj/starter/**</include>
+                            </includes>
+                            <rules>
+                                <rule>
+                                    <element>BUNDLE</element>
+                                    <limits>
+                                        <limit>
+                                            <counter>LINE</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.70</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!--
+                JaCoCo 门禁守卫：jacooco check 在缺少 exec 数据时“静默跳过”，
+                导致「有主源码但零测试」的模块绕过覆盖率门槛（2026-10-07 评估实证）。
+                本守卫在 verify 阶段显式失败，除非：
+                - pom 打包（聚合模块）/ 无主源码；
+                - jacoco.skip=true（集成套件运行）或显式 -DskipTests/-Dmaven.test.skip；
+                - 模块自行声明 <seedj.jacoco.guard.skip>true</seedj.jacoco.guard.skip>（需注释原因）。
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>${maven-antrun-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>verify-jacoco-data</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <condition property="seedj.jacoco.guard.skipped">
+                                    <or>
+                                        <equals arg1="${project.packaging}" arg2="pom"/>
+                                        <equals arg1="${jacoco.skip}" arg2="true"/>
+                                        <equals arg1="${skipTests}" arg2="true"/>
+                                        <equals arg1="${maven.test.skip}" arg2="true"/>
+                                        <equals arg1="${seedj.jacoco.guard.skip}" arg2="true"/>
+                                    </or>
+                                </condition>
+                                <resourcecount property="seedj.main.source.count">
+                                    <fileset dir="${basedir}/src/main/java" includes="**/*.java"
+                                             erroronmissingdir="false"/>
+                                </resourcecount>
+                                <available file="${project.build.directory}/jacoco.exec"
+                                           property="seedj.jacoco.exec.present"/>
+                                <fail message="JaCoCo 门禁守卫：模块 ${project.artifactId} 包含主源码（${seedj.main.source.count} 个 .java）但没有测试产生的 jacoco.exec。请补充测试；确无测试需求时在模块 POM 显式声明 &lt;seedj.jacoco.guard.skip&gt;true&lt;/seedj.jacoco.guard.skip&gt; 并注明原因。">
+                                    <condition>
+                                        <and>
+                                            <not>
+                                                <isset property="seedj.jacoco.guard.skipped"/>
+                                            </not>
+                                            <not>
+                                                <equals arg1="${seedj.main.source.count}" arg2="0"/>
+                                            </not>
+                                            <not>
+                                                <isset property="seedj.jacoco.exec.present"/>
+                                            </not>
+                                        </and>
+                                    </condition>
+                                </fail>
+                            </target>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!--
+                许可合规：把根目录 LICENSE / NOTICE 拷贝进各制品 META-INF
+                （Apache-2.0 声明的交付闭合；纯 pom 模块无副作用）。
+                单模块独立构建（非仓库根）时目录不存在，拷贝为空、不报错。
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>${maven-resources-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>copy-license-notice</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.outputDirectory}/META-INF</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>${maven.multiModuleProjectDirectory}</directory>
+                                    <includes>
+                                        <include>LICENSE</include>
+                                        <include>NOTICE</include>
+                                    </includes>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <version>${maven-source-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <goals>
+                                    <goal>jar-no-fork</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <version>${maven-javadoc-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>attach-javadocs</id>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!--
+            GPG 签名（opt-in）：接入签名密钥后使用 `-Prelease,sign`。
+            密钥选择：GPG 默认私钥，或 -Dgpg.keyname=<key>；CI 场景经 secrets 注入。
+            未启用本 profile 时构建完全不依赖 GPG。
+        -->
+        <profile>
+            <id>sign</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>${maven-gpg-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!--
+            API 兼容性门禁（japicmp，opt-in）：
+            - 基线经 -Dseedj.compat.baseline=<x.y.z> 指定（默认 1.0.0，首个正式版本发布后生效）；
+            - 二进制不兼容默认阻断构建；源码不兼容当前仅报告（阈值与豁免见 docs/api-compatibility.md）；
+            - 前提：基线版本制品可从本地仓库 / 私服解析；
+            - 测试套件模块（starter/coord-it）在自身 POM 声明 seedj.compat.skip=true 豁免。
+        -->
+        <profile>
+            <id>compat</id>
+            <properties>
+                <seedj.compat.baseline>1.0.0</seedj.compat.baseline>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>com.github.siom79.japicmp</groupId>
+                        <artifactId>japicmp-maven-plugin</artifactId>
+                        <version>${japicmp-maven-plugin.version}</version>
+                        <configuration>
+                            <skip>${seedj.compat.skip}</skip>
+                            <oldVersion>
+                                <dependency>
+                                    <groupId>${project.groupId}</groupId>
+                                    <artifactId>${project.artifactId}</artifactId>
+                                    <version>${seedj.compat.baseline}</version>
+                                    <type>jar</type>
+                                </dependency>
+                            </oldVersion>
+                            <newVersion>
+                                <file>
+                                    <path>${project.build.directory}/${project.build.finalName}.jar</path>
+                                </file>
+                            </newVersion>
+                            <parameter>
+                                <onlyModified>true</onlyModified>
+                                <breakBuildOnBinaryIncompatibleModifications>true</breakBuildOnBinaryIncompatibleModifications>
+                                <breakBuildOnSourceIncompatibleModifications>false</breakBuildOnSourceIncompatibleModifications>
+                                <ignoreMissingClasses>true</ignoreMissingClasses>
+                            </parameter>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>api-compat-check</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>cmp</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!--
+            SBOM（CycloneDX，opt-in）：从仓库根执行 `mvn -Psbom package`，
+            聚合全部模块产出 root target/seedj-sbom.json（发布演练随制品归档，见 docs/releasing.md）。
+        -->
+        <profile>
+            <id>sbom</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.cyclonedx</groupId>
+                        <artifactId>cyclonedx-maven-plugin</artifactId>
+                        <version>${cyclonedx-maven-plugin.version}</version>
+                        <inherited>false</inherited>
+                        <executions>
+                            <execution>
+                                <id>cyclonedx-bom</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>makeAggregateBom</goal>
+                                </goals>
+                                <configuration>
+                                    <projectType>library</projectType>
+                                    <outputFormat>json</outputFormat>
+                                    <outputName>seedj-sbom</outputName>
+                                    <includeTestScope>false</includeTestScope>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!--
+            静态分析（SpotBugs，opt-in）：`mvn -Panalysis verify`（CI 主门禁已接入）。
+            - 阈值 Medium（默认）；排除规则见 config/spotbugs-exclude.xml（新增须注释原因）；
+            - pom 打包模块与无类模块由插件自行跳过。
+        -->
+        <profile>
+            <id>analysis</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>com.github.spotbugs</groupId>
+                        <artifactId>spotbugs-maven-plugin</artifactId>
+                        <version>${spotbugs-maven-plugin.version}</version>
+                        <configuration>
+                            <effort>Default</effort>
+                            <threshold>Medium</threshold>
+                            <excludeFilterFile>${spotbugs.excludeFilterFile}</excludeFilterFile>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>spotbugs-check</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>check</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>

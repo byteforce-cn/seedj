@@ -1,0 +1,43 @@
+# coord 集成套件（Testcontainers 真实容器）：夜间 + 手动触发
+# 前置：ghcr.io/byteforce-cn/coord:v0.2.0 镜像可拉取；
+#      若镜像为私有仓库，需为仓库配置 GHCR 凭据并在此 job 增加 docker login 步骤。
+name: IT (coord 集成套件)
+
+on:
+  schedule:
+    # 每日 18:00 UTC（北京时间次日 02:00）
+    - cron: '0 18 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: it-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  coord-it:
+    name: coord 集成套件（Testcontainers）
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: 预拉 coord 镜像
+        run: docker pull ghcr.io/byteforce-cn/coord:v0.2.0
+
+      - name: 集成套件（真实容器；镜像不可用即硬失败）
+        run: ./mvnw -B -pl starter/coord-it -am verify -Pit
+
+      - name: 上传集成测试报告（失败时）
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coord-it-reports
+          path: starter/coord-it/target/surefire-reports/
+          if-no-files-found: ignore
