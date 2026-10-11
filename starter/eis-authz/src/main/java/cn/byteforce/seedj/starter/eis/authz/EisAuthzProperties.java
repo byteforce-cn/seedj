@@ -36,6 +36,31 @@ public class EisAuthzProperties {
     private boolean cacheEnabled = true;
 
     /**
+     * OAuth2 令牌端点（服务间认证；与 client-id/client-secret 同时配置才生效）。
+     */
+    private String tokenUri;
+
+    /**
+     * 服务间认证客户端 ID（client_credentials）。
+     */
+    private String clientId;
+
+    /**
+     * 服务间认证客户端密钥（client_credentials）。
+     */
+    private String clientSecret;
+
+    /**
+     * 令牌作用域（空格分隔；可空）。
+     */
+    private String scope;
+
+    /**
+     * 令牌刷新提前量（避免临界过期）。
+     */
+    private Duration tokenRefreshSkew = Duration.ofSeconds(30);
+
+    /**
      * 获取是否启用。
      *
      * @return 是否启用
@@ -105,5 +130,95 @@ public class EisAuthzProperties {
      */
     public void setCacheEnabled(boolean cacheEnabled) {
         this.cacheEnabled = cacheEnabled;
+    }
+
+    /**
+     * 获取令牌端点。
+     *
+     * @return 令牌端点；未配置为 {@code null}
+     */
+    public String getTokenUri() {
+        return tokenUri;
+    }
+
+    /**
+     * 设置令牌端点。
+     *
+     * @param tokenUri 令牌端点（完整 URL）
+     */
+    public void setTokenUri(String tokenUri) {
+        this.tokenUri = tokenUri;
+    }
+
+    /**
+     * 获取服务间认证客户端 ID。
+     *
+     * @return 客户端 ID；未配置为 {@code null}
+     */
+    public String getClientId() {
+        return clientId;
+    }
+
+    /**
+     * 设置服务间认证客户端 ID。
+     *
+     * @param clientId 客户端 ID
+     */
+    public void setClientId(String clientId) {
+        this.clientId = clientId;
+    }
+
+    /**
+     * 获取服务间认证客户端密钥。
+     *
+     * @return 客户端密钥；未配置为 {@code null}
+     */
+    public String getClientSecret() {
+        return clientSecret;
+    }
+
+    /**
+     * 设置服务间认证客户端密钥。
+     *
+     * @param clientSecret 客户端密钥
+     */
+    public void setClientSecret(String clientSecret) {
+        this.clientSecret = clientSecret;
+    }
+
+    /**
+     * 获取令牌作用域。
+     *
+     * @return 作用域（空格分隔）；未配置为 {@code null}
+     */
+    public String getScope() {
+        return scope;
+    }
+
+    /**
+     * 设置令牌作用域。
+     *
+     * @param scope 作用域（空格分隔）
+     */
+    public void setScope(String scope) {
+        this.scope = scope;
+    }
+
+    /**
+     * 获取令牌刷新提前量。
+     *
+     * @return 提前量
+     */
+    public Duration getTokenRefreshSkew() {
+        return tokenRefreshSkew;
+    }
+
+    /**
+     * 设置令牌刷新提前量。
+     *
+     * @param tokenRefreshSkew 提前量
+     */
+    public void setTokenRefreshSkew(Duration tokenRefreshSkew) {
+        this.tokenRefreshSkew = tokenRefreshSkew;
     }
 }

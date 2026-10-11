@@ -2,6 +2,7 @@ package cn.byteforce.seedj.starter.eis.authz;
 
 import cn.byteforce.seedj.starter.eis.authz.EisAuthzModels.EisAuthzDecision;
 import cn.byteforce.seedj.starter.eis.authz.EisAuthzModels.EisAuthzResolution;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClient;
@@ -18,7 +19,9 @@ import java.util.UUID;
  * EIS 授权服务远程客户端（其他服务校验/解析调用）。
  *
  * <p>调用权威服务的 {@code /resolve} 与 {@code /check}；建议经
- * {@link EisAuthzCachingOperations} 叠进程内 TTL 缓存。错误一律抛出
+ * {@link EisAuthzCachingOperations} 叠进程内 TTL 缓存。配置了服务凭据
+ * （{@link EisAuthzTokenProvider}，默认 client_credentials）时自动携带
+ * {@code Authorization: Bearer}；未配置时保持明文直连行为不变。错误一律抛出
  * {@link EisAuthzRemoteException}（fail-open 由调用方决定：命令受理链路拒绝 /
  * 失效加速链路可降级）。</p>
  *
@@ -31,13 +34,26 @@ public class EisAuthzClient implements EisAuthzOperations {
 
     private final RestClient restClient;
 
+    private final EisAuthzTokenProvider tokenProvider;
+
     /**
-     * 构造客户端。
+     * 构造客户端（无服务认证）。
      *
      * @param restClient 已配置基址的 RestClient
      */
     public EisAuthzClient(RestClient restClient) {
+        this(restClient, null);
+    }
+
+    /**
+     * 构造客户端（带服务令牌提供者）。
+     *
+     * @param restClient    已配置基址的 RestClient
+     * @param tokenProvider 令牌提供者；{@code null} 等同无服务认证（明文/内网直连场景）
+     */
+    public EisAuthzClient(RestClient restClient, EisAuthzTokenProvider tokenProvider) {
         this.restClient = restClient;
+        this.tokenProvider = tokenProvider;
     }
 
     @Override
@@ -79,9 +95,13 @@ public class EisAuthzClient implements EisAuthzOperations {
     }
 
     private JsonNode post(String path, JsonNode body) {
-        String payload = restClient.post().uri(path)
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(body.toString())
+        RestClient.RequestBodySpec spec = restClient.post().uri(path)
+                .contentType(MediaType.APPLICATION_JSON);
+        if (tokenProvider != null) {
+            tokenProvider.accessToken().ifPresent(token ->
+                    spec.header(HttpHeaders.AUTHORIZATION, "Bearer " + token));
+        }
+        String payload = spec.body(body.toString())
                 .retrieve()
                 .onStatus(HttpStatusCode::isError, (request, response) -> {
                     String text = new String(response.getBody().readAllBytes(),
