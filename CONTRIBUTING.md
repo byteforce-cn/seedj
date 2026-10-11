@@ -8,7 +8,7 @@
 | --- | --- |
 | JDK | 21+（编译目标以根 [`pom.xml`](pom.xml) `<java.version>` 为准） |
 | 构建 | Maven Wrapper（`./mvnw`，固定 Maven 3.9.x），无需预装 Maven |
-| Docker | 仅集成套件（`starter/coord-it`，`-Pit`）需要 |
+| Docker | 仅集成套件（`starter/coord-it`、`starter/eis-it`，`-Pit`）需要 |
 
 ## 常用命令
 
@@ -24,6 +24,9 @@
 
 # coord 集成套件（需本机 Docker + coord 镜像，镜像不可用即硬失败）
 ./mvnw -B -pl starter/coord-it -am verify -Pit
+
+# EIS 集成套件（需本机 Docker + postgres:16-alpine 镜像，镜像不可用即硬失败）
+./mvnw -B -pl starter/eis-it -am verify -Pit
 ```
 
 - 构建/测试日志建议写入 `/tmp/seedj-build/`，不要留在仓库内；
@@ -47,7 +50,7 @@
 3. PR 前本地通过 `./mvnw -B -T1C verify`；行为变更同步更新 [`CHANGELOG.md`](CHANGELOG.md)；
 4. 破坏性变更：先在 `docs/adr/` 提 ADR 并写明迁移方式，进入下一个 MAJOR；
 5. 禁止 `git push --force` 覆盖共享分支历史；不要提交 `target/`、`*.class`、IDE 配置与临时文件；
-6. CI 会执行：全量 verify（单测 + 覆盖率 + 零测试守卫 + SpotBugs）；coord 集成套件按夜间档运行。
+6. CI 会执行：全量 verify（单测 + 覆盖率 + 零测试守卫 + SpotBugs）；coord / EIS 集成套件按夜间档运行。
 
 ## 报告问题
 

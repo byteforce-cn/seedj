@@ -24,6 +24,10 @@ public class EisCoreProperties {
      * <p><b>安全语义</b>：默认为 {@code false}——授权缺省 fail-closed，应用未注册
      * {@code EisAuthorizer} 时启动失败。仅当显式置为 {@code true} 时才会使用内建放行
      * 授权器并在启动时打 {@code WARN}，<b>禁止用于生产</b>。</p>
+     *
+     * <p><b>装配口径</b>：是否注册内建全放行授权器由 {@code EisCoreAutoConfiguration}
+     * 的 {@code @ConditionalOnProperty}（同一配置键 {@code byteforce.eis.core.allow-all-authorizer}）
+     * 在装配期决定；本字段仅用于配置元数据（属性绑定与 IDE 提示），不参与运行时判定。</p>
      */
     private boolean allowAllAuthorizer = false;
 

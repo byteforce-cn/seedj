@@ -6,8 +6,8 @@
 
 ## 0. 项目定位
 
-本仓库是一个 **Java 基础类库（base library）项目**，为组织内各业务系统
-提供通用能力沉淀，例如：
+本仓库是一个 **Java 基础类库（base library）项目**，为业务系统
+提供可复用的通用能力沉淀，例如：
 
 - 通用工具类、常量、枚举、异常体系
 - 统一返回体 / 分页模型 / DTO 基类
@@ -97,7 +97,7 @@ DTO / VO / 配置类 / 不可变值对象一律使用 `final class` + 手写不�
   starter 域 ≥ 70%（JaCoCo `includes` 为 **class 文件路径模式**，勿改回点分包名）；
   同时校验 `jacoco.exec` 存在——「有主源码但未执行任何测试」的模块会被守卫拦截
   （确无测试需求时在模块 POM 声明 `seedj.jacoco.guard.skip=true` 并注明原因）。
-- 集成测试：统一命名 `*IntegrationTest.java`，位于 `starter/coord-it`，经 surefire `-Pit` 档运行
+- 集成测试：统一命名 `*IntegrationTest.java`，位于 `starter/coord-it` 与 `starter/eis-it`，经 surefire `-Pit` 档运行
   （默认 `verify` 排除）；基于 Testcontainers 真实容器（镜像/容器不可用时硬失败，**不静默跳过**）。
   **不得依赖组织外部中间件实例**。
 - 测试数据、临时数据库、随机种子文件写入 `/tmp/seedj-test/`，**不得**入库。

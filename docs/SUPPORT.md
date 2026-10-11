@@ -25,7 +25,7 @@
 
 ## 获取支持
 
-- 缺陷 / 需求：仓库 Issues（或组织内工单，按团队渠道）；
+- 缺陷 / 需求：仓库 Issues；
 - **安全漏洞**：勿开公开 Issue；按 [`SECURITY.md`](../SECURITY.md) 走 GitHub 私密安全公告或联系维护者安排私密渠道；
 - 变更感知：[`../CHANGELOG.md`](../CHANGELOG.md)（Keep a Changelog + SemVer）、
   [`assessment/`](./assessment/README.md)（评估快照）、[`ROADMAP.md`](./ROADMAP.md)（里程碑）。
