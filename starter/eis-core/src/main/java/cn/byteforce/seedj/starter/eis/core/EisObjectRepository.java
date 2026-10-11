@@ -5,11 +5,13 @@ import org.springframework.jdbc.core.RowMapper;
 
 import tools.jackson.databind.JsonNode;
 
+import java.math.BigDecimal;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -311,6 +313,9 @@ public class EisObjectRepository {
             case JSONB -> ps.setString(index, value instanceof JsonNode node ? node.toString() : String.valueOf(value));
             case TEXT_ARRAY -> ps.setArray(index, ps.getConnection().createArrayOf("text",
                     ((List<?>) value).toArray()));
+            case DATE -> ps.setObject(index, (LocalDate) value);
+            case BIGINT -> ps.setLong(index, ((Number) value).longValue());
+            case NUMERIC -> ps.setObject(index, (BigDecimal) value);
         }
     }
 
@@ -322,6 +327,9 @@ public class EisObjectRepository {
             case TIMESTAMP -> Types.TIMESTAMP_WITH_TIMEZONE;
             case JSONB -> Types.OTHER;
             case TEXT_ARRAY -> Types.ARRAY;
+            case DATE -> Types.DATE;
+            case BIGINT -> Types.BIGINT;
+            case NUMERIC -> Types.NUMERIC;
         };
     }
 
@@ -343,6 +351,9 @@ public class EisObjectRepository {
                 String[] values = (String[]) array.getArray();
                 yield List.of(values);
             }
+            case DATE -> rs.getObject(index, LocalDate.class);
+            case BIGINT -> rs.getObject(index, Long.class);
+            case NUMERIC -> rs.getObject(index, BigDecimal.class);
         };
     }
 

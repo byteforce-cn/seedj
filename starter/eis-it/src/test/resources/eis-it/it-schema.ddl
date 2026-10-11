@@ -19,6 +19,9 @@ CREATE TABLE it_widget (
     ref             UUID,
     meta            JSONB,
     tags            TEXT[],
+    hire_date       DATE,
+    attempts        BIGINT,
+    amount          NUMERIC(20,2),
 
     CONSTRAINT pk_it_widget            PRIMARY KEY (id, recorded_at),
     CONSTRAINT valid_range    CHECK (valid_to IS NULL OR valid_to > valid_from),

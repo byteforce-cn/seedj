@@ -24,5 +24,21 @@ public enum EisFieldKind {
     JSONB,
 
     /** {@code TEXT[]} ↔ {@link java.util.List List&lt;String&gt;}。 */
-    TEXT_ARRAY
+    TEXT_ARRAY,
+
+    /** {@code DATE} ↔ {@link java.time.LocalDate}。 */
+    DATE,
+
+    /**
+     * {@code BIGINT} ↔ {@link Long}（{@code type: integer} 生成物）。
+     *
+     * <p>写入接受任意整型 {@link Number}（如命令载荷的 {@code Integer}），读取统一返回 {@code Long}。</p>
+     */
+    BIGINT,
+
+    /**
+     * {@code NUMERIC} / {@code NUMERIC(p,s)} ↔ {@link java.math.BigDecimal}
+     * （{@code type: number} 与金额/数量 pattern 生成物）。
+     */
+    NUMERIC
 }

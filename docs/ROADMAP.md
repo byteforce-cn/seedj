@@ -45,7 +45,7 @@
 ### EIS 内核落地轮（2026-10-10）
 
 - **新增模块族**：`starter-eis-core`（命令受理 / 双时间轴对象存储 / outbox）、`starter-eis-audit`（审计哈希链）、
-  `starter-eis-temporal`（时点查询）、`starter-eis-authz`（判定引擎 / 远程客户端）与集成套件 `starter-eis-it`（Testcontainers PG16，21 例）；
+  `starter-eis-temporal`（时点查询）、`starter-eis-authz`（判定引擎 / 远程客户端）与集成套件 `starter-eis-it`（Testcontainers PG16，22 例）；
 - **安全默认值**：`EisAuthorizer` 缺省 **fail-closed**——无 Bean 且未显式 `allow-all-authorizer=true` 时应用启动失败；
 - **文档**：[ADR-0004](./adr/0004-eis-kernel-starters.md)（EIS 内核族设计）与 [known-limitations.md](./known-limitations.md)（使用者边界）。
 

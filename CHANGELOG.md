@@ -11,7 +11,8 @@
 - `starter-eis-audit`（新模块）：EIS 审计哈希链——九元规范化（冻结向量 `447c6e29…7410` 逐位一致）、锚行串行分配（不依赖 BIGSERIAL 缺省分配）、四类错误验证器（对齐 `verify.tool`）、锚定 SPI（文件/日志）与 `/admin/audit/*` 管理端点、`eis-audit.ddl`。
 - `starter-eis-temporal`（新模块）：EIS 时点查询端点族（`/objects`、`/time-travel`），半开区间语义与敏感列读投影剔除。
 - `starter-eis-authz`（新模块）：EIS 授权解析——`/resolve` `/check` 引擎（代理展开、SoD warn/prevent、`reason_code`）、远程客户端与进程内 TTL 缓存（唯一判定权威，不接入 coord Policy）。
-- `starter-eis-it`（新测试套件模块）：Testcontainers PG16 集成验证（双时间轴边界 / 审计链并发 / 命令闭环，统 21 例）；不引入 H2。
+- `starter-eis-it`（新测试套件模块）：Testcontainers PG16 集成验证（双时间轴边界 / 审计链并发 / 命令闭环，统 22 例）；不引入 H2。
+- `starter-eis-core`：`EisFieldKind` 新增 `DATE`（`LocalDate`）、`BIGINT`（`Long`）、`NUMERIC`（`BigDecimal`），与 `schema-compiler` 生成物对齐（`format: date` / `type: integer` / `type: number` / 金额与数量 pattern）；对象存储的写入、读取、NULL 绑定与等值条件查询全链路支持 `DATE` / `BIGINT` / `NUMERIC(p,s)` 列（`CHAR(3)` / `CHAR(7)` 列继续以 `TEXT` 注册读写）。
 - BOM：登记 `starter-eis-core/audit/temporal/authz`（`starter-eis-it` 为测试套件模块不入 BOM）。
 - 文档：`docs/adr/0004-eis-kernel-starters.md`（EIS 内核族设计）。
 
