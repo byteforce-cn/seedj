@@ -45,10 +45,14 @@ import java.util.regex.Pattern;
  * 构造函数保留可空签名（{@code null} 等同全部放行）仅供内部与单元测试直接构造使用，
  * 生产路径必须由自动配置完成上述 fail-closed 判定。</p>
  *
+ * <p><b>为什么是 final</b>：构造期对处理器重复注册做 fail-fast 校验（构造中抛异常），
+ * final 化使其不可被继承，消除 Finalizer 攻击面（SpotBugs CT_CONSTRUCTOR_THROW）；
+ * 应用通过覆盖 {@code EisCommandRuntime} Bean 定制，而非继承本类。</p>
+ *
  * @author ByteForce
  * @since 1.0.0
  */
-public class EisCommandRuntime {
+public final class EisCommandRuntime {
 
     private static final Logger log = LoggerFactory.getLogger(EisCommandRuntime.class);
 
