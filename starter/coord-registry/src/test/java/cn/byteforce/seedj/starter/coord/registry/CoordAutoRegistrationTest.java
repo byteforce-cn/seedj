@@ -61,7 +61,7 @@ class CoordAutoRegistrationTest {
 
         registration.onPortAvailable(8081);
 
-        awaitUntil(() -> registration.isRegistered());
+        awaitRegistrationNotified();
         ArgumentCaptor<String> metadata = ArgumentCaptor.forClass(String.class);
         verify(registry).register(eq("orders"), eq("10.0.0.1:8081"), metadata.capture(), eq(30));
         String json = metadata.getValue();
@@ -84,7 +84,7 @@ class CoordAutoRegistrationTest {
 
         registration.onPortAvailable(9090);
 
-        awaitUntil(() -> registration.isRegistered());
+        awaitRegistrationNotified();
         verify(registry).register(eq("custom-svc"), eq("node-a"), anyString(), eq(30));
     }
 
@@ -121,7 +121,7 @@ class CoordAutoRegistrationTest {
 
         registration.onApplicationReady(new MockEnvironment().withProperty("server.port", "9090"));
 
-        awaitUntil(() -> registration.isRegistered());
+        awaitRegistrationNotified();
         verify(registry).register(eq("orders"), anyString(), anyString(), eq(30));
     }
 
@@ -135,7 +135,7 @@ class CoordAutoRegistrationTest {
 
         registration.onPortAvailable(8081);
 
-        awaitUntil(() -> registration.isRegistered());
+        awaitRegistrationNotified();
         verify(registry, times(3)).register(anyString(), anyString(), anyString(), anyInt());
         assertThat(listener.failed).isEqualTo(2);
         assertThat(listener.registered).hasValue(1);
@@ -148,7 +148,7 @@ class CoordAutoRegistrationTest {
                 .thenReturn(registrationHandle, secondHandle);
         CoordAutoRegistration registration = newRegistration();
         registration.onPortAvailable(8081);
-        awaitUntil(() -> registration.isRegistered());
+        awaitRegistrationNotified();
 
         ArgumentCaptor<Registration.HeartbeatFailedCallback> callback =
                 ArgumentCaptor.forClass(Registration.HeartbeatFailedCallback.class);
@@ -173,7 +173,7 @@ class CoordAutoRegistrationTest {
         when(registry.register(anyString(), anyString(), anyString(), anyInt())).thenReturn(registrationHandle);
         CoordAutoRegistration registration = newRegistration();
         registration.onPortAvailable(8081);
-        awaitUntil(() -> registration.isRegistered());
+        awaitRegistrationNotified();
 
         registration.stop();
 
@@ -199,7 +199,7 @@ class CoordAutoRegistrationTest {
         when(registry.register(anyString(), anyString(), anyString(), anyInt())).thenReturn(registrationHandle);
         CoordAutoRegistration registration = newRegistration();
         registration.onPortAvailable(8081);
-        awaitUntil(() -> registration.isRegistered());
+        awaitRegistrationNotified();
 
         registration.stop();
         registration.stop();
@@ -226,6 +226,17 @@ class CoordAutoRegistrationTest {
             sleep(10);
         }
         throw new AssertionError("等待超时（10s）");
+    }
+
+    /**
+     * 等待首次注册完成的通知。
+     *
+     * <p>生产路径先落地注册句柄（{@code registration}）再回调监听器，因此仅等待
+     * {@code isRegistered()} 可能在回调前返回；等待监听器计数可保证断言
+     * {@code listener.registered} 时回调已完成，消除高负载并行构建下的竞态。</p>
+     */
+    private void awaitRegistrationNotified() {
+        awaitUntil(() -> listener.registered.get() >= 1);
     }
 
     /** 记录回调次数的监听器。 */
