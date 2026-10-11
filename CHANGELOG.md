@@ -84,6 +84,13 @@
 
 ### Changed
 
+- **coord-java-sdk 0.2.0 → 0.3.0**：BOM 升版（`coord-java-sdk.version`），`starter-coord*` 全模块单元套件与
+  `coord-it` 集成套件（33 例）在真实 `ghcr.io/byteforce-cn/coord:v0.3.0` 容器上全绿；集成镜像默认值
+  同步 `v0.3.0`（`-Dcoord.it.image` 仍可覆盖）。兼容性实证：`javap -public` 全量比对 0.2.0 与 0.3.0
+  无类/成员移除，仅新增 128 个类（Cache clear/keys/setIfAbsent、Feature flags delete 等）——纯增量，
+  消费方无需迁移。文档同步：根 README、`starter/coord/README.md`、`starter/coord/ROADMAP.md`
+  （T3 基线）、`starter/coord-it/README.md`、`docs/known-limitations.md`、`docs/third-party-licenses.md`。
+
 - **开源前置清理**：模块更名 `starter-core` → `starter-json`（包名 `cn.byteforce.seedj.starter.json`、目录 `starter/json`、坐标与全部引用同步）；`codegen` 收敛为仅 `common/web-core` 编译期 provided 使用，不再随全部 common 模块传递；BOM 为 `error_prone_annotations` 补充「收敛锚点」注释（gRPC 传递链 scope 收敛，实测不可删）；`AGENTS.md` 更新不可变实现口径（基线不引入 Lombok）。
 - `CodeEnumTypeHandler`：构造期预建 code 索引（避免逐行线性扫描），并增加数值类型漂移容错（JDBC 返回 Long/BigDecimal 与 Integer code 数值等价时按 code 命中，未知值仍 fail-fast）。
 - `spring-boot.version` 单一维护点收敛至根 POM（bom 经父链继承，不再自持）。

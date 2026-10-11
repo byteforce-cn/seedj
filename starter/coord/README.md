@@ -17,13 +17,14 @@
 
 | 项 | 值 | 说明 |
 | --- | --- | --- |
-| SDK | `cn.byteforce:coord-java-sdk:0.2.0` | 由 `bom` 统一管理 |
+| SDK | `cn.byteforce:coord-java-sdk:0.3.0` | 由 `bom` 统一管理 |
 | 平台 | Spring Boot 4.1.1 | 由 `bom` 统一管理 |
 | Java | 21 | 与 SDK 一致 |
 
 > ⚠️ **传递依赖版本被平台 BOM 提升**：SDK 自测组合为 gRPC 1.68.0 / protobuf-java 4.28.0，
 > 但在 seedj BOM（导入 Boot BOM）下实际解析为 **gRPC 1.83.1 / protobuf-java 4.35.1**
-> （`mvn -pl starter/coord dependency:tree` 实证）。方向受 protobuf 支持（runtime 新于
+> （`mvn -pl starter/coord dependency:tree` 实证）。该组合已在 SDK 0.3.0 的官方测试范围内
+> （SDK README「Also tested」列），方向受 protobuf 支持（runtime 新于
 > gencode）；当前单元测试在该组合下通过。如后续遇到疑似版本相关异常，可在应用侧
 > `dependencyManagement` 钉回 SDK 测试版本，并回报 coord 上游。
 ## 家族模块（coord-starter 一族）
@@ -197,7 +198,7 @@ mvn -pl starter/coord -am verify
 # 只跑集成套件（需要本机 Docker + coord 镜像）
 mvn -pl starter/coord-it -am verify -Pit
 
-# 覆盖镜像（默认 ghcr.io/byteforce-cn/coord:v0.2.0）
+# 覆盖镜像（默认 ghcr.io/byteforce-cn/coord:v0.3.0）
 mvn -pl starter/coord-it -am verify -Pit -Dcoord.it.image=<image>
 ```
 
