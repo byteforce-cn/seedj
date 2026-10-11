@@ -44,4 +44,33 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <!--
+                仅本模块使用 @GenerateCodeEnum（本模块的 ResponseCode）；codegen 已从根 POM 的全局
+                annotationProcessorPaths 下放到此处。combine.self="override" 覆盖父 POM 的处理器路径，
+                避免根全局声明让无 codegen 依赖的模块（如 common/core）在干净仓库 / 并行构建中解析快照失败。
+                codegen 为本模块 provided 依赖，reactor 顺序保证先于本模块构建。
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <annotationProcessorPaths combine.self="override">
+                        <path>
+                            <groupId>cn.byteforce.seedj</groupId>
+                            <artifactId>codegen</artifactId>
+                            <version>${revision}</version>
+                        </path>
+                        <path>
+                            <groupId>org.springframework.boot</groupId>
+                            <artifactId>spring-boot-configuration-processor</artifactId>
+                            <version>${spring-boot.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>

@@ -99,11 +99,12 @@
                         <release>${java.version}</release>
                         <parameters>true</parameters>
                         <annotationProcessorPaths>
-                            <path>
-                                <groupId>cn.byteforce.seedj</groupId>
-                                <artifactId>codegen</artifactId>
-                                <version>${revision}</version>
-                            </path>
+                            <!--
+                                仅保留 Spring Boot 配置元数据处理器（全仓通用）。
+                                seedj:codegen 处理器仅在 web-core 使用（其 ResponseCode），已下放到该模块的
+                                annotationProcessorPaths——全局声明会让无 codegen 依赖的模块（如 common/core）
+                                在干净仓库 / 并行构建中因快照不可解析而失败（CI 主门禁回归）。
+                            -->
                             <path>
                                 <groupId>org.springframework.boot</groupId>
                                 <artifactId>spring-boot-configuration-processor</artifactId>
