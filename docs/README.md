@@ -4,6 +4,7 @@
 | --- | --- |
 | [`ROADMAP.md`](./ROADMAP.md) | seedj v1 落地看板：里程碑、状态与剩余队列。 |
 | [`releasing.md`](./releasing.md) | 发布手册（Release Runbook）：发布模型、检查清单、投放/演练/回滚、CI 承接。 |
+| [`known-limitations.md`](./known-limitations.md) | 已知限制与安全边界（EIS 运行时、数据一致性、依赖版本、工具与测试边界）。 |
 | [`api-compatibility.md`](./api-compatibility.md) | API 兼容性政策与 japicmp 门禁（`-Pcompat`）执行口径、豁免流程。 |
 | [`SUPPORT.md`](./SUPPORT.md) | 支持政策：版本支持窗口、技术基线、支持渠道。 |
 | [`third-party-licenses.md`](./third-party-licenses.md) | 第三方依赖许可清单（随发布更新）。 |

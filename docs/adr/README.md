@@ -11,6 +11,7 @@
 | [ADR-0001](./0001-coord-starter-spring-cloud-replacement.md) | coord-starter 承接 Spring Cloud 替代的架构约束 | Accepted（已采纳） | 2026-10-07 |
 | [ADR-0002](./0002-error-response-contract.md) | 错误响应契约（统一错误体 / HTTP 状态 / 异常体系） | Accepted（已采纳） | 2026-10-07 |
 | [ADR-0003](./0003-json-serialization-contract.md) | JSON 序列化契约（CodeEnum code 映射 / Long 字符串化） | Accepted（已采纳） | 2026-10-07 |
+| [ADR-0004](./0004-eis-kernel-starters.md) | EIS 内核族（`starter-eis-*`）设计 | Accepted（已采纳） | 2026-10-10 |
 
 ## 约定
 

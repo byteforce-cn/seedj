@@ -12,7 +12,7 @@
 | 分支 / 标签 | 保护分支 `main`；发布打标签 `vX.Y.Z`（指向定稿提交） |
 | 制品仓库 | **POM 不写 `distributionManagement`**：投放目标由发布侧显式参数 + `settings.xml` 凭据决定（私服地址与账号由运维掌握，见 §3） |
 | 签名 | 可选：`-Psign`（GPG）；是否强制以组织安全口径为准（未启用时无 `.asc`，首次启用需在私服验证通过后补签历史基线说明） |
-| 发布物 | 15 个可消费模块 ×（主 jar + `-sources.jar` + `-javadoc.jar`）+ 各 pom（root / bom / 聚合）；`starter-coord-it` 集成套件模块双侧禁投（`maven.install.skip` / `maven.deploy.skip`） |
+| 发布物 | 19 个可消费模块 ×（主 jar + `-sources.jar` + `-javadoc.jar`）+ 各 pom（共 23 个：root / bom / `common` 聚合 / `starter` 聚合 + 19 模块 pom）；`starter-coord-it`、`starter-eis-it` 集成套件模块双侧禁投（`maven.install.skip` / `maven.deploy.skip`） |
 | SBOM | `-Psbom` 产出 `target/seedj-sbom.json`（CycloneDX），随发布记录归档 |
 | 兼容门禁 | 发版前对上一基线跑 `-Pcompat`（japicmp，二进制破坏阻断），见 `api-compatibility.md` |
 | 审批 | CI：受保护环境（人工审批）后由流水线执行 deploy；本地：发布执行人手工执行 |
@@ -28,6 +28,7 @@
       （首个正式版本 1.0.0 无上一基线，跳过）
 - [ ] 全量本地验证：`./mvnw -B -T1C verify`
 - [ ] 集成套件：`./mvnw -B -pl starter/coord-it -am verify -Pit`（需本机 Docker + coord 镜像）
+- [ ] EIS 集成套件：`./mvnw -B -pl starter/eis-it -am verify -Pit`（需本机 Docker + `postgres:16-alpine` 镜像）
 - [ ] 发布演练（§4，file 仓库 dry-run）通过
 
 ## 2. 制品构建
@@ -68,7 +69,7 @@
 
 1. 建立 `maven-releases` / `maven-snapshots` 仓库；release 仓库建议**禁止覆盖**、启用校验和策略；
 2. `~/.m2/settings.xml` 配置对应 `<server>` 凭据；CI 场景以加密 Secret 注入（见 §6）；
-3. 首次投放后核对：15 个模块均含 主 jar / sources / javadoc + 各 pom，`bom` 可被独立导入解析。
+3. 首次投放后核对：19 个模块均含 主 jar / sources / javadoc + 各 pom，`bom` 可被独立导入解析。
 
 ## 4. 发布演练与验证（file 仓库 dry-run）
 
@@ -78,8 +79,9 @@
 ./mvnw -B -Prelease -DskipTests deploy \
   -DaltDeploymentRepository='seedj-dryrun::default::file:///tmp/seedj-release-dryrun/repo'
 
-# 校验：jar 数（15 模块 × 主/sources/javadoc = 45）、pom、校验和
+# 校验：jar 数（19 模块 × 主/sources/javadoc = 57）、pom（23）、校验和
 find /tmp/seedj-release-dryrun/repo -name '*.jar' | wc -l
+find /tmp/seedj-release-dryrun/repo -name '*.pom' | wc -l
 find /tmp/seedj-release-dryrun/repo -name '*.sha1' | wc -l
 ```
 

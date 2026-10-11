@@ -7,11 +7,11 @@
 
 ### Added
 
-- `starter-eis-core`（新模块）：EIS 核心运行时——命令受理（幂等键指纹 / 授权钩子 / 规则链 / 事件 / 审计 / 封口 同一 PostgreSQL 事务）、双时间轴对象存储（半开区间、封口相接、行锁串行）、outbox 与 SPIs（`EisRule`/`EisCommandHandler`/`EisAuthorizer`/`EisNotifyHook`/`EisAuditAppender`/`EisOutboxDispatcher`）、`POST/GET /commands` 契约端点与 `META-INF/eis/ddl/eis-core.ddl` 运行时物化。
+- `starter-eis-core`（新模块）：EIS 核心运行时——命令受理（幂等键指纹 / 授权钩子 / 规则链 / 事件 / 审计 / 封口 同一 PostgreSQL 事务）、双时间轴对象存储（半开区间、封口相接、行锁串行）、outbox 与 SPIs（`EisRule`/`EisCommandHandler`/`EisAuthorizer`/`EisNotifyHook`/`EisAuditAppender`/`EisOutboxDispatcher`）、`POST/GET /commands` 契约端点与 `META-INF/eis/ddl/eis-core.ddl` 运行时物化。**授权缺省 fail-closed**：容器无 `EisAuthorizer` Bean 且未显式 `byteforce.eis.core.allow-all-authorizer=true` 时应用启动失败。
 - `starter-eis-audit`（新模块）：EIS 审计哈希链——九元规范化（冻结向量 `447c6e29…7410` 逐位一致）、锚行串行分配（不依赖 BIGSERIAL 缺省分配）、四类错误验证器（对齐 `verify.tool`）、锚定 SPI（文件/日志）与 `/admin/audit/*` 管理端点、`eis-audit.ddl`。
 - `starter-eis-temporal`（新模块）：EIS 时点查询端点族（`/objects`、`/time-travel`），半开区间语义与敏感列读投影剔除。
 - `starter-eis-authz`（新模块）：EIS 授权解析——`/resolve` `/check` 引擎（代理展开、SoD warn/prevent、`reason_code`）、远程客户端与进程内 TTL 缓存（唯一判定权威，不接入 coord Policy）。
-- `starter-eis-it`（新测试套件模块）：Testcontainers PG16 集成验证（双时间轴边界 / 审计链并发 / 命令闭环，统 18 例）；不引入 H2。
+- `starter-eis-it`（新测试套件模块）：Testcontainers PG16 集成验证（双时间轴边界 / 审计链并发 / 命令闭环，统 21 例）；不引入 H2。
 - BOM：登记 `starter-eis-core/audit/temporal/authz`（`starter-eis-it` 为测试套件模块不入 BOM）。
 - 文档：`docs/adr/0004-eis-kernel-starters.md`（EIS 内核族设计）。
 
@@ -62,6 +62,10 @@
   `META-INF/spring-configuration-metadata.json`（含描述与默认值）。
 - **测试 flake**：`CoordConfigRefreshManagerTest.startSubscribesEachPrefixAndMergesSnapshot`
   等待 rebind 计数后直接断言事件列表，与事件发布存在时序竞争；改为等待事件本身（8 连跑稳定）。
+- **测试 flake**：`CoordAutoRegistrationTest` 等待 `isRegistered()` 可能在监听器回调前返回
+  （生产先落地注册句柄、再通知监听器）；改为等待监听器收到注册通知。
+- **静态分析（SpotBugs）**：`EisCommandRuntime` 构造期 fail-fast 校验触发 `CT_CONSTRUCTOR_THROW`；
+  `final` 化消除 Finalizer 攻击面（应用经覆盖 Bean 定制，不依赖继承）。
 - **静态分析试点发现（SpotBugs）**：`CoordRateLimitInterceptor` 双重调用 `getThis()` 的 NPE
   面（单次捕获修复）；`CustomUserDetails` 权限集合与 `PageResult` 记录集防御性不可变化。
 - **Javadoc**：declared-member `no comment` 104→0（含 codegen 类/注解、coord 家族配置类访问器等）；

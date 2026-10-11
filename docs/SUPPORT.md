@@ -1,6 +1,6 @@
 # seedj 支持政策（Support Policy）
 
-> 面向组织内部的基础类库（非对外开源 SLA）；口径随 v1 首发（1.0.0）生效。
+> 面向 seedj 使用者的支持窗口说明（随 v1 首发（1.0.0）生效；不含商业 SLA）。
 
 ## 版本支持
 
@@ -26,6 +26,6 @@
 ## 获取支持
 
 - 缺陷 / 需求：仓库 Issues（或组织内工单，按团队渠道）；
-- **安全漏洞**：勿开公开 Issue；走内部安全渠道直接联系维护者；
+- **安全漏洞**：勿开公开 Issue；按 [`SECURITY.md`](../SECURITY.md) 走 GitHub 私密安全公告或联系维护者安排私密渠道；
 - 变更感知：[`../CHANGELOG.md`](../CHANGELOG.md)（Keep a Changelog + SemVer）、
   [`assessment/`](./assessment/README.md)（评估快照）、[`ROADMAP.md`](./ROADMAP.md)（里程碑）。

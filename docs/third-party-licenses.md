@@ -3,6 +3,12 @@
 > 生成命令：`./mvnw -B org.codehaus.mojo:license-maven-plugin:2.7.1:aggregate-add-third-party -Dlicense.excludedScopes=test`
 > 生成日期：2026-10-07（seedj 1.0.0-SNAPSHOT 全仓聚合；test 作用域除外，插件无法识别的个别测试件不影响消费面）
 > 说明：列表含 seedj 自身模块（cn.byteforce.seedj:*，本项目产物，Apache-2.0）；随依赖升级更新本文件。
+>
+> 注（2026-10-11）：本文件为 2026-10-07 的生成快照，尚未随 EIS 内核族落地重新执行（本仓库 `pom.xml`
+> 未配置 license 报告插件，需手动跑上述命令）。EIS 新增模块（`starter-eis-core/audit/temporal/authz`）
+> **未引入任何新的第三方 runtime 依赖**——仅复用既有 Spring Boot 4.1 / `spring-jdbc` / Jackson 3 /
+> `spring-security-core`（均已在下方列表中）；集成套件 `starter-eis-it` 使用的 Testcontainers 与
+> PostgreSQL JDBC 驱动均为 **test 作用域**，不在本清单（`-Dlicense.excludedScopes=test`）范围内。
 
 ```text
 

@@ -12,7 +12,8 @@
 | M3 | 安全接入：JWT 资源服务 v1（401/403 统一输出、身份 claim 闭环） | ✅ 2026-10-07 | 重写 `starter-resource`；授权服务 v1（`starter-authorization`）承接 Boot 原生协议面 |
 | M4 | 数据访问基线：实体基类（审计/逻辑删除/多租户）、分页、TypeHandler | ✅ 2026-10-07 | `data-core` 落代码；`starter-data-mybatis` 插件与填充器 |
 | M5 | 工程治理：BOM 补全、JaCoCo 硬门禁、空 jar 处置、文档体系 | ✅ 2026-10-07 | 门禁修复（点分 include 真空 + 零测试守卫）；`starter-coord-it` 不发布 |
-| M6 | 发布演练：`1.0.0` 首个正式版本 | 🟡 就绪 | 发布基建全量落地（LICENSE/发布手册/CI 三档/wrapper/compat/SBOM/SpotBugs；file 仓库 dry-run 实测通过）；剩余动作：运维接入私服 → Release dry-run → deploy → tag（见 [releasing.md](./releasing.md)） |
+| E1 | EIS 内核族：命令运行时 / 审计哈希链 / 时点查询 / 授权解析 + 集成套件 | ✅ 2026-10-10 | 新增 `starter-eis-core/audit/temporal/authz/it`；ADR-0004；授权缺省 **fail-closed**（`allow-all-authorizer` opt-in） |
+| M6 | 发布演练：`1.0.0` 首个正式版本 | 🟡 就绪 | 发布基建全量落地（LICENSE/发布手册/CI 三档/wrapper/compat/SBOM/SpotBugs；file 仓库 dry-run 实测通过，19 模块 × 3 = 57 jar / 23 pom）；剩余动作：运维接入私服 → Release dry-run → deploy → tag（见 [releasing.md](./releasing.md)） |
 
 ## 剩余队列（按需启动）
 
@@ -39,7 +40,14 @@
   `starter-coord-it` 零泄漏）；私服接入按 settings.xml + `altDeploymentRepository` 口径（POM 无 distributionManagement）；
 - **配置元数据**：根 POM processor path 修复，全量含属性模块产出 `spring-configuration-metadata.json`；
 - **测试 flake**：`CoordConfigRefreshManagerTest` 时序竞争修复（8 连跑稳定）；
-- **静态分析**：SpotBugs（Medium）接入 CI 主门禁，排除策略 `config/spotbugs-exclude.xml`（全仓 0 发现）。
+- **静态分析**：SpotBugs（Medium）接入 CI 主门禁，排除策略 `config/spotbugs-exclude.xml`（全仓 0 发现；排除面仅 `EI_EXPOSE_REP*` 与既有 `CT_CONSTRUCTOR_THROW` 登记项，逐条注释原因）。
+
+### EIS 内核落地轮（2026-10-10）
+
+- **新增模块族**：`starter-eis-core`（命令受理 / 双时间轴对象存储 / outbox）、`starter-eis-audit`（审计哈希链）、
+  `starter-eis-temporal`（时点查询）、`starter-eis-authz`（判定引擎 / 远程客户端）与集成套件 `starter-eis-it`（Testcontainers PG16，21 例）；
+- **安全默认值**：`EisAuthorizer` 缺省 **fail-closed**——无 Bean 且未显式 `allow-all-authorizer=true` 时应用启动失败；
+- **文档**：[ADR-0004](./adr/0004-eis-kernel-starters.md)（EIS 内核族设计）与 [known-limitations.md](./known-limitations.md)（使用者边界）。
 
 ### 开源前置清理轮（2026-10-07）
 
@@ -61,3 +69,5 @@
 | 2026-10-07 | 初稿：M1–M5 关闭、M6 待排期、剩余队列登记 |
 | 2026-10-07 | 生产化落地轮：发布工程全量落地（LICENSE/发布手册/CI/mvnw/compat/SBOM/SpotBugs/配置元数据/flake/Javadoc）；M6 置「就绪」；剩余队列重排（关闭项移入「本轮关闭」） |
 | 2026-10-07 | 开源前置清理轮：依赖卫生 / 模块更名 starter-json / 406+413 映射 / OSS 治理文件与 README 重写 |
+| 2026-10-10 | EIS 内核落地轮：新增 `starter-eis-*` 族（core/audit/temporal/authz/it）；ADR-0004；授权缺省 fail-closed |
+| 2026-10-11 | 开源发布整改轮：修复测试竞态与 SpotBugs 失败；M6 dry-run 计数对齐（57 jar / 23 pom）；新增 [known-limitations.md](./known-limitations.md)；SpotBugs 排除面口径注明 |

@@ -128,7 +128,7 @@ public class Order extends LogicDeletedEntity {
 | `byteforce.security.resource` | starter-resource | `enabled`；`permit-paths`（默认放行 `/error`、健康检查）；`claims.*`（默认 `userId`/`tenantId`/`preferred_username`/`authorities`） |
 | `byteforce.security.authorization` | starter-authorization | `enabled`；`issuer`；`claims.*`（与资源侧对齐） |
 | `byteforce.mybatis` | starter-data-mybatis | `enabled`；`audit.*`；`pagination.*`（max-limit 默认 500）；`tenant.*`（默认关闭，开启后 fail-closed）；`code-enum.base-packages` |
-| `byteforce.eis.core` | starter-eis-core | `enabled`；对象类型与处理器/规则/授权钩子经 Bean/SPI 注册 |
+| `byteforce.eis.core` | starter-eis-core | `enabled`；对象类型与处理器/规则经 Bean/SPI 注册；授权缺省 fail-closed（无 `EisAuthorizer` Bean 即启动失败），`allow-all-authorizer`（默认 false）仅在受控环境显式开启全放行 |
 | `byteforce.eis.audit` | starter-eis-audit | `enabled`；`anchor-file`（为空=日志锚定） |
 
 JWT 解码器沿用 Spring Boot 原生配置：`spring.security.oauth2.resourceserver.jwt.*`。
@@ -153,9 +153,10 @@ JWT 解码器沿用 Spring Boot 原生配置：`spring.security.oauth2.resources
 | 文档 | 内容 |
 | --- | --- |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | v1 落地看板（里程碑与剩余队列） |
-| [docs/adr/](docs/adr/README.md) | 架构决策记录（ADR-0001 coord / ADR-0002 错误契约 / ADR-0003 序列化契约） |
+| [docs/adr/](docs/adr/README.md) | 架构决策记录（ADR-0001 coord / ADR-0002 错误契约 / ADR-0003 序列化契约 / ADR-0004 EIS 内核族） |
 | [docs/releasing.md](docs/releasing.md) | 发布手册（含 file 仓库 dry-run 演练） |
 | [docs/api-compatibility.md](docs/api-compatibility.md) | API 兼容性政策与 japicmp 门禁 |
+| [docs/known-limitations.md](docs/known-limitations.md) | 已知限制与安全边界（EIS 授权/端点、数据一致性、依赖版本、工具门禁） |
 | [docs/assessment/](docs/assessment/README.md) | 阶段性评估快照 |
 | 各模块 `README.md` | 模块级用法、配置与边界 |
 
