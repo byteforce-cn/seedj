@@ -5,11 +5,11 @@
 | 状态 | Accepted（已采纳；2026-10-07 落地轮，决策与实现同批） |
 | 日期 | 2026-10-07 |
 | 决策人 | （待填写） |
-| 关联 | [`starter/core`](../../starter/core/)（Jackson 定制与自动配置）；[`common/core`](../../common/core/)（`CodeEnum`）；评估报告 §3.2；[ADR-0002](./0002-error-response-contract.md)（错误体与 traceId） |
+| 关联 | [`starter/json`](../../starter/json/)（Jackson 定制与自动配置，原 `starter-core`）；[`common/core`](../../common/core/)（`CodeEnum`）；评估报告 §3.2；[ADR-0002](./0002-error-response-contract.md)（错误体与 traceId） |
 
 ## 背景与问题
 
-1. **现状（评估实证，2026-10-07）**：`starter-core` Jackson 定制链三段全断——未注册（不会自动生效）、注册即抛
+1. **现状（评估实证，2026-10-07）**：`starter-json`（时名 `starter-core`）Jackson 定制链三段全断——未注册（不会自动生效）、注册即抛
    （Jackson 3 注册 API 差异）、反序列化静默失效；更严重的是**数字输入默认按 `ordinal` 解析**：
    实测 `{"c":1}` → ordinal=1 的枚举，与 `CodeEnum.code` 语义相悖，属静默数据错误（P0）。
 2. **约束**：`CodeEnum`（code ↔ 枚举）是 codegen、Jackson、MyBatis 三处共用的全仓契约；
@@ -36,7 +36,7 @@
 - 序列化器继承 `StdSerializer<CodeEnum<?>>` 后经 `addSerializer(INSTANCE)` 类型安全注册；
 - 反序列化经 `ValueDeserializerModifier#modifyEnumDeserializer` 按**具体枚举类型**接管
   （按接口键 `addDeserializer(CodeEnum.class, …)` 不级联，实测静默失效）；
-- 定制经 `META-INF/spring/…AutoConfiguration.imports` 自动注册，引入 `starter-core` 即生效，无需手工 `@Import`。
+- 定制经 `META-INF/spring/…AutoConfiguration.imports` 自动注册，引入 `starter-json` 即生效，无需手工 `@Import`。
 
 ### D4 Long → String：默认开启
 
@@ -82,11 +82,12 @@
 
 - [评估报告 §3.2](../assessment/2026-10-07-business-starter-gap-assessment.md)
 - [ADR-0002：错误响应契约](./0002-error-response-contract.md)
-- 实现：[`SeedjJacksonAutoConfiguration`](../../starter/core/src/main/java/cn/byteforce/seedj/starter/core/SeedjJacksonAutoConfiguration.java)、
-  [`CodeEnumDeserializerModifier`](../../starter/core/src/main/java/cn/byteforce/seedj/starter/core/jackson/CodeEnumDeserializerModifier.java)
+- 实现：[`SeedjJacksonAutoConfiguration`](../../starter/json/src/main/java/cn/byteforce/seedj/starter/json/SeedjJacksonAutoConfiguration.java)、
+  [`CodeEnumDeserializerModifier`](../../starter/json/src/main/java/cn/byteforce/seedj/starter/json/jackson/CodeEnumDeserializerModifier.java)
 
 ## 修订记录
 
 | 日期 | 修订 |
 | --- | --- |
 | 2026-10-07 | 初稿：CodeEnum 严格 code 语义 / ordinal 防护 / Long 字符串化默认与开关 / 注册机制（与实现同批落地） |
+| 2026-10-07 | 开源前置清理：模块更名 `starter-core` → `starter-json`（坐标与引用同步） |

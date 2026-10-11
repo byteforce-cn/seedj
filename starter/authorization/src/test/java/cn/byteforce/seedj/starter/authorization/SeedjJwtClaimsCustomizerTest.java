@@ -9,6 +9,7 @@ import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.server.authorization.token.JwtEncodingContext;
 
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -52,6 +53,44 @@ class SeedjJwtClaimsCustomizerTest {
         Map<String, Object> claims = customizer.claimsFor(authentication);
 
         assertThat(claims).containsOnlyKeys("preferred_username");
+    }
+
+    @Test
+    void extractsAuthoritiesClaimFromCustomUserDetails() {
+        Authentication authentication = authentication(new CustomUserDetails(
+                42L, "alice", "pwd", null, null, 7L, null,
+                AuthorityUtils.createAuthorityList("identity:manage", "hr:manage")));
+
+        Map<String, Object> claims = customizer.claimsFor(authentication);
+
+        assertThat(claims)
+                .containsEntry("authorities", List.of("identity:manage", "hr:manage"))
+                .containsEntry("userId", 42L);
+    }
+
+    @Test
+    void authoritiesClaimIsAbsentWhenPrincipalHasNoAuthorities() {
+        Authentication authentication = authentication(new CustomUserDetails(
+                42L, "alice", "pwd", null, null, 7L, null,
+                AuthorityUtils.NO_AUTHORITIES));
+
+        assertThat(customizer.claimsFor(authentication)).doesNotContainKey("authorities");
+    }
+
+    @Test
+    void authoritiesClaimNameIsConfigurable() {
+        AuthorizationServerProperties properties = new AuthorizationServerProperties();
+        properties.getClaims().setAuthorities("perms");
+        SeedjJwtClaimsCustomizer configurable = new SeedjJwtClaimsCustomizer(properties);
+        Authentication authentication = authentication(new CustomUserDetails(
+                42L, "alice", "pwd", null, null, 7L, null,
+                AuthorityUtils.createAuthorityList("identity:manage")));
+
+        Map<String, Object> claims = configurable.claimsFor(authentication);
+
+        assertThat(claims)
+                .containsEntry("perms", List.of("identity:manage"))
+                .doesNotContainKey("authorities");
     }
 
     @Test

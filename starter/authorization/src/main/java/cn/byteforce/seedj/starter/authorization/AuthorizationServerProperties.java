@@ -102,6 +102,12 @@ public class AuthorizationServerProperties {
         private String username = "preferred_username";
 
         /**
+         * 自定义权限 claim 名称（字符串数组，取自 {@code CustomUserDetails} 的权限集合；
+         * 与 starter-resource 的解析配置对齐）。留空则不注入。
+         */
+        private String authorities = "authorities";
+
+        /**
          * 返回用户 ID claim 名称。
          *
          * @return claim 名称
@@ -153,6 +159,24 @@ public class AuthorizationServerProperties {
          */
         public void setUsername(String username) {
             this.username = username;
+        }
+
+        /**
+         * 返回自定义权限 claim 名称。
+         *
+         * @return claim 名称
+         */
+        public String getAuthorities() {
+            return authorities;
+        }
+
+        /**
+         * 设置自定义权限 claim 名称。
+         *
+         * @param authorities claim 名称
+         */
+        public void setAuthorities(String authorities) {
+            this.authorities = authorities;
         }
     }
 }

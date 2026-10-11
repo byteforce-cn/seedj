@@ -77,7 +77,7 @@ class RequestContextFiltersTest {
             mockMvc.perform(get("/ctx").header("X-Trace-Id", "id-trace"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.traceId").value("id-trace"))
-                    // Long 全局字符串化（starter-core 契约）→ 身份 ID 输出为字符串
+                    // Long 全局字符串化（starter-json 契约）→ 身份 ID 输出为字符串
                     .andExpect(jsonPath("$.userId").value("42"))
                     .andExpect(jsonPath("$.tenantId").value("7"))
                     .andExpect(jsonPath("$.username").value("alice"));

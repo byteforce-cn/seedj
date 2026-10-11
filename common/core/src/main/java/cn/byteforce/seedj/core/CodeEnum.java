@@ -6,7 +6,7 @@ package cn.byteforce.seedj.core;
  * <p>全仓的 code 契约由三处消费：</p>
  * <ul>
  *   <li>codegen（{@code @GenerateCodeEnum}）生成静态工厂与索引；</li>
- *   <li>starter-core 的 Jackson 定制：序列化输出 {@code code}、反序列化按 {@code code} 命中；</li>
+ *   <li>starter-json 的 Jackson 定制：序列化输出 {@code code}、反序列化按 {@code code} 命中；</li>
  *   <li>starter-data-mybatis 的 TypeHandler：数据库按 {@code code} 读写。</li>
  * </ul>
  *

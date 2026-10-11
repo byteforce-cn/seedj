@@ -17,7 +17,7 @@
     <description>Byteforce 横切能力 Starter 聚合</description>
 
     <modules>
-        <module>core</module>
+        <module>json</module>
         <module>web</module>
         <module>resource</module>
         <module>authorization</module>
@@ -28,6 +28,11 @@
         <module>coord-client</module>
         <module>coord-observability</module>
         <module>coord-it</module>
+        <module>eis-core</module>
+        <module>eis-audit</module>
+        <module>eis-temporal</module>
+        <module>eis-authz</module>
+        <module>eis-it</module>
     </modules>
     <dependencyManagement>
         <dependencies>

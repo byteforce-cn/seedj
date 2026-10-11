@@ -20,7 +20,7 @@ Web 契约载体模块：**统一返回体、错误码与身份贡献 SPI**。
 | `RequestContextContributor` | 身份贡献 SPI：安全模块实现，把用户/租户写入 `RequestContext`（由 starter-web 的身份过滤器调度） |
 
 错误体与 HTTP 状态映射见 [ADR-0002](../../docs/adr/0002-error-response-contract.md)；
-序列化行为（CodeEnum code 映射、Long 字符串化）由 `starter-core` 装配。
+序列化行为（CodeEnum code 映射、Long 字符串化）由 `starter-json` 装配。
 
 ## 示例
 

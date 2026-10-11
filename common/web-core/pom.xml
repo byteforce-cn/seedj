@@ -20,9 +20,11 @@
             <groupId>cn.byteforce.seedj</groupId>
             <artifactId>core</artifactId>
         </dependency>
+        <!-- 仅编译期注解（@GenerateCodeEnum 为 SOURCE retention）：provided 不传递污染下游 -->
         <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-web</artifactId>
+            <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>codegen</artifactId>
+            <scope>provided</scope>
         </dependency>
 
         <!-- 测试：JSON 契约验证（Jackson 3，随 Boot 平台版本管理） -->

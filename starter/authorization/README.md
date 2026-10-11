@@ -18,7 +18,8 @@
 - 本模块只补充两件事：
   1. `byteforce.security.authorization.issuer` 非空时注册缺省 `AuthorizationServerSettings`（可被应用覆盖）；
   2. `SeedjJwtClaimsCustomizer`：认证主体为 `CustomUserDetails` 时把 `userId` / `tenantId` /
-     `username`（claim 名可配）注入访问令牌——与 `starter-resource` 的解析配置对齐形成闭环。
+     `username` / `authorities`（claim 名可配）注入访问令牌——与 `starter-resource` 的解析配置
+     对齐形成闭环（权限串取自主体的权限集合，`starter-resource` 的默认链直接消费）。
 
 ## 应用需要提供
 
@@ -33,7 +34,7 @@
 | --- | --- | --- |
 | `byteforce.security.authorization.enabled` | `true` | 缺省装配开关 |
 | `issuer` | — | 授权服务器 issuer；设置后注册缺省 settings |
-| `claims.user-id` / `tenant-id` / `username` | `userId` / `tenantId` / `preferred_username` | 令牌身份 claim 名称 |
+| `claims.user-id` / `tenant-id` / `username` / `authorities` | `userId` / `tenantId` / `preferred_username` / `authorities` | 令牌身份 claim 名称（权限串取自主体的权限集合；留空则不注入） |
 
 ## 验证（冒烟实证）
 

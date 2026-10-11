@@ -24,6 +24,7 @@ JWT 资源服务 Starter：**默认安全链 + 401/403 统一输出 + JWT 身份
 | --- | --- |
 | 默认安全链 | 无状态会话、CSRF 关闭、`permit-paths` 放行、其余请求需认证 |
 | 401 / 403 | 统一 `ApiResponse` 错误体（含 traceId）；401 保留 `WWW-Authenticate: Bearer`；方法级 `@PreAuthorize` 拒绝同样映射 |
+| 权限映射 | 缺省 `scope/scp` → `SCOPE_*`；另消费 `claims.authorities` 自定义权限 claim（与 scope 权限合并，可由 `seedjJwtAuthenticationConverter` Bean 覆盖） |
 | 身份上下文 | JWT claim（`userId`/`tenantId`/`preferred_username`，可配）写入 `RequestContext`，供业务与数据层（多租户/审计）使用 |
 
 ## 配置

@@ -59,6 +59,15 @@ class CodeEnumTypeHandlerTest {
     }
 
     @Test
+    void numericTypeDriftMatchesByValue() throws Exception {
+        ResultSet rs = mock(ResultSet.class);
+        // JDBC 驱动把 INT 列返回为 Long：与 Integer code 数值等价，应按 code 命中
+        when(rs.getObject(1)).thenReturn(1L);
+
+        assertThat(handler.getNullableResult(rs, 1)).isEqualTo(ScanState.ON);
+    }
+
+    @Test
     void readsEnumFromCallableStatement() throws Exception {
         CallableStatement cs = mock(CallableStatement.class);
         when(cs.getObject(1)).thenReturn(2);

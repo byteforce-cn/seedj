@@ -16,7 +16,7 @@ Web 运行时 Starter：**全局异常处理（统一错误响应契约）与请
 
 | 能力 | 说明 |
 | --- | --- |
-| 全局异常处理 | `BaseException`（业务 200 / 依赖 503）、校验 400、404/405/415、兜底 500；错误体统一 `ApiResponse{code,message,data:null,traceId}` |
+| 全局异常处理 | `BaseException`（业务 200 / 依赖 503）、校验 400、404/405/406/413/415、兜底 500；错误体统一 `ApiResponse{code,message,data:null,traceId}` |
 | 校验基线 | 引入 `spring-boot-starter-validation`；`@Valid` body / 方法级校验 / jakarta 约束违例统一 400 |
 | traceId | 请求头（默认 `X-Trace-Id`）进入或生成；`RequestContext` + MDC + 响应头回写；非法值清洗、限长 64 |
 | 身份上下文 | 安全链后调度 `RequestContextContributor`（如 starter-resource 的 JWT 解析），MDC 同步；贡献器异常隔离 |

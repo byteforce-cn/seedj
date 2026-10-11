@@ -119,6 +119,8 @@ public class CoordConfigRefreshManager implements SmartLifecycle {
             log.info("未发现 coord: 配置导入（spring.config.import=coord:<prefix>），运行期刷新未启用");
             return;
         }
+        log.info("coord 配置导入运行期刷新已启用：prefixes={}",
+                sources.stream().flatMap(source -> source.prefixes().stream()).toList());
         for (CoordPropertySource source : sources) {
             for (String prefix : source.prefixes()) {
                 subscribe(source, prefix, 0);

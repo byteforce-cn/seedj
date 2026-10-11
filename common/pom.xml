@@ -21,12 +21,6 @@
         <module>web-core</module>
         <module>data-core</module>
     </modules>
-    <dependencies>
-        <dependency>
-            <groupId>cn.byteforce.seedj</groupId>
-            <artifactId>codegen</artifactId>
-        </dependency>
-    </dependencies>
     <dependencyManagement>
         <dependencies>
             <dependency>

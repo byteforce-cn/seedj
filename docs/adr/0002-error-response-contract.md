@@ -43,6 +43,8 @@
 | 已认证无权限 | **403** | 10003 FORBIDDEN |
 | 资源不存在 | **404** | 10004 NOT_FOUND |
 | 请求方法不支持 | **405** | 10005 METHOD_NOT_ALLOWED |
+| Accept 协商失败 | **406** | 10010 NOT_ACCEPTABLE |
+| 请求体过大（上传超限） | **413** | 10011 PAYLOAD_TOO_LARGE |
 | 媒体类型不支持 | **415** | 10009 UNSUPPORTED_MEDIA_TYPE |
 | 依赖服务不可用（`RemoteException` 默认） | **503** | 20001 SERVICE_UNAVAILABLE |
 | 未预期异常（兜底） | **500** | 20000 INTERNAL_SERVER_ERROR |
@@ -118,3 +120,4 @@
 | 日期 | 修订 |
 | --- | --- |
 | 2026-10-07 | 初稿：错误体 / HTTP 映射 / 异常体系 / traceId / 边界与备选（与实现同批落地） |
+| 2026-10-07 | 开源前置清理：补 406/413 映射（NOT_ACCEPTABLE 10010 / PAYLOAD_TOO_LARGE 10011） |

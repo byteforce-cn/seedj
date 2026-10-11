@@ -25,8 +25,8 @@
 
 **技术基线**：JDK 21 + Maven。  
 **明确禁止使用 `record`**（包括 `record` 声明、`record` 模式解构），即使 JDK 21 原生支持。
-DTO / VO / 配置类 / 不可变值对象一律使用 `final class` + Lombok `@Value` / `@Builder`
-或手写不可变实现。
+DTO / VO / 配置类 / 不可变值对象一律使用 `final class` + 手写不可变实现（final 字段 + 显式 getter/构造器；
+仓库基线**不引入 Lombok**，如需引入需先评审并同步构建配置）。
 
 ---
 
@@ -67,7 +67,7 @@ DTO / VO / 配置类 / 不可变值对象一律使用 `final class` + Lombok `@V
 - **命名**：遵循 JDK 约定；工具类用 `XxxUtils`，常量类 `XxxConstants`，异常 `XxxException`。
 - **不可变优先**：
   - 工具类应 `final` + 私有构造；
-  - DTO / VO / 值对象优先 `final` 字段，使用 Lombok `@Value` / `@Builder` 或手写 getter；
+  - DTO / VO / 值对象优先 `final` 字段 + 手写 getter（仓库基线不引入 Lombok）；
   - **禁止使用 `record`**，包括但不限于：
     - `public record Xxx(...) {}`
     - `record` 模式解构，如 `if (o instanceof Point(int x, int y))`
@@ -132,7 +132,7 @@ DTO / VO / 配置类 / 不可变值对象一律使用 `final class` + Lombok `@V
 - **不确定就停**：涉及 public API 签名、依赖版本、构建插件、发布流程时，先询问，不要擅自决定。
 - **不生成新工具类**，除非确认仓库中不存在等价能力（先 `grep` / 搜索）。
 - **不得引入 `record`**：
-  - 生成 DTO / VO / 配置 / 不可变类时，使用 `final class` + Lombok `@Value` / `@Builder` 或手写 getter；
+  - 生成 DTO / VO / 配置 / 不可变类时，使用 `final class` + 手写 getter；
   - 如模板、示例、生成代码中出现 `record`，必须改写；
   - 不得使用 `record` 解构模式。
 - **不修改**：`LICENSE`、CI 配置（`.github/`、`.gitlab-ci.yml`、`Jenkinsfile`）、

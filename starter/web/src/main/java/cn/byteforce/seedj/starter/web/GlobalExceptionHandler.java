@@ -14,6 +14,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BindException;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
@@ -32,7 +34,7 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
  *   <li>{@link BaseException}：status/code/message 取异常自身（业务失败默认 HTTP 200）；</li>
  *   <li>参数校验失败（body/表单/方法级）→ 400 + {@code BAD_REQUEST}；</li>
  *   <li>请求体不可读、参数缺失、类型不匹配 → 400 + {@code BAD_REQUEST}；</li>
- *   <li>资源不存在 → 404；方法不支持 → 405；媒体类型不支持 → 415；</li>
+ *   <li>资源不存在 → 404；方法不支持 → 405；Accept 协商失败 → 406；上传超限 → 413；媒体类型不支持 → 415；</li>
  *   <li>未预期异常 → 500 + {@code INTERNAL_SERVER_ERROR}（消息不泄露内部细节，堆栈进日志）。</li>
  * </ul>
  *
@@ -185,6 +187,37 @@ public class GlobalExceptionHandler {
         log.warn("请求媒体类型不支持: {}", ex.getContentType());
         return error(415, ResponseCode.UNSUPPORTED_MEDIA_TYPE.getCode(),
                 ResponseCode.UNSUPPORTED_MEDIA_TYPE.getMessage());
+    }
+
+    /**
+     * 处理 Accept 协商失败（无可产出的媒体类型）。
+     *
+     * @param ex 媒体类型不可接受异常
+     * @return 406（显式 JSON content-type，避免错误体写出时二次协商失败）
+     */
+    @ExceptionHandler(HttpMediaTypeNotAcceptableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMediaTypeNotAcceptableException(
+            HttpMediaTypeNotAcceptableException ex) {
+        log.warn("请求的媒体类型不可接受: {}", ex.getSupportedMediaTypes());
+        ApiResponse<Void> body = ApiResponse.error(ResponseCode.NOT_ACCEPTABLE.getCode(),
+                ResponseCode.NOT_ACCEPTABLE.getMessage(), RequestContext.traceId().orElse(null));
+        return ResponseEntity.status(406)
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .body(body);
+    }
+
+    /**
+     * 处理上传大小超限。
+     *
+     * @param ex 上传超限异常
+     * @return 413
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMaxUploadSizeExceededException(
+            MaxUploadSizeExceededException ex) {
+        log.warn("上传大小超出限制: {}", ex.getMessage());
+        return error(413, ResponseCode.PAYLOAD_TOO_LARGE.getCode(),
+                ResponseCode.PAYLOAD_TOO_LARGE.getMessage());
     }
 
     /**

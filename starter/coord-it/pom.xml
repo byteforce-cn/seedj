@@ -69,7 +69,7 @@
         <!-- 自动注册 IT 需要真实 web 容器（WebServerInitializedEvent 端口获取） -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
+            <artifactId>spring-boot-starter-webmvc</artifactId>
             <scope>test</scope>
         </dependency>
         <!-- 观测桥 IT：SimpleMeterRegistry（micrometer-core 在上线模块中为 optional，

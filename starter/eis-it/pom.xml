@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>cn.byteforce.seedj</groupId>
+        <artifactId>starter-root</artifactId>
+        <version>${revision}</version>
+    </parent>
+
+    <artifactId>starter-eis-it</artifactId>
+    <packaging>jar</packaging>
+
+    <name>Byteforce :: EIS Integration Tests</name>
+    <description>EIS 集成套件（Testcontainers PG16 真实环境）：EIS 内核族的端到端验证——
+        双时间轴边界、审计链并发串行、命令受理闭环（eis/docs/LANDING-IAM.md §5.2⑤；
+        不引入 H2：排他约束/部分索引/append-only 规则等 PG 特性不可模拟）</description>
+
+    <properties>
+        <!-- 测试套件模块：不产出可消费构件（空 jar），禁止 install / deploy -->
+        <maven.install.skip>true</maven.install.skip>
+        <maven.deploy.skip>true</maven.deploy.skip>
+        <!-- 集成套件不产出可消费构件：API 兼容门禁（-Pcompat）豁免 -->
+        <seedj.compat.skip>true</seedj.compat.skip>
+    </properties>
+
+    <dependencies>
+        <!-- 被测模块族 -->
+        <dependency>
+            <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>starter-eis-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>starter-eis-audit</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>starter-eis-temporal</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Testcontainers（PostgreSQL 模块；Testcontainers 2.x 坐标含 testcontainers- 前缀） -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!--
+                本模块只承载集成套件：默认 `mvn verify` 不跑任何用例（无单测）；
+                `mvn verify -Pit` 只跑 *IntegrationTest（Testcontainers 真实 PG16）。
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>**/*IntegrationTest.java</exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <!--
+            `-Pit`：跑全部集成套件（Testcontainers PG16 单容器）。
+            前置条件：本机 Docker 可用 + postgres 镜像可拉取（默认 postgres:16-alpine，
+            可用 -Deis.it.postgres.image=<image> 覆盖）。
+            镜像/容器不可用时硬失败、不静默跳过——集成验证必须产生真实证据。
+        -->
+        <profile>
+            <id>it</id>
+            <properties>
+                <jacoco.skip>true</jacoco.skip>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <excludes combine.self="override"/>
+                            <includes>
+                                <include>**/*IntegrationTest.java</include>
+                            </includes>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>

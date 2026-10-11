@@ -19,8 +19,9 @@
         <!-- spring-boot.version 由根 POM 统一定义（随父链继承解析，单一维护点） -->
         <coord-java-sdk.version>0.2.0</coord-java-sdk.version>
         <mybatis-plus.version>3.5.17</mybatis-plus.version>
-        <error-prone.version>2.50.0</error-prone.version>
         <compile-testing.version>0.23.0</compile-testing.version>
+        <!-- 收敛锚点版本（见下方 dependencyManagement 中的 error_prone_annotations 注释） -->
+        <error-prone.version>2.50.0</error-prone.version>
 
     </properties>
 
@@ -68,7 +69,7 @@
 
             <dependency>
                 <groupId>cn.byteforce.seedj</groupId>
-                <artifactId>starter-core</artifactId>
+                <artifactId>starter-json</artifactId>
                 <version>${revision}</version>
             </dependency>
 
@@ -126,14 +127,33 @@
                 <version>${revision}</version>
             </dependency>
 
-            <!-- starter-coord-it 为测试套件模块（不产出可消费构件），不进入 BOM -->
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>starter-eis-core</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>starter-eis-audit</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>starter-eis-temporal</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>starter-eis-authz</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <!-- starter-eis-it / starter-coord-it 为测试套件模块（不产出可消费构件），不进入 BOM -->
 
             <!-- 第三方构件 -->
-            <dependency>
-                <groupId>org.projectlombok</groupId>
-                <artifactId>lombok</artifactId>
-                <version>${lombok.version}</version>
-            </dependency>
 
             <dependency>
                 <groupId>cn.byteforce</groupId>
@@ -165,6 +185,12 @@
                 <version>${mybatis-plus.version}</version>
             </dependency>
 
+            <!--
+                收敛锚点（非直接依赖；零源码引用不等于可删）：coord-java-sdk 的 gRPC 传递链
+                （grpc-netty-shaded / grpc-stub）以 compile / runtime 两种 scope 引入本坐标，
+                dependencyConvergence 会判失败。此处统一版本与 scope，保证 starter-coord 门禁通过。
+                实测：2026-10-07 移除即 `starter-coord` enforcer 失败。
+            -->
             <dependency>
                 <groupId>com.google.errorprone</groupId>
                 <artifactId>error_prone_annotations</artifactId>

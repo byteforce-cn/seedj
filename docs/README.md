@@ -9,3 +9,4 @@
 | [`third-party-licenses.md`](./third-party-licenses.md) | 第三方依赖许可清单（随发布更新）。 |
 | [`adr/`](./adr/README.md) | 架构决策记录（ADR）。**所有 ADR 在 `docs/adr` 下统一编号与追踪**，索引与约定见 [`adr/README.md`](./adr/README.md)。 |
 | [`assessment/`](./assessment/README.md) | 阶段性评估报告（现状盘点 / 缺口分析 / 风险清单）。**评估为时间点快照**，结论变化时新增报告；索引见 [`assessment/README.md`](./assessment/README.md)。 |
+| 仓库根文件 | [`CONTRIBUTING.md`](../CONTRIBUTING.md)（贡献指南）、[`CODE_OF_CONDUCT.md`](../CODE_OF_CONDUCT.md)（行为准则）、[`SECURITY.md`](../SECURITY.md)（安全政策）、[`CHANGELOG.md`](../CHANGELOG.md)（变更记录）。 |

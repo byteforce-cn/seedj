@@ -41,6 +41,14 @@
 - **测试 flake**：`CoordConfigRefreshManagerTest` 时序竞争修复（8 连跑稳定）；
 - **静态分析**：SpotBugs（Medium）接入 CI 主门禁，排除策略 `config/spotbugs-exclude.xml`（全仓 0 发现）。
 
+### 开源前置清理轮（2026-10-07）
+
+- **依赖卫生**：`codegen` 收敛为 `web-core` provided；移除 `spring-web` / `spring-data-commons` 零引用编译依赖与 Lombok 无用配置；BOM `error_prone_annotations` 补充收敛锚点注释（实测不可删）。
+- **模块更名**：`starter-core` → `starter-json`（包 / 目录 / 坐标 / 文档同步）。
+- **错误矩阵补全**：406 / 413 映射（`NOT_ACCEPTABLE` / `PAYLOAD_TOO_LARGE`）。
+- **`CodeEnumTypeHandler`**：预建索引 + 数值漂移容错。
+- **开源治理**：README 重写；CONTRIBUTING / CODE_OF_CONDUCT / SECURITY / Issue 与 PR 模板落地。
+
 ## 口径
 
 - 项目统一口径 **seedj**（groupId `cn.byteforce.seedj`）；历史文档中的“seed”引用仅指代工作目录 `jlib/seed`。
@@ -52,3 +60,4 @@
 | --- | --- |
 | 2026-10-07 | 初稿：M1–M5 关闭、M6 待排期、剩余队列登记 |
 | 2026-10-07 | 生产化落地轮：发布工程全量落地（LICENSE/发布手册/CI/mvnw/compat/SBOM/SpotBugs/配置元数据/flake/Javadoc）；M6 置「就绪」；剩余队列重排（关闭项移入「本轮关闭」） |
+| 2026-10-07 | 开源前置清理轮：依赖卫生 / 模块更名 starter-json / 406+413 映射 / OSS 治理文件与 README 重写 |

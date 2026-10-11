@@ -137,6 +137,22 @@ class WebErrorHandlingTest {
     }
 
     @Test
+    void notAcceptableMapsTo406() throws Exception {
+        mockMvc.perform(get("/ok").accept(MediaType.APPLICATION_XML))
+                .andExpect(status().isNotAcceptable())
+                .andExpect(jsonPath("$.code").value(10010))
+                .andExpect(jsonPath("$.message").value("响应媒体类型不可接受"));
+    }
+
+    @Test
+    void uploadLimitMapsTo413() throws Exception {
+        mockMvc.perform(get("/oversize"))
+                .andExpect(status().isPayloadTooLarge())
+                .andExpect(jsonPath("$.code").value(10011))
+                .andExpect(jsonPath("$.message").value("请求体过大"));
+    }
+
+    @Test
     void serviceConstraintViolationMapsTo400() throws Exception {
         mockMvc.perform(get("/svc"))
                 .andExpect(status().isBadRequest())

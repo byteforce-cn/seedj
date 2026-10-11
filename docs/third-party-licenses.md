@@ -19,7 +19,7 @@ Lists of 124 third-party dependencies.
      (Apache License, Version 2.0) Byteforce :: Coord Config (cn.byteforce.seedj:starter-coord-config:1.0.0-SNAPSHOT - https://github.com/byteforce-cn/seedj/starter-root/starter-coord-config)
      (Apache License, Version 2.0) Byteforce :: Coord Observability (cn.byteforce.seedj:starter-coord-observability:1.0.0-SNAPSHOT - https://github.com/byteforce-cn/seedj/starter-root/starter-coord-observability)
      (Apache License, Version 2.0) Byteforce :: Coord Registry (cn.byteforce.seedj:starter-coord-registry:1.0.0-SNAPSHOT - https://github.com/byteforce-cn/seedj/starter-root/starter-coord-registry)
-     (Apache License, Version 2.0) Byteforce :: Starter Core (cn.byteforce.seedj:starter-core:1.0.0-SNAPSHOT - https://github.com/byteforce-cn/seedj/starter-root/starter-core)
+     (Apache License, Version 2.0) Byteforce :: Starter JSON (cn.byteforce.seedj:starter-json:1.0.0-SNAPSHOT - https://github.com/byteforce-cn/seedj/starter-root/starter-json)
      (Apache License, Version 2.0) Byteforce :: Starter Web (cn.byteforce.seedj:starter-web:1.0.0-SNAPSHOT - https://github.com/byteforce-cn/seedj/starter-root/starter-web)
      (Apache License, Version 2.0) Byteforce :: Web Core (cn.byteforce.seedj:web-core:1.0.0-SNAPSHOT - https://github.com/byteforce-cn/seedj/common-root/web-core)
      (Apache License, Version 2.0) mybatis-plus (com.baomidou:mybatis-plus:3.5.17 - https://github.com/baomidou/mybatis-plus)

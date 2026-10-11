@@ -40,6 +40,12 @@ public enum ResponseCode implements CodeEnum<Integer> {
     /** 请求媒体类型不支持 */
     UNSUPPORTED_MEDIA_TYPE(10009, "请求媒体类型不支持"),
 
+    /** 响应媒体类型不可接受（Accept 协商失败） */
+    NOT_ACCEPTABLE(10010, "响应媒体类型不可接受"),
+
+    /** 请求体过大（如上传超限） */
+    PAYLOAD_TOO_LARGE(10011, "请求体过大"),
+
     /** 请求过于频繁 */
     TOO_MANY_REQUESTS(10006, "请求过于频繁，请稍后重试"),
 

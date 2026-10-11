@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -143,5 +144,15 @@ public class TestEndpoints {
         result.put("tenantId", RequestContext.tenantId().orElse(null));
         result.put("username", RequestContext.username().orElse(null));
         return result;
+    }
+
+    /**
+     * 上传超限端点（等价于容器抛出 {@code MaxUploadSizeExceededException} 的映射路径）。
+     *
+     * @return 永不返回（抛上传超限异常）
+     */
+    @GetMapping("/oversize")
+    public ApiResponse<Void> oversize() {
+        throw new MaxUploadSizeExceededException(1024L);
     }
 }

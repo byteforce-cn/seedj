@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 文档与路线图
+    url: https://github.com/byteforce-cn/seedj/blob/main/docs/ROADMAP.md
+    about: 提交 Issue 前，先看看 ROADMAP 与 docs/ 下的文档
+  - name: 安全漏洞（私密报告）
+    url: https://github.com/byteforce-cn/seedj/security/policy
+    about: 请勿公开披露安全漏洞，按安全政策私密报告

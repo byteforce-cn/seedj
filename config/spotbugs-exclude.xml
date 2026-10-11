@@ -41,7 +41,7 @@
     </Match>
     <Match>
         <Bug pattern="CT_CONSTRUCTOR_THROW"/>
-        <Class name="cn.byteforce.seedj.starter.core.jackson.CodeEnumDeserializer"/>
+        <Class name="cn.byteforce.seedj.starter.json.jackson.CodeEnumDeserializer"/>
     </Match>
     <Match>
         <Bug pattern="CT_CONSTRUCTOR_THROW"/>

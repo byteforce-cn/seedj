@@ -7,6 +7,16 @@
 
 ### Added
 
+- `starter-eis-core`（新模块）：EIS 核心运行时——命令受理（幂等键指纹 / 授权钩子 / 规则链 / 事件 / 审计 / 封口 同一 PostgreSQL 事务）、双时间轴对象存储（半开区间、封口相接、行锁串行）、outbox 与 SPIs（`EisRule`/`EisCommandHandler`/`EisAuthorizer`/`EisNotifyHook`/`EisAuditAppender`/`EisOutboxDispatcher`）、`POST/GET /commands` 契约端点与 `META-INF/eis/ddl/eis-core.ddl` 运行时物化。
+- `starter-eis-audit`（新模块）：EIS 审计哈希链——九元规范化（冻结向量 `447c6e29…7410` 逐位一致）、锚行串行分配（不依赖 BIGSERIAL 缺省分配）、四类错误验证器（对齐 `verify.tool`）、锚定 SPI（文件/日志）与 `/admin/audit/*` 管理端点、`eis-audit.ddl`。
+- `starter-eis-temporal`（新模块）：EIS 时点查询端点族（`/objects`、`/time-travel`），半开区间语义与敏感列读投影剔除。
+- `starter-eis-authz`（新模块）：EIS 授权解析——`/resolve` `/check` 引擎（代理展开、SoD warn/prevent、`reason_code`）、远程客户端与进程内 TTL 缓存（唯一判定权威，不接入 coord Policy）。
+- `starter-eis-it`（新测试套件模块）：Testcontainers PG16 集成验证（双时间轴边界 / 审计链并发 / 命令闭环，统 18 例）；不引入 H2。
+- BOM：登记 `starter-eis-core/audit/temporal/authz`（`starter-eis-it` 为测试套件模块不入 BOM）。
+- 文档：`docs/adr/0004-eis-kernel-starters.md`（EIS 内核族设计）。
+
+- 开源治理文件：`CONTRIBUTING.md`（贡献指南）、`CODE_OF_CONDUCT.md`（行为准则）、`SECURITY.md`（安全政策）、GitHub Issue 表单（Bug / Feature）与 Pull Request 模板；`README.md` 重写为开源风格。
+- `ResponseCode` 新增 `NOT_ACCEPTABLE(10010)` / `PAYLOAD_TOO_LARGE(10011)`；`starter-web` 错误矩阵补 **406**（Accept 协商失败）/ **413**（上传超限）映射（含 MockMvc 契约用例）。
 - 生产化发布工程（1.0.0 发布前）：`LICENSE`（Apache-2.0 全文）/`NOTICE`（并入各制品 `META-INF`）、
   发布手册 `docs/releasing.md`、API 兼容性政策 `docs/api-compatibility.md`、支持政策 `docs/SUPPORT.md`、
   第三方许可清单 `docs/third-party-licenses.md`、`.gitattributes`（统一 LF）。
@@ -38,6 +48,14 @@
 
 ### Fixed
 
+- **业务应用被迫重复装配安全链（「已声明未生效」）**：`starter-resource` 的 `claims.authorities`
+  声明了自定义权限 claim 却未被默认链消费，`starter-authorization` 的 `@ConditionalOnMissingBean(OAuth2TokenCustomizer)`
+  又会在应用注册任何令牌定制器时整体退让，导致下游应用只能重写安全链/手动组合定制器。现修复为：
+  - `SeedjJwtClaimsCustomizer` 增加 `claims.authorities`（默认 `authorities`）——主体为 `CustomUserDetails`
+    时把权限集合注入访问令牌；
+  - `starter-resource` 默认链接入 `SeedjJwtAuthenticationConverter`（`seedjJwtAuthenticationConverter` Bean
+    同名可覆盖）：缺省 `scope/scp` 映射之外消费 `claims.authorities` 并合并；
+  - 默认链回归「开箱即用」：应用无需重写安全链即可用 `hasAuthority(...)` 断言组织权限。
 - **配置元数据全量缺失（「已声明未生效」）**：根因 = 显式 `annotationProcessorPaths` 取代
   classpath 探测，10 个模块声明的 `spring-boot-configuration-processor` 从未执行；现将 processor
   加入根 POM processor path，含 `@ConfigurationProperties` 的模块产出
@@ -61,6 +79,8 @@
 
 ### Changed
 
+- **开源前置清理**：模块更名 `starter-core` → `starter-json`（包名 `cn.byteforce.seedj.starter.json`、目录 `starter/json`、坐标与全部引用同步）；`codegen` 收敛为仅 `common/web-core` 编译期 provided 使用，不再随全部 common 模块传递；BOM 为 `error_prone_annotations` 补充「收敛锚点」注释（gRPC 传递链 scope 收敛，实测不可删）；`AGENTS.md` 更新不可变实现口径（基线不引入 Lombok）。
+- `CodeEnumTypeHandler`：构造期预建 code 索引（避免逐行线性扫描），并增加数值类型漂移容错（JDBC 返回 Long/BigDecimal 与 Integer code 数值等价时按 code 命中，未知值仍 fail-fast）。
 - `spring-boot.version` 单一维护点收敛至根 POM（bom 经父链继承，不再自持）。
 - `AGENTS.md` 基线同步：构建统一 `./mvnw`；集成测试机制描述修正（`*IntegrationTest` + surefire
   `-Pit`，非 Failsafe/*IT）；§5 增补发布/兼容政策指针。
@@ -73,6 +93,7 @@
 
 ### Removed
 
+- 无用依赖与死配置（2026-10-07 评估后清理）：`common/web-core` 的 `spring-web`、`common/data-core` 的 `spring-data-commons`（均为零引用的编译依赖）；全仓零使用的 Lombok 工具链配置（根 POM `annotationProcessorPaths` 与 BOM 条目）。
 - `starter-core` 旧 `JacksonConfig`（由 `SeedjJacksonAutoConfiguration` 取代，功能为修复而非兼容保留；
   本版本尚未发布，无下游影响）。
 - BOM 移除 `starter-coord-it`（测试套件模块，不产出可消费构件；模块内已设置

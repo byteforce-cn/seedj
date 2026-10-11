@@ -1,0 +1,66 @@
+name: Bug 报告
+description: 报告缺陷以帮助我们改进
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈！请先检索现有 Issues，避免重复。
+        ⚠️ 安全漏洞请勿使用本表单，按 [SECURITY.md](https://github.com/byteforce-cn/seedj/blob/main/SECURITY.md) 私密报告。
+  - type: input
+    id: version
+    attributes:
+      label: seedj 版本
+      description: 受影响的版本（如 1.0.0）
+      placeholder: 1.0.0
+    validations:
+      required: true
+  - type: dropdown
+    id: module
+    attributes:
+      label: 影响模块
+      options:
+        - common/core
+        - common/web-core
+        - common/security-core
+        - common/data-core
+        - starter-json
+        - starter-web
+        - starter-resource
+        - starter-authorization
+        - starter-data-mybatis
+        - starter-coord 家族
+        - codegen / bom / 其他
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 现象描述
+      description: 实际行为与期望行为的差异
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 最小复现
+      description: 复现代码 / 配置 / 请求，越精简越好
+      render: java
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: 运行环境
+      description: JDK / Spring Boot / 数据库 / 其他中间件版本
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: 相关日志或堆栈
+      description: 请去除敏感信息后粘贴
+      render: text
+    validations:
+      required: false

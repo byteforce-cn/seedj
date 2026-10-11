@@ -20,10 +20,6 @@
             <groupId>cn.byteforce.seedj</groupId>
             <artifactId>core</artifactId>
         </dependency>
-        <dependency>
-            <groupId>org.springframework.data</groupId>
-            <artifactId>spring-data-commons</artifactId>
-        </dependency>
         <!-- 仅注解（@TableId/@TableField/@TableLogic 等），运行时由 MyBatis-Plus 提供 -->
         <dependency>
             <groupId>com.baomidou</groupId>

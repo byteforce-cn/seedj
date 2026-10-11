@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -59,7 +60,7 @@ class ResourceServerAutoConfigurationTest {
                         .header("X-Trace-Id", "sec-trace-2"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.traceId").value("sec-trace-2"))
-                // Long 全局字符串化（starter-core 契约）
+                // Long 全局字符串化（starter-json 契约）
                 .andExpect(jsonPath("$.userId").value("42"))
                 .andExpect(jsonPath("$.tenantId").value("7"))
                 .andExpect(jsonPath("$.username").value("alice"));
@@ -80,6 +81,21 @@ class ResourceServerAutoConfigurationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0))
                 .andExpect(jsonPath("$.data").value("admin-ok"));
+    }
+
+    @Test
+    void authoritiesClaimIsConsumedByDefaultChain() throws Exception {
+        mockMvc.perform(get("/admin").header(HttpHeaders.AUTHORIZATION, "Bearer authorities-claim"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data").value("admin-ok"));
+    }
+
+    @Test
+    void bearerTokenWithoutAuthoritiesClaimIsForbidden() throws Exception {
+        mockMvc.perform(get("/admin").header(HttpHeaders.AUTHORIZATION, "Bearer plain-token"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value(10003));
     }
 
     @Test

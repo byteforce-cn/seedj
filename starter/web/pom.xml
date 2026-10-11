@@ -21,10 +21,10 @@
             <groupId>cn.byteforce.seedj</groupId>
             <artifactId>web-core</artifactId>
         </dependency>
-        <!-- JSON 契约（CodeEnum code 映射 / Long 字符串化）由 starter-core 保证 -->
+        <!-- JSON 契约（CodeEnum code 映射 / Long 字符串化）由 starter-json 保证 -->
         <dependency>
             <groupId>cn.byteforce.seedj</groupId>
-            <artifactId>starter-core</artifactId>
+            <artifactId>starter-json</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
