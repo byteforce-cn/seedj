@@ -28,7 +28,7 @@ EIS 写路径与对象存储的通用实现：命令受理闭环（幂等 → �
 | `EisObjectType`（Bean） | 对象类型注册：逻辑名 ↔ 表名 + 领域列 + 敏感列 |
 | `EisCommandHandler` | 命令处理器：校验、对象读写、事件草稿、`storedPayload` 脱敏 |
 | `EisRule` | 规则链（Spring `@Order` 排序；抛 `EisCommandRejectedException` 拒绝） |
-| `EisAuthorizer` | 授权钩子（权限串 = 命令类型；**缺省放行——生产必须配置**，IMS 由 `starter-eis-authz` 提供） |
+| `EisAuthorizer` | 授权钩子（权限串 = 命令类型）。**缺省 fail-closed：应用必须注册 EisAuthorizer Bean**（可自行适配到 `starter-eis-authz` 的判定操作面）；仅在受控环境可显式 opt-in 全部放行 |
 | `EisAuditAppender` | 审计追加（必配；`starter-eis-audit` 提供哈希链实现） |
 | `EisNotifyHook` | 提交后失效/唤醒钩子（best-effort、fail-open；默认空操作） |
 | `EisOutboxDispatcher` | outbox 分发替换点（默认进程内；跨服务通道预留 coord MQ） |
@@ -49,6 +49,17 @@ EIS 写路径与对象存储的通用实现：命令受理闭环（幂等 → �
 | 键 | 默认 | 说明 |
 | --- | --- | --- |
 | `byteforce.eis.core.enabled` | `true` | 总开关 |
+| `byteforce.eis.core.allow-all-authorizer` | `false` | 仅当容器无 `EisAuthorizer` Bean 时生效：`true` = 使用内建全放行授权器（启动 WARN，禁止生产）；`false` = fail-closed，应用启动失败 |
+
+### 授权安全默认（fail-closed）
+
+命令受理链的第一道门是授权。本 starter 的缺省语义为 **fail-closed**：
+
+- 存在 `EisAuthorizer` Bean → 使用应用提供的决策器；
+- 无 Bean 且 `byteforce.eis.core.allow-all-authorizer=false`（默认）→ **应用启动失败**，
+  错误信息含属性名与配置示例；
+- 无 Bean 且 `byteforce.eis.core.allow-all-authorizer=true` → 使用内建全放行授权器，
+  启动打 `WARN`；**禁止用于生产**。
 
 ## 边界
 

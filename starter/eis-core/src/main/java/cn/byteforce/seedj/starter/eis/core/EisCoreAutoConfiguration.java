@@ -3,6 +3,8 @@ package cn.byteforce.seedj.starter.eis.core;
 import cn.byteforce.seedj.starter.eis.core.web.EisCommandController;
 import cn.byteforce.seedj.starter.eis.core.web.EisCommandExceptionHandler;
 import cn.byteforce.seedj.starter.eis.core.web.SecurityContextEisActorResolver;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -29,8 +31,10 @@ import java.util.UUID;
  *       {@link PlatformTransactionManager}；</li>
  *   <li><b>审计是必配能力</b>：容器必须存在 {@link EisAuditAppender} Bean
  *       （由 {@code starter-eis-audit} 提供），缺失时运行时不装配（fail-fast）；</li>
- *   <li>处理器 / 规则 / 授权钩子经 SPIs 收集（应用按域注册；授权钩子缺失 =
- *       全部放行——<b>生产必须配置</b>，见 README 安全边界）；</li>
+ *   <li>处理器 / 规则 / 授权钩子经 SPIs 收集（应用按域注册）；<b>授权缺省 fail-closed</b>：
+ *       缺少 {@link EisAuthorizer} Bean 时应用启动失败，仅当显式设置
+ *       {@code byteforce.eis.core.allow-all-authorizer=true} 时才使用内建放行授权器
+ *       （启动打 WARN，禁止生产使用）；</li>
  *   <li>端点仅 Servlet Web 环境注册；操作人解析在存在 Spring Security 时缺省接
  *       安全上下文；</li>
  *   <li>整体开关：{@code byteforce.eis.core.enabled=false}。</li>
@@ -45,6 +49,8 @@ import java.util.UUID;
         matchIfMissing = true)
 @EnableConfigurationProperties(EisCoreProperties.class)
 public class EisCoreAutoConfiguration {
+
+    private static final Logger log = LoggerFactory.getLogger(EisCoreAutoConfiguration.class);
 
     /**
      * EIS 时钟（系统时钟的单调包装；应用可覆盖为受控时钟）。
@@ -131,6 +137,22 @@ public class EisCoreAutoConfiguration {
     }
 
     /**
+     * 内建“全部放行”授权器（仅在显式 opt-in 时注册）。
+     *
+     * <p>安全边界：仅当容器不存在应用提供的 {@link EisAuthorizer} 且
+     * {@code byteforce.eis.core.allow-all-authorizer=true} 时装配；<b>禁止用于生产</b>。</p>
+     *
+     * @return 全部放行的授权器
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "byteforce.eis.core", name = "allow-all-authorizer", havingValue = "true")
+    public EisAuthorizer eisAllowAllAuthorizer() {
+        log.warn("EIS 授权已显式置为全部放行（byteforce.eis.core.allow-all-authorizer=true），仅限开发/演示，禁止生产使用");
+        return request -> EisAuthorizer.EisAuthorizationDecision.allowed();
+    }
+
+    /**
      * 命令运行时（写路径唯一入口）。
      *
      * @param clock              EIS 时钟
@@ -139,13 +161,14 @@ public class EisCoreAutoConfiguration {
      * @param commands           命令存储
      * @param events             事件存储
      * @param auditAppender      审计追加器（必配）
-     * @param authorizer         授权钩子（可空）
+     * @param authorizer         授权决策器（缺省 fail-closed：无 Bean 且未 opt-in 时启动失败）
      * @param handlers           命令处理器
      * @param rules              规则链
      * @param dispatcher         outbox 分发器
      * @param notifyHook         失效/唤醒钩子
      * @param transactionManager 事务管理器
      * @return 命令运行时
+     * @throws IllegalStateException 缺少 {@link EisAuthorizer} 且未显式开启全部放行时
      */
     @Bean
     @ConditionalOnMissingBean
@@ -157,8 +180,14 @@ public class EisCoreAutoConfiguration {
                                                ObjectProvider<EisRule> rules,
                                                EisOutboxDispatcher dispatcher, EisNotifyHook notifyHook,
                                                PlatformTransactionManager transactionManager) {
+        EisAuthorizer resolvedAuthorizer = authorizer.getIfAvailable();
+        if (resolvedAuthorizer == null) {
+            throw new IllegalStateException("缺少 EisAuthorizer Bean：EIS 授权缺省 fail-closed。"
+                    + "请注册 EisAuthorizer 实现（生产必须显式提供 EisAuthorizer）；"
+                    + "仅在开发/演示环境可显式设置 byteforce.eis.core.allow-all-authorizer=true 全部放行。");
+        }
         return new EisCommandRuntime(clock, registry, objects, commands, events, auditAppender,
-                authorizer.getIfAvailable(), handlers.orderedStream().toList(), rules.orderedStream().toList(),
+                resolvedAuthorizer, handlers.orderedStream().toList(), rules.orderedStream().toList(),
                 dispatcher, notifyHook, transactionManager);
     }
 

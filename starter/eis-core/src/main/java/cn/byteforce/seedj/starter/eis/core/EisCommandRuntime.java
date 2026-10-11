@@ -40,6 +40,11 @@ import java.util.regex.Pattern;
  * <p><b>提交后动作</b>：outbox 记录经 {@link EisOutboxDispatcher} 分发（默认进程内、
  * fail-open），完整事件再经 {@link EisNotifyHook} 通知（缓存失效/唤醒脉冲语义）。</p>
  *
+ * <p><b>授权缺省 fail-closed</b>：自动配置保证传入的 {@link EisAuthorizer} 为非空的有效决策器——
+ * 应用未注册授权器且未显式开启 {@code byteforce.eis.core.allow-all-authorizer} 时应用启动失败；
+ * 构造函数保留可空签名（{@code null} 等同全部放行）仅供内部与单元测试直接构造使用，
+ * 生产路径必须由自动配置完成上述 fail-closed 判定。</p>
+ *
  * @author ByteForce
  * @since 1.0.0
  */
@@ -84,7 +89,8 @@ public class EisCommandRuntime {
      * @param commands      命令存储
      * @param events        事件与 outbox 存储
      * @param audit         审计追加器（必配）
-     * @param authorizer    授权钩子（可空 = 全部放行，签名在应用侧，见 README）
+     * @param authorizer    授权决策器；{@code null} 等同全部放行（仅内部/测试直接构造时使用，
+     *                      生产路径由自动配置保证非空，见类注释）
      * @param handlerList   命令处理器集合
      * @param ruleList      规则集合（按注入顺序执行）
      * @param dispatcher    outbox 分发器
@@ -173,6 +179,7 @@ public class EisCommandRuntime {
         if (handler == null) {
             return reject(commandId, "EIS-400-001", "未知命令类型: " + request.getCommandType(), null);
         }
+        // authorizer 可空仅兼容内部/测试直接构造；自动配置路径已 fail-closed 保证非空
         if (authorizer != null) {
             EisAuthorizer.EisAuthorizationDecision decision = authorizer.check(
                     new EisAuthorizer.EisAuthorizationRequest(request.getActor(), request.getCommandType(), now));
