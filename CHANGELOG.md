@@ -7,6 +7,7 @@
 
 ### Added
 
+- `starter-eis-authz` 属性消费面（ADR-0004 / ATR-001..007）：`EisAuthzAttributeSource` 拉取 SPI、属性快照/岗位/条件模型（`primary_position.*` 主岗 vs `positions[*].*` 任一岗位，ATR-003）、`/check` 支持契约 `attributes`（调用方快照）与 `require_attribute` 声明并在响应回传 `attribute_state`；缺失/过期/属主不可达/条件不匹配一律 fail-closed（ATTRIBUTE_MISSING/STALE/SOURCE_UNAVAILABLE/MISMATCH），无条件调用的路径与响应与旧版逐字一致。
 - `starter-eis-core`（新模块）：EIS 核心运行时——命令受理（幂等键指纹 / 授权钩子 / 规则链 / 事件 / 审计 / 封口 同一 PostgreSQL 事务）、双时间轴对象存储（半开区间、封口相接、行锁串行）、outbox 与 SPIs（`EisRule`/`EisCommandHandler`/`EisAuthorizer`/`EisNotifyHook`/`EisAuditAppender`/`EisOutboxDispatcher`）、`POST/GET /commands` 契约端点与 `META-INF/eis/ddl/eis-core.ddl` 运行时物化。**授权缺省 fail-closed**：容器无 `EisAuthorizer` Bean 且未显式 `byteforce.eis.core.allow-all-authorizer=true` 时应用启动失败。
 - `starter-eis-audit`（新模块）：EIS 审计哈希链——九元规范化（冻结向量 `447c6e29…7410` 逐位一致）、锚行串行分配（不依赖 BIGSERIAL 缺省分配）、四类错误验证器（对齐 `verify.tool`）、锚定 SPI（文件/日志）与 `/admin/audit/*` 管理端点、`eis-audit.ddl`。
 - `starter-eis-temporal`（新模块）：EIS 时点查询端点族（`/objects`、`/time-travel`），半开区间语义与敏感列读投影剔除。

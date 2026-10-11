@@ -12,6 +12,7 @@
 | 场景 | 提供 | 结果 |
 | --- | --- | --- |
 | 权威服务（IMS） | `EisAuthzStore` Bean（读域表/镜像表） | `EisAuthzEngine`（`@Primary`）+ `/resolve` `/check` 端点 |
+| 权威服务（属性） | `EisAuthzAttributeSource` Bean（拉取人事域快照） | `/check` 属性条件求值（ADR-0004；未注入时条件 fail-closed） |
 | 消费方 | `byteforce.eis.authz.base-url` | `EisAuthzClient` + `EisAuthzCachingOperations`（`@Primary`，TTL 缓存）；配置服务凭据时自动携带 `Authorization: Bearer` |
 | 其他 | — | 无操作面；Web 环境引入本模块但两者皆缺将 fail-fast（未配置本能力） |
 
@@ -23,6 +24,27 @@
 - **SoD**：`prevent` → 拒绝（`reason_code=SOD-xxx`，作用域键相等或双方均缺省视为同域）；
   `warn` → 放行并在 `sod_warnings` / `warnings` 上报；
 - **原因码**：`ALLOWED` / `NO_PERMISSION` / `SOD-xxx`。
+
+## 属性条件（ADR-0004 / ATR-001..007）
+
+`/check` 支持属性条件（ABAC）：调用方可选传 `attributes`（已拉取快照，契约字段）；
+条件经 `require_attribute` 声明（seedj 加法字段）：
+
+```json
+{"principal":"away","permission":"purchase.request.approve","as_of":"...",
+ "require_attribute":[{"key":"primary_position.grade","values":["P5"]}]}
+```
+
+- 条件键：`employee_status` / `employment_type` / `primary_position.<field>`（主岗）/ `positions[*].<field>`
+  （任一岗位）——**显式区分语义域**，不静默择一（ATR-003）；`<field>` ∈ position_id / code /
+  title / grade / org_unit_id / org_unit_code；`values` 为集合语义（单值 = 等值）；
+- 拉取：未传 `attributes` 时由注入的 `EisAuthzAttributeSource` 按 `principal + as_of` 拉取
+  （ATR-002；建议实现调用 `attributes.api.yaml`）；
+- fail-closed（响应 `attribute_state` + `reason_code`）：无快照 `ATTRIBUTE_MISSING`、
+  过期 `ATTRIBUTE_STALE`、属主不可达/未注入 `ATTRIBUTE_SOURCE_UNAVAILABLE`、
+  条件不匹配 `ATTRIBUTE_MISMATCH`（只回传未满足的条件键，不回传属性值，ATR-007）；
+- 无属性条件的调用路径与响应与旧版逐字一致（`attribute_state` 不出现）；
+- 条件判定不经 TTL 缓存（缓存只服务角色/权限面）。
 
 ## 缓存语义（评估点 8）
 
@@ -59,6 +81,9 @@ fail-closed（`EisAuthzRemoteException`，不得静默降级为无认证调用�
 > 仅适用于内网直连或由基础设施（istio mTLS 等）提供传输与身份保障的部署；
 > 认证部署下必须配置上述凭据，否则每个命令都会在授权阶段被 401 拒绝。
 > 凭据仅配置一部分（如只有 `client-id`）时启动即 fail-fast，避免静默退化。
+
+> 属性快照的拉取（`EisAuthzAttributeSource`）同样服务于认证部署：实现方按
+> `attributes.api.yaml` 拉取时需按需携带服务凭据（可复用 `EisAuthzTokenProvider`）。
 
 ## 边界
 

@@ -450,8 +450,10 @@ public final class EisAuthzModels {
 
         private final List<String> warnings;
 
+        private final EisAuthzAttributeState attributeState;
+
         /**
-         * 构造判定结果。
+         * 构造判定结果（无属性状态）。
          *
          * @param allowed    是否允许
          * @param reason     人类可读理由
@@ -459,10 +461,25 @@ public final class EisAuthzModels {
          * @param warnings   warn 级 SoD 规则 ID 列表
          */
         public EisAuthzDecision(boolean allowed, String reason, String reasonCode, List<String> warnings) {
+            this(allowed, reason, reasonCode, warnings, null);
+        }
+
+        /**
+         * 构造判定结果（含属性快照状态）。
+         *
+         * @param allowed        是否允许
+         * @param reason         人类可读理由
+         * @param reasonCode     ALLOWED / NO_PERMISSION / SOD-xxx / ATTRIBUTE_*
+         * @param warnings       warn 级 SoD 规则 ID 列表
+         * @param attributeState 属性快照状态（可空 = 本次判定不涉及属性）
+         */
+        public EisAuthzDecision(boolean allowed, String reason, String reasonCode, List<String> warnings,
+                                EisAuthzAttributeState attributeState) {
             this.allowed = allowed;
             this.reason = reason;
             this.reasonCode = reasonCode;
             this.warnings = warnings == null ? List.of() : List.copyOf(warnings);
+            this.attributeState = attributeState;
         }
 
         /**
@@ -499,6 +516,16 @@ public final class EisAuthzModels {
          */
         public List<String> getWarnings() {
             return warnings;
+        }
+
+        /**
+         * 获取属性快照状态。
+         *
+         * @return fresh / stale / missing / source_unavailable / not_required；
+         *         本次判定不涉及属性为 {@code null}
+         */
+        public EisAuthzAttributeState getAttributeState() {
+            return attributeState;
         }
     }
 

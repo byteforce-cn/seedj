@@ -5,6 +5,7 @@ import cn.byteforce.seedj.starter.eis.authz.EisAuthzModels.EisAuthzResolution;
 import cn.byteforce.seedj.starter.eis.core.EisRequestException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.http.ResponseEntity;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -87,6 +88,86 @@ class EisAuthzControllerTest {
                         + "\"as_of\":\"2026-10-15T12:00:00Z\"}")).getBody();
 
         assertThat(body).containsEntry("allowed", false).containsEntry("reason_code", "SOD-001");
+    }
+
+    @Test
+    void checkWithRequireAttributePassesConditionsAndReturnsState() {
+        Instant asOf = Instant.parse("2026-10-15T12:00:00Z");
+        when(operations.check(eq("away"), eq("purchase.request.approve"), eq(asOf), any(), any(), any()))
+                .thenReturn(new EisAuthzDecision(true, "允许", "ALLOWED", List.of(),
+                        EisAuthzAttributeState.FRESH));
+
+        Map<String, Object> body = controller.check(MAPPER.readTree(
+                "{\"principal\":\"away\",\"permission\":\"purchase.request.approve\","
+                        + "\"as_of\":\"2026-10-15T12:00:00Z\","
+                        + "\"attributes\":{\"attribute_state\":\"fresh\",\"snapshot\":{"
+                        + "\"primary_position\":{\"position_id\":\"01900000-0000-7000-8000-0000000000b1\","
+                        + "\"code\":\"P-1\",\"title\":\"Engineer\",\"grade\":\"P5\","
+                        + "\"org_unit_id\":\"01900000-0000-7000-8000-0000000000c1\","
+                        + "\"org_unit_code\":\"D001\",\"is_primary\":true}}},"
+                        + "\"require_attribute\":[{\"key\":\"primary_position.grade\",\"values\":[\"P5\"]}]}"))
+                .getBody();
+
+        assertThat(body).containsEntry("attribute_state", "fresh");
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<EisAuthzAttributeCondition>> conditionsCaptor =
+                ArgumentCaptor.forClass(List.class);
+        ArgumentCaptor<EisAuthzAttributeSnapshot> snapshotCaptor =
+                ArgumentCaptor.forClass(EisAuthzAttributeSnapshot.class);
+        verify(operations).check(eq("away"), eq("purchase.request.approve"), eq(asOf), any(),
+                conditionsCaptor.capture(), snapshotCaptor.capture());
+        assertThat(conditionsCaptor.getValue()).hasSize(1);
+        assertThat(conditionsCaptor.getValue().get(0).getKey()).isEqualTo("primary_position.grade");
+        assertThat(snapshotCaptor.getValue().getState()).isEqualTo(EisAuthzAttributeState.FRESH);
+        assertThat(snapshotCaptor.getValue().getAttributes().getPrimaryPosition().getGrade()).isEqualTo("P5");
+    }
+
+    @Test
+    void checkWithoutAttributeFieldsUsesLegacyPathAndOmitsState() {
+        Instant asOf = Instant.parse("2026-10-15T12:00:00Z");
+        when(operations.check(any(), any(), any(), any()))
+                .thenReturn(new EisAuthzDecision(true, "允许", "ALLOWED", List.of()));
+
+        Map<String, Object> body = controller.check(MAPPER.readTree(
+                "{\"principal\":\"away\",\"permission\":\"p\",\"as_of\":\"2026-10-15T12:00:00Z\"}"))
+                .getBody();
+
+        assertThat(body).doesNotContainKey("attribute_state");
+        verify(operations).check("away", "p", asOf, null);
+    }
+
+    @Test
+    void invalidRequireAttributeIsRejected() {
+        assertThatThrownBy(() -> controller.check(MAPPER.readTree(
+                "{\"principal\":\"away\",\"permission\":\"p\",\"as_of\":\"2026-10-15T12:00:00Z\","
+                        + "\"require_attribute\":[{\"key\":\"no_such.attr\",\"values\":[\"x\"]}]}")))
+                .isInstanceOf(EisRequestException.class)
+                .satisfies(ex -> assertThat(((EisRequestException) ex).getCode()).isEqualTo("EIS-400-001"));
+        assertThatThrownBy(() -> controller.check(MAPPER.readTree(
+                "{\"principal\":\"away\",\"permission\":\"p\",\"as_of\":\"2026-10-15T12:00:00Z\","
+                        + "\"require_attribute\":[{\"key\":\"employee_status\"}]}")))
+                .isInstanceOf(EisRequestException.class);
+        assertThatThrownBy(() -> controller.check(MAPPER.readTree(
+                "{\"principal\":\"away\",\"permission\":\"p\",\"as_of\":\"2026-10-15T12:00:00Z\","
+                        + "\"attributes\":{\"attribute_state\":\"bogus\"}}")))
+                .isInstanceOf(EisRequestException.class);
+    }
+
+    @Test
+    void resolveEchoesProvidedAttributeState() {
+        Instant asOf = Instant.parse("2026-10-15T12:00:00Z");
+        when(operations.resolve(any(), any(), any(), any()))
+                .thenReturn(new EisAuthzResolution(PRINCIPAL, asOf, List.of(), List.of(), List.of()));
+
+        Map<String, Object> withAttributes = controller.resolve(MAPPER.readTree(
+                "{\"principal\":\"away\",\"as_of\":\"2026-10-15T12:00:00Z\","
+                        + "\"attributes\":{\"attribute_state\":\"fresh\","
+                        + "\"snapshot\":{\"employee_status\":\"active\"}}}")).getBody();
+        Map<String, Object> withoutAttributes = controller.resolve(MAPPER.readTree(
+                "{\"principal\":\"away\",\"as_of\":\"2026-10-15T12:00:00Z\"}")).getBody();
+
+        assertThat(withAttributes).containsEntry("attribute_state", "fresh");
+        assertThat(withoutAttributes).doesNotContainKey("attribute_state");
     }
 
     @Test

@@ -14,7 +14,9 @@ import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -23,6 +25,11 @@ import java.util.Map;
  *
  * <p>作为 IAM 服务的"授权解析权威"对外提供；网关与其他服务经 {@link EisAuthzClient}
  * （+ 进程内 TTL 缓存）调用。</p>
+ *
+ * <p>属性条件（ADR-0004，seedj 加法）：{@code /check} 接受契约可选字段 {@code attributes}
+ * （调用方已拉取的快照）与 seedj 扩展字段 {@code require_attribute}
+ * （形如 {@code [{"key":"primary_position.grade","values":["P5"]}]}）；求值结果以
+ * {@code attribute_state} 回传（新增字段，缺省不出现——无属性调用响应不变）。</p>
  *
  * @author ByteForce
  * @since 1.0.0
@@ -54,6 +61,7 @@ public class EisAuthzController {
         Instant asOf = parseTime(asOfText);
         Instant recordedAsOf = parseTime(optionalText(body, "recorded_as_of"));
         JsonNode scope = body.get("scope");
+        EisAuthzAttributeSnapshot provided = attributeContext(principal, asOf, recordedAsOf, body);
         EisAuthzResolution resolution = operations.resolve(principal, asOf, recordedAsOf, scope);
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("principal", resolution.getPrincipal());
@@ -61,14 +69,17 @@ public class EisAuthzController {
         response.put("roles", resolution.getRoles());
         response.put("permissions", resolution.getPermissions());
         response.put("sod_warnings", resolution.getSodWarnings());
+        if (provided != null && provided.getState() != null) {
+            response.put("attribute_state", provided.getState().getCode());
+        }
         return ResponseEntity.ok(response);
     }
 
     /**
-     * 检查权限。
+     * 检查权限（支持属性条件）。
      *
-     * @param body 请求体（principal / permission / as_of / recorded_as_of?）
-     * @return allowed + reason + reason_code（+ warnings）
+     * @param body 请求体（principal / permission / as_of / recorded_as_of? / attributes? / require_attribute?）
+     * @return allowed + reason + reason_code（+ warnings / attribute_state）
      */
     @PostMapping("/check")
     public ResponseEntity<Map<String, Object>> check(@RequestBody JsonNode body) {
@@ -77,13 +88,49 @@ public class EisAuthzController {
         String asOfText = requireText(body, "as_of");
         Instant asOf = parseTime(asOfText);
         Instant recordedAsOf = parseTime(optionalText(body, "recorded_as_of"));
-        EisAuthzDecision decision = operations.check(principal, permission, asOf, recordedAsOf);
+        EisAuthzAttributeSnapshot provided = attributeContext(principal, asOf, recordedAsOf, body);
+        List<EisAuthzAttributeCondition> conditions = conditions(body);
+        EisAuthzDecision decision = conditions.isEmpty() && provided == null
+                ? operations.check(principal, permission, asOf, recordedAsOf)
+                : operations.check(principal, permission, asOf, recordedAsOf, conditions, provided);
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("allowed", decision.isAllowed());
         response.put("reason", decision.getReason());
         response.put("reason_code", decision.getReasonCode());
         response.put("warnings", decision.getWarnings());
+        if (decision.getAttributeState() != null) {
+            response.put("attribute_state", decision.getAttributeState().getCode());
+        }
         return ResponseEntity.ok(response);
+    }
+
+    private static EisAuthzAttributeSnapshot attributeContext(String principal, Instant asOf,
+                                                              Instant recordedAsOf, JsonNode body) {
+        try {
+            return EisAuthzAttributeSnapshot.fromAttributeContext(principal, asOf, recordedAsOf,
+                    body == null ? null : body.get("attributes"));
+        } catch (IllegalArgumentException ex) {
+            throw EisRequestException.invalidPayload("attributes 非法: " + ex.getMessage());
+        }
+    }
+
+    private static List<EisAuthzAttributeCondition> conditions(JsonNode body) {
+        JsonNode node = body == null ? null : body.get("require_attribute");
+        if (node == null || node.isNull()) {
+            return List.of();
+        }
+        if (!node.isArray()) {
+            throw EisRequestException.invalidPayload("require_attribute 必须为数组");
+        }
+        List<EisAuthzAttributeCondition> conditions = new ArrayList<>();
+        for (JsonNode item : node) {
+            try {
+                conditions.add(EisAuthzAttributeCondition.fromJson(item));
+            } catch (IllegalArgumentException ex) {
+                throw EisRequestException.invalidPayload("require_attribute 非法: " + ex.getMessage());
+            }
+        }
+        return conditions;
     }
 
     private static String requireText(JsonNode body, String field) {
