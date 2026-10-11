@@ -1,7 +1,8 @@
-# coord 集成套件（Testcontainers 真实容器）：夜间 + 手动触发
-# 前置：ghcr.io/byteforce-cn/coord:v0.2.0 镜像可拉取；
-#      若镜像为私有仓库，需为仓库配置 GHCR 凭据并在此 job 增加 docker login 步骤。
-name: IT (coord 集成套件)
+# 集成套件（Testcontainers 真实容器）：夜间 + 手动触发
+# - coord-it：前置 ghcr.io/byteforce-cn/coord:v0.2.0 镜像可拉取；
+#             若镜像为私有仓库，需为仓库配置 GHCR 凭据并在此 job 增加 docker login 步骤。
+# - eis-it  ：前置 postgres:16-alpine 镜像可拉取（Docker Hub 公开镜像）。
+name: IT (集成套件)
 
 on:
   schedule:
@@ -40,4 +41,29 @@ jobs:
         with:
           name: coord-it-reports
           path: starter/coord-it/target/surefire-reports/
+          if-no-files-found: ignore
+
+  eis-it:
+    name: EIS 集成套件（Testcontainers PG16）
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: 集成套件（真实 PG16 容器；镜像不可用即硬失败）
+        run: ./mvnw -B -pl starter/eis-it -am verify -Pit
+
+      - name: 上传集成测试报告（失败时）
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eis-it-reports
+          path: starter/eis-it/target/surefire-reports/
           if-no-files-found: ignore
