@@ -24,7 +24,9 @@ import java.util.UUID;
  *   <li>{@code eis_command_event}：命令 → 事件关联（含顺序位），弥补契约表无
  *       command_id 关联；</li>
  *   <li>{@code eis_command_rejection}：拒绝错误码——契约表仅有 rejection_reason，
- *       而 {@code GET /commands/{id}} 需回传 {@code code}。</li>
+ *       而 {@code GET /commands/{id}} 需回传 {@code code}；</li>
+ *   <li>{@code eis_command_created}：受理结果的主对象指针（{@code created}）——
+ *       契约表无该列，而幂等重放/冲突比对/终端查询需回传首次结果的 {@code created}。</li>
  * </ul>
  *
  * @author ByteForce
@@ -99,11 +101,27 @@ public class EisCommandStore {
      * @param eventIds  事件 ID 列表
      */
     public void markAccepted(UUID commandId, List<UUID> eventIds) {
+        markAccepted(commandId, eventIds, null);
+    }
+
+    /**
+     * 标记命令已接受、登记事件关联（保序）并持久化主对象指针。
+     *
+     * @param commandId 命令 ID
+     * @param eventIds  事件 ID 列表
+     * @param created   主对象指针（可空；供幂等重放与终态查询回传）
+     */
+    public void markAccepted(UUID commandId, List<UUID> eventIds, EisObjectRef created) {
         jdbc.update("UPDATE command SET status = 'accepted' WHERE id = ?", commandId);
         int position = 0;
         for (UUID eventId : eventIds) {
             jdbc.update("INSERT INTO eis_command_event (command_id, event_id, position) VALUES (?, ?, ?)",
                     commandId, eventId, position++);
+        }
+        if (created != null) {
+            jdbc.update("INSERT INTO eis_command_created (command_id, object_type, object_id)"
+                            + " VALUES (?, ?, ?)",
+                    commandId, created.getObjectType(), created.getId());
         }
     }
 
@@ -131,7 +149,7 @@ public class EisCommandStore {
                 "SELECT id, type, issued_at, issuer, status, rejection_reason FROM command WHERE id = ?",
                 (rs, rowNum) -> new EisStoredCommand(rs.getObject(1, UUID.class), rs.getString(2),
                         rs.getObject(3, OffsetDateTime.class).toInstant(), rs.getObject(4, UUID.class),
-                        rs.getString(5), rs.getString(6), null, null),
+                        rs.getString(5), rs.getString(6), null, null, null),
                 commandId);
         Optional<EisStoredCommand> found = rows.stream().findFirst();
         if (found.isEmpty()) {
@@ -142,8 +160,13 @@ public class EisCommandStore {
                 (rs, rowNum) -> rs.getObject(1, UUID.class), commandId);
         String rejectionCode = jdbc.query("SELECT rejection_code FROM eis_command_rejection WHERE command_id = ?",
                 (rs, rowNum) -> rs.getString(1), commandId).stream().findFirst().orElse(null);
+        EisObjectRef created = jdbc.query(
+                        "SELECT object_type, object_id FROM eis_command_created WHERE command_id = ?",
+                        (rs, rowNum) -> new EisObjectRef(rs.getString(1), rs.getObject(2, UUID.class)), commandId)
+                .stream().findFirst().orElse(null);
         return Optional.of(new EisStoredCommand(command.getId(), command.getType(), command.getIssuedAt(),
-                command.getIssuer(), command.getStatus(), command.getRejectionReason(), rejectionCode, eventIds));
+                command.getIssuer(), command.getStatus(), command.getRejectionReason(), rejectionCode, eventIds,
+                created));
     }
 
     private static String toArrayLiteral(List<UUID> values) {
@@ -211,8 +234,10 @@ public class EisCommandStore {
 
         private final List<UUID> eventIds;
 
+        private final EisObjectRef created;
+
         /**
-         * 构造命令终态视图。
+         * 构造命令终态视图（无主对象指针）。
          *
          * @param id              命令 ID
          * @param type            命令类型
@@ -225,6 +250,25 @@ public class EisCommandStore {
          */
         public EisStoredCommand(UUID id, String type, Instant issuedAt, UUID issuer, String status,
                                 String rejectionReason, String rejectionCode, List<UUID> eventIds) {
+            this(id, type, issuedAt, issuer, status, rejectionReason, rejectionCode, eventIds, null);
+        }
+
+        /**
+         * 构造命令终态视图（含主对象指针）。
+         *
+         * @param id              命令 ID
+         * @param type            命令类型
+         * @param issuedAt        签发时刻
+         * @param issuer          操作人
+         * @param status          状态
+         * @param rejectionReason 拒绝原因（可空）
+         * @param rejectionCode   拒绝错误码（可空）
+         * @param eventIds        事件 ID 列表（保序，可空）
+         * @param created         主对象指针（可空）
+         */
+        public EisStoredCommand(UUID id, String type, Instant issuedAt, UUID issuer, String status,
+                                String rejectionReason, String rejectionCode, List<UUID> eventIds,
+                                EisObjectRef created) {
             this.id = id;
             this.type = type;
             this.issuedAt = issuedAt;
@@ -233,6 +277,7 @@ public class EisCommandStore {
             this.rejectionReason = rejectionReason;
             this.rejectionCode = rejectionCode;
             this.eventIds = eventIds == null ? List.of() : List.copyOf(eventIds);
+            this.created = created;
         }
 
         /**
@@ -305,6 +350,15 @@ public class EisCommandStore {
          */
         public List<UUID> getEventIds() {
             return eventIds;
+        }
+
+        /**
+         * 获取主对象指针。
+         *
+         * @return 对象引用；命令无主对象指针时为 {@code null}
+         */
+        public EisObjectRef getCreated() {
+            return created;
         }
     }
 }

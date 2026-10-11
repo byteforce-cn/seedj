@@ -141,6 +141,12 @@ public class EisCommandController {
         if (command.getRejectionCode() != null) {
             body.put("code", command.getRejectionCode());
         }
+        if (command.getCreated() != null) {
+            Map<String, Object> created = new LinkedHashMap<>();
+            created.put("type", command.getCreated().getObjectType());
+            created.put("id", command.getCreated().getId());
+            body.put("created", created);
+        }
         body.put("issued_at", command.getIssuedAt());
         return body;
     }

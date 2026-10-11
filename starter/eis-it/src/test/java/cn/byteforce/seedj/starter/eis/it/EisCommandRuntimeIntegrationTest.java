@@ -107,6 +107,9 @@ class EisCommandRuntimeIntegrationTest extends AbstractEisIntegrationTest {
         EisCommandStore.EisStoredCommand command = commandStore.findCommand(result.getCommandId()).orElseThrow();
         assertThat(command.getStatus()).isEqualTo("accepted");
         assertThat(command.getEventIds()).isEqualTo(result.getEventIds());
+        assertThat(command.getCreated()).isNotNull();
+        assertThat(command.getCreated().getObjectType()).isEqualTo("it_widget");
+        assertThat(command.getCreated().getId()).isEqualTo(result.getCreated().getId());
 
         assertThat(jdbcTemplate().queryForObject("SELECT count(*) FROM event WHERE type = 'it.widget.created'",
                 Long.class)).isEqualTo(1L);
@@ -144,6 +147,9 @@ class EisCommandRuntimeIntegrationTest extends AbstractEisIntegrationTest {
         assertThat(replay.isReplayed()).isTrue();
         assertThat(replay.getStatus()).isEqualTo("accepted");
         assertThat(replay.getCommandId()).isEqualTo(first.getCommandId());
+        assertThat(replay.getCreated()).isNotNull();
+        assertThat(replay.getCreated().getId()).isEqualTo(first.getCreated().getId());
+        assertThat(replay.getCreated().getObjectType()).isEqualTo("it_widget");
         assertThat(jdbcTemplate().queryForObject("SELECT count(*) FROM command", Long.class)).isEqualTo(1L);
         assertThat(jdbcTemplate().queryForObject("SELECT count(*) FROM audit_entry", Long.class)).isEqualTo(1L);
         assertThat(repository.findCurrentAllBy("it_widget", Map.of("name", "alice"))).hasSize(1);

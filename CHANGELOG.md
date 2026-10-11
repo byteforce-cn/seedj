@@ -49,6 +49,12 @@
 
 ### Fixed
 
+- **`starter-eis-core` 幂等重放/冲突响应缺少 `created` 引用**：受理结果的主对象指针（`created`）
+  此前只在首次响应返回，同键重放、异型同键冲突的 `original_result` 与 `GET /commands/{id}`
+  都无法恢复对象 ID（如账号 ID），消费方只能人工对账；现将指针持久化到新增部署侧辅助表
+  `eis_command_created`（需部署侧重放 `META-INF/eis/ddl/eis-core.ddl`），并在重放响应、
+  冲突比对与命令终态查询中原样回传。响应字段纯增量（MINOR 兼容）。
+
 - **业务应用被迫重复装配安全链（「已声明未生效」）**：`starter-resource` 的 `claims.authorities`
   声明了自定义权限 claim 却未被默认链消费，`starter-authorization` 的 `@ConditionalOnMissingBean(OAuth2TokenCustomizer)`
   又会在应用注册任何令牌定制器时整体退让，导致下游应用只能重写安全链/手动组合定制器。现修复为：
