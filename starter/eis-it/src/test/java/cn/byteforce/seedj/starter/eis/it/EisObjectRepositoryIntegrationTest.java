@@ -11,7 +11,9 @@ import org.junit.jupiter.api.Test;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -37,6 +39,10 @@ class EisObjectRepositoryIntegrationTest extends AbstractEisIntegrationTest {
 
     private static final UUID REF = UUID.fromString("01900000-0000-7000-8000-0000000000bb");
 
+    private static final LocalDate HIRE_DATE = LocalDate.of(2026, 1, 2);
+
+    private static final BigDecimal AMOUNT = new BigDecimal("1234.56");
+
     private static final Instant T0 = Instant.parse("2026-10-10T09:00:00Z");
 
     private EisObjectRepository repository;
@@ -53,12 +59,16 @@ class EisObjectRepositoryIntegrationTest extends AbstractEisIntegrationTest {
                 .field("ref", EisFieldKind.UUID)
                 .field("meta", EisFieldKind.JSONB)
                 .field("tags", EisFieldKind.TEXT_ARRAY)
+                .field("hire_date", EisFieldKind.DATE)
+                .field("attempts", EisFieldKind.BIGINT)
+                .field("amount", EisFieldKind.NUMERIC)
                 .build();
     }
 
     private static Map<String, Object> widgetData(String name) {
         return Map.of("name", name, "active", true, "ref", REF,
-                "meta", MAPPER.readTree("{\"k\":1}"), "tags", List.of("a", "b"));
+                "meta", MAPPER.readTree("{\"k\":1}"), "tags", List.of("a", "b"),
+                "hire_date", HIRE_DATE, "attempts", 3, "amount", AMOUNT);
     }
 
     @Test
@@ -78,6 +88,9 @@ class EisObjectRepositoryIntegrationTest extends AbstractEisIntegrationTest {
         assertThat(row.field("meta")).isInstanceOf(JsonNode.class);
         assertThat((JsonNode) row.field("meta")).isEqualTo(MAPPER.readTree("{\"k\":1}"));
         assertThat(row.field("tags")).isEqualTo(List.of("a", "b"));
+        assertThat(row.field("hire_date")).isEqualTo(HIRE_DATE);
+        assertThat(row.field("attempts")).isEqualTo(3L);
+        assertThat(row.field("amount")).isEqualTo(AMOUNT);
     }
 
     @Test
@@ -160,6 +173,9 @@ class EisObjectRepositoryIntegrationTest extends AbstractEisIntegrationTest {
         assertThat(repository.findCurrentAllBy("it_widget", Map.of("meta", MAPPER.readTree("{\"k\":1}"))))
                 .hasSize(2);
         assertThat(repository.findCurrentAllBy("it_widget", Map.of("active", false))).isEmpty();
+        assertThat(repository.findCurrentAllBy("it_widget", Map.of("hire_date", HIRE_DATE))).hasSize(2);
+        assertThat(repository.findCurrentAllBy("it_widget", Map.of("attempts", 3L))).hasSize(2);
+        assertThat(repository.findCurrentAllBy("it_widget", Map.of("amount", AMOUNT))).hasSize(2);
     }
 
     @Test

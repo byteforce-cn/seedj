@@ -16,6 +16,7 @@ import cn.byteforce.seedj.starter.eis.core.EisEventDraft;
 import cn.byteforce.seedj.starter.eis.core.EisEventStore;
 import cn.byteforce.seedj.starter.eis.core.EisObjectRef;
 import cn.byteforce.seedj.starter.eis.core.EisObjectRepository;
+import cn.byteforce.seedj.starter.eis.core.EisObjectRow;
 import cn.byteforce.seedj.starter.eis.core.EisObjectTypeRegistry;
 import cn.byteforce.seedj.starter.eis.core.EisOutboxDispatcher;
 import cn.byteforce.seedj.starter.eis.core.EisRule;
@@ -25,6 +26,8 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -119,6 +122,18 @@ class EisCommandRuntimeIntegrationTest extends AbstractEisIntegrationTest {
         assertThat(dispatched).hasSize(1);
         assertThat(notified).hasSize(1);
         assertThat(eventStore.findUndispatched(10)).isEmpty();
+    }
+
+    @Test
+    void acceptedCommandRoundTripsDateAndNumericFields() {
+        EisCommandResult result = runtime.submit(request(CREATE,
+                "{\"name\":\"erin\",\"hire_date\":\"2026-01-02\",\"attempts\":3,\"amount\":\"12.34\"}", "k1d"));
+
+        assertThat(result.getStatus()).isEqualTo("accepted");
+        EisObjectRow row = repository.findCurrent("it_widget", result.getCreated().getId()).orElseThrow();
+        assertThat(row.field("hire_date")).isEqualTo(LocalDate.of(2026, 1, 2));
+        assertThat(row.field("attempts")).isEqualTo(3L);
+        assertThat(row.field("amount")).isEqualTo(new BigDecimal("12.34"));
     }
 
     @Test
@@ -271,6 +286,14 @@ class EisCommandRuntimeIntegrationTest extends AbstractEisIntegrationTest {
             data.put("ref", null);
             data.put("meta", null);
             data.put("tags", List.of());
+            JsonNode hireDate = context.getPayload().get("hire_date");
+            JsonNode attempts = context.getPayload().get("attempts");
+            JsonNode amount = context.getPayload().get("amount");
+            data.put("hire_date", hireDate == null || hireDate.isNull()
+                    ? null : LocalDate.parse(hireDate.stringValue()));
+            data.put("attempts", attempts == null || attempts.isNull() ? null : attempts.intValue());
+            data.put("amount", amount == null || amount.isNull()
+                    ? null : new BigDecimal(amount.stringValue()));
             context.getObjects().create("it_widget", id, data, context.getActor(), context.getNow());
             ObjectNode eventPayload = MAPPER.createObjectNode();
             eventPayload.put("widget_id", id.toString());

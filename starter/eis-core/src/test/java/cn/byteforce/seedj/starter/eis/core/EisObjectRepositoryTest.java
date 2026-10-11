@@ -9,6 +9,7 @@ import org.springframework.jdbc.core.RowMapper;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.math.BigDecimal;
 import java.sql.Array;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -16,6 +17,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
@@ -52,6 +54,10 @@ class EisObjectRepositoryTest {
 
     private static final UUID REF = UUID.fromString("01900000-0000-7000-8000-0000000000bb");
 
+    private static final LocalDate HIRED = LocalDate.of(2026, 1, 2);
+
+    private static final BigDecimal AMOUNT = new BigDecimal("1234.56");
+
     private JdbcTemplate jdbc;
 
     private EisObjectRepository repository;
@@ -66,6 +72,9 @@ class EisObjectRepositoryTest {
                 .field("at", EisFieldKind.TIMESTAMP)
                 .field("meta", EisFieldKind.JSONB)
                 .field("tags", EisFieldKind.TEXT_ARRAY)
+                .field("hired", EisFieldKind.DATE)
+                .field("attempts", EisFieldKind.BIGINT)
+                .field("amount", EisFieldKind.NUMERIC)
                 .build();
         repository = new EisObjectRepository(jdbc, new EisObjectTypeRegistry(List.of(type)));
     }
@@ -78,6 +87,9 @@ class EisObjectRepositoryTest {
         data.put("at", NOW.minusSeconds(30));
         data.put("meta", MAPPER.readTree("{\"k\":1}"));
         data.put("tags", List.of("a"));
+        data.put("hired", HIRED);
+        data.put("attempts", 3);
+        data.put("amount", AMOUNT);
         return data;
     }
 
@@ -141,6 +153,55 @@ class EisObjectRepositoryTest {
         verify(ps).setNull(14, Types.TIMESTAMP_WITH_TIMEZONE);
         verify(ps).setNull(15, Types.OTHER);
         verify(ps).setNull(16, Types.ARRAY);
+        verify(ps).setNull(17, Types.DATE);
+        verify(ps).setNull(18, Types.BIGINT);
+        verify(ps).setNull(19, Types.NUMERIC);
+    }
+
+    @Test
+    void createBindsDateBigintAndNumeric() throws Exception {
+        when(jdbc.update(anyString(), any(PreparedStatementSetter.class))).thenReturn(1);
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("hired", HIRED);
+        data.put("attempts", 3);
+        data.put("amount", AMOUNT);
+
+        EisObjectRow row = repository.create("t_item", ID, data, ACTOR, NOW);
+
+        ArgumentCaptor<PreparedStatementSetter> setterCaptor =
+                ArgumentCaptor.forClass(PreparedStatementSetter.class);
+        verify(jdbc).update(anyString(), setterCaptor.capture());
+        PreparedStatement ps = mock(PreparedStatement.class);
+        setterCaptor.getValue().setValues(ps);
+
+        verify(ps).setObject(17, HIRED);
+        verify(ps).setLong(18, 3L);
+        verify(ps).setObject(19, AMOUNT);
+
+        assertThat(row.getData()).containsEntry("hired", HIRED)
+                .containsEntry("attempts", 3)
+                .containsEntry("amount", AMOUNT);
+    }
+
+    @Test
+    void findCurrentMapsDateBigintAndNumeric() throws Exception {
+        ResultSet rs = mock(ResultSet.class);
+        when(rs.getObject(1, UUID.class)).thenReturn(ID);
+        when(rs.getLong(2)).thenReturn(1L);
+        when(rs.getObject(3, OffsetDateTime.class)).thenReturn(odt(NOW));
+        when(rs.getObject(5, OffsetDateTime.class)).thenReturn(odt(NOW));
+        when(rs.getObject(7, UUID.class)).thenReturn(ACTOR);
+        when(rs.getObject(8, OffsetDateTime.class)).thenReturn(odt(NOW));
+        when(rs.getObject(17, LocalDate.class)).thenReturn(HIRED);
+        when(rs.getObject(18, Long.class)).thenReturn(7L);
+        when(rs.getObject(19, BigDecimal.class)).thenReturn(AMOUNT);
+        stubSingleRowAnswer(rs);
+
+        Map<String, Object> data = repository.findCurrent("t_item", ID).orElseThrow().getData();
+
+        assertThat(data).containsEntry("hired", HIRED);
+        assertThat(data).containsEntry("attempts", 7L);
+        assertThat(data).containsEntry("amount", AMOUNT);
     }
 
     @Test
@@ -223,6 +284,9 @@ class EisObjectRepositoryTest {
         assertThat(row.getData()).containsEntry("active", true);
         assertThat(row.getData().get("tags")).isEqualTo(List.of("a", "b"));
         assertThat(row.getData().get("meta")).isInstanceOf(JsonNode.class);
+        assertThat(row.getData()).containsEntry("hired", HIRED)
+                .containsEntry("attempts", 7L)
+                .containsEntry("amount", AMOUNT);
     }
 
     @Test
@@ -250,6 +314,9 @@ class EisObjectRepositoryTest {
         criteria.put("meta", MAPPER.readTree("{\"k\":1}"));
         criteria.put("at", NOW);
         criteria.put("name", "alice");
+        criteria.put("hired", HIRED);
+        criteria.put("attempts", 9L);
+        criteria.put("amount", AMOUNT);
 
         assertThat(repository.findCurrentAllBy("t_item", criteria)).isEmpty();
 
@@ -261,11 +328,17 @@ class EisObjectRepositoryTest {
                 .doesNotContain("\"id\" = ?")
                 .contains("\"meta\" = CAST(? AS jsonb)")
                 .contains("\"at\" = ?")
-                .contains("\"name\" = ?");
-        assertThat(argsCaptor.getValue()).hasSize(3);
+                .contains("\"name\" = ?")
+                .contains("\"hired\" = ?")
+                .contains("\"attempts\" = ?")
+                .contains("\"amount\" = ?");
+        assertThat(argsCaptor.getValue()).hasSize(6);
         assertThat(argsCaptor.getValue()[0]).isEqualTo("{\"k\":1}");
         assertThat(argsCaptor.getValue()[1]).isEqualTo(OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC));
         assertThat(argsCaptor.getValue()[2]).isEqualTo("alice");
+        assertThat(argsCaptor.getValue()[3]).isEqualTo(HIRED);
+        assertThat(argsCaptor.getValue()[4]).isEqualTo(9L);
+        assertThat(argsCaptor.getValue()[5]).isEqualTo(AMOUNT);
     }
 
     @Test
@@ -350,6 +423,9 @@ class EisObjectRepositoryTest {
         Array tags = mock(Array.class);
         when(tags.getArray()).thenReturn(new String[]{"a", "b"});
         when(rs.getArray(16)).thenReturn(tags);
+        when(rs.getObject(17, LocalDate.class)).thenReturn(HIRED);
+        when(rs.getObject(18, Long.class)).thenReturn(7L);
+        when(rs.getObject(19, BigDecimal.class)).thenReturn(AMOUNT);
         return rs;
     }
 
