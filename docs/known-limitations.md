@@ -54,6 +54,16 @@
 - **影响**：跨服务事件投递不会真正发生；进程在分发前崩溃的记录只会留在 outbox 表中等待人工处理。
 - **规避**：替换 `EisOutboxDispatcher` Bean，接入组织 MQ / 定时 relay 并自行实现重放。
 
+### 2.3 `starter-eis-authz` 属性源仅提供 SPI（未内置 HTTP 拉取实现）
+
+- **现状**：ADR-0004 属性消费面已提供 `EisAuthzAttributeSource` SPI 与属性条件求值
+  （主岗 `primary_position.*` vs 任一岗位 `positions[*].*`，含四类 fail-closed 原因码）；
+  但随模块**不提供**调用 `attributes.api.yaml` 的 HTTP 拉取实现。
+- **影响**：判定权威（IMS）需自行实现该 SPI（拉取人事域快照并映射 fresh/stale/缺失/不可达）。
+- **规避**：注册 `EisAuthzAttributeSource` Bean（典型：调用
+  `GET /principals/{id}/attributes?as_of=&recorded_as_of=`）；未注入时依赖属性的条件
+  fail-closed（`ATTRIBUTE_SOURCE_UNAVAILABLE`），绝不静默放行。
+
 ## 3. 依赖与版本
 
 - **现状**：

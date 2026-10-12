@@ -9,6 +9,7 @@ import tools.jackson.databind.JsonNode;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -74,6 +75,16 @@ public class EisAuthzCachingOperations implements EisAuthzOperations {
         String key = "C|" + principalRef + "|" + permission + "|" + asOf + "|" + recordedAsOf;
         return cached(key, EisAuthzDecision.class, () -> delegate.check(principalRef, permission, asOf,
                 recordedAsOf));
+    }
+
+    /**
+     * 条件判定不参与缓存：快照/条件随时点变化，缓存仅服务角色/权限面（评估点 8：缓存不参与正确性）。
+     */
+    @Override
+    public EisAuthzDecision check(String principalRef, String permission, Instant asOf, Instant recordedAsOf,
+                                  List<EisAuthzAttributeCondition> conditions,
+                                  EisAuthzAttributeSnapshot providedSnapshot) {
+        return delegate.check(principalRef, permission, asOf, recordedAsOf, conditions, providedSnapshot);
     }
 
     /**

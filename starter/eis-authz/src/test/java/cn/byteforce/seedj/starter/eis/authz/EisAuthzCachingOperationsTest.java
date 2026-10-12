@@ -32,6 +32,8 @@ class EisAuthzCachingOperationsTest {
 
         private final AtomicInteger checkCalls = new AtomicInteger();
 
+        private final AtomicInteger conditionalCheckCalls = new AtomicInteger();
+
         @Override
         public EisAuthzResolution resolve(String principalRef, Instant asOf, Instant recordedAsOf,
                                           JsonNode scopeFilter) {
@@ -45,6 +47,27 @@ class EisAuthzCachingOperationsTest {
             checkCalls.incrementAndGet();
             return new EisAuthzDecision(true, "允许", "ALLOWED", List.of());
         }
+
+        @Override
+        public EisAuthzDecision check(String principalRef, String permission, Instant asOf, Instant recordedAsOf,
+                                      List<EisAuthzAttributeCondition> conditions,
+                                      EisAuthzAttributeSnapshot providedSnapshot) {
+            conditionalCheckCalls.incrementAndGet();
+            return new EisAuthzDecision(true, "允许", "ALLOWED", List.of(), EisAuthzAttributeState.FRESH);
+        }
+    }
+
+    @Test
+    void conditionalCheckBypassesCache() {
+        CountingOperations delegate = new CountingOperations();
+        EisAuthzCachingOperations caching = new EisAuthzCachingOperations(delegate, Duration.ofHours(1), true);
+        List<EisAuthzAttributeCondition> conditions = List.of(EisAuthzAttributeCondition.employeeStatus("active"));
+
+        caching.check("away", "p", AS_OF, null, conditions, null);
+        caching.check("away", "p", AS_OF, null, conditions, null);
+
+        assertThat(delegate.conditionalCheckCalls.get()).isEqualTo(2);
+        assertThat(caching.cacheSize()).isZero();
     }
 
     @Test

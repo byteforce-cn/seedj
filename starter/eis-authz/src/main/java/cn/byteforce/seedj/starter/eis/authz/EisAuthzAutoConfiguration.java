@@ -51,15 +51,17 @@ public class EisAuthzAutoConfiguration {
     /**
      * 本地判定引擎（权威；存在存储 Bean 时装配）。
      *
-     * @param store 授权数据存储
+     * @param store          授权数据存储
+     * @param attributeSources 属性源（可空 = 无属性源，属性条件 fail-closed）
      * @return 引擎
      */
     @Bean
     @Primary
     @ConditionalOnMissingBean(EisAuthzEngine.class)
     @ConditionalOnBean(EisAuthzStore.class)
-    public EisAuthzEngine eisAuthzEngine(EisAuthzStore store) {
-        return new EisAuthzEngine(store);
+    public EisAuthzEngine eisAuthzEngine(EisAuthzStore store,
+                                         ObjectProvider<EisAuthzAttributeSource> attributeSources) {
+        return new EisAuthzEngine(store, attributeSources.getIfAvailable());
     }
 
     /**
