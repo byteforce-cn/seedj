@@ -15,7 +15,7 @@
 Lists of 124 third-party dependencies.
      (EPL-2.0) (LGPL-2.1-only) Logback Classic Module (ch.qos.logback:logback-classic:1.5.38 - http://logback.qos.ch/logback-classic)
      (EPL-2.0) (LGPL-2.1-only) Logback Core Module (ch.qos.logback:logback-core:1.5.38 - http://logback.qos.ch/logback-core)
-     (MIT License) Coord Java SDK (cn.byteforce:coord-java-sdk:0.2.0 - https://github.com/byteforce-cn/coord)
+     (MIT License) Coord Java SDK (cn.byteforce:coord-java-sdk:0.3.0 - https://github.com/byteforce-cn/coord)
      (Apache License, Version 2.0) Byteforce :: CodeGen (cn.byteforce.seedj:codegen:1.0.0-SNAPSHOT - https://github.com/byteforce-cn/seedj/codegen)
      (Apache License, Version 2.0) Byteforce :: Core (cn.byteforce.seedj:core:1.0.0-SNAPSHOT - https://github.com/byteforce-cn/seedj/common-root/core)
      (Apache License, Version 2.0) Byteforce :: Data Core (cn.byteforce.seedj:data-core:1.0.0-SNAPSHOT - https://github.com/byteforce-cn/seedj/common-root/data-core)

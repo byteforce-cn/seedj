@@ -10,7 +10,7 @@
 # 全部集成套件（需要本机 Docker + coord 镜像）
 mvn -pl starter/coord-it -am verify -Pit
 
-# 覆盖镜像（默认 ghcr.io/byteforce-cn/coord:v0.2.0）
+# 覆盖镜像（默认 ghcr.io/byteforce-cn/coord:v0.3.0）
 mvn -pl starter/coord-it -am verify -Pit -Dcoord.it.image=<image>
 ```
 
@@ -22,7 +22,7 @@ mvn -pl starter/coord-it -am verify -Pit -Dcoord.it.image=<image>
 
 ### 与 `coord dev` 的差异（容器形态说明）
 
-`coord dev`（v0.2.0）无法满足验证诉求：不启用可选服务（Config/Cache 等 RPC 返回
+`coord dev`（v0.2.0 实测；后续版本仍无容器化 `dev` 形态结论）无法满足验证诉求：不启用可选服务（Config/Cache 等 RPC 返回
 `UNIMPLEMENTED`）、绑定非 loopback 被 fail-closed 拒绝。套件改用与上游 CI 一致的
 server + agent 进程组合（loopback、免鉴权；服务经 `agent.toml` 显式开启），并以容器内置
 perl 转发器暴露 Agent 端口（详见 `src/test/resources/coord-it/` 与 `CoordItContainer`）。

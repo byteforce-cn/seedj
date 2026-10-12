@@ -57,10 +57,11 @@
 ## 3. 依赖与版本
 
 - **现状**：
-  - `coord-java-sdk` 钉在 `0.2.0`（Maven Central 已发布 `0.2.1`，本仓 BOM 仍钉 `0.2.0`，尚未升级）；
+  - `coord-java-sdk` 钉在 `0.3.0`（Maven Central 已发布 `0.3.0`；`0.2.0` → `0.3.0` 为
+    纯增量，`javap` 全量比对无移除类/成员，集成镜像已联动 `v0.3.0`）；
   - 全模块版本 `1.0.0-SNAPSHOT`，**尚未发布到 Maven Central**（消费需本地 `install` 或私服）；
   - EIS 集成套件基于 Testcontainers `postgres:16-alpine`（镜像不可用时硬失败，不静默跳过）。
-- **影响**：无法从公共仓库直接解析 `cn.byteforce.seedj:*` 构件；coord 系能力停留在 0.2.0 语义。
+- **影响**：无法从公共仓库直接解析 `cn.byteforce.seedj:*` 构件；coord 系能力对应 SDK 0.3.0 语义。
 - **规避**：首发前先本地/私服 `install`；coord SDK 升级随后续 `MINOR` 版本评估。
 
 ## 4. 工具与测试边界

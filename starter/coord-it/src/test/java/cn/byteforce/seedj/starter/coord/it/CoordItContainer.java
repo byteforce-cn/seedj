@@ -29,7 +29,7 @@ import java.time.Duration;
  * </ul>
  *
  * <h3>镜像</h3>
- * <p>默认 {@code ghcr.io/byteforce-cn/coord:v0.2.0}，可用系统属性
+ * <p>默认 {@code ghcr.io/byteforce-cn/coord:v0.3.0}，可用系统属性
  * {@code -Dcoord.it.image=<image>} 或环境变量 {@code COORD_IT_IMAGE} 覆盖。
  * 运行前需保证本机 Docker 可用且镜像已拉取（{@code docker pull ...}）。</p>
  *
@@ -46,7 +46,7 @@ public final class CoordItContainer extends GenericContainer<CoordItContainer> {
     private static final Logger log = LoggerFactory.getLogger(CoordItContainer.class);
 
     /** 默认镜像（与 seedj BOM 中 coord-java-sdk 的推荐服务端版本一致）。 */
-    private static final String DEFAULT_IMAGE = "ghcr.io/byteforce-cn/coord:v0.2.0";
+    private static final String DEFAULT_IMAGE = "ghcr.io/byteforce-cn/coord:v0.3.0";
 
     /** 镜像覆盖系统属性。 */
     public static final String IMAGE_PROPERTY = "coord.it.image";

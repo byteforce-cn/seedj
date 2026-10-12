@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicReference;
  *   <li>{@code coord.connection.state}（gauge 族，tag: {@code state}；当前状态为 1、其余为 0）。</li>
  * </ul>
  *
- * <p>SDK 0.2.0 实证：运行期实际触发 {@code recordRpcCall}；
+ * <p>SDK 0.3.0 实证：运行期实际触发 {@code recordRpcCall}；
  * {@code recordWatchEvent} / {@code recordConnectionStateChange} 为 SPI 预留面
  * （上报实现就绪，SDK 触发后自动生效）。</p>
  *

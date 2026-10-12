@@ -25,7 +25,7 @@
 | `coord.watch.events` | counter | `operation` | Watch 事件计数（SPI 预留面） |
 | `coord.connection.state` | gauge 族 | `state` | 连接状态：当前为 1、其余为 0（SPI 预留面） |
 
-> SDK 0.2.0 实证：运行期实际触发 `recordRpcCall`（AgentRpcClient）；
+> SDK 0.3.0 实证：运行期实际触发 `recordRpcCall`（AgentRpcClient）；
 > `recordWatchEvent` / `recordConnectionStateChange` 为 SPI 预留面——
 > 上报实现已就绪，SDK 触发后自动生效。
 
