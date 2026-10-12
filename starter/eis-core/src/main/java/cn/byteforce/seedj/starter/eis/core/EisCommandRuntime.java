@@ -216,7 +216,7 @@ public final class EisCommandRuntime {
             events.insert(event);
         }
         List<UUID> eventIds = committed.stream().map(EisEvent::getId).toList();
-        commands.markAccepted(commandId, eventIds);
+        commands.markAccepted(commandId, eventIds, handled.getCreated());
 
         audit.append(new EisAuditAppender.EisAuditAppendRequest(request.getCommandType(), request.getActor(),
                 auditResourceType(committed), auditResourceId(committed, commandId),
@@ -247,7 +247,7 @@ public final class EisCommandRuntime {
                 .orElseThrow(() -> new IllegalStateException("幂等记录指向缺失命令: " + record.getCommandId()));
         if (EisCommandStatus.ACCEPTED.getCode().equals(command.getStatus())) {
             return EisCommandResult.replay(EisCommandStatus.ACCEPTED.getCode(), command.getId(),
-                    command.getEventIds(), null, null, null);
+                    command.getEventIds(), null, null, null, command.getCreated());
         }
         return EisCommandResult.replay(EisCommandStatus.REJECTED.getCode(), command.getId(), List.of(),
                 command.getRejectionCode(), command.getRejectionReason(), null);

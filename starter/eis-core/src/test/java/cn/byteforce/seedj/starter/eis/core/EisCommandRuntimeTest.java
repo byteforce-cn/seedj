@@ -85,7 +85,10 @@ class EisCommandRuntimeTest {
         assertThat(result.getCreated().getId()).isEqualTo(SUBJECT);
 
         verify(commandStore).insertCommand(any(), anyString(), any(), any(), any(), any(), anyString());
-        verify(commandStore).markAccepted(any(), any());
+        ArgumentCaptor<EisObjectRef> createdCaptor = ArgumentCaptor.forClass(EisObjectRef.class);
+        verify(commandStore).markAccepted(any(), any(), createdCaptor.capture());
+        assertThat(createdCaptor.getValue().getObjectType()).isEqualTo("demo_thing");
+        assertThat(createdCaptor.getValue().getId()).isEqualTo(SUBJECT);
         verify(eventStore).insert(any(EisEvent.class));
         verify(eventStore).insertOutbox(any());
         ArgumentCaptor<EisAuditAppender.EisAuditAppendRequest> auditCaptor =
@@ -175,6 +178,27 @@ class EisCommandRuntimeTest {
         assertThat(result.getCommandId()).isEqualTo(originalId);
         assertThat(result.getEventIds()).containsExactly(eventId);
         verify(commandStore, never()).insertCommand(any(), anyString(), any(), any(), any(), any(), anyString());
+    }
+
+    @Test
+    void identicalReplayReturnsOriginalCreatedRef() {
+        runtime = buildRuntime(null);
+        EisCommandRequest request = request("demo.thing.create", "{\"name\":\"alice\"}", "k6c");
+        String fingerprint = EisCommandRuntime.computeFingerprint(request);
+        UUID originalId = UUID.randomUUID();
+        UUID eventId = UUID.randomUUID();
+        EisObjectRef created = new EisObjectRef("demo_thing", SUBJECT);
+        when(commandStore.findIdempotency("k6c"))
+                .thenReturn(Optional.of(newIdempotencyRecord(fingerprint, originalId)));
+        when(commandStore.findCommand(originalId))
+                .thenReturn(Optional.of(acceptedCommandWithCreated(originalId, eventId, created)));
+
+        EisCommandResult result = runtime.submit(request);
+
+        assertThat(result.isReplayed()).isTrue();
+        assertThat(result.getCreated()).isNotNull();
+        assertThat(result.getCreated().getObjectType()).isEqualTo(created.getObjectType());
+        assertThat(result.getCreated().getId()).isEqualTo(created.getId());
     }
 
     @Test
@@ -278,6 +302,12 @@ class EisCommandRuntimeTest {
     private static EisCommandStore.EisStoredCommand acceptedCommand(UUID id, UUID eventId) {
         return new EisCommandStore.EisStoredCommand(id, "demo.thing.create", NOW, ACTOR, "accepted", null, null,
                 List.of(eventId));
+    }
+
+    private static EisCommandStore.EisStoredCommand acceptedCommandWithCreated(UUID id, UUID eventId,
+                                                                              EisObjectRef created) {
+        return new EisCommandStore.EisStoredCommand(id, "demo.thing.create", NOW, ACTOR, "accepted", null, null,
+                List.of(eventId), created);
     }
 
     private static EisCommandStore.EisStoredCommand rejectedCommand(UUID id) {

@@ -39,6 +39,8 @@ class EisCommandStoreTest {
 
     private static final UUID EVENT_ID = UUID.fromString("01900000-0000-7000-8000-0000000000e1");
 
+    private static final UUID SUBJECT = UUID.fromString("01900000-0000-7000-8000-0000000000aa");
+
     private JdbcTemplate jdbc;
 
     private EisCommandStore store;
@@ -128,6 +130,19 @@ class EisCommandStoreTest {
     }
 
     @Test
+    void markAcceptedWithCreatedWritesRef() {
+        when(jdbc.update(anyString(), any(Object[].class))).thenReturn(1);
+
+        store.markAccepted(COMMAND_ID, List.of(EVENT_ID), new EisObjectRef("demo_thing", SUBJECT));
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> argsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbc, org.mockito.Mockito.times(3)).update(sqlCaptor.capture(), argsCaptor.capture());
+        assertThat(sqlCaptor.getAllValues().get(2)).contains("INSERT INTO eis_command_created");
+        assertThat(argsCaptor.getAllValues().get(2)).containsExactly(COMMAND_ID, "demo_thing", SUBJECT);
+    }
+
+    @Test
     void markRejectedWritesReasonAndCode() {
         when(jdbc.update(anyString(), any(Object[].class))).thenReturn(1);
 
@@ -166,6 +181,9 @@ class EisCommandStoreTest {
             if (sql.contains("FROM eis_command_rejection")) {
                 return List.of("IAM-409-001");
             }
+            if (sql.contains("FROM eis_command_created")) {
+                return List.of(new EisObjectRef("demo_thing", SUBJECT));
+            }
             throw new IllegalStateException("未预期 SQL: " + sql);
         });
 
@@ -178,6 +196,9 @@ class EisCommandStoreTest {
         assertThat(command.getEventIds()).containsExactly(EVENT_ID);
         assertThat(command.getIssuedAt()).isEqualTo(NOW);
         assertThat(command.getIssuer()).isEqualTo(ACTOR);
+        assertThat(command.getCreated()).isNotNull();
+        assertThat(command.getCreated().getObjectType()).isEqualTo("demo_thing");
+        assertThat(command.getCreated().getId()).isEqualTo(SUBJECT);
     }
 
     @Test

@@ -92,6 +92,8 @@ CREATE INDEX idx_view_bitemporal   ON view (view_type, as_of, recorded_as_of);
 --    eis_command_event   命令 → 事件关联（保序；契约 event 表无 command_id 列）
 --    eis_command_rejection 拒绝错误码（契约 command 表仅有 rejection_reason；
 --                        GET /commands/{id} 需回传 code）
+--    eis_command_created 受理结果的主对象指针 created（契约 command 表无该列；
+--                        幂等重放/冲突比对/终态查询需回传首次结果的 created）
 --    eis_outbox          事务内 outbox（真相源；分发状态回填）
 -- ----------------------------------------------------------------------------
 CREATE TABLE eis_idempotency (
@@ -115,6 +117,14 @@ CREATE TABLE eis_command_rejection (
     rejection_code TEXT   NOT NULL,
 
     CONSTRAINT pk_eis_command_rejection PRIMARY KEY (command_id)
+);
+
+CREATE TABLE eis_command_created (
+    command_id  eis_id NOT NULL,
+    object_type TEXT   NOT NULL,
+    object_id   eis_id NOT NULL,
+
+    CONSTRAINT pk_eis_command_created PRIMARY KEY (command_id)
 );
 
 CREATE TABLE eis_outbox (

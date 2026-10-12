@@ -133,6 +133,40 @@ class EisCommandControllerTest {
     }
 
     @Test
+    void submitReplayedAcceptedWithCreatedIncludesCreated() {
+        when(runtime.submit(any())).thenReturn(EisCommandResult.replay("accepted", UUID.randomUUID(),
+                List.of(SUBJECT), null, null, null, new EisObjectRef("iam_user_account", SUBJECT)));
+
+        ResponseEntity<Map<String, Object>> response = controller.submit("iam.user.create", body(
+                "{\"type\":\"iam.user.create\",\"payload\":{},\"idempotency_key\":\"k5c\"}"));
+
+        assertThat(response.getStatusCode().value()).isEqualTo(202);
+        assertThat(response.getBody()).containsEntry("replayed", true);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> created = (Map<String, Object>) response.getBody().get("created");
+        assertThat(created).containsEntry("type", "iam_user_account").containsEntry("id", SUBJECT);
+    }
+
+    @Test
+    void submitConflictOriginalResultIncludesCreated() {
+        UUID originalId = UUID.randomUUID();
+        when(runtime.submit(any())).thenReturn(EisCommandResult.conflict(originalId));
+        when(runtime.findCommand(originalId)).thenReturn(Optional.of(new EisCommandStore.EisStoredCommand(
+                originalId, "iam.user.create", NOW, ACTOR, "accepted", null, null, List.of(SUBJECT),
+                new EisObjectRef("iam_user_account", SUBJECT))));
+
+        ResponseEntity<Map<String, Object>> response = controller.submit("iam.user.create", body(
+                "{\"type\":\"iam.user.create\",\"payload\":{\"username\":\"bob\"},\"idempotency_key\":\"k4c\"}"));
+
+        assertThat(response.getStatusCode().value()).isEqualTo(409);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> originalResult = (Map<String, Object>) response.getBody().get("original_result");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> created = (Map<String, Object>) originalResult.get("created");
+        assertThat(created).containsEntry("type", "iam_user_account").containsEntry("id", SUBJECT);
+    }
+
+    @Test
     void submitPathMismatchIsRejectedAsInvalid() {
         assertThatThrownBy(() -> controller.submit("iam.user.create", body(
                 "{\"type\":\"iam.user.update\",\"payload\":{},\"idempotency_key\":\"k6\"}")))
@@ -181,6 +215,21 @@ class EisCommandControllerTest {
                 .containsEntry("code", "IAM-409-001")
                 .containsEntry("reason", "用户名已存在: alice")
                 .containsEntry("issued_at", NOW);
+    }
+
+    @Test
+    void getIncludesCreatedRefWhenPresent() {
+        UUID commandId = UUID.randomUUID();
+        when(runtime.findCommand(commandId)).thenReturn(Optional.of(new EisCommandStore.EisStoredCommand(
+                commandId, "iam.user.create", NOW, ACTOR, "accepted", null, null, List.of(SUBJECT),
+                new EisObjectRef("iam_user_account", SUBJECT))));
+
+        ResponseEntity<Map<String, Object>> response = controller.get(commandId.toString());
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> created = (Map<String, Object>) response.getBody().get("created");
+        assertThat(created).containsEntry("type", "iam_user_account").containsEntry("id", SUBJECT);
     }
 
     @Test

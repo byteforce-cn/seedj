@@ -70,7 +70,25 @@ public final class EisCommandResult {
      */
     public static EisCommandResult replay(String status, UUID commandId, List<UUID> eventIds,
                                           String code, String reason, String reasonCode) {
-        return new EisCommandResult(status, commandId, eventIds, code, reason, reasonCode, true, null);
+        return replay(status, commandId, eventIds, code, reason, reasonCode, null);
+    }
+
+    /**
+     * 幂等重放结果（返回原终态与原主对象指针）。
+     *
+     * @param status    原终态（accepted / rejected）
+     * @param commandId 原命令 ID
+     * @param eventIds  原事件列表（accepted 时）
+     * @param code      原错误码（rejected 时）
+     * @param reason    原原因（rejected 时）
+     * @param reasonCode 原原因码（rejected 时）
+     * @param created   原主对象指针（可空）
+     * @return 结果
+     */
+    public static EisCommandResult replay(String status, UUID commandId, List<UUID> eventIds,
+                                          String code, String reason, String reasonCode,
+                                          EisObjectRef created) {
+        return new EisCommandResult(status, commandId, eventIds, code, reason, reasonCode, true, created);
     }
 
     /**
@@ -164,7 +182,7 @@ public final class EisCommandResult {
     /**
      * 获取主对象指针。
      *
-     * @return 对象引用；拒绝/重放时为 {@code null}
+     * @return 对象引用；无主对象指针时为 {@code null}（重放已持久化指针则一并返回）
      */
     public EisObjectRef getCreated() {
         return created;
