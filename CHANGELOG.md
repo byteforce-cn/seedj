@@ -10,7 +10,7 @@
 - `starter-eis-core`（新模块）：EIS 核心运行时——命令受理（幂等键指纹 / 授权钩子 / 规则链 / 事件 / 审计 / 封口 同一 PostgreSQL 事务）、双时间轴对象存储（半开区间、封口相接、行锁串行）、outbox 与 SPIs（`EisRule`/`EisCommandHandler`/`EisAuthorizer`/`EisNotifyHook`/`EisAuditAppender`/`EisOutboxDispatcher`）、`POST/GET /commands` 契约端点与 `META-INF/eis/ddl/eis-core.ddl` 运行时物化。**授权缺省 fail-closed**：容器无 `EisAuthorizer` Bean 且未显式 `byteforce.eis.core.allow-all-authorizer=true` 时应用启动失败。
 - `starter-eis-audit`（新模块）：EIS 审计哈希链——九元规范化（冻结向量 `447c6e29…7410` 逐位一致）、锚行串行分配（不依赖 BIGSERIAL 缺省分配）、四类错误验证器（对齐 `verify.tool`）、锚定 SPI（文件/日志）与 `/admin/audit/*` 管理端点、`eis-audit.ddl`。
 - `starter-eis-temporal`（新模块）：EIS 时点查询端点族（`/objects`、`/time-travel`），半开区间语义与敏感列读投影剔除。
-- `starter-eis-authz`（新模块）：EIS 授权解析——`/resolve` `/check` 引擎（代理展开、SoD warn/prevent、`reason_code`）、远程客户端与进程内 TTL 缓存（唯一判定权威，不接入 coord Policy）。
+- `starter-eis-authz`（新模块）：EIS 授权解析——`/resolve` `/check` 引擎（代理展开、SoD warn/prevent、`reason_code`）、远程客户端与进程内 TTL 缓存（唯一判定权威，不接入 coord Policy）。消费方服务间认证：`EisAuthzTokenProvider` SPI + 默认 OAuth2 `client_credentials` 实现（`token-uri`/`client-id`/`client-secret`/`scope`，Basic 认证、按 `expires_in` 缓存、提前 `token-refresh-skew` 刷新、失败 fail-closed）；`EisAuthzClient` 配置凭据后自动携带 `Authorization: Bearer`，未配置凭据行为不变，部分配置启动即 fail-fast。
 - `starter-eis-it`（新测试套件模块）：Testcontainers PG16 集成验证（双时间轴边界 / 审计链并发 / 命令闭环，统 22 例）；不引入 H2。
 - `starter-eis-core`：`EisFieldKind` 新增 `DATE`（`LocalDate`）、`BIGINT`（`Long`）、`NUMERIC`（`BigDecimal`），与 `schema-compiler` 生成物对齐（`format: date` / `type: integer` / `type: number` / 金额与数量 pattern）；对象存储的写入、读取、NULL 绑定与等值条件查询全链路支持 `DATE` / `BIGINT` / `NUMERIC(p,s)` 列（`CHAR(3)` / `CHAR(7)` 列继续以 `TEXT` 注册读写）。
 - BOM：登记 `starter-eis-core/audit/temporal/authz`（`starter-eis-it` 为测试套件模块不入 BOM）。

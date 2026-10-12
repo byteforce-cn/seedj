@@ -4,6 +4,7 @@ import cn.byteforce.seedj.starter.eis.authz.EisAuthzModels.EisAuthzDecision;
 import cn.byteforce.seedj.starter.eis.authz.EisAuthzModels.EisAuthzResolution;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
@@ -16,6 +17,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.jsonPath;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
@@ -79,6 +81,21 @@ class EisAuthzClientTest {
         assertThat(resolution.getRoles()).containsExactly("approver");
         assertThat(resolution.getAsOf()).isEqualTo(Instant.parse("2026-10-15T12:00:00Z"));
         server.verify();
+    }
+
+    @Test
+    void bearerHeaderIsSentWhenTokenProviderPresent() {
+        RestClient.Builder builder = RestClient.builder().baseUrl("http://authz.test");
+        MockRestServiceServer authenticatedServer = MockRestServiceServer.bindTo(builder).build();
+        EisAuthzClient authenticated = new EisAuthzClient(builder.build(), () -> java.util.Optional.of("tok"));
+        authenticatedServer.expect(requestTo("http://authz.test/check"))
+                .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer tok"))
+                .andRespond(withSuccess("{\"allowed\":true,\"reason\":\"允许\",\"reason_code\":\"ALLOWED\"}",
+                        MediaType.APPLICATION_JSON));
+
+        assertThat(authenticated.check("p", "x", Instant.parse("2026-10-15T12:00:00Z"), null).isAllowed())
+                .isTrue();
+        authenticatedServer.verify();
     }
 
     @Test

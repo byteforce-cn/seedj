@@ -50,6 +50,37 @@ class EisAuthzAutoConfigurationTest {
     }
 
     @Test
+    void clientCredentialsTokenProviderRegistersWhenConfigured() {
+        runner.withPropertyValues(
+                        "byteforce.eis.authz.base-url=http://authz.test",
+                        "byteforce.eis.authz.token-uri=http://iam.test/oauth2/token",
+                        "byteforce.eis.authz.client-id=svc-hr",
+                        "byteforce.eis.authz.client-secret=s3cr3t")
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context).hasSingleBean(EisAuthzTokenProvider.class);
+                    assertThat(context).hasSingleBean(EisAuthzClientCredentialsTokenProvider.class);
+                });
+    }
+
+    @Test
+    void noTokenProviderWithoutCredentials() {
+        runner.withPropertyValues("byteforce.eis.authz.base-url=http://authz.test")
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context).doesNotHaveBean(EisAuthzTokenProvider.class);
+                });
+    }
+
+    @Test
+    void incompleteCredentialsFailFast() {
+        runner.withPropertyValues(
+                        "byteforce.eis.authz.base-url=http://authz.test",
+                        "byteforce.eis.authz.client-id=svc-hr")
+                .run(context -> assertThat(context).hasFailed());
+    }
+
+    @Test
     void disabledByPropertyRegistersNothing() {
         runner.withBean(EisAuthzStore.class, () -> mock(EisAuthzStore.class))
                 .withPropertyValues("byteforce.eis.authz.enabled=false")

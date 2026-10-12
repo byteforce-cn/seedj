@@ -1,18 +1,29 @@
 package cn.byteforce.seedj.starter.eis.authz;
 
 import cn.byteforce.seedj.starter.eis.authz.EisAuthzModels.EisAuthzStore;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionOutcome;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
+import org.springframework.boot.autoconfigure.condition.SpringBootCondition;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Condition;
+import org.springframework.context.annotation.ConditionContext;
+import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.core.type.AnnotatedTypeMetadata;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.servlet.DispatcherServlet;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * EIS 授权自动配置：本地判定引擎（权威）与远程缓存客户端。
@@ -54,14 +65,34 @@ public class EisAuthzAutoConfiguration {
     /**
      * 远程授权客户端（配置了 base-url 时）。
      *
-     * @param properties 授权属性
+     * @param properties     授权属性
+     * @param tokenProviders 服务间令牌提供者（可空 = 明文直连）
      * @return 客户端
      */
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnProperty(prefix = "byteforce.eis.authz", name = "base-url")
-    public EisAuthzClient eisAuthzClient(EisAuthzProperties properties) {
-        return new EisAuthzClient(RestClient.builder().baseUrl(properties.getBaseUrl()).build());
+    public EisAuthzClient eisAuthzClient(EisAuthzProperties properties,
+                                         ObjectProvider<EisAuthzTokenProvider> tokenProviders) {
+        return new EisAuthzClient(RestClient.builder().baseUrl(properties.getBaseUrl()).build(),
+                tokenProviders.getIfAvailable());
+    }
+
+    /**
+     * OAuth2 client_credentials 令牌提供者（配置了任一服务凭据属性时；
+     * 配置不完整在建 Bean 时 fail-fast）。
+     *
+     * @param properties 授权属性
+     * @return 令牌提供者
+     */
+    @Bean
+    @ConditionalOnMissingBean(EisAuthzTokenProvider.class)
+    @Conditional(EisAuthzCredentialsConfiguredCondition.class)
+    public EisAuthzClientCredentialsTokenProvider eisAuthzClientCredentialsTokenProvider(
+            EisAuthzProperties properties) {
+        return new EisAuthzClientCredentialsTokenProvider(RestClient.builder().build(),
+                properties.getTokenUri(), properties.getClientId(), properties.getClientSecret(),
+                properties.getScope(), properties.getTokenRefreshSkew());
     }
 
     /**
@@ -78,6 +109,30 @@ public class EisAuthzAutoConfiguration {
     public EisAuthzCachingOperations eisAuthzCachingOperations(EisAuthzClient client,
                                                                EisAuthzProperties properties) {
         return new EisAuthzCachingOperations(client, properties.getCacheTtl(), properties.isCacheEnabled());
+    }
+
+    /**
+     * 服务凭据配置探测：{@code token-uri} / {@code client-id} / {@code client-secret}
+     * 任一非空即匹配（随后由令牌提供者构造期校验完整性，避免部分配置静默退化）。
+     */
+    static class EisAuthzCredentialsConfiguredCondition extends SpringBootCondition {
+
+        private static final List<String> KEYS = List.of("token-uri", "client-id", "client-secret");
+
+        @Override
+        public ConditionOutcome getMatchOutcome(ConditionContext context, AnnotatedTypeMetadata metadata) {
+            List<String> present = new ArrayList<>();
+            for (String key : KEYS) {
+                String value = context.getEnvironment().getProperty("byteforce.eis.authz." + key);
+                if (StringUtils.hasText(value)) {
+                    present.add(key);
+                }
+            }
+            if (present.isEmpty()) {
+                return ConditionOutcome.noMatch("未配置服务凭据（byteforce.eis.authz.client-id 等）");
+            }
+            return ConditionOutcome.match("已配置服务凭据属性: " + present);
+        }
     }
 
     /**

@@ -12,7 +12,7 @@
 | 场景 | 提供 | 结果 |
 | --- | --- | --- |
 | 权威服务（IMS） | `EisAuthzStore` Bean（读域表/镜像表） | `EisAuthzEngine`（`@Primary`）+ `/resolve` `/check` 端点 |
-| 消费方 | `byteforce.eis.authz.base-url` | `EisAuthzClient` + `EisAuthzCachingOperations`（`@Primary`，TTL 缓存） |
+| 消费方 | `byteforce.eis.authz.base-url` | `EisAuthzClient` + `EisAuthzCachingOperations`（`@Primary`，TTL 缓存）；配置服务凭据时自动携带 `Authorization: Bearer` |
 | 其他 | — | 无操作面；Web 环境引入本模块但两者皆缺将 fail-fast（未配置本能力） |
 
 ## 引擎语义（对齐 `tools/authz-resolver`）
@@ -38,6 +38,27 @@
 | `byteforce.eis.authz.base-url` | — | 远程权威基址（消费方） |
 | `byteforce.eis.authz.cache-ttl` | `30s` | 进程内缓存 TTL |
 | `byteforce.eis.authz.cache-enabled` | `true` | 缓存开关 |
+| `byteforce.eis.authz.token-uri` | — | OAuth2 令牌端点（服务间认证；完整 URL） |
+| `byteforce.eis.authz.client-id` | — | 服务间认证客户端 ID |
+| `byteforce.eis.authz.client-secret` | — | 服务间认证客户端密钥 |
+| `byteforce.eis.authz.scope` | — | 令牌作用域（空格分隔） |
+| `byteforce.eis.authz.token-refresh-skew` | `30s` | 令牌刷新提前量 |
+
+## 服务间认证（消费方）
+
+判定权威的 `/resolve` `/check` 按安全基线要求认证；消费方（如 `ims-hr`）同时配置
+`token-uri` / `client-id` / `client-secret`（+ 可选 `scope`）后，自动经 OAuth2
+`client_credentials`（HTTP Basic 客户端认证）取令牌并携带 `Authorization: Bearer`，
+令牌按 `expires_in` 缓存、过期前 `token-refresh-skew` 自动刷新；令牌端点失败一律
+fail-closed（`EisAuthzRemoteException`，不得静默降级为无认证调用）。
+
+需要复用既有服务身份/令牌管理体系（如 `OAuth2AuthorizedClientManager`）时，注册自定义
+`EisAuthzTokenProvider` Bean 即可覆盖默认实现（`@ConditionalOnMissingBean`）。
+
+> ⚠️ **安全边界**：**未配置凭据时行为与旧版一致（明文直连，不携带任何认证头）**——
+> 仅适用于内网直连或由基础设施（istio mTLS 等）提供传输与身份保障的部署；
+> 认证部署下必须配置上述凭据，否则每个命令都会在授权阶段被 401 拒绝。
+> 凭据仅配置一部分（如只有 `client-id`）时启动即 fail-fast，避免静默退化。
 
 ## 边界
 
