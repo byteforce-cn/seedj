@@ -60,11 +60,29 @@
 | `byteforce.eis.authz.base-url` | — | 远程权威基址（消费方） |
 | `byteforce.eis.authz.cache-ttl` | `30s` | 进程内缓存 TTL |
 | `byteforce.eis.authz.cache-enabled` | `true` | 缓存开关 |
+| `byteforce.eis.authz.connect-timeout` | `3s` | 远程调用连接超时（有界缺省） |
+| `byteforce.eis.authz.read-timeout` | `10s` | 远程调用读取超时（有界缺省） |
 | `byteforce.eis.authz.token-uri` | — | OAuth2 令牌端点（服务间认证；完整 URL） |
 | `byteforce.eis.authz.client-id` | — | 服务间认证客户端 ID |
 | `byteforce.eis.authz.client-secret` | — | 服务间认证客户端密钥 |
 | `byteforce.eis.authz.scope` | — | 令牌作用域（空格分隔） |
 | `byteforce.eis.authz.token-refresh-skew` | `30s` | 令牌刷新提前量 |
+
+## 超时（有界缺省）
+
+`/resolve` `/check` 客户端与令牌端点客户端由**同一入口装配超时**（各自持有独立连接池）：
+
+- 缺省 connect `3s` / read `10s`（与组织服务间调用纪律一致），**不配置任何键也是有界的**——
+  此前缺省为「无限等待」，对端挂起（网络分区、LB 半开、线程池耗尽）会逐个占满消费方的请求线程；
+- 覆盖键：`byteforce.eis.authz.connect-timeout` / `byteforce.eis.authz.read-timeout`（`Duration`，
+  同 `token-refresh-skew` 风格；**必须为正**，缺失/非正（含 `0`）在装配期 fail-fast，
+  不静默退化为无界等待）；
+- 超时与连接/IO 失败一律 fail-closed 抛 `EisAuthzRemoteException`（本地判定状态码：超时 `504`、
+  连接·IO 失败 `503`，消息中保留「超时」/「连接」语义以区别于远端 4xx/5xx），
+  **不得**静默降级为匿名/无判定调用；响应头已到但**响应体停摆**同样受读取超时约束
+  （JDK 取消流订阅，按连接/IO 语义上报 `503`）；
+- 需要代理 / mTLS / 独立请求工厂等更复杂定制时，整体覆盖 `EisAuthzClient` 或
+  `EisAuthzTokenProvider` Bean（均为 `@ConditionalOnMissingBean`）——覆盖后超时保证随之为你所负责。
 
 ## 服务间认证（消费方）
 

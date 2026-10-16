@@ -6,6 +6,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
@@ -23,7 +24,8 @@ import java.util.UUID;
  * （{@link EisAuthzTokenProvider}，默认 client_credentials）时自动携带
  * {@code Authorization: Bearer}；未配置时保持明文直连行为不变。错误一律抛出
  * {@link EisAuthzRemoteException}（fail-open 由调用方决定：命令受理链路拒绝 /
- * 失效加速链路可降级）。</p>
+ * 失效加速链路可降级）；网络层失败（连接/读取超时、连接拒绝）同样 fail-closed 抛出，
+ * 超时以本地判定状态码 {@code 504} + 消息「超时」区别于远端 4xx/5xx。</p>
  *
  * @author ByteForce
  * @since 1.0.0
@@ -101,14 +103,23 @@ public class EisAuthzClient implements EisAuthzOperations {
             tokenProvider.accessToken().ifPresent(token ->
                     spec.header(HttpHeaders.AUTHORIZATION, "Bearer " + token));
         }
-        String payload = spec.body(body.toString())
-                .retrieve()
-                .onStatus(HttpStatusCode::isError, (request, response) -> {
-                    String text = new String(response.getBody().readAllBytes(),
-                            java.nio.charset.StandardCharsets.UTF_8);
-                    throw new EisAuthzRemoteException(response.getStatusCode().value(), path, text);
-                })
-                .body(String.class);
+        String payload;
+        try {
+            payload = spec.body(body.toString())
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (request, response) -> {
+                        String text = new String(response.getBody().readAllBytes(),
+                                java.nio.charset.StandardCharsets.UTF_8);
+                        throw new EisAuthzRemoteException(response.getStatusCode().value(), path, text);
+                    })
+                    .body(String.class);
+        } catch (RestClientException e) {
+            // 网络层失败（连接/读取超时、响应体停摆）：fail-closed，由调用方决定拒绝还是降级
+            if (!EisAuthzRemoteException.isNetworkFailure(e)) {
+                throw e;
+            }
+            throw EisAuthzRemoteException.resourceFailure(path, e);
+        }
         return MAPPER.readTree(payload);
     }
 

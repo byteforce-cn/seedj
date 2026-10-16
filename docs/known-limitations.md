@@ -64,6 +64,17 @@
   `GET /principals/{id}/attributes?as_of=&recorded_as_of=`）；未注入时依赖属性的条件
   fail-closed（`ATTRIBUTE_SOURCE_UNAVAILABLE`），绝不静默放行。
 
+### 2.4 `starter-eis-authz` 超时只提供全局键，无请求工厂定制 SPI
+
+- **现状**：消费方两个 RestClient（`/resolve` `/check` 与令牌端点）已**缺省有界**（connect `3s` /
+  read `10s`，`byteforce.eis.authz.connect-timeout` / `read-timeout` 可覆盖）；但两个客户端由自动配置
+  内部装配，**不暴露** `RestClientCustomizer` / `ClientHttpRequestFactory` Bean（避免污染宿主应用的
+  客户端装配面）。
+- **影响**：需要按端点区分超时、走代理、mTLS 或自定义请求工厂时，只能整体覆盖
+  `EisAuthzClient` / `EisAuthzTokenProvider` Bean——**覆盖即自行负责超时保证**（后续新增端点不会
+  继承本模块缺省）。
+- **规避**：覆盖时显式设置超时（可参照自动配置的装配口径），或保持默认 Bean 仅调整上述两个键。
+
 ## 3. 依赖与版本
 
 - **现状**：

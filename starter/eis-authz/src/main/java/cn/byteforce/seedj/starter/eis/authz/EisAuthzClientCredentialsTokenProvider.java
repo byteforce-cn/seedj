@@ -5,6 +5,7 @@ import org.springframework.http.MediaType;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -26,7 +27,8 @@ import java.util.Optional;
  *   <li>缓存与刷新：令牌按 {@code expires_in}（缺省 300 秒）缓存，
  *       提前 {@code token-refresh-skew}（缺省 30 秒）刷新；</li>
  *   <li>失败口径：令牌端点非 2xx / 响应缺少 {@code access_token} 一律抛
- *       {@link EisAuthzRemoteException}（fail-closed——不得静默降级为无认证调用）；</li>
+ *       {@link EisAuthzRemoteException}（fail-closed——不得静默降级为无认证调用）；
+ *       连接/读取超时同样抛 {@link EisAuthzRemoteException}（超时为本地判定状态码 {@code 504}）；</li>
  *   <li>配置不完整（缺 {@code token-uri}/{@code client-id}/{@code client-secret}）
  *       在构造期 fail-fast，避免应用静默退化为 401。</li>
  * </ul>
@@ -127,16 +129,25 @@ public final class EisAuthzClientCredentialsTokenProvider implements EisAuthzTok
         if (scope != null && !scope.isBlank()) {
             form.add("scope", scope);
         }
-        String payload = tokenClient.post().uri(tokenUri)
-                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                .headers(headers -> headers.setBasicAuth(clientId, clientSecret, StandardCharsets.UTF_8))
-                .body(form)
-                .retrieve()
-                .onStatus(HttpStatusCode::isError, (request, response) -> {
-                    String text = new String(response.getBody().readAllBytes(), StandardCharsets.UTF_8);
-                    throw new EisAuthzRemoteException(response.getStatusCode().value(), tokenUri, text);
-                })
-                .body(String.class);
+        String payload;
+        try {
+            payload = tokenClient.post().uri(tokenUri)
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .headers(headers -> headers.setBasicAuth(clientId, clientSecret, StandardCharsets.UTF_8))
+                    .body(form)
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (request, response) -> {
+                        String text = new String(response.getBody().readAllBytes(), StandardCharsets.UTF_8);
+                        throw new EisAuthzRemoteException(response.getStatusCode().value(), tokenUri, text);
+                    })
+                    .body(String.class);
+        } catch (RestClientException e) {
+            // 网络层失败（连接/读取超时、响应体停摆）：fail-closed，不得静默降级为无认证调用
+            if (!EisAuthzRemoteException.isNetworkFailure(e)) {
+                throw e;
+            }
+            throw EisAuthzRemoteException.resourceFailure(tokenUri, e);
+        }
         JsonNode node = payload == null ? null : MAPPER.readTree(payload);
         if (node == null || node.get("access_token") == null || node.get("access_token").stringValue().isBlank()) {
             throw new EisAuthzRemoteException(502, tokenUri, "令牌响应缺少 access_token");

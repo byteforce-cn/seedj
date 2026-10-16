@@ -18,10 +18,14 @@ import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.core.type.AnnotatedTypeMetadata;
+import org.springframework.http.client.ClientHttpRequestFactory;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.servlet.DispatcherServlet;
 
+import java.net.http.HttpClient;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -76,7 +80,8 @@ public class EisAuthzAutoConfiguration {
     @ConditionalOnProperty(prefix = "byteforce.eis.authz", name = "base-url")
     public EisAuthzClient eisAuthzClient(EisAuthzProperties properties,
                                          ObjectProvider<EisAuthzTokenProvider> tokenProviders) {
-        return new EisAuthzClient(RestClient.builder().baseUrl(properties.getBaseUrl()).build(),
+        return new EisAuthzClient(RestClient.builder().baseUrl(properties.getBaseUrl())
+                .requestFactory(requestFactory(properties)).build(),
                 tokenProviders.getIfAvailable());
     }
 
@@ -92,9 +97,36 @@ public class EisAuthzAutoConfiguration {
     @Conditional(EisAuthzCredentialsConfiguredCondition.class)
     public EisAuthzClientCredentialsTokenProvider eisAuthzClientCredentialsTokenProvider(
             EisAuthzProperties properties) {
-        return new EisAuthzClientCredentialsTokenProvider(RestClient.builder().build(),
+        return new EisAuthzClientCredentialsTokenProvider(
+                RestClient.builder().requestFactory(requestFactory(properties)).build(),
                 properties.getTokenUri(), properties.getClientId(), properties.getClientSecret(),
                 properties.getScope(), properties.getTokenRefreshSkew());
+    }
+
+    /**
+     * 有界超时的 HTTP 请求工厂：connect 走 JDK HttpClient、read 走请求级超时；
+     * 两个 RestClient 由同一入口装配（各自持有独立连接池）。缺省即生效，
+     * 非正/缺失的超时配置在装配期 fail-fast，避免静默退化为「无限等待」。
+     *
+     * @param properties 授权属性（{@code connect-timeout} / {@code read-timeout}，均为正 Duration）
+     * @return 请求工厂
+     * @throws IllegalStateException 超时配置缺失或非正
+     */
+    static ClientHttpRequestFactory requestFactory(EisAuthzProperties properties) {
+        HttpClient httpClient = HttpClient.newBuilder()
+                .connectTimeout(requirePositive(properties.getConnectTimeout(), "connect-timeout"))
+                .build();
+        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(httpClient);
+        factory.setReadTimeout(requirePositive(properties.getReadTimeout(), "read-timeout"));
+        return factory;
+    }
+
+    private static Duration requirePositive(Duration timeout, String key) {
+        if (timeout == null || timeout.isZero() || timeout.isNegative()) {
+            throw new IllegalStateException("byteforce.eis.authz." + key
+                    + " 必须为正 Duration（缺省即有界，禁止退化为无界等待）");
+        }
+        return timeout;
     }
 
     /**
