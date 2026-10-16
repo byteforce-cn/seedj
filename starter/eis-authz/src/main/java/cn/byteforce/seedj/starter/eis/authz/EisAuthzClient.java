@@ -5,8 +5,8 @@ import cn.byteforce.seedj.starter.eis.authz.EisAuthzModels.EisAuthzResolution;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
-import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
@@ -113,8 +113,11 @@ public class EisAuthzClient implements EisAuthzOperations {
                         throw new EisAuthzRemoteException(response.getStatusCode().value(), path, text);
                     })
                     .body(String.class);
-        } catch (ResourceAccessException e) {
-            // 网络层失败（含连接/读取超时）：fail-closed，由调用方决定拒绝还是降级
+        } catch (RestClientException e) {
+            // 网络层失败（连接/读取超时、响应体停摆）：fail-closed，由调用方决定拒绝还是降级
+            if (!EisAuthzRemoteException.isNetworkFailure(e)) {
+                throw e;
+            }
             throw EisAuthzRemoteException.resourceFailure(path, e);
         }
         return MAPPER.readTree(payload);

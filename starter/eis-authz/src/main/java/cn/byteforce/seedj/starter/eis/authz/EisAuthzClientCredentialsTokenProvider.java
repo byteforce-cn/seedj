@@ -4,8 +4,8 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
-import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -141,8 +141,11 @@ public final class EisAuthzClientCredentialsTokenProvider implements EisAuthzTok
                         throw new EisAuthzRemoteException(response.getStatusCode().value(), tokenUri, text);
                     })
                     .body(String.class);
-        } catch (ResourceAccessException e) {
-            // 网络层失败（含超时）：fail-closed，不得静默降级为无认证调用
+        } catch (RestClientException e) {
+            // 网络层失败（连接/读取超时、响应体停摆）：fail-closed，不得静默降级为无认证调用
+            if (!EisAuthzRemoteException.isNetworkFailure(e)) {
+                throw e;
+            }
             throw EisAuthzRemoteException.resourceFailure(tokenUri, e);
         }
         JsonNode node = payload == null ? null : MAPPER.readTree(payload);

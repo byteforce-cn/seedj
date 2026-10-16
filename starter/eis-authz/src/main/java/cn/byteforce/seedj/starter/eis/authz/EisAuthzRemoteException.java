@@ -1,5 +1,6 @@
 package cn.byteforce.seedj.starter.eis.authz;
 
+import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.net.http.HttpTimeoutException;
 
@@ -47,7 +48,7 @@ public class EisAuthzRemoteException extends RuntimeException {
      * 由网络层失败构造异常（fail-closed：超时与连接/IO 失败都不得静默降级）。
      *
      * @param path  调用路径
-     * @param cause 网络层失败（通常为 {@code ResourceAccessException}）
+     * @param cause 网络层失败（{@code ResourceAccessException} 或响应体读取中断的包装异常）
      * @return 异常：超时 {@code status=504}，连接/IO 失败 {@code status=503}
      */
     public static EisAuthzRemoteException resourceFailure(String path, Throwable cause) {
@@ -56,6 +57,25 @@ public class EisAuthzRemoteException extends RuntimeException {
             return new EisAuthzRemoteException(504, path, "超时（" + detail + "）", cause);
         }
         return new EisAuthzRemoteException(503, path, "连接/IO 失败（" + detail + "）", cause);
+    }
+
+    /**
+     * 判断失败是否属于网络层（失败链上含 {@link IOException}：连接拒绝、超时、传输中断）。
+     *
+     * <p>响应体停摆时 JDK 取消订阅、Spring 以普通 {@code RestClientException} 包装，
+     * 失败链上已无超时类型，但仍属有界网络失败；非网络失败（如内容协商失败）不应被误标。</p>
+     *
+     * @param failure 失败
+     * @return 是否网络层失败
+     */
+    static boolean isNetworkFailure(Throwable failure) {
+        for (Throwable current = failure; current != null && current != current.getCause();
+                current = current.getCause()) {
+            if (current instanceof IOException) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean isTimeout(Throwable cause) {

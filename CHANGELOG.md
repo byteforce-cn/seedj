@@ -61,9 +61,10 @@
   `EisAuthzClient`（`/resolve` `/check`）与 `EisAuthzClientCredentialsTokenProvider`（令牌端点）此前用
   `RestClient.builder()` 裸装配，**缺省即无限等待**。现新增配置键
   `byteforce.eis.authz.connect-timeout`（缺省 `3s`）/ `read-timeout`（缺省 `10s`）——**不配置也有界**，
-  两个客户端共用同一装配口径（JDK `HttpClient` 连接超时 + 请求级读取超时）；超时与连接/IO 失败
-  一律 fail-closed 抛 `EisAuthzRemoteException`（本地判定：超时 `504`、连接·IO 失败 `503`，
-  消息保留「超时」语义以区别于 4xx/5xx），**不得**静默降级为匿名调用。
+  两个客户端由同一入口装配（JDK `HttpClient` 连接超时 + 请求级读取超时，含响应体停摆）；
+  超时与连接/IO 失败一律 fail-closed 抛 `EisAuthzRemoteException`（本地判定：超时 `504`、
+  连接·IO 失败 `503`，消息保留「超时」语义以区别于 4xx/5xx），**不得**静默降级为匿名调用；
+  超时键必须为正（缺失/非正装配期 fail-fast，避免静默退化为无界等待）。
 
 - **`starter-eis-core` 幂等重放/冲突响应缺少 `created` 引用**：受理结果的主对象指针（`created`）
   此前只在首次响应返回，同键重放、异型同键冲突的 `original_result` 与 `GET /commands/{id}`

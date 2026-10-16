@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -34,6 +35,12 @@ class EisAuthzTimeoutTest {
     private static final Duration HANG = Duration.ofMillis(1500);
 
     private static final Duration READ_TIMEOUT = Duration.ofMillis(200);
+
+    /**
+     * 失败窗口上界：读取超时（200ms）+ 建连/调度余量，仍远小于 {@link #HANG}——
+     * 断言的是「在超时窗口内失败」，而非仅仅「比端点挂起时长快」。
+     */
+    private static final Duration MAX_FAILURE_WINDOW = Duration.ofSeconds(1);
 
     private HttpServer server;
 
@@ -81,7 +88,7 @@ class EisAuthzTimeoutTest {
                 .isInstanceOf(EisAuthzRemoteException.class)
                 .hasMessageContaining("超时");
         Duration elapsed = Duration.ofNanos(System.nanoTime() - start);
-        assertThat(elapsed).isLessThan(HANG);
+        assertThat(elapsed).isLessThan(MAX_FAILURE_WINDOW);
     }
 
     @Test
@@ -107,9 +114,88 @@ class EisAuthzTimeoutTest {
                 RestClient.builder().requestFactory(EisAuthzAutoConfiguration.requestFactory(properties)).build(),
                 baseUrl + "/oauth2/token", "svc-hr", "s3cr3t", null, Duration.ZERO);
 
+        long start = System.nanoTime();
         assertThatThrownBy(provider::accessToken)
                 .isInstanceOf(EisAuthzRemoteException.class)
                 .hasMessageContaining("超时");
+        assertThat(Duration.ofNanos(System.nanoTime() - start)).isLessThan(MAX_FAILURE_WINDOW);
+    }
+
+    @Test
+    void readTimeoutAlsoBoundsStalledResponseBody() throws IOException {
+        // 响应头如期返回、响应体停摆：读取超时必须约束整个响应读取（不只建连与首字节）
+        HttpServer stalling = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        stalling.createContext("/", exchange -> {
+            exchange.sendResponseHeaders(200, 64);
+            exchange.getResponseBody().write("{\"allowed\":".getBytes(StandardCharsets.UTF_8));
+            exchange.getResponseBody().flush();
+            try {
+                Thread.sleep(HANG.toMillis());
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            exchange.close();
+        });
+        stalling.setExecutor(Executors.newCachedThreadPool(runnable -> {
+            Thread thread = new Thread(runnable);
+            thread.setDaemon(true);
+            return thread;
+        }));
+        stalling.start();
+        try {
+            EisAuthzProperties properties = new EisAuthzProperties();
+            properties.setReadTimeout(READ_TIMEOUT);
+            EisAuthzClient client = new EisAuthzClient(RestClient.builder()
+                    .baseUrl("http://127.0.0.1:" + stalling.getAddress().getPort())
+                    .requestFactory(EisAuthzAutoConfiguration.requestFactory(properties))
+                    .build());
+
+            long start = System.nanoTime();
+            assertThatThrownBy(() -> client.check("p", "iam.user.create", Instant.now(), null))
+                    .isInstanceOf(EisAuthzRemoteException.class)
+                    .hasMessageContaining("连接/IO 失败")
+                    .extracting(failure -> ((EisAuthzRemoteException) failure).getStatus())
+                    .isEqualTo(503);
+            assertThat(Duration.ofNanos(System.nanoTime() - start)).isLessThan(MAX_FAILURE_WINDOW);
+        } finally {
+            stalling.stop(0);
+        }
+    }
+
+    @Test
+    void nonNetworkRestClientFailurePropagatesUnchanged() {
+        EisAuthzClient client = new EisAuthzClient(RestClient.builder()
+                .baseUrl("http://authz.test")
+                .requestFactory((uri, method) -> {
+                    throw new RestClientException("内容协商失败（非网络层）");
+                })
+                .build());
+
+        assertThatThrownBy(() -> client.check("p", "iam.user.create", Instant.now(), null))
+                .isInstanceOf(RestClientException.class)
+                .isNotInstanceOf(EisAuthzRemoteException.class)
+                .hasMessageContaining("内容协商失败");
+    }
+
+    @Test
+    void nonPositiveTimeoutsFailFastInsteadOfDegradingToUnboundedWait() {
+        EisAuthzProperties zeroConnect = new EisAuthzProperties();
+        zeroConnect.setConnectTimeout(Duration.ZERO);
+        assertThatThrownBy(() -> EisAuthzAutoConfiguration.requestFactory(zeroConnect))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("connect-timeout");
+
+        EisAuthzProperties absentRead = new EisAuthzProperties();
+        absentRead.setReadTimeout(null);
+        assertThatThrownBy(() -> EisAuthzAutoConfiguration.requestFactory(absentRead))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("read-timeout");
+
+        EisAuthzProperties negativeRead = new EisAuthzProperties();
+        negativeRead.setReadTimeout(Duration.ofMillis(-1));
+        assertThatThrownBy(() -> EisAuthzAutoConfiguration.requestFactory(negativeRead))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("read-timeout");
     }
 
     @Test
@@ -122,7 +208,9 @@ class EisAuthzTimeoutTest {
 
         assertThatThrownBy(() -> client.check("p", "iam.user.create", Instant.now(), null))
                 .isInstanceOf(EisAuthzRemoteException.class)
-                .hasMessageContaining("授权服务调用失败");
+                .hasMessageContaining("授权服务调用失败")
+                .extracting(failure -> ((EisAuthzRemoteException) failure).getStatus())
+                .isEqualTo(503);
     }
 
     @Test
@@ -160,7 +248,7 @@ class EisAuthzTimeoutTest {
                     assertThatThrownBy(() -> client.check("p", "iam.user.create", Instant.now(), null))
                             .isInstanceOf(EisAuthzRemoteException.class)
                             .hasMessageContaining("超时");
-                    assertThat(Duration.ofNanos(System.nanoTime() - start)).isLessThan(HANG);
+                    assertThat(Duration.ofNanos(System.nanoTime() - start)).isLessThan(MAX_FAILURE_WINDOW);
                 });
     }
 
