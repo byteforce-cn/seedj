@@ -10,7 +10,7 @@
 # 全部集成套件（需要本机 Docker + coord 镜像）
 mvn -pl starter/coord-it -am verify -Pit
 
-# 覆盖镜像（默认 ghcr.io/byteforce-cn/coord:v0.3.0）
+# 覆盖镜像（默认 ghcr.io/byteforce-cn/coord:v0.3.1）
 mvn -pl starter/coord-it -am verify -Pit -Dcoord.it.image=<image>
 ```
 
@@ -36,7 +36,7 @@ perl 转发器暴露 Agent 端口（详见 `src/test/resources/coord-it/` 与 `C
 - 每个测试类按属性集获得独立 ApplicationContext（Spring TestContext 缓存），
   共享同一个 coord 容器；跨用例数据用 `uniqueName` 隔离。
 
-## 套件清单（33 例）
+## 套件清单（34 例）
 
 | 套件 | 覆盖 |
 | --- | --- |
@@ -46,7 +46,7 @@ perl 转发器暴露 Agent 端口（详见 `src/test/resources/coord-it/` 与 `C
 | `CoordCacheIntegrationTest` | String / Hash / List / Set 数据面 |
 | `CoordMqIntegrationTest` | Topic → publish → poll → ack → DLQ |
 | `CoordWorkflowIntegrationTest` | SW DSL 部署 → 实例推进至 COMPLETED |
-| `CoordTransitIntegrationTest` | 信封加解密（context 绑定）与 HMAC |
+| `CoordTransitIntegrationTest` | 信封加解密（context 绑定）与 HMAC 用途化签名/验签（含篡改与跨用途拒绝） |
 | `CoordAutoRegistrationIntegrationTest` | 自动注册（metadata schema）+ 子上下文优雅注销 |
 | `CoordConfigImportIntegrationTest` | `spring.config.import=coord:` 导入与绑定、前缀过滤 |
 | `CoordConfigRefreshIntegrationTest` | 外部变更 → rebind → 刷新事件；`@Value` 不刷新护栏 |

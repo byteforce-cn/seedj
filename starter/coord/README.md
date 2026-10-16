@@ -17,16 +17,25 @@
 
 | 项 | 值 | 说明 |
 | --- | --- | --- |
-| SDK | `cn.byteforce:coord-java-sdk:0.3.0` | 由 `bom` 统一管理 |
+| SDK | `cn.byteforce:coord-java-sdk:0.3.1` | 由 `bom` 统一管理 |
 | 平台 | Spring Boot 4.1.1 | 由 `bom` 统一管理 |
 | Java | 21 | 与 SDK 一致 |
 
 > ⚠️ **传递依赖版本被平台 BOM 提升**：SDK 自测组合为 gRPC 1.68.0 / protobuf-java 4.28.0，
 > 但在 seedj BOM（导入 Boot BOM）下实际解析为 **gRPC 1.83.1 / protobuf-java 4.35.1**
-> （`mvn -pl starter/coord dependency:tree` 实证）。该组合已在 SDK 0.3.0 的官方测试范围内
+> （`mvn -pl starter/coord dependency:tree` 实证）。该组合已在 SDK 0.3.1 的官方测试范围内
 > （SDK README「Also tested」列），方向受 protobuf 支持（runtime 新于
 > gencode）；当前单元测试在该组合下通过。如后续遇到疑似版本相关异常，可在应用侧
 > `dependencyManagement` 钉回 SDK 测试版本，并回报 coord 上游。
+>
+> ⚠️ **0.3.1 破坏性变更（Transit HMAC，ADR-0012 / G-TR-3）**：SDK 0.3.1 移除了
+> `TransitClient.hmacSign(byte[])`、`hmacSign(byte[], String)`、`hmacVerify(byte[], byte[])`、
+> `hmacVerify(byte[], byte[], String)`。改用用途化 API：`hmacSignWithPurpose(data, purpose)`
+> （返回 `TransitHmacSignature`，签名必须连同其 `keyId()` 一并持久化）与
+> `hmacVerifyWithPurpose(data, signature, purpose, keyId)`；purpose 必填且互不可验，
+> 历史材料未注入时验签 `FAILED_PRECONDITION` fail-loud。seedj 自身不封装 Transit HMAC
+> （仅 `coord-it` 集成用例消费，已迁移），直接使用该 SDK 面的下游代码需自行迁移。
+
 ## 家族模块（coord-starter 一族）
 
 本模块是家族的**接线层基座**；能力面模块独立增量引入（均依赖本模块，未引入时优雅回退）：
@@ -188,7 +197,7 @@ Bean 即可接管。
 ## 集成验证（Testcontainers）
 
 集成套件已统一迁至 [`starter-coord-it`](../coord-it/README.md)（Testcontainers 单容器
-真实 coord 环境，当前 14 类 33 例）：覆盖本模块全部分布式能力装配链路，以及
+真实 coord 环境，当前 14 类 34 例）：覆盖本模块全部分布式能力装配链路，以及
 registry / config / client / observability 能力面与锁 / 限流的语义护栏。
 
 ```bash

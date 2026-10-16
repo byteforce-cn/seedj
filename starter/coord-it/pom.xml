@@ -110,7 +110,7 @@
         <!--
             `-Pit`：跑全部集成套件（Testcontainers 单容器 server+agent 真实环境）。
             前置条件：本机 Docker 可用 + coord 镜像已拉取（默认
-            ghcr.io/byteforce-cn/coord:v0.3.0，可用 -Dcoord.it.image=<image> 覆盖）。
+            ghcr.io/byteforce-cn/coord:v0.3.1，可用 -Dcoord.it.image=<image> 覆盖）。
             镜像/容器不可用时硬失败、不静默跳过——集成验证必须产生真实证据。
         -->
         <profile>

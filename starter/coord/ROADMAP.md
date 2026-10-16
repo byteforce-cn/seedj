@@ -161,7 +161,7 @@ spring.factories 注册边界；`starter-coord-observability` 隔离 micrometer 
 
 ## 契约对齐（目标日期）
 
-coord-java-sdk 0.3.0 内嵌契约头部声明（全部 COMMITTED；以 `apis/contracts/STATUS.md`
+coord-java-sdk 0.3.1 内嵌契约头部声明（全部 COMMITTED；以 `apis/contracts/STATUS.md`
 最新版为准）：
 
 | 阶段 | 依赖契约（目标日期） | 关键路径 / 说明 | 若延迟的应对 |
@@ -174,7 +174,7 @@ coord-java-sdk 0.3.0 内嵌契约头部声明（全部 COMMITTED；以 `apis/con
 | Phase 4 缓存 / 选举 / 功能开关 / 工作流 / 调度 | cache / featureflags（2026-12-31）、election（2026-11-30）、workflow / scheduler（2027-03-31） | 按实际诉求封装 | 2027-03 前不承诺；按诉求排先后 |
 
 其余 COMMITTED 契约（event / mq / pki / policy / transit）随对应能力场景并入相应阶段。
-以上为 SDK 0.3.0 快照；SDK 升级时先核对 STATUS.md 再修订本表（与 §测试策略 T3 联动）。
+以上为 SDK 0.3.1 快照；SDK 升级时先核对 STATUS.md 再修订本表（与 §测试策略 T3 联动）。
 
 ## 测试策略（定稿）
 
@@ -182,7 +182,7 @@ coord-java-sdk 0.3.0 内嵌契约头部声明（全部 COMMITTED；以 `apis/con
 | --- | --- | --- | --- |
 | T1 | 契约语义护栏 | 对契约明文的非常规语义写显式断言（防语义漂移）：锁不可重入、限流 / 熔断为 agent 本地态（重启重置、不跨 agent）、Event 断线不补投、scheduler result 不留档、MQ 仅 Poll+Ack 为 at-least-once 承诺路径、`@Value` 不参与刷新 | 各能力模块单测 + coord-it 集成套件（逐阶段累加） |
 | T2 | 异常路径 | agent 不可达 / watch 断流 / 注册冲突 / 租约丢失 / 无可用实例 / optional 配置缺失；语义分支由单测覆盖，可稳定复现的集成路径由 coord-it 覆盖 | 持续补齐（清单随套件维护） |
-| T3 | 版本兼容 | starter × coord-java-sdk 版本兼容矩阵（当前基线 SDK 0.3.0；0.2.0→0.3.0 为纯增量：无类/成员移除，128 个新增类，`javap` 全量比对实证）；SDK 升级触发全量回归；矩阵维护责任：starter/coord 维护者 | 持续（SDK 发版触发） |
+| T3 | 版本兼容 | starter × coord-java-sdk 版本兼容矩阵（当前基线 SDK 0.3.1；`javap -public` 全量比对：0.2.0→0.3.0、0.3.0→0.3.1 均无类移除，0.3.1 新增 118 个类文件/62 个顶层类；唯一成员级破坏面为 `TransitClient` HMAC 旧方法移除 → 用途化 API，ADR-0012、迁移见 `starter/coord/README.md`）；SDK 升级触发全量回归；矩阵维护责任：starter/coord 维护者 | 持续（SDK 发版触发） |
 | T4 | 套件归属 | 全部 `*IntegrationTest` 位于 `starter/coord-it`（`mvn -pl starter/coord-it -am verify -Pit`）；单元测试位于各模块（`mvn verify`，无需 Docker） | 持续 |
 
 ## 修订记录
@@ -192,3 +192,4 @@ coord-java-sdk 0.3.0 内嵌契约头部声明（全部 COMMITTED；以 `apis/con
 | 2026-10-07 | 初稿（自 seedj ADR-0001 拆分：分期与前置、契约对齐、测试策略；含首轮评审意见——Phase 0 首批决议项、fail-fast / 降级矩阵、LB 实例来源与缓存口径、测试策略三类） |
 | 2026-10-07 | 全部落地轮：Phase 0 决议关闭（R1–R3）与 C1–C7 定稿；§0.3 矩阵定稿；分期主线标注落地状态与模块地图；测试策略增 T4（套件迁至 `starter/coord-it`） |
 | 2026-10-11 | SDK 跟进 0.3.0：BOM 基线与 T3 兼容矩阵升版；契约对齐表快照标注升版；集成镜像联动 `v0.3.0`（javap 全量比对：0.2.0→0.3.0 纯增量，无破坏面） |
+| 2026-10-16 | SDK 跟进 0.3.1：BOM 基线与 T3 兼容矩阵升版；契约对齐表快照标注升版；集成镜像联动 `v0.3.1`（javap 全量比对：无类移除；成员级破坏面仅 Transit HMAC 旧方法 → 用途化 API，ADR-0012；审批 v2 与工作流修复为纯新增） |
