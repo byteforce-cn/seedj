@@ -18,10 +18,13 @@ import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.core.type.AnnotatedTypeMetadata;
+import org.springframework.http.client.ClientHttpRequestFactory;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.servlet.DispatcherServlet;
 
+import java.net.http.HttpClient;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -76,7 +79,8 @@ public class EisAuthzAutoConfiguration {
     @ConditionalOnProperty(prefix = "byteforce.eis.authz", name = "base-url")
     public EisAuthzClient eisAuthzClient(EisAuthzProperties properties,
                                          ObjectProvider<EisAuthzTokenProvider> tokenProviders) {
-        return new EisAuthzClient(RestClient.builder().baseUrl(properties.getBaseUrl()).build(),
+        return new EisAuthzClient(RestClient.builder().baseUrl(properties.getBaseUrl())
+                .requestFactory(requestFactory(properties)).build(),
                 tokenProviders.getIfAvailable());
     }
 
@@ -92,9 +96,26 @@ public class EisAuthzAutoConfiguration {
     @Conditional(EisAuthzCredentialsConfiguredCondition.class)
     public EisAuthzClientCredentialsTokenProvider eisAuthzClientCredentialsTokenProvider(
             EisAuthzProperties properties) {
-        return new EisAuthzClientCredentialsTokenProvider(RestClient.builder().build(),
+        return new EisAuthzClientCredentialsTokenProvider(
+                RestClient.builder().requestFactory(requestFactory(properties)).build(),
                 properties.getTokenUri(), properties.getClientId(), properties.getClientSecret(),
                 properties.getScope(), properties.getTokenRefreshSkew());
+    }
+
+    /**
+     * 有界超时的 HTTP 请求工厂（两个 RestClient 共用装配口径）：
+     * connect 走 JDK HttpClient，read 走请求级超时。缺省即生效，避免「不配置 = 无限等待」。
+     *
+     * @param properties 授权属性（{@code connect-timeout} / {@code read-timeout}）
+     * @return 请求工厂
+     */
+    static ClientHttpRequestFactory requestFactory(EisAuthzProperties properties) {
+        HttpClient httpClient = HttpClient.newBuilder()
+                .connectTimeout(properties.getConnectTimeout())
+                .build();
+        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(httpClient);
+        factory.setReadTimeout(properties.getReadTimeout());
+        return factory;
     }
 
     /**

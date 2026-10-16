@@ -31,6 +31,16 @@ public class EisAuthzProperties {
     private Duration cacheTtl = Duration.ofSeconds(30);
 
     /**
+     * 远程调用连接超时（有界缺省：授权/令牌端点不可达时快速失败，避免占用消费方请求线程）。
+     */
+    private Duration connectTimeout = Duration.ofSeconds(3);
+
+    /**
+     * 远程调用读取超时（有界缺省：授权/令牌端点挂起时快速失败，避免占用消费方请求线程）。
+     */
+    private Duration readTimeout = Duration.ofSeconds(10);
+
+    /**
      * 是否启用进程内 TTL 缓存。
      */
     private boolean cacheEnabled = true;
@@ -130,6 +140,42 @@ public class EisAuthzProperties {
      */
     public void setCacheEnabled(boolean cacheEnabled) {
         this.cacheEnabled = cacheEnabled;
+    }
+
+    /**
+     * 获取连接超时。
+     *
+     * @return 连接超时
+     */
+    public Duration getConnectTimeout() {
+        return connectTimeout;
+    }
+
+    /**
+     * 设置连接超时。
+     *
+     * @param connectTimeout 连接超时
+     */
+    public void setConnectTimeout(Duration connectTimeout) {
+        this.connectTimeout = connectTimeout;
+    }
+
+    /**
+     * 获取读取超时。
+     *
+     * @return 读取超时
+     */
+    public Duration getReadTimeout() {
+        return readTimeout;
+    }
+
+    /**
+     * 设置读取超时。
+     *
+     * @param readTimeout 读取超时
+     */
+    public void setReadTimeout(Duration readTimeout) {
+        this.readTimeout = readTimeout;
     }
 
     /**
