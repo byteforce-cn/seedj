@@ -91,6 +91,17 @@
 
 ### Changed
 
+- **coord-java-sdk 0.3.0 → 0.3.1**：BOM 升版（`coord-java-sdk.version`），`starter-coord*` 全模块单元套件与
+  `coord-it` 集成套件（34 例）在真实 `ghcr.io/byteforce-cn/coord:v0.3.1` 容器上全绿；集成镜像默认值同步
+  `v0.3.1`（`-Dcoord.it.image` 仍可覆盖）。兼容性实证：`javap -public` 全量比对（1918 → 2036 个类文件）
+  无类移除，新增 118 个类文件 / 62 个顶层类（工作流审批 v2 的 12 个 RPC 契约与 Java SDK 包装、Transit
+  HMAC 用途化契约等）；**成员级破坏面一处**：`TransitClient.hmacSign` / `hmacVerify` 旧签名移除
+  （ADR-0012 用途化密钥，G-TR-3），改用 `hmacSignWithPurpose` / `hmacVerifyWithPurpose`（purpose 必填、
+  验签须回传签名时持久化的 `keyId`）——seedj 自身不封装 Transit HMAC，仅 `coord-it` 用例消费（已迁移），
+  下游直接使用该 SDK 面的代码需按 `starter/coord/README.md` 迁移。文档同步：根 README、
+  `starter/coord/README.md`、`starter/coord/ROADMAP.md`（T3 基线）、`starter/coord-it/README.md`、
+  `docs/known-limitations.md`、`docs/third-party-licenses.md`。
+
 - **coord-java-sdk 0.2.0 → 0.3.0**：BOM 升版（`coord-java-sdk.version`），`starter-coord*` 全模块单元套件与
   `coord-it` 集成套件（33 例）在真实 `ghcr.io/byteforce-cn/coord:v0.3.0` 容器上全绿；集成镜像默认值
   同步 `v0.3.0`（`-Dcoord.it.image` 仍可覆盖）。兼容性实证：`javap -public` 全量比对 0.2.0 与 0.3.0

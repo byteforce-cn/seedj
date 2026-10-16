@@ -58,7 +58,7 @@ seedj 把业务服务「开工即需要」的横切能力沉淀为可复用的 M
 | 平台 | Spring Boot 4.1 / Spring Framework 7 / Spring Security 7 |
 | JSON | Jackson 3（`tools.jackson`） |
 | 数据 | MyBatis-Plus 3.5（+ jsqlparser 插件） |
-| 协调 | coord-java-sdk 0.3.0（coord 家族） |
+| 协调 | coord-java-sdk 0.3.1（coord 家族） |
 
 ## 快速开始
 

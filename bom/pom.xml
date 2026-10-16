@@ -17,7 +17,7 @@
 
     <properties>
         <!-- spring-boot.version 由根 POM 统一定义（随父链继承解析，单一维护点） -->
-        <coord-java-sdk.version>0.3.0</coord-java-sdk.version>
+        <coord-java-sdk.version>0.3.1</coord-java-sdk.version>
         <mybatis-plus.version>3.5.17</mybatis-plus.version>
         <compile-testing.version>0.23.0</compile-testing.version>
         <!-- 收敛锚点版本（见下方 dependencyManagement 中的 error_prone_annotations 注释） -->
