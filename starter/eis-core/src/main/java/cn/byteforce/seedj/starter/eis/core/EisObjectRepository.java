@@ -15,6 +15,7 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -172,7 +173,7 @@ public class EisObjectRepository {
      * 当前版本批量查询（附加等值条件）。
      *
      * @param objectType 对象类型名
-     * @param criteria   等值条件（键须为注册字段）
+     * @param criteria   等值条件（键须为注册字段；数组列取 {@code List} 值）
      * @return 命中行列表（未声明顺序）
      */
     public List<EisObjectRow> findCurrentAllBy(String objectType, Map<String, Object> criteria) {
@@ -185,7 +186,7 @@ public class EisObjectRepository {
      * 当前版本查询（附加等值条件，取首行）。
      *
      * @param objectType 对象类型名
-     * @param criteria   等值条件
+     * @param criteria   等值条件（数组列取 {@code List} 值）
      * @return 首行；无命中为空
      */
     public Optional<EisObjectRow> findCurrentBy(String objectType, Map<String, Object> criteria) {
@@ -270,7 +271,7 @@ public class EisObjectRepository {
                     throw new IllegalArgumentException("对象 " + type.getObjectType()
                             + " 未注册字段: " + entry.getKey());
                 }
-                values.put(entry.getKey(), entry.getValue());
+                values.put(entry.getKey(), normalizeValue(field, entry.getValue()));
             }
         }
         if (!partial) {
@@ -281,6 +282,63 @@ public class EisObjectRepository {
             }
         }
         return values;
+    }
+
+    /**
+     * 值归一：{@code UUID_ARRAY} 接受 {@code List}（元素 {@link UUID} 或字符串 UUID），
+     * 统一转为不可变 {@code List<UUID>}；其余 kind 原样透传。
+     */
+    private static Object normalizeValue(EisObjectField field, Object value) {
+        if (value == null || field.getKind() != EisFieldKind.UUID_ARRAY) {
+            return value;
+        }
+        if (!(value instanceof Collection<?> collection)) {
+            throw new IllegalArgumentException("字段 " + field.getName()
+                    + " 需要 List<UUID>，实际: " + value.getClass().getName());
+        }
+        List<UUID> uuids = new ArrayList<>(collection.size());
+        for (Object element : collection) {
+            if (element instanceof UUID uuid) {
+                uuids.add(uuid);
+            } else if (element instanceof String text) {
+                try {
+                    uuids.add(UUID.fromString(text));
+                } catch (IllegalArgumentException ex) {
+                    throw new IllegalArgumentException("字段 " + field.getName()
+                            + " 含非法 UUID 字符串: " + text, ex);
+                }
+            } else {
+                throw new IllegalArgumentException("字段 " + field.getName()
+                        + " 的 UUID_ARRAY 元素类型不支持: "
+                        + (element == null ? "null" : element.getClass().getName()));
+            }
+        }
+        return List.copyOf(uuids);
+    }
+
+    /** PostgreSQL 数组字面量（元素双引号包裹并转义；空集合为 {@code {}}）。 */
+    private static String arrayLiteral(Collection<?> elements) {
+        StringBuilder literal = new StringBuilder("{");
+        boolean first = true;
+        for (Object element : elements) {
+            if (!first) {
+                literal.append(',');
+            }
+            first = false;
+            literal.append('"')
+                    .append(String.valueOf(element).replace("\\", "\\\\").replace("\"", "\\\""))
+                    .append('"');
+        }
+        return literal.append('}').toString();
+    }
+
+    /** 条件值必须是集合（数组列等值查询入口校验；空值/类型不符给出字段上下文）。 */
+    private static Collection<?> requireCollection(EisObjectField field, Object value, String expected) {
+        if (!(value instanceof Collection<?> collection)) {
+            throw new IllegalArgumentException("字段 " + field.getName() + " 的条件值需要 " + expected
+                    + "，实际: " + (value == null ? "null" : value.getClass().getName()));
+        }
+        return collection;
     }
 
     private static void setUuid(PreparedStatement ps, int index, UUID value) throws SQLException {
@@ -313,6 +371,8 @@ public class EisObjectRepository {
             case JSONB -> ps.setString(index, value instanceof JsonNode node ? node.toString() : String.valueOf(value));
             case TEXT_ARRAY -> ps.setArray(index, ps.getConnection().createArrayOf("text",
                     ((List<?>) value).toArray()));
+            case UUID_ARRAY -> ps.setArray(index, ps.getConnection().createArrayOf("uuid",
+                    ((List<?>) value).toArray()));
             case DATE -> ps.setObject(index, (LocalDate) value);
             case BIGINT -> ps.setLong(index, ((Number) value).longValue());
             case NUMERIC -> ps.setObject(index, (BigDecimal) value);
@@ -327,6 +387,7 @@ public class EisObjectRepository {
             case TIMESTAMP -> Types.TIMESTAMP_WITH_TIMEZONE;
             case JSONB -> Types.OTHER;
             case TEXT_ARRAY -> Types.ARRAY;
+            case UUID_ARRAY -> Types.ARRAY;
             case DATE -> Types.DATE;
             case BIGINT -> Types.BIGINT;
             case NUMERIC -> Types.NUMERIC;
@@ -350,6 +411,25 @@ public class EisObjectRepository {
                 }
                 String[] values = (String[]) array.getArray();
                 yield List.of(values);
+            }
+            case UUID_ARRAY -> {
+                java.sql.Array array = rs.getArray(index);
+                if (array == null) {
+                    yield List.of();
+                }
+                Object[] values = (Object[]) array.getArray();
+                List<UUID> uuids = new ArrayList<>(values.length);
+                for (Object element : values) {
+                    if (element instanceof UUID uuid) {
+                        uuids.add(uuid);
+                    } else if (element instanceof String text) {
+                        uuids.add(UUID.fromString(text));
+                    } else {
+                        throw new IllegalArgumentException("uuid[] 列包含不支持的元素类型: "
+                                + (element == null ? "null" : element.getClass().getName()));
+                    }
+                }
+                yield List.copyOf(uuids);
             }
             case DATE -> rs.getObject(index, LocalDate.class);
             case BIGINT -> rs.getObject(index, Long.class);
@@ -447,6 +527,13 @@ public class EisObjectRepository {
                     Object value = entry.getValue();
                     values.add(value instanceof Instant instant
                             ? OffsetDateTime.ofInstant(instant, ZoneOffset.UTC) : value);
+                } else if (field.getKind() == EisFieldKind.UUID_ARRAY) {
+                    clauses.add(quote(field.getName()) + " = CAST(? AS uuid[])");
+                    Collection<?> raw = requireCollection(field, entry.getValue(), "List<UUID>");
+                    values.add(arrayLiteral((Collection<?>) normalizeValue(field, raw)));
+                } else if (field.getKind() == EisFieldKind.TEXT_ARRAY) {
+                    clauses.add(quote(field.getName()) + " = CAST(? AS text[])");
+                    values.add(arrayLiteral(requireCollection(field, entry.getValue(), "List<String>")));
                 } else {
                     clauses.add(quote(field.getName()) + " = ?");
                     values.add(entry.getValue());

@@ -58,6 +58,12 @@ class EisObjectRepositoryTest {
 
     private static final BigDecimal AMOUNT = new BigDecimal("1234.56");
 
+    private static final UUID SECTION_A = UUID.fromString("01900000-0000-7000-8000-0000000000c1");
+
+    private static final UUID SECTION_B = UUID.fromString("01900000-0000-7000-8000-0000000000c2");
+
+    private static final List<UUID> SECTIONS = List.of(SECTION_A, SECTION_B);
+
     private JdbcTemplate jdbc;
 
     private EisObjectRepository repository;
@@ -75,6 +81,7 @@ class EisObjectRepositoryTest {
                 .field("hired", EisFieldKind.DATE)
                 .field("attempts", EisFieldKind.BIGINT)
                 .field("amount", EisFieldKind.NUMERIC)
+                .field("section_ids", EisFieldKind.UUID_ARRAY)
                 .build();
         repository = new EisObjectRepository(jdbc, new EisObjectTypeRegistry(List.of(type)));
     }
@@ -90,6 +97,7 @@ class EisObjectRepositoryTest {
         data.put("hired", HIRED);
         data.put("attempts", 3);
         data.put("amount", AMOUNT);
+        data.put("section_ids", SECTIONS);
         return data;
     }
 
@@ -110,6 +118,7 @@ class EisObjectRepositoryTest {
         Array pgArray = mock(Array.class);
         when(ps.getConnection()).thenReturn(connection);
         when(connection.createArrayOf(eq("text"), any())).thenReturn(pgArray);
+        when(connection.createArrayOf(eq("uuid"), any())).thenReturn(pgArray);
         setterCaptor.getValue().setValues(ps);
 
         verify(ps).setObject(1, ID);
@@ -121,6 +130,8 @@ class EisObjectRepositoryTest {
         verify(ps).setString(15, "{\"k\":1}");
         verify(connection).createArrayOf("text", new Object[]{"a"});
         verify(ps).setArray(16, pgArray);
+        verify(connection).createArrayOf("uuid", new Object[]{SECTION_A, SECTION_B});
+        verify(ps).setArray(20, pgArray);
 
         assertThat(row.getVersion()).isEqualTo(1L);
         assertThat(row.getValidFrom()).isEqualTo(NOW);
@@ -156,6 +167,7 @@ class EisObjectRepositoryTest {
         verify(ps).setNull(17, Types.DATE);
         verify(ps).setNull(18, Types.BIGINT);
         verify(ps).setNull(19, Types.NUMERIC);
+        verify(ps).setNull(20, Types.ARRAY);
     }
 
     @Test
@@ -181,6 +193,64 @@ class EisObjectRepositoryTest {
         assertThat(row.getData()).containsEntry("hired", HIRED)
                 .containsEntry("attempts", 3)
                 .containsEntry("amount", AMOUNT);
+    }
+
+    @Test
+    void createNormalizesStringUuidElements() throws Exception {
+        when(jdbc.update(anyString(), any(PreparedStatementSetter.class))).thenReturn(1);
+
+        EisObjectRow row = repository.create("t_item", ID,
+                Map.of("section_ids", List.of(SECTION_A.toString(), SECTION_B.toString())), ACTOR, NOW);
+
+        ArgumentCaptor<PreparedStatementSetter> setterCaptor =
+                ArgumentCaptor.forClass(PreparedStatementSetter.class);
+        verify(jdbc).update(anyString(), setterCaptor.capture());
+        PreparedStatement ps = mock(PreparedStatement.class);
+        Connection connection = mock(Connection.class);
+        Array pgArray = mock(Array.class);
+        when(ps.getConnection()).thenReturn(connection);
+        when(connection.createArrayOf(eq("uuid"), any())).thenReturn(pgArray);
+        setterCaptor.getValue().setValues(ps);
+
+        verify(connection).createArrayOf("uuid", new Object[]{SECTION_A, SECTION_B});
+        verify(ps).setArray(20, pgArray);
+        assertThat(row.getData().get("section_ids")).isEqualTo(SECTIONS);
+    }
+
+    @Test
+    void createRejectsInvalidUuidArrayElement() {
+        assertThatThrownBy(() -> repository.create("t_item", ID,
+                Map.of("section_ids", List.of("not-a-uuid")), ACTOR, NOW))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("section_ids")
+                .hasMessageContaining("not-a-uuid");
+    }
+
+    @Test
+    void createRejectsNonCollectionUuidArrayValue() {
+        assertThatThrownBy(() -> repository.create("t_item", ID,
+                Map.of("section_ids", SECTION_A), ACTOR, NOW))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("section_ids");
+    }
+
+    @Test
+    void findCurrentMapsUuidArray() throws Exception {
+        ResultSet rs = mock(ResultSet.class);
+        when(rs.getObject(1, UUID.class)).thenReturn(ID);
+        when(rs.getLong(2)).thenReturn(1L);
+        when(rs.getObject(3, OffsetDateTime.class)).thenReturn(odt(NOW));
+        when(rs.getObject(5, OffsetDateTime.class)).thenReturn(odt(NOW));
+        when(rs.getObject(7, UUID.class)).thenReturn(ACTOR);
+        when(rs.getObject(8, OffsetDateTime.class)).thenReturn(odt(NOW));
+        Array sections = mock(Array.class);
+        when(sections.getArray()).thenReturn(new UUID[]{SECTION_A, SECTION_B});
+        when(rs.getArray(20)).thenReturn(sections);
+        stubSingleRowAnswer(rs);
+
+        Map<String, Object> data = repository.findCurrent("t_item", ID).orElseThrow().getData();
+
+        assertThat(data.get("section_ids")).isEqualTo(SECTIONS);
     }
 
     @Test
@@ -286,7 +356,8 @@ class EisObjectRepositoryTest {
         assertThat(row.getData().get("meta")).isInstanceOf(JsonNode.class);
         assertThat(row.getData()).containsEntry("hired", HIRED)
                 .containsEntry("attempts", 7L)
-                .containsEntry("amount", AMOUNT);
+                .containsEntry("amount", AMOUNT)
+                .containsEntry("section_ids", SECTIONS);
     }
 
     @Test
@@ -299,11 +370,13 @@ class EisObjectRepositoryTest {
         when(rs.getObject(7, UUID.class)).thenReturn(ACTOR);
         when(rs.getObject(8, OffsetDateTime.class)).thenReturn(odt(NOW));
         when(rs.getArray(16)).thenReturn(null);
+        when(rs.getArray(20)).thenReturn(null);
         stubSingleRowAnswer(rs);
 
         EisObjectRow row = repository.findCurrent("t_item", ID).orElseThrow();
 
         assertThat(row.getData().get("tags")).isEqualTo(List.of());
+        assertThat(row.getData().get("section_ids")).isEqualTo(List.of());
         assertThat(row.getData().get("name")).isNull();
     }
 
@@ -339,6 +412,36 @@ class EisObjectRepositoryTest {
         assertThat(argsCaptor.getValue()[3]).isEqualTo(HIRED);
         assertThat(argsCaptor.getValue()[4]).isEqualTo(9L);
         assertThat(argsCaptor.getValue()[5]).isEqualTo(AMOUNT);
+    }
+
+    @Test
+    void findCurrentAllByBindsArrayCriteriaAsCasts() {
+        when(jdbc.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        Map<String, Object> criteria = new LinkedHashMap<>();
+        criteria.put("section_ids", SECTIONS);
+        criteria.put("tags", List.of("a", "b\"c"));
+
+        repository.findCurrentAllBy("t_item", criteria);
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> argsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbc).query(sqlCaptor.capture(), any(RowMapper.class), argsCaptor.capture());
+        assertThat(sqlCaptor.getValue())
+                .contains("\"section_ids\" = CAST(? AS uuid[])")
+                .contains("\"tags\" = CAST(? AS text[])");
+        assertThat(argsCaptor.getValue()).containsExactly(
+                "{\"" + SECTION_A + "\",\"" + SECTION_B + "\"}",
+                "{\"a\",\"b\\\"c\"}");
+    }
+
+    @Test
+    void findCurrentAllByRejectsNullArrayCriteria() {
+        Map<String, Object> criteria = new LinkedHashMap<>();
+        criteria.put("section_ids", null);
+
+        assertThatThrownBy(() -> repository.findCurrentAllBy("t_item", criteria))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("section_ids");
     }
 
     @Test
@@ -426,6 +529,9 @@ class EisObjectRepositoryTest {
         when(rs.getObject(17, LocalDate.class)).thenReturn(HIRED);
         when(rs.getObject(18, Long.class)).thenReturn(7L);
         when(rs.getObject(19, BigDecimal.class)).thenReturn(AMOUNT);
+        Array sections = mock(Array.class);
+        when(sections.getArray()).thenReturn(new UUID[]{SECTION_A, SECTION_B});
+        when(rs.getArray(20)).thenReturn(sections);
         return rs;
     }
 
