@@ -26,6 +26,16 @@ public enum EisFieldKind {
     /** {@code TEXT[]} ↔ {@link java.util.List List&lt;String&gt;}。 */
     TEXT_ARRAY,
 
+    /**
+     * {@code UUID[]} ↔ {@link java.util.List List&lt;UUID&gt;}
+     * （{@code type: array, items.format: uuid} 生成物）。
+     *
+     * <p>写入接受 {@code List<UUID>}（元素为字符串 UUID 时按
+     * {@link java.util.UUID#fromString(String)} 归一，非法值报错），
+     * 读取返回不可变 {@code List<UUID>}，NULL 列为空列表。</p>
+     */
+    UUID_ARRAY,
+
     /** {@code DATE} ↔ {@link java.time.LocalDate}。 */
     DATE,
 

@@ -21,6 +21,28 @@ EIS 写路径与对象存储的通用实现：命令受理闭环（幂等 → �
 表结构：执行 `META-INF/eis/ddl/eis-core.ddl`（域定义 + `command`/`event`/`view` 契约表 +
 辅助表 `eis_idempotency`/`eis_command_event`/`eis_command_rejection`/`eis_outbox`）。
 
+### 领域字段类型（kind ↔ 生成列）
+
+`EisFieldKind` 与 `eis/tools/schema-compiler` 的生成列一一对应；数组列只支持
+`TEXT[]` / `UUID[]` 两种生成物（其余 array 组合编译器回退 `JSONB`）：
+
+| `EisFieldKind` | schema-compiler 生成列 | Java 类型 |
+| --- | --- | --- |
+| `TEXT` | `TEXT`（`CHAR(3)` / `CHAR(7)` pattern 同以 `TEXT` 注册） | `String` |
+| `BOOLEAN` | `BOOLEAN` | `Boolean` |
+| `UUID` | `UUID` | `UUID` |
+| `TIMESTAMP` | `TIMESTAMPTZ(6)` | `Instant` |
+| `JSONB` | `JSONB` | `JsonNode` |
+| `TEXT_ARRAY` | `TEXT[]`（`type: array, items.type: string`） | `List<String>` |
+| `UUID_ARRAY` | `UUID[]`（`type: array, items.format: uuid`） | `List<UUID>` |
+| `DATE` | `DATE` | `LocalDate` |
+| `BIGINT` | `BIGINT`（`type: integer`） | `Long`（写入接受整型 `Number`） |
+| `NUMERIC` | `NUMERIC` / `NUMERIC(p,s)`（`type: number`、金额/数量 pattern） | `BigDecimal` |
+
+数组列读出口径：数据库 `NULL` / 空数组一律返回空列表（与 `TEXT_ARRAY` 一致）；
+`UUID_ARRAY` 写入接受 `List<UUID>`（元素为字符串 UUID 时按 `UUID.fromString` 归一，
+非法值报错并带字段名）。
+
 ## 扩展点（应用按域注册）
 
 | SPI / Bean | 作用 |

@@ -14,6 +14,7 @@ import tools.jackson.databind.json.JsonMapper;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -43,6 +44,12 @@ class EisObjectRepositoryIntegrationTest extends AbstractEisIntegrationTest {
 
     private static final BigDecimal AMOUNT = new BigDecimal("1234.56");
 
+    private static final UUID SECTION_A = UUID.fromString("01900000-0000-7000-8000-0000000000c1");
+
+    private static final UUID SECTION_B = UUID.fromString("01900000-0000-7000-8000-0000000000c2");
+
+    private static final List<UUID> SECTIONS = List.of(SECTION_A, SECTION_B);
+
     private static final Instant T0 = Instant.parse("2026-10-10T09:00:00Z");
 
     private EisObjectRepository repository;
@@ -62,13 +69,15 @@ class EisObjectRepositoryIntegrationTest extends AbstractEisIntegrationTest {
                 .field("hire_date", EisFieldKind.DATE)
                 .field("attempts", EisFieldKind.BIGINT)
                 .field("amount", EisFieldKind.NUMERIC)
+                .field("section_ids", EisFieldKind.UUID_ARRAY)
                 .build();
     }
 
     private static Map<String, Object> widgetData(String name) {
         return Map.of("name", name, "active", true, "ref", REF,
                 "meta", MAPPER.readTree("{\"k\":1}"), "tags", List.of("a", "b"),
-                "hire_date", HIRE_DATE, "attempts", 3, "amount", AMOUNT);
+                "hire_date", HIRE_DATE, "attempts", 3, "amount", AMOUNT,
+                "section_ids", SECTIONS);
     }
 
     @Test
@@ -91,6 +100,36 @@ class EisObjectRepositoryIntegrationTest extends AbstractEisIntegrationTest {
         assertThat(row.field("hire_date")).isEqualTo(HIRE_DATE);
         assertThat(row.field("attempts")).isEqualTo(3L);
         assertThat(row.field("amount")).isEqualTo(AMOUNT);
+        assertThat(row.field("section_ids")).isEqualTo(SECTIONS);
+    }
+
+    @Test
+    void uuidArrayNullReadsBackAsEmptyList() {
+        UUID id = UUID.randomUUID();
+        Map<String, Object> data = new LinkedHashMap<>(widgetData("carol"));
+        data.put("section_ids", null);
+        repository.create("it_widget", id, data, ACTOR, T0);
+
+        EisObjectRow row = repository.findCurrent("it_widget", id).orElseThrow();
+
+        assertThat(row.field("section_ids")).isEqualTo(List.of());
+        assertThat(row.field("tags")).isEqualTo(List.of("a", "b"));
+    }
+
+    @Test
+    void updatingUuidArrayKeepsTextArrayTypedAndViceVersa() {
+        UUID id = UUID.randomUUID();
+        repository.create("it_widget", id, widgetData("erin"), ACTOR, T0);
+
+        transactionTemplate().executeWithoutResult(status -> repository.update("it_widget", id,
+                Map.of("section_ids", List.of(SECTION_A)), ACTOR, T0.plusSeconds(1)));
+        transactionTemplate().executeWithoutResult(status -> repository.update("it_widget", id,
+                Map.of("tags", List.of("z")), ACTOR, T0.plusSeconds(2)));
+
+        EisObjectRow row = repository.findCurrent("it_widget", id).orElseThrow();
+
+        assertThat(row.field("section_ids")).isEqualTo(List.of(SECTION_A));
+        assertThat(row.field("tags")).isEqualTo(List.of("z"));
     }
 
     @Test
@@ -176,6 +215,22 @@ class EisObjectRepositoryIntegrationTest extends AbstractEisIntegrationTest {
         assertThat(repository.findCurrentAllBy("it_widget", Map.of("hire_date", HIRE_DATE))).hasSize(2);
         assertThat(repository.findCurrentAllBy("it_widget", Map.of("attempts", 3L))).hasSize(2);
         assertThat(repository.findCurrentAllBy("it_widget", Map.of("amount", AMOUNT))).hasSize(2);
+    }
+
+    @Test
+    void findCurrentAllBySupportsArrayCriteria() {
+        UUID first = UUID.randomUUID();
+        UUID second = UUID.randomUUID();
+        repository.create("it_widget", first, widgetData("alice"), ACTOR, T0);
+        Map<String, Object> other = new LinkedHashMap<>(widgetData("bob"));
+        other.put("section_ids", List.of(SECTION_A));
+        other.put("tags", List.of("x"));
+        repository.create("it_widget", second, other, ACTOR, T0.plusSeconds(1));
+
+        assertThat(repository.findCurrentAllBy("it_widget", Map.of("section_ids", SECTIONS))).hasSize(1);
+        assertThat(repository.findCurrentAllBy("it_widget", Map.of("tags", List.of("a", "b")))).hasSize(1);
+        assertThat(repository.findCurrentAllBy("it_widget", Map.of("section_ids", List.of(SECTION_B))))
+                .isEmpty();
     }
 
     @Test

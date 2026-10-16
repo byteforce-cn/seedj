@@ -22,6 +22,7 @@ CREATE TABLE it_widget (
     hire_date       DATE,
     attempts        BIGINT,
     amount          NUMERIC(20,2),
+    section_ids     UUID[],
 
     CONSTRAINT pk_it_widget            PRIMARY KEY (id, recorded_at),
     CONSTRAINT valid_range    CHECK (valid_to IS NULL OR valid_to > valid_from),
