@@ -64,27 +64,19 @@
   `GET /principals/{id}/attributes?as_of=&recorded_as_of=`）；未注入时依赖属性的条件
   fail-closed（`ATTRIBUTE_SOURCE_UNAVAILABLE`），绝不静默放行。
 
-### 2.4 `starter-eis-authz` 超时只提供全局键，无请求工厂定制 SPI
-
-- **现状**：消费方两个 RestClient（`/resolve` `/check` 与令牌端点）已**缺省有界**（connect `3s` /
-  read `10s`，`byteforce.eis.authz.connect-timeout` / `read-timeout` 可覆盖）；但两个客户端由自动配置
-  内部装配，**不暴露** `RestClientCustomizer` / `ClientHttpRequestFactory` Bean（避免污染宿主应用的
-  客户端装配面）。
-- **影响**：需要按端点区分超时、走代理、mTLS 或自定义请求工厂时，只能整体覆盖
-  `EisAuthzClient` / `EisAuthzTokenProvider` Bean——**覆盖即自行负责超时保证**（后续新增端点不会
-  继承本模块缺省）。
-- **规避**：覆盖时显式设置超时（可参照自动配置的装配口径），或保持默认 Bean 仅调整上述两个键。
-
 ## 3. 依赖与版本
 
 - **现状**：
-  - `coord-java-sdk` 钉在 `0.3.1`（Maven Central 已发布；`0.3.0` → `0.3.1` 无类移除，
-    `javap` 成员级比对仅新增与 Transit HMAC 旧方法移除：`hmacSign` / `hmacVerify` →
-    用途化 `hmacSignWithPurpose` / `hmacVerifyWithPurpose`（ADR-0012；签名须持久化 `keyId`），
-    集成镜像已联动 `v0.3.1`；seedj 自身不封装 Transit HMAC）；
+  - `coord-java-sdk` 钉在 `0.3.5`（直接对齐上游最新；Maven Central 已于
+    2026-10-17 发布 `0.3.5`；`0.3.2` 从未发布、`0.3.3` / `0.3.4` 已跳过）；
+    `javap` 全量比对 `0.3.1` → `0.3.5`：无类移除，新增 10 个 class 文件（6 个顶层类：`ApprovalAudit`
+    / `ApprovalVote` 及 4 个 protobuf 契约类）；新增「服务代终端用户」审批方法（10 个 `*OnBehalfOf` 与
+    `listPendingTasksFor`）与 `ApprovalInstanceDetail#audit()` / `ApprovalTask#votes()`（既有构造器保留）；
+    `WorkflowClient` 新增 11 个抽象方法（仅影响自行实现该接口/测试替身的下游，seedj 只消费）；
+    `WorkflowStatus#state()` 自 `0.3.4` 起只回报声明状态名（诊断用 `taskStack()`）；集成镜像已联动 `v0.3.5`；
   - 全模块版本 `1.0.0-SNAPSHOT`，**尚未发布到 Maven Central**（消费需本地 `install` 或私服）；
   - EIS 集成套件基于 Testcontainers `postgres:16-alpine`（镜像不可用时硬失败，不静默跳过）。
-- **影响**：无法从公共仓库直接解析 `cn.byteforce.seedj:*` 构件；coord 系能力对应 SDK 0.3.1 语义；
+- **影响**：无法从公共仓库直接解析 `cn.byteforce.seedj:*` 构件；coord 系能力对应 SDK 0.3.5 语义；
   直接消费 `TransitClient` HMAC 的下游代码需按 ADR-0012 迁移（seedj 不封装该面）。
 - **规避**：首发前先本地/私服 `install`；coord SDK 升级随后续 `MINOR` 版本评估。
 

@@ -10,7 +10,7 @@
 # 全部集成套件（需要本机 Docker + coord 镜像）
 mvn -pl starter/coord-it -am verify -Pit
 
-# 覆盖镜像（默认 ghcr.io/byteforce-cn/coord:v0.3.1）
+# 覆盖镜像（默认 ghcr.io/byteforce-cn/coord:v0.3.5）
 mvn -pl starter/coord-it -am verify -Pit -Dcoord.it.image=<image>
 ```
 
