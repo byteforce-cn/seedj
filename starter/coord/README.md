@@ -17,13 +17,13 @@
 
 | 项 | 值 | 说明 |
 | --- | --- | --- |
-| SDK | `cn.byteforce:coord-java-sdk:0.3.1` | 由 `bom` 统一管理 |
+| SDK | `cn.byteforce:coord-java-sdk:0.3.5` | 由 `bom` 统一管理 |
 | 平台 | Spring Boot 4.1.1 | 由 `bom` 统一管理 |
 | Java | 21 | 与 SDK 一致 |
 
 > ⚠️ **传递依赖版本被平台 BOM 提升**：SDK 自测组合为 gRPC 1.68.0 / protobuf-java 4.28.0，
 > 但在 seedj BOM（导入 Boot BOM）下实际解析为 **gRPC 1.83.1 / protobuf-java 4.35.1**
-> （`mvn -pl starter/coord dependency:tree` 实证）。该组合已在 SDK 0.3.1 的官方测试范围内
+> （`mvn -pl starter/coord dependency:tree` 实证）。该组合已在 SDK 0.3.5 的官方测试范围内
 > （SDK README「Also tested」列），方向受 protobuf 支持（runtime 新于
 > gencode）；当前单元测试在该组合下通过。如后续遇到疑似版本相关异常，可在应用侧
 > `dependencyManagement` 钉回 SDK 测试版本，并回报 coord 上游。
@@ -35,6 +35,15 @@
 > `hmacVerifyWithPurpose(data, signature, purpose, keyId)`；purpose 必填且互不可验，
 > 历史材料未注入时验签 `FAILED_PRECONDITION` fail-loud。seedj 自身不封装 Transit HMAC
 > （仅 `coord-it` 集成用例消费，已迁移），直接使用该 SDK 面的下游代码需自行迁移。
+>
+> ⚠️ **0.3.1 → 0.3.5 消费面变化（无类移除）**：审批面新增**服务代终端用户**能力——
+> `WorkflowClient` 的 10 个 `*OnBehalfOf` 便捷方法（approve / reject / acknowledge / addSign /
+> removeSign / returnToNode / transfer / delegate / withdraw / terminate）与
+> `listPendingTasksFor(assignee, pageSize, pageToken)`；`ApprovalInstanceDetail#audit()`、
+> `ApprovalTask#votes()`（新类型 `ApprovalAudit` / `ApprovalVote`，保留既有构造器）。
+> 行为面：`WorkflowStatus#state()` 自 0.3.4 起只回报**声明状态名**（`human` / `autostart` 等），
+> 不再暴露路由生成的内部任务名（诊断用 `taskStack()`）。兼容面：`WorkflowClient` 新增 11 个
+> **抽象**方法，下游若自行实现该接口（含测试替身）需补齐；seedj 只消费 SDK 提供的实现，无需改动。
 
 ## 家族模块（coord-starter 一族）
 

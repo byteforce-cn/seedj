@@ -57,15 +57,6 @@
 
 ### Fixed
 
-- **`starter-eis-authz` 远程客户端无超时（生产不可接受：授权/令牌端点挂起会耗尽消费方请求线程）**：
-  `EisAuthzClient`（`/resolve` `/check`）与 `EisAuthzClientCredentialsTokenProvider`（令牌端点）此前用
-  `RestClient.builder()` 裸装配，**缺省即无限等待**。现新增配置键
-  `byteforce.eis.authz.connect-timeout`（缺省 `3s`）/ `read-timeout`（缺省 `10s`）——**不配置也有界**，
-  两个客户端由同一入口装配（JDK `HttpClient` 连接超时 + 请求级读取超时，含响应体停摆）；
-  超时与连接/IO 失败一律 fail-closed 抛 `EisAuthzRemoteException`（本地判定：超时 `504`、
-  连接·IO 失败 `503`，消息保留「超时」语义以区别于 4xx/5xx），**不得**静默降级为匿名调用；
-  超时键必须为正（缺失/非正装配期 fail-fast，避免静默退化为无界等待）。
-
 - **`starter-eis-core` 幂等重放/冲突响应缺少 `created` 引用**：受理结果的主对象指针（`created`）
   此前只在首次响应返回，同键重放、异型同键冲突的 `original_result` 与 `GET /commands/{id}`
   都无法恢复对象 ID（如账号 ID），消费方只能人工对账；现将指针持久化到新增部署侧辅助表
@@ -106,6 +97,21 @@
   （原模式永远匹配 0 个类，门禁从未生效）；新增 verify 阶段守卫，拦截「有主源码但零测试执行」的模块。
 
 ### Changed
+
+- **coord-java-sdk 0.3.1 → 0.3.5**：BOM 升版（`coord-java-sdk.version`，直接对齐上游最新 0.3.5，
+  跳过 0.3.2 / 0.3.3——`0.3.2` 从未发布到 Maven Central，逐版跟进无收益）；
+  `starter-coord*` 全模块单元套件与 `coord-it` 集成套件在真实 `ghcr.io/byteforce-cn/coord:v0.3.5` 容器上全绿；集成镜像默认值同步 `v0.3.5`
+  （`-Dcoord.it.image` 仍可覆盖）。兼容性实证：`javap -public` 全量比对（2036 → 2046 个类文件）
+  无类移除，新增 10 个 class 文件（6 个顶层类：`ApprovalAudit` / `ApprovalVote` 与 4 个 protobuf 契约类）；
+  消费面增量为「服务代终端用户」审批（`WorkflowClient` 的 10 个 `*OnBehalfOf` 便捷方法与
+  `listPendingTasksFor`）、`ApprovalInstanceDetail#audit()`、`ApprovalTask#votes()`（既有构造器保留）。
+  **成员级破坏面**：`WorkflowClient` 新增 11 个抽象方法，自行实现该接口（含测试替身）的下游需补齐，
+  seedj 仅消费 SDK 实现、无需改动；**行为面**：`WorkflowStatus#state()` 自 0.3.4 起只回报声明状态名
+  （诊断用 `taskStack()`）。0.3.5 已于 2026-10-17 发布到 Maven Central（本次 `javap`
+  比对与全量验证即基于 Central 同一制品，sha256 逐字节一致）。
+  文档同步：根 README、`starter/coord/README.md`、`starter/coord/ROADMAP.md`（T3 基线）、
+  `starter/coord-it/README.md`、`starter/coord-observability`（实证版本标注）、
+  `docs/known-limitations.md`、`docs/third-party-licenses.md`。
 
 - **coord-java-sdk 0.3.0 → 0.3.1**：BOM 升版（`coord-java-sdk.version`），`starter-coord*` 全模块单元套件与
   `coord-it` 集成套件（34 例）在真实 `ghcr.io/byteforce-cn/coord:v0.3.1` 容器上全绿；集成镜像默认值同步

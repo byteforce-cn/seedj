@@ -17,7 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * 可观测性桥集成验证（Phase 3）：真实 RPC → SDK {@code recordRpcCall} →
- * Micrometer {@code coord.rpc.calls} 计数增长（SDK 0.3.1 实测唯一触发面）。
+ * Micrometer {@code coord.rpc.calls} 计数增长（SDK 0.3.5 实测唯一触发面）。
  */
 @SpringBootTest(properties = {
         "spring.application.name=it-observability"
