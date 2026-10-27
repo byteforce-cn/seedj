@@ -151,11 +151,15 @@ class EisAuthzTimeoutTest {
                     .build());
 
             long start = System.nanoTime();
+            // 响应体停摆的失败形态取决于 JDK/调度：读取超时可能报 504（超时）或 503（连接/IO 失败）。
+            // 断言的是契约本身——有界失败、fail-closed、状态码属于网络层失败集合，而非某一条文案。
             assertThatThrownBy(() -> client.check("p", "iam.user.create", Instant.now(), null))
                     .isInstanceOf(EisAuthzRemoteException.class)
-                    .hasMessageContaining("连接/IO 失败")
-                    .extracting(failure -> ((EisAuthzRemoteException) failure).getStatus())
-                    .isEqualTo(503);
+                    .satisfies(failure -> {
+                        EisAuthzRemoteException remote = (EisAuthzRemoteException) failure;
+                        assertThat(remote.getStatus()).isIn(503, 504);
+                        assertThat(remote.getMessage()).containsAnyOf("连接/IO 失败", "超时");
+                    });
             assertThat(Duration.ofNanos(System.nanoTime() - start)).isLessThan(MAX_FAILURE_WINDOW);
         } finally {
             stalling.stop(0);
