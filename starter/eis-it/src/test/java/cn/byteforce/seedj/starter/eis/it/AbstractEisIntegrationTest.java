@@ -82,6 +82,8 @@ public abstract class AbstractEisIntegrationTest {
                 ScriptUtils.executeSqlScript(connection,
                         new ClassPathResource("META-INF/eis/ddl/eis-audit.ddl"));
                 ScriptUtils.executeSqlScript(connection,
+                        new ClassPathResource("META-INF/eis/ddl/eis-domain.ddl"));
+                ScriptUtils.executeSqlScript(connection,
                         new ClassPathResource("eis-it/it-schema.ddl"));
             } catch (Exception ex) {
                 throw new IllegalStateException("集成测试建库失败", ex);
@@ -104,7 +106,7 @@ public abstract class AbstractEisIntegrationTest {
     protected static void resetData() {
         JdbcTemplate jdbc = jdbcTemplate();
         jdbc.execute("TRUNCATE command, event, view, eis_idempotency, eis_command_event,"
-                + " eis_command_rejection, eis_outbox, audit_entry, it_widget");
+                + " eis_command_rejection, eis_outbox, audit_entry, it_widget, evt_log, evt_stream");
         jdbc.execute("UPDATE eis_audit_head SET last_sequence = 0, last_hash = repeat('0', 64)");
     }
 }
