@@ -8,6 +8,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -144,6 +145,32 @@ class EisCommandRuntimeTest {
         assertThat(result.getStatus()).isEqualTo("rejected");
         assertThat(result.getDetails()).extracting(EisCommandRejectionDetail::getField).containsExactly("amount");
         assertThat(result.getDetails().get(0).getMessage()).isEqualTo("必须为正数");
+    }
+
+    @Test
+    void authorizationRequestCarriesTargetsAndPayload() {
+        List<EisAuthorizer.EisAuthorizationRequest> seen = new ArrayList<>();
+        runtime = buildRuntime(request -> {
+            seen.add(request);
+            return EisAuthorizer.EisAuthorizationDecision.allowed();
+        });
+        when(commandStore.insertIdempotencyIfAbsent(anyString(), anyString(), any())).thenReturn(true);
+
+        runtime.submit(new EisCommandRequest("demo.thing.create", MAPPER.readTree("{\"name\":\"alice\"}"),
+                "k20", List.of(SUBJECT), ACTOR));
+
+        assertThat(seen).hasSize(1);
+        assertThat(seen.get(0).getTargets()).containsExactly(SUBJECT);
+        assertThat(seen.get(0).getPayload().get("name").stringValue()).isEqualTo("alice");
+    }
+
+    @Test
+    void authorizationRequestKeepsLegacyDefaults() {
+        EisAuthorizer.EisAuthorizationRequest legacy =
+                new EisAuthorizer.EisAuthorizationRequest(ACTOR, "demo.thing.create", NOW);
+
+        assertThat(legacy.getTargets()).isEmpty();
+        assertThat(legacy.getPayload()).isNull();
     }
 
     @Test

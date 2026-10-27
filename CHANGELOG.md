@@ -8,6 +8,8 @@
 ### Added
 
 - `starter-eis-core`：命令拒绝明细（契约加法字段 `details[]`）——`EisCommandRejectionDetail`（`field` + `message`，不携带属性值）、`EisCommandRejectedException` 四参构造器与 `getDetails()`、`EisCommandResult.rejected(...)` 明细重载；拒绝响应在明细非空时输出 `details:[{field,message}]`，无明细的响应逐字不变（向后兼容）。明细不落库：幂等重放只回放 `code` / `reason`（见 `docs/known-limitations.md` §2.4）。
+- `starter-eis-core`：`EisAuthorizer.EisAuthorizationRequest` 新增作用对象与载荷——五参构造器携带 `targets`（命令请求对象 ID 列表）与 `payload`（原始载荷，不受处理器脱敏视图影响），供决策器做目标/载荷绑定；三参构造器保留（`targets` 为空列表、`payload` 为 `null`），判定缺省语义不变。属性条件
+  （`conditions`）不在本版落地：ABAC 决策输入形状由后续 coord policy 承接。
 - `starter-eis-authz`：远程客户端支持属性条件判定——`EisAuthzClient` 覆写六参 `check`，把 `conditions` 序列化为 `/check` 的 `require_attribute`、把 `providedSnapshot` 序列化为契约字段 `attributes`（`attribute_state` / `source` / `snapshot`），并把响应 `attribute_state` 回填到 `EisAuthzDecision`（协议外字面量按缺失处理，不改变 `allowed` 判定）；配以 `EisAuthzAttributeCondition#toJson` / `EisAuthzAttributeSet#toJson`（优先回放原始 JSON，保留未建模字段）/ `EisAuthzAttributeSnapshot#toAttributeContext` 三处与既有 `fromJson` 对称的序列化面。无条件、无快照的调用路径与请求体逐字不变。
 - `starter-eis-core`：`EisFieldKind` 新增 `UUID_ARRAY`（`UUID[]` ↔ `List<UUID>`，对齐 `schema-compiler`
   的 `type: array, items.format: uuid` 生成物）：对象存储写入（`createArrayOf("uuid")`，元素为字符串

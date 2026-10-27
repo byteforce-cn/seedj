@@ -186,7 +186,8 @@ public final class EisCommandRuntime {
         // authorizer 可空仅兼容内部/测试直接构造；自动配置路径已 fail-closed 保证非空
         if (authorizer != null) {
             EisAuthorizer.EisAuthorizationDecision decision = authorizer.check(
-                    new EisAuthorizer.EisAuthorizationRequest(request.getActor(), request.getCommandType(), now));
+                    new EisAuthorizer.EisAuthorizationRequest(request.getActor(), request.getCommandType(), now,
+                            request.getTargets(), request.getPayload()));
             if (!decision.isAllowed()) {
                 return reject(commandId, "EIS-403-001",
                         decision.getReason() == null ? "授权拒绝" : decision.getReason(), decision.getReasonCode());
