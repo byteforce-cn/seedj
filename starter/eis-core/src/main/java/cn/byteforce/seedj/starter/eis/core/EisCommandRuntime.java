@@ -201,14 +201,16 @@ public final class EisCommandRuntime {
                 }
             }
         } catch (EisCommandRejectedException rejected) {
-            return reject(commandId, rejected.getCode(), rejected.getMessage(), rejected.getReasonCode());
+            return reject(commandId, rejected.getCode(), rejected.getMessage(), rejected.getReasonCode(),
+                    rejected.getDetails());
         }
 
         EisCommandHandlerResult handled;
         try {
             handled = handler.handle(context);
         } catch (EisCommandRejectedException rejected) {
-            return reject(commandId, rejected.getCode(), rejected.getMessage(), rejected.getReasonCode());
+            return reject(commandId, rejected.getCode(), rejected.getMessage(), rejected.getReasonCode(),
+                    rejected.getDetails());
         }
 
         List<EisEvent> committed = materialize(handled.getEvents(), request.getActor(), now);
@@ -235,8 +237,13 @@ public final class EisCommandRuntime {
     }
 
     private EisCommandResult reject(UUID commandId, String code, String reason, String reasonCode) {
+        return reject(commandId, code, reason, reasonCode, List.of());
+    }
+
+    private EisCommandResult reject(UUID commandId, String code, String reason, String reasonCode,
+                                    List<EisCommandRejectionDetail> details) {
         commands.markRejected(commandId, code, reason);
-        return EisCommandResult.rejected(commandId, code, reason, reasonCode);
+        return EisCommandResult.rejected(commandId, code, reason, reasonCode, details);
     }
 
     private EisCommandResult resolveIdempotent(EisCommandStore.EisIdempotencyRecord record, String fingerprint) {

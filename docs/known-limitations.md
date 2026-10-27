@@ -64,6 +64,15 @@
   `GET /principals/{id}/attributes?as_of=&recorded_as_of=`）；未注入时依赖属性的条件
   fail-closed（`ATTRIBUTE_SOURCE_UNAVAILABLE`），绝不静默放行。
 
+### 2.4 命令拒绝明细不落库（幂等重放不返回 `details`）
+
+- **现状**：`EisCommandRejectionDetail` 随拒绝响应返回，但不写入 `eis_command_rejection`
+  （该表只有 `rejection_code`）；与 `reason_code` 同等口径。
+- **影响**：同一幂等键重放已拒绝的命令时，响应只有 `code` / `reason`，没有 `details` 与
+  `reason_code`；需要字段级定位的前端应在首次响应内完成展示，不要依赖重放响应。
+- **规避**：需要长期保留字段级拒绝时，下游自行记录拒绝响应，或扩展 `eis_command_rejection`
+  存储（属部署侧 DDL 变更，需一并回填历史行）。
+
 ## 3. 依赖与版本
 
 - **现状**：

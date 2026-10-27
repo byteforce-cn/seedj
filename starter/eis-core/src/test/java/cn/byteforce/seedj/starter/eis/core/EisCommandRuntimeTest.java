@@ -133,6 +133,20 @@ class EisCommandRuntimeTest {
     }
 
     @Test
+    void rejectedByHandlerCarriesFieldDetails() {
+        runtime = buildRuntime(null);
+        when(commandStore.insertIdempotencyIfAbsent(anyString(), anyString(), any())).thenReturn(true);
+        handler.failing = true;
+        handler.rejectionDetails = List.of(new EisCommandRejectionDetail("amount", "必须为正数"));
+
+        EisCommandResult result = runtime.submit(request("demo.thing.create", "{\"amount\":-1}", "k3d"));
+
+        assertThat(result.getStatus()).isEqualTo("rejected");
+        assertThat(result.getDetails()).extracting(EisCommandRejectionDetail::getField).containsExactly("amount");
+        assertThat(result.getDetails().get(0).getMessage()).isEqualTo("必须为正数");
+    }
+
+    @Test
     void unknownCommandTypeIsRejected() {
         runtime = buildRuntime(null);
         when(commandStore.insertIdempotencyIfAbsent(anyString(), anyString(), any())).thenReturn(true);
@@ -326,6 +340,8 @@ class EisCommandRuntimeTest {
 
         private boolean handled;
 
+        private List<EisCommandRejectionDetail> rejectionDetails = List.of();
+
         @Override
         public Set<String> commandTypes() {
             return Set.of("demo.thing.create");
@@ -335,7 +351,7 @@ class EisCommandRuntimeTest {
         public EisCommandHandlerResult handle(EisCommandContext context) {
             handled = true;
             if (failing) {
-                throw new EisCommandRejectedException("DEMO-409-001", "演示拒绝");
+                throw new EisCommandRejectedException("DEMO-409-001", "演示拒绝", null, rejectionDetails);
             }
             UUID id = context.newId();
             JsonNode payload = MAPPER.createObjectNode().put("thing_id", id.toString());
