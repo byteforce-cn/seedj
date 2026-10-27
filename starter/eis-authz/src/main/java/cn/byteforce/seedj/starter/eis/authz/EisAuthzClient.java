@@ -9,6 +9,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
 import java.time.Instant;
@@ -81,6 +82,51 @@ public class EisAuthzClient implements EisAuthzOperations {
 
     @Override
     public EisAuthzDecision check(String principalRef, String permission, Instant asOf, Instant recordedAsOf) {
+        return parseDecision(post("/check", checkBody(principalRef, permission, asOf, recordedAsOf)));
+    }
+
+    /**
+     * 检查权限（携带属性条件与调用方快照）。
+     *
+     * <p>传输面与权威服务 {@code POST /check} 对齐：条件序列化为 {@code require_attribute}
+     * （seedj 扩展字段），快照序列化为契约可选字段 {@code attributes}；响应
+     * {@code attribute_state} 回填到判定结果（未知字面量按缺失处理——{@code allowed}
+     * 才是判定权威，诊断字段不得把已给出的判定炸掉）。</p>
+     *
+     * <p>无条件且无快照时委托四参 {@link #check(String, String, Instant, Instant)}：
+     * 请求体与旧版逐字一致（不出现空数组）。</p>
+     *
+     * @param principalRef     主体引用（ID 或 key）
+     * @param permission       权限串
+     * @param asOf             业务时点
+     * @param recordedAsOf     系统时点（可空）
+     * @param conditions       属性条件（可空/空 = 不涉及属性）
+     * @param providedSnapshot 调用方已拉取的快照（可空 = 判定方自行拉取）
+     * @return 判定结果（含 {@code attribute_state}）
+     */
+    @Override
+    public EisAuthzDecision check(String principalRef, String permission, Instant asOf, Instant recordedAsOf,
+                                  List<EisAuthzAttributeCondition> conditions,
+                                  EisAuthzAttributeSnapshot providedSnapshot) {
+        boolean hasConditions = conditions != null && !conditions.isEmpty();
+        if (!hasConditions && providedSnapshot == null) {
+            return check(principalRef, permission, asOf, recordedAsOf);
+        }
+        ObjectNode body = checkBody(principalRef, permission, asOf, recordedAsOf);
+        if (hasConditions) {
+            ArrayNode requireAttribute = body.putArray("require_attribute");
+            for (EisAuthzAttributeCondition condition : conditions) {
+                requireAttribute.add(condition.toJson());
+            }
+        }
+        if (providedSnapshot != null) {
+            body.set("attributes", providedSnapshot.toAttributeContext());
+        }
+        return parseDecision(post("/check", body));
+    }
+
+    private static ObjectNode checkBody(String principalRef, String permission, Instant asOf,
+                                        Instant recordedAsOf) {
         ObjectNode body = MAPPER.createObjectNode();
         body.put("principal", principalRef);
         body.put("permission", permission);
@@ -88,12 +134,29 @@ public class EisAuthzClient implements EisAuthzOperations {
         if (recordedAsOf != null) {
             body.put("recorded_as_of", recordedAsOf.toString());
         }
-        JsonNode response = post("/check", body);
+        return body;
+    }
+
+    private static EisAuthzDecision parseDecision(JsonNode response) {
         boolean allowed = response.get("allowed") != null && response.get("allowed").booleanValue();
         String reason = response.get("reason") == null ? null : response.get("reason").stringValue();
         String reasonCode = response.get("reason_code") == null ? null
                 : response.get("reason_code").stringValue();
-        return new EisAuthzDecision(allowed, reason, reasonCode, stringList(response.get("warnings")));
+        return new EisAuthzDecision(allowed, reason, reasonCode, stringList(response.get("warnings")),
+                attributeState(response));
+    }
+
+    private static EisAuthzAttributeState attributeState(JsonNode response) {
+        JsonNode node = response.get("attribute_state");
+        if (node == null || !node.isString()) {
+            return null;
+        }
+        try {
+            return EisAuthzAttributeState.fromCode(node.stringValue());
+        } catch (IllegalArgumentException ignored) {
+            // 协议外字面量：判定权威是 allowed，诊断字段按缺失处理，不改变判定
+            return null;
+        }
     }
 
     private JsonNode post(String path, JsonNode body) {

@@ -31,6 +31,9 @@ public final class EisAuthzAttributeCondition {
 
     private static final String EMPLOYMENT_TYPE = "employment_type";
 
+    private static final tools.jackson.databind.json.JsonMapper MAPPER =
+            tools.jackson.databind.json.JsonMapper.builder().build();
+
     private static final List<String> POSITION_FIELDS =
             List.of("position_id", "code", "title", "grade", "org_unit_id", "org_unit_code");
 
@@ -155,6 +158,21 @@ public final class EisAuthzAttributeCondition {
         if (!POSITION_FIELDS.contains(field)) {
             throw new IllegalArgumentException("不支持的岗位字段: " + field + "（可选: " + POSITION_FIELDS + "）");
         }
+    }
+
+    /**
+     * 序列化为契约声明形状（{@code require_attribute} 的元素）。
+     *
+     * @return 条件 JSON（{@code {"key":...,"values":[...]}}）
+     */
+    public tools.jackson.databind.node.ObjectNode toJson() {
+        tools.jackson.databind.node.ObjectNode node = MAPPER.createObjectNode();
+        node.put("key", key);
+        tools.jackson.databind.node.ArrayNode values = node.putArray("values");
+        for (String value : expectedValues) {
+            values.add(value);
+        }
+        return node;
     }
 
     /**

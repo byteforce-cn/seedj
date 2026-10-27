@@ -1,6 +1,8 @@
 package cn.byteforce.seedj.starter.eis.authz;
 
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -13,6 +15,8 @@ import java.time.format.DateTimeParseException;
  * @since 1.0.0
  */
 public final class EisAuthzAttributeSnapshot {
+
+    private static final JsonMapper MAPPER = JsonMapper.builder().build();
 
     private final String principal;
 
@@ -95,6 +99,26 @@ public final class EisAuthzAttributeSnapshot {
         }
         return new EisAuthzAttributeSnapshot(principal, asOf, recordedAsOf, null, text(context, "source"),
                 null, state, EisAuthzAttributeSet.fromJson(snapshotNode));
+    }
+
+    /**
+     * 序列化为判定请求的 {@code AttributeContext} 形状（{@code resolution.api.yaml} 可选字段）。
+     *
+     * <p>与 {@link #fromAttributeContext} 对称：{@code attribute_state} / {@code source} /
+     * {@code snapshot}；状态为空时不写，由判定方按快照存在推断。</p>
+     *
+     * @return AttributeContext JSON
+     */
+    public ObjectNode toAttributeContext() {
+        ObjectNode node = MAPPER.createObjectNode();
+        if (state != null) {
+            node.put("attribute_state", state.getCode());
+        }
+        if (source != null) {
+            node.put("source", source);
+        }
+        node.set("snapshot", attributes.toJson());
+        return node;
     }
 
     private static String text(JsonNode node, String field) {
