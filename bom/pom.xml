@@ -129,6 +129,11 @@
 
             <dependency>
                 <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>starter-eis-domain</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
                 <artifactId>starter-eis-core</artifactId>
                 <version>${revision}</version>
             </dependency>
