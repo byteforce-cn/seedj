@@ -48,4 +48,31 @@
         <Class name="cn.byteforce.seedj.starter.data.mybatis.handler.CodeEnumTypeHandler"/>
     </Match>
 
+    <!--
+        聚合根基类（starter-eis-domain）：
+        - 必须保持非 final 才能被业务聚合继承（对外扩展点，属设计契约）；
+        - 构造期校验版本为负数即失败（半成品聚合不允许存在）；
+        - 未提交事件列表在构造后为空、无外部可达的 finalizer 链，风险面与
+          BaseException 家族一致，逐条登记而非整包排除。
+    -->
+    <Match>
+        <Bug pattern="CT_CONSTRUCTOR_THROW"/>
+        <Class name="cn.byteforce.seedj.starter.eis.domain.AggregateRoot"/>
+    </Match>
+    <Match>
+        <Bug pattern="CT_CONSTRUCTOR_THROW"/>
+        <Class name="cn.byteforce.seedj.starter.eis.domain.AbstractEntity"/>
+    </Match>
+
+    <!--
+        VA_FORMAT_STRING_USES_NEWLINE —— 全仓排除：
+        本仓的多行诊断消息（异常消息、修复模板）一律使用显式 '\n' 而不是 '%n'。
+        理由：这些文本会进入日志、事件 payload 与跨节点排障材料，必须与平台无关、
+        逐字节稳定（%n 随操作系统变化）；它们不是面向终端控制台的输出。
+    -->
+    <Match>
+        <Bug pattern="VA_FORMAT_STRING_USES_NEWLINE"/>
+        <Class name="~cn\.byteforce\.seedj\..*"/>
+    </Match>
+
 </FindBugsFilter>

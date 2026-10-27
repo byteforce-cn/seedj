@@ -28,6 +28,7 @@
         <module>coord-client</module>
         <module>coord-observability</module>
         <module>coord-it</module>
+        <module>eis-domain</module>
         <module>eis-core</module>
         <module>eis-audit</module>
         <module>eis-temporal</module>
