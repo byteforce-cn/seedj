@@ -1,6 +1,8 @@
 package cn.byteforce.seedj.starter.eis.authz;
 
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 /**
  * 岗位引用（{@code attributes.api.yaml} 的 {@code PositionRef}；快照内嵌，避免消费方回查）。
@@ -9,6 +11,8 @@ import tools.jackson.databind.JsonNode;
  * @since 1.0.0
  */
 public final class EisAuthzPositionRef {
+
+    private static final JsonMapper MAPPER = JsonMapper.builder().build();
 
     private final String positionId;
 
@@ -64,6 +68,23 @@ public final class EisAuthzPositionRef {
     private static String text(JsonNode node, String field) {
         JsonNode value = node.get(field);
         return value == null || value.isNull() ? null : value.stringValue();
+    }
+
+    /**
+     * 序列化为契约 {@code PositionRef} 形状。
+     *
+     * @return PositionRef JSON
+     */
+    public ObjectNode toJson() {
+        ObjectNode node = MAPPER.createObjectNode();
+        node.put("position_id", positionId);
+        node.put("code", code);
+        node.put("title", title);
+        node.put("grade", grade);
+        node.put("org_unit_id", orgUnitId);
+        node.put("org_unit_code", orgUnitCode);
+        node.put("is_primary", primary);
+        return node;
     }
 
     /**

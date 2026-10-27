@@ -1,6 +1,9 @@
 package cn.byteforce.seedj.starter.eis.authz;
 
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,6 +19,8 @@ import java.util.List;
  * @since 1.0.0
  */
 public final class EisAuthzAttributeSet {
+
+    private static final JsonMapper MAPPER = JsonMapper.builder().build();
 
     private final String employeeStatus;
 
@@ -121,6 +126,35 @@ public final class EisAuthzAttributeSet {
 
     private static boolean matches(String actual, List<String> expected) {
         return actual != null && expected.contains(actual);
+    }
+
+    /**
+     * 序列化为契约 {@code AttributeSet} 形状。
+     *
+     * <p>优先回放原始 JSON（{@link #getRaw()}，保证未建模字段如 {@code organization_units}
+     * 在往返中不丢失）；未持有原始 JSON 时按已建模字段重建。</p>
+     *
+     * @return AttributeSet JSON
+     */
+    public ObjectNode toJson() {
+        if (raw instanceof ObjectNode rawObject) {
+            return rawObject.deepCopy();
+        }
+        ObjectNode node = MAPPER.createObjectNode();
+        if (employeeStatus != null) {
+            node.put("employee_status", employeeStatus);
+        }
+        if (employmentType != null) {
+            node.put("employment_type", employmentType);
+        }
+        if (primaryPosition != null) {
+            node.set("primary_position", primaryPosition.toJson());
+        }
+        ArrayNode positionNodes = node.putArray("positions");
+        for (EisAuthzPositionRef position : positions) {
+            positionNodes.add(position.toJson());
+        }
+        return node;
     }
 
     /**

@@ -12,6 +12,7 @@ import org.springframework.web.client.RestClient;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -96,6 +97,100 @@ class EisAuthzClientTest {
         assertThat(authenticated.check("p", "x", Instant.parse("2026-10-15T12:00:00Z"), null).isAllowed())
                 .isTrue();
         authenticatedServer.verify();
+    }
+
+    @Test
+    void conditionalCheckSendsRequireAttributeAndProvidedSnapshot() {
+        server.expect(requestTo("http://authz.test/check"))
+                .andExpect(jsonPath("$.principal").value("away"))
+                .andExpect(jsonPath("$.require_attribute[0].key").value("primary_position.grade"))
+                .andExpect(jsonPath("$.require_attribute[0].values[0]").value("P5"))
+                .andExpect(jsonPath("$.attributes.attribute_state").value("fresh"))
+                .andExpect(jsonPath("$.attributes.source").value("hr"))
+                .andExpect(jsonPath("$.attributes.snapshot.employee_status").value("active"))
+                .andRespond(withSuccess("{\"allowed\":true,\"reason\":\"允许\","
+                        + "\"reason_code\":\"ALLOWED\",\"attribute_state\":\"fresh\"}",
+                        MediaType.APPLICATION_JSON));
+        EisAuthzAttributeSnapshot snapshot = new EisAuthzAttributeSnapshot("away",
+                Instant.parse("2026-10-15T12:00:00Z"), Instant.parse("2026-10-15T12:00:00Z"), null, "hr", "v1",
+                EisAuthzAttributeState.FRESH,
+                new EisAuthzAttributeSet("active", "employee", null, List.of(), null));
+
+        EisAuthzDecision decision = client.check("away", "purchase.request.approve",
+                Instant.parse("2026-10-15T12:00:00Z"), null,
+                List.of(EisAuthzAttributeCondition.primaryPosition("grade", "P5")), snapshot);
+
+        assertThat(decision.isAllowed()).isTrue();
+        assertThat(decision.getAttributeState()).isEqualTo(EisAuthzAttributeState.FRESH);
+        server.verify();
+    }
+
+    @Test
+    void conditionalCheckParsesAttributeMismatch() {
+        server.expect(requestTo("http://authz.test/check"))
+                .andRespond(withSuccess("{\"allowed\":false,"
+                        + "\"reason\":\"属性条件不满足: primary_position.grade\","
+                        + "\"reason_code\":\"ATTRIBUTE_MISMATCH\",\"attribute_state\":\"fresh\"}",
+                        MediaType.APPLICATION_JSON));
+
+        EisAuthzDecision decision = client.check("away", "purchase.request.approve",
+                Instant.parse("2026-10-15T12:00:00Z"), null,
+                List.of(EisAuthzAttributeCondition.primaryPosition("grade", "P5")), null);
+
+        assertThat(decision.isAllowed()).isFalse();
+        assertThat(decision.getReasonCode()).isEqualTo("ATTRIBUTE_MISMATCH");
+        assertThat(decision.getAttributeState()).isEqualTo(EisAuthzAttributeState.FRESH);
+        server.verify();
+    }
+
+    @Test
+    void conditionalCheckToleratesUnknownAttributeState() {
+        server.expect(requestTo("http://authz.test/check"))
+                .andRespond(withSuccess("{\"allowed\":true,\"reason\":\"允许\","
+                        + "\"reason_code\":\"ALLOWED\",\"attribute_state\":\"future_state\"}",
+                        MediaType.APPLICATION_JSON));
+
+        EisAuthzDecision decision = client.check("away", "purchase.request.approve",
+                Instant.parse("2026-10-15T12:00:00Z"), null,
+                List.of(EisAuthzAttributeCondition.employeeStatus("active")), null);
+
+        assertThat(decision.isAllowed()).isTrue();
+        assertThat(decision.getAttributeState()).isNull();
+        server.verify();
+    }
+
+    @Test
+    void conditionalCheckWithoutConditionsAndSnapshotOmitsAttributeFields() {
+        server.expect(requestTo("http://authz.test/check"))
+                .andExpect(jsonPath("$.require_attribute").doesNotExist())
+                .andExpect(jsonPath("$.attributes").doesNotExist())
+                .andRespond(withSuccess("{\"allowed\":true,\"reason\":\"允许\",\"reason_code\":\"ALLOWED\"}",
+                        MediaType.APPLICATION_JSON));
+
+        EisAuthzDecision decision = client.check("away", "purchase.request.approve",
+                Instant.parse("2026-10-15T12:00:00Z"), null, List.of(), null);
+
+        assertThat(decision.isAllowed()).isTrue();
+        server.verify();
+    }
+
+    @Test
+    void conditionalCheckReplaysRawAttributeSetFields() {
+        server.expect(requestTo("http://authz.test/check"))
+                .andExpect(jsonPath("$.attributes.snapshot.organization_units[0]").value("OU1"))
+                .andRespond(withSuccess("{\"allowed\":true,\"reason\":\"允许\","
+                        + "\"reason_code\":\"ALLOWED\",\"attribute_state\":\"fresh\"}",
+                        MediaType.APPLICATION_JSON));
+        EisAuthzAttributeSet attributes = new EisAuthzAttributeSet(null, null, null, List.of(),
+                MAPPER.readTree("{\"employee_status\":\"active\",\"organization_units\":[\"OU1\"]}"));
+        EisAuthzAttributeSnapshot snapshot = new EisAuthzAttributeSnapshot("away",
+                Instant.parse("2026-10-15T12:00:00Z"), null, null, null, null,
+                EisAuthzAttributeState.FRESH, attributes);
+
+        client.check("away", "purchase.request.approve", Instant.parse("2026-10-15T12:00:00Z"), null,
+                List.of(EisAuthzAttributeCondition.employeeStatus("active")), snapshot);
+
+        server.verify();
     }
 
     @Test
