@@ -1,7 +1,10 @@
 package cn.byteforce.seedj.starter.eis.core;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
+
+import tools.jackson.databind.JsonNode;
 
 /**
  * 授权钩子 SPI：命令受理前的权限判定（权限串 = 命令类型）。
@@ -23,7 +26,7 @@ public interface EisAuthorizer {
     EisAuthorizationDecision check(EisAuthorizationRequest request);
 
     /**
-     * 判定请求（主体 × 命令类型 × 时点）。
+     * 判定请求（主体 × 命令类型 × 时点 × 作用对象 × 载荷）。
      */
     final class EisAuthorizationRequest {
 
@@ -33,17 +36,38 @@ public interface EisAuthorizer {
 
         private final Instant at;
 
+        private final List<UUID> targets;
+
+        private final JsonNode payload;
+
         /**
-         * 构造判定请求。
+         * 构造判定请求（无作用对象与载荷；兼容旧版语义）。
          *
          * @param actor       操作人
          * @param commandType 命令类型（即所需权限串）
          * @param at          判定时点
          */
         public EisAuthorizationRequest(UUID actor, String commandType, Instant at) {
+            this(actor, commandType, at, List.of(), null);
+        }
+
+        /**
+         * 构造判定请求（携带本次命令的作用对象与原始载荷）。
+         *
+         * @param actor       操作人
+         * @param commandType 命令类型（即所需权限串）
+         * @param at          判定时点
+         * @param targets     作用对象 ID 列表（可空 = 空列表；不携带对象类型，由决策器按
+         *                    命令类型 / 载荷自行判定）
+         * @param payload     命令原始载荷（可空；不受处理器脱敏视图影响，供决策器做目标绑定）
+         */
+        public EisAuthorizationRequest(UUID actor, String commandType, Instant at, List<UUID> targets,
+                                       JsonNode payload) {
             this.actor = actor;
             this.commandType = commandType;
             this.at = at;
+            this.targets = targets == null ? List.of() : List.copyOf(targets);
+            this.payload = payload;
         }
 
         /**
@@ -71,6 +95,24 @@ public interface EisAuthorizer {
          */
         public Instant getAt() {
             return at;
+        }
+
+        /**
+         * 获取作用对象 ID 列表。
+         *
+         * @return 对象 ID 列表（不可变；无作用对象时为空列表）
+         */
+        public List<UUID> getTargets() {
+            return targets;
+        }
+
+        /**
+         * 获取命令原始载荷。
+         *
+         * @return 载荷 JSON；旧版三参构造的请求为 {@code null}
+         */
+        public JsonNode getPayload() {
+            return payload;
         }
     }
 
