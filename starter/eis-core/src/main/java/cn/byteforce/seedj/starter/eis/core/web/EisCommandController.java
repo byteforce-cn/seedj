@@ -3,6 +3,7 @@ package cn.byteforce.seedj.starter.eis.core.web;
 import cn.byteforce.seedj.starter.eis.core.EisActorResolver;
 import cn.byteforce.seedj.starter.eis.core.EisCommandRequest;
 import cn.byteforce.seedj.starter.eis.core.EisCommandResult;
+import cn.byteforce.seedj.starter.eis.core.EisCommandRejectionDetail;
 import cn.byteforce.seedj.starter.eis.core.EisCommandStore;
 import cn.byteforce.seedj.starter.eis.core.EisCommandRuntime;
 import cn.byteforce.seedj.starter.eis.core.EisRequestException;
@@ -123,6 +124,16 @@ public class EisCommandController {
         body.put("code", result.getCode());
         if (result.getReasonCode() != null) {
             body.put("reason_code", result.getReasonCode());
+        }
+        if (!result.getDetails().isEmpty()) {
+            List<Map<String, Object>> details = new ArrayList<>(result.getDetails().size());
+            for (EisCommandRejectionDetail detail : result.getDetails()) {
+                Map<String, Object> item = new LinkedHashMap<>();
+                item.put("field", detail.getField());
+                item.put("message", detail.getMessage());
+                details.add(item);
+            }
+            body.put("details", details);
         }
         if (result.isReplayed()) {
             body.put("replayed", true);

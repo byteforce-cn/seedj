@@ -32,8 +32,16 @@ public final class EisCommandResult {
 
     private final EisObjectRef created;
 
+    private final List<EisCommandRejectionDetail> details;
+
     private EisCommandResult(String status, UUID commandId, List<UUID> eventIds, String code,
                              String reason, String reasonCode, boolean replayed, EisObjectRef created) {
+        this(status, commandId, eventIds, code, reason, reasonCode, replayed, created, List.of());
+    }
+
+    private EisCommandResult(String status, UUID commandId, List<UUID> eventIds, String code,
+                             String reason, String reasonCode, boolean replayed, EisObjectRef created,
+                             List<EisCommandRejectionDetail> details) {
         this.status = status;
         this.commandId = commandId;
         this.eventIds = eventIds == null ? List.of() : List.copyOf(eventIds);
@@ -42,6 +50,7 @@ public final class EisCommandResult {
         this.reasonCode = reasonCode;
         this.replayed = replayed;
         this.created = created;
+        this.details = details == null ? List.of() : List.copyOf(details);
     }
 
     /**
@@ -101,8 +110,23 @@ public final class EisCommandResult {
      * @return 结果
      */
     public static EisCommandResult rejected(UUID commandId, String code, String reason, String reasonCode) {
+        return rejected(commandId, code, reason, reasonCode, List.of());
+    }
+
+    /**
+     * 拒绝结果（带字段级明细）。
+     *
+     * @param commandId  命令 ID
+     * @param code       错误码
+     * @param reason     原因
+     * @param reasonCode 原因码（可空）
+     * @param details    字段级明细（可空/空 = 无字段级定位）
+     * @return 结果
+     */
+    public static EisCommandResult rejected(UUID commandId, String code, String reason, String reasonCode,
+                                            List<EisCommandRejectionDetail> details) {
         return new EisCommandResult(EisCommandStatus.REJECTED.getCode(), commandId, List.of(), code, reason,
-                reasonCode, false, null);
+                reasonCode, false, null, details);
     }
 
     /**
@@ -186,5 +210,14 @@ public final class EisCommandResult {
      */
     public EisObjectRef getCreated() {
         return created;
+    }
+
+    /**
+     * 获取字段级拒绝明细。
+     *
+     * @return 明细列表（不可变；无明细时为空列表；幂等重放不返回明细）
+     */
+    public List<EisCommandRejectionDetail> getDetails() {
+        return details;
     }
 }

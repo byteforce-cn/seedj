@@ -7,6 +7,8 @@
 
 ### Added
 
+- `starter-eis-core`：命令拒绝明细（契约加法字段 `details[]`）——`EisCommandRejectionDetail`（`field` + `message`，不携带属性值）、`EisCommandRejectedException` 四参构造器与 `getDetails()`、`EisCommandResult.rejected(...)` 明细重载；拒绝响应在明细非空时输出 `details:[{field,message}]`，无明细的响应逐字不变（向后兼容）。明细不落库：幂等重放只回放 `code` / `reason`（见 `docs/known-limitations.md` §2.4）。
+
 - `starter-eis-core`：`EisFieldKind` 新增 `UUID_ARRAY`（`UUID[]` ↔ `List<UUID>`，对齐 `schema-compiler`
   的 `type: array, items.format: uuid` 生成物）：对象存储写入（`createArrayOf("uuid")`，元素为字符串
   UUID 时按 `UUID.fromString` 归一）、NULL 绑定（`Types.ARRAY`）与读取（NULL / 空数组 → 空列表）全链路；

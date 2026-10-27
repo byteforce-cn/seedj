@@ -105,6 +105,34 @@ class EisCommandControllerTest {
     }
 
     @Test
+    void submitRejectedWithDetailsIncludesFieldLevelDetails() {
+        when(runtime.submit(any())).thenReturn(EisCommandResult.rejected(UUID.randomUUID(), "IAM-400-001",
+                "字段校验失败", "FIELD_INVALID",
+                List.of(new EisCommandRejectionDetail("amount", "必须为正数"),
+                        new EisCommandRejectionDetail("currency", "不支持的币种"))));
+
+        ResponseEntity<Map<String, Object>> response = controller.submit("iam.user.create", body(
+                "{\"type\":\"iam.user.create\",\"payload\":{},\"idempotency_key\":\"k4\"}"));
+
+        assertThat(response.getStatusCode().value()).isEqualTo(400);
+        assertThat(response.getBody().get("details")).isEqualTo(List.of(
+                Map.of("field", "amount", "message", "必须为正数"),
+                Map.of("field", "currency", "message", "不支持的币种")));
+    }
+
+    @Test
+    void submitRejectedWithoutDetailsOmitsDetailsField() {
+        when(runtime.submit(any())).thenReturn(
+                EisCommandResult.rejected(UUID.randomUUID(), "IAM-403-002", "内置 root 账户不可禁用", null));
+
+        ResponseEntity<Map<String, Object>> response = controller.submit("iam.user.disable", body(
+                "{\"type\":\"iam.user.disable\",\"payload\":{},\"idempotency_key\":\"k5\"}"));
+
+        assertThat(response.getStatusCode().value()).isEqualTo(403);
+        assertThat(response.getBody()).doesNotContainKey("details");
+    }
+
+    @Test
     void submitConflictReturns409WithOriginalResult() {
         UUID originalId = UUID.randomUUID();
         when(runtime.submit(any())).thenReturn(EisCommandResult.conflict(originalId));
