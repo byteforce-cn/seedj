@@ -1,0 +1,274 @@
+package cn.byteforce.seedj.cqrs.wiring;
+
+import cn.byteforce.seedj.biz.autoconfigure.BizEnabledMarker;
+import cn.byteforce.seedj.core.InfrastructureCapability;
+import cn.byteforce.seedj.core.clock.Clock;
+import cn.byteforce.seedj.core.clock.Clocks;
+import cn.byteforce.seedj.core.security.CallerProvider;
+import cn.byteforce.seedj.cqrs.CommandCatalog;
+import cn.byteforce.seedj.cqrs.CommandRuntime;
+import cn.byteforce.seedj.cqrs.TemporalCommandAgent;
+import cn.byteforce.seedj.cqrs.jdbc.CommandSchemaCapability;
+import cn.byteforce.seedj.cqrs.jdbc.PostgresCommandStore;
+import cn.byteforce.seedj.cqrs.memory.InMemoryCommandStore;
+import cn.byteforce.seedj.cqrs.spi.CommandStore;
+import cn.byteforce.seedj.cqrs.spi.TransactionRunner;
+import cn.byteforce.seedj.cqrs.web.CommandController;
+import cn.byteforce.seedj.domain.TemporalStore;
+import cn.byteforce.seedj.domain.jdbc.PostgresTemporalStore;
+import cn.byteforce.seedj.domain.jdbc.TemporalSchemaCapability;
+import cn.byteforce.seedj.domain.jdbc.TemporalTable;
+import cn.byteforce.seedj.domain.jdbc.TemporalTables;
+import cn.byteforce.seedj.domain.memory.InMemoryTemporalStore;
+import cn.byteforce.seedj.domain.web.ObjectQueryController;
+import cn.byteforce.seedj.id.IdGenerator;
+import cn.byteforce.seedj.id.Uuid7IdGenerator;
+import cn.byteforce.seedj.jdbc.JdbcMigrationRunner;
+import cn.byteforce.seedj.lock.LockProvider;
+import cn.byteforce.seedj.outbox.OutboxWriter;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
+import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
+import org.springframework.boot.jdbc.autoconfigure.JdbcTemplateAutoConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
+import org.springframework.jdbc.core.JdbcTemplate;
+
+import javax.sql.DataSource;
+import java.time.Duration;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+/**
+ * 命令运行时、对象查询与 HTTP 面的默认装配。
+ *
+ * <p>provider 选择是显式的：{@code seedj.command.provider} 与
+ * {@code seedj.object.provider} 缺省时按依赖推断（有 JDBC 模板则 PostgreSQL，
+ * 否则内存）；显式指定 PostgreSQL 但缺依赖时启动失败，不静默降级。</p>
+ *
+ * @author ByteForce
+ * @since 1.0.0
+ */
+@AutoConfiguration(
+        afterName = "cn.byteforce.seedj.biz.security.BizSecurityAutoConfiguration",
+        after = {DataSourceAutoConfiguration.class, JdbcTemplateAutoConfiguration.class})
+@ConditionalOnBean(BizEnabledMarker.class)
+@ConditionalOnProperty(prefix = "seedj.command", name = "enabled", havingValue = "true",
+        matchIfMissing = true)
+public class TemporalCommandAutoConfiguration {
+
+    private static final String COMMAND_PROVIDER = "seedj.command.provider";
+
+    private static final String OBJECT_PROVIDER = "seedj.object.provider";
+
+    /**
+     * 契约面统一时钟；应用可覆盖。
+     *
+     * @return 系统时钟（UTC 微秒）
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public Clock seedjContractClock() {
+        return Clocks.system();
+    }
+
+    /**
+     * 命令/事件标识生成器；应用可覆盖。
+     *
+     * @param clock 取时入口
+     * @return UUIDv7 生成器
+     */
+    @Bean(name = "commandIdGenerator")
+    @ConditionalOnMissingBean(name = "commandIdGenerator")
+    public IdGenerator<UUID> commandIdGenerator(Clock clock) {
+        return new Uuid7IdGenerator(clock);
+    }
+
+    /**
+     * 命令记录存储。
+     *
+     * @param environment 配置
+     * @param jdbc        JDBC 模板
+     * @return 命令存储
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public CommandStore commandStore(Environment environment,
+                                     ObjectProvider<JdbcTemplate> jdbc) {
+        JdbcTemplate template = jdbc.getIfAvailable();
+        String provider = environment.getProperty(COMMAND_PROVIDER,
+                template == null ? "memory" : "postgres");
+        return switch (provider) {
+            case "memory" -> new InMemoryCommandStore();
+            case "postgres" -> {
+                if (template == null) {
+                    throw new IllegalStateException(
+                            "seedj.command.provider=postgres requires a DataSource/JdbcTemplate");
+                }
+                yield new PostgresCommandStore(template);
+            }
+            default -> throw new IllegalStateException(
+                    "unknown seedj.command.provider: " + provider);
+        };
+    }
+
+    /**
+     * 对象类型到物理表的注册表。
+     *
+     * @param tables 应用声明的对象表
+     * @return 注册表
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnBean(TemporalTable.class)
+    public TemporalTables temporalTables(ObjectProvider<TemporalTable> tables) {
+        List<TemporalTable> declared = tables.orderedStream().toList();
+        return new TemporalTables(declared);
+    }
+
+    /**
+     * 双时间轴对象存储。
+     *
+     * @param environment 配置
+     * @param jdbc        JDBC 模板
+     * @param tables      对象表注册表
+     * @param clock       取时入口
+     * @return 对象存储
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public TemporalStore temporalStore(Environment environment,
+                                       ObjectProvider<JdbcTemplate> jdbc,
+                                       ObjectProvider<TemporalTables> tables,
+                                       Clock clock) {
+        JdbcTemplate template = jdbc.getIfAvailable();
+        TemporalTables registry = tables.getIfAvailable();
+        String provider = environment.getProperty(OBJECT_PROVIDER,
+                template == null || registry == null ? "memory" : "postgres");
+        return switch (provider) {
+            case "memory" -> new InMemoryTemporalStore(clock);
+            case "postgres" -> {
+                if (template == null) {
+                    throw new IllegalStateException(
+                            "seedj.object.provider=postgres requires a DataSource/JdbcTemplate");
+                }
+                if (registry == null) {
+                    throw new IllegalStateException(
+                            "seedj.object.provider=postgres requires registered TemporalTables");
+                }
+                yield new PostgresTemporalStore(template, clock, registry);
+            }
+            default -> throw new IllegalStateException(
+                    "unknown seedj.object.provider: " + provider);
+        };
+    }
+
+    /**
+     * 命令运行时。
+     *
+     * @param commands  命令存储
+     * @param objects   对象存储
+     * @param tx        事务边界
+     * @param locks     锁
+     * @param outbox    outbox
+     * @param clock     取时入口
+     * @param ids       标识生成器
+     * @return 运行时
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public CommandRuntime commandRuntime(CommandStore commands, TemporalStore objects,
+                                         ObjectProvider<TransactionRunner> tx,
+                                         ObjectProvider<LockProvider> locks,
+                                         ObjectProvider<OutboxWriter> outbox,
+                                         Clock clock,
+                                         @Qualifier("commandIdGenerator")
+                                         IdGenerator<UUID> ids) {
+        return new CommandRuntime(new CommandRuntime.Options(
+                tx.getIfAvailable(TransactionRunner::direct),
+                locks.getIfAvailable(LockProvider::disabled),
+                Duration.ofSeconds(30), clock, ids, commands, objects,
+                outbox.getIfAvailable()));
+    }
+
+    /**
+     * 命令注册表。
+     *
+     * @param agents 应用声明的命令代理
+     * @return 注册表
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public CommandCatalog commandCatalog(List<TemporalCommandAgent<?>> agents) {
+        return new CommandCatalog(agents);
+    }
+
+    /**
+     * PostgreSQL 命令表迁移。
+     */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass({JdbcTemplate.class, DataSource.class})
+    @ConditionalOnBean(DataSource.class)
+    @ConditionalOnProperty(prefix = "seedj.command", name = "provider",
+            havingValue = "postgres", matchIfMissing = true)
+    static class CommandSchemaConfiguration {
+
+        @Bean
+        @ConditionalOnMissingBean(name = "postgresCommandSchemaCapability")
+        InfrastructureCapability postgresCommandSchemaCapability(
+                DataSource dataSource, ObjectProvider<JdbcMigrationRunner> runners) {
+            return new CommandSchemaCapability(
+                    runners.getIfAvailable(() -> new JdbcMigrationRunner(dataSource)));
+        }
+    }
+
+    /**
+     * PostgreSQL 双时间轴共享对象迁移。
+     */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass({JdbcTemplate.class, DataSource.class})
+    @ConditionalOnBean(DataSource.class)
+    @ConditionalOnProperty(prefix = "seedj.object", name = "provider",
+            havingValue = "postgres", matchIfMissing = true)
+    static class TemporalSchemaConfiguration {
+
+        @Bean
+        @ConditionalOnMissingBean(name = "postgresTemporalSchemaCapability")
+        InfrastructureCapability postgresTemporalSchemaCapability(
+                DataSource dataSource, ObjectProvider<JdbcMigrationRunner> runners) {
+            return new TemporalSchemaCapability(
+                    runners.getIfAvailable(() -> new JdbcMigrationRunner(dataSource)));
+        }
+    }
+
+    /**
+     * Web 面：命令与对象查询控制器。
+     */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
+    static class WebConfiguration {
+
+        @Bean
+        @ConditionalOnMissingBean
+        CommandController commandController(CommandCatalog catalog, CommandStore commands,
+                                            ObjectProvider<CallerProvider> callers) {
+            CallerProvider provider = callers.getIfAvailable();
+            return new CommandController(catalog, commands,
+                    provider == null ? Optional::empty : provider);
+        }
+
+        @Bean
+        @ConditionalOnMissingBean
+        ObjectQueryController objectQueryController(TemporalStore objects) {
+            return new ObjectQueryController(objects);
+        }
+    }
+}
