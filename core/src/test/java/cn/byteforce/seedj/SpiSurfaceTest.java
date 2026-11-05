@@ -65,7 +65,7 @@ class SpiSurfaceTest {
                     "CqrsErrorCode", "CqrsException", "EventSourcedRepository", "EventStream",
                     "IdCodec", "IdCodecs", "IdempotencyFingerprint", "Query", "QueryAgent",
                     "QueryInterceptor", "QueryInvocation", "StreamId",
-                    "TemporalCommandAgent"),
+                    "TemporalCommandAgent", "TemporalCommandAudit"),
 
             "cn.byteforce.seedj.cqrs.spi",
             List.of("CommandStore", "EventStore", "TransactionRunner"),

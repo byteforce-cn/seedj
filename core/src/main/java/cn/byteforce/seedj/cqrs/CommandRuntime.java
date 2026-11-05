@@ -119,6 +119,7 @@ public final class CommandRuntime {
                         List<UUID> eventIds = writeEvents(events);
                         CommandRecord record = pending.accepted(result.appended().version().id(),
                                 result.appended().version().version(), eventIds);
+                        options.temporalAudit().accepted(record, events);
                         options.commandStore().complete(record);
                         return record;
                     });
@@ -336,11 +337,23 @@ public final class CommandRuntime {
      * @param commandStore      命令记录存储
      * @param temporalStore     对象存储
      * @param outboxWriter      outbox 写入器，可为 {@code null}（不投递事件）
+     * @param temporalAudit     临时命令审计 seam，空则 noop
      */
     public record Options(TransactionRunner transactionRunner, LockProvider lockProvider,
                           Duration lockTtl, Clock clock, IdGenerator<UUID> idGenerator,
                           CommandStore commandStore, TemporalStore temporalStore,
-                          OutboxWriter outboxWriter) {
+                          OutboxWriter outboxWriter, TemporalCommandAudit temporalAudit) {
+
+        /**
+         * 兼容旧装配：不写临时命令审计。
+         */
+        public Options(TransactionRunner transactionRunner, LockProvider lockProvider,
+                       Duration lockTtl, Clock clock, IdGenerator<UUID> idGenerator,
+                       CommandStore commandStore, TemporalStore temporalStore,
+                       OutboxWriter outboxWriter) {
+            this(transactionRunner, lockProvider, lockTtl, clock, idGenerator, commandStore,
+                    temporalStore, outboxWriter, TemporalCommandAudit.noop());
+        }
 
         public Options {
             transactionRunner = transactionRunner == null
@@ -351,6 +364,7 @@ public final class CommandRuntime {
             Objects.requireNonNull(idGenerator, "idGenerator");
             Objects.requireNonNull(commandStore, "commandStore");
             Objects.requireNonNull(temporalStore, "temporalStore");
+            temporalAudit = temporalAudit == null ? TemporalCommandAudit.noop() : temporalAudit;
             if (lockTtl.isZero() || lockTtl.isNegative()) {
                 throw new IllegalArgumentException("lockTtl must be positive");
             }

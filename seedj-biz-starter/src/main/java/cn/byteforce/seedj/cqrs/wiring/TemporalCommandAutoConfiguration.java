@@ -8,6 +8,7 @@ import cn.byteforce.seedj.core.security.CallerProvider;
 import cn.byteforce.seedj.cqrs.CommandCatalog;
 import cn.byteforce.seedj.cqrs.CommandRuntime;
 import cn.byteforce.seedj.cqrs.TemporalCommandAgent;
+import cn.byteforce.seedj.cqrs.TemporalCommandAudit;
 import cn.byteforce.seedj.cqrs.jdbc.CommandSchemaCapability;
 import cn.byteforce.seedj.cqrs.jdbc.PostgresCommandStore;
 import cn.byteforce.seedj.cqrs.memory.InMemoryCommandStore;
@@ -58,7 +59,8 @@ import java.util.UUID;
  * @since 1.0.0
  */
 @AutoConfiguration(
-        afterName = "cn.byteforce.seedj.biz.security.BizSecurityAutoConfiguration",
+        afterName = {"cn.byteforce.seedj.biz.security.BizSecurityAutoConfiguration",
+                "cn.byteforce.seedj.audit.wiring.AuditAutoConfiguration"},
         after = {DataSourceAutoConfiguration.class, JdbcTemplateAutoConfiguration.class})
 @ConditionalOnBean(BizEnabledMarker.class)
 public class TemporalCommandAutoConfiguration {
@@ -185,6 +187,7 @@ public class TemporalCommandAutoConfiguration {
      * @param outbox    outbox
      * @param clock     取时入口
      * @param ids       标识生成器
+     * @param audit     临时命令审计 seam
      * @return 运行时
      */
     @Bean
@@ -197,12 +200,13 @@ public class TemporalCommandAutoConfiguration {
                                          ObjectProvider<OutboxWriter> outbox,
                                          Clock clock,
                                          @Qualifier("commandIdGenerator")
-                                         IdGenerator<UUID> ids) {
+                                         IdGenerator<UUID> ids,
+                                         ObjectProvider<TemporalCommandAudit> audit) {
         return new CommandRuntime(new CommandRuntime.Options(
                 tx.getIfAvailable(TransactionRunner::direct),
                 locks.getIfAvailable(LockProvider::disabled),
                 Duration.ofSeconds(30), clock, ids, commands, objects,
-                outbox.getIfAvailable()));
+                outbox.getIfAvailable(), audit.getIfAvailable(TemporalCommandAudit::noop)));
     }
 
     /**

@@ -10,6 +10,7 @@ import cn.byteforce.seedj.core.clock.Clock;
 import cn.byteforce.seedj.core.clock.Clocks;
 import cn.byteforce.seedj.cqrs.CommandAudit;
 import cn.byteforce.seedj.core.security.SecurityAuditSink;
+import cn.byteforce.seedj.cqrs.TemporalCommandAudit;
 import cn.byteforce.seedj.id.IdGenerator;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -84,6 +85,17 @@ public class AuditAutoConfiguration {
                     "seedj.audit.enabled=true but no AuditAppender is available");
         }
         return new AnnotationCommandAudit(appender, securityAudit, idGenerator);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    TemporalCommandAudit temporalCommandAudit(ObjectProvider<AuditAppender<String>> appenders) {
+        AuditAppender<String> appender = appenders.getIfAvailable();
+        if (appender == null) {
+            throw new AuditException(AuditErrorCode.STORE_MISSING,
+                    "seedj.audit.enabled=true but no AuditAppender is available");
+        }
+        return new TemporalCommandAuditAdapter(appender, AuditActor::current);
     }
 
     @Configuration(proxyBeanMethods = false)
