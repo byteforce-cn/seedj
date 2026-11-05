@@ -21,6 +21,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.transaction.PlatformTransactionManager;
 
 /**
@@ -52,11 +53,10 @@ public class AuditAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    AuditAppender<String> auditAppender(ObjectProvider<AuditStore<String>> stores,
-                                        ObjectProvider<PlatformTransactionManager> transactions,
-                                        Clock clock, AuditAnchor anchor,
-                                        IdGenerator<String> idGenerator,
-                                        AuditMetrics metrics) {
+    AuditChain<String> auditChain(ObjectProvider<AuditStore<String>> stores,
+                                  ObjectProvider<PlatformTransactionManager> transactions,
+                                  Clock clock, AuditAnchor anchor,
+                                  IdGenerator<String> idGenerator) {
         AuditStore<String> store = stores.getIfAvailable();
         if (store == null) {
             throw new AuditException(AuditErrorCode.STORE_MISSING,
@@ -69,9 +69,13 @@ public class AuditAutoConfiguration {
                     "seedj.audit.enabled=true but no PlatformTransactionManager is available; "
                             + "audit must share the command transaction");
         }
-        return new MetricsAuditAppender(
-                new TransactionalAuditAppender(new AuditChain<>(store, clock, anchor, idGenerator)),
-                metrics);
+        return new AuditChain<>(store, clock, anchor, idGenerator);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    AuditAppender<String> auditAppender(AuditChain<String> chain, AuditMetrics metrics) {
+        return new MetricsAuditAppender(new TransactionalAuditAppender(chain), metrics);
     }
 
     @Bean
@@ -96,6 +100,17 @@ public class AuditAutoConfiguration {
                     "seedj.audit.enabled=true but no AuditAppender is available");
         }
         return new TemporalCommandAuditAdapter(appender, AuditActor::current);
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnProperty(prefix = "seedj.audit.anchor", name = "enabled", havingValue = "true")
+    @EnableScheduling
+    static class AnchoringConfiguration {
+        @Bean
+        @ConditionalOnMissingBean
+        AuditAnchorJob auditAnchorJob(AuditChain<String> chain) {
+            return new AuditAnchorJob(chain);
+        }
     }
 
     @Configuration(proxyBeanMethods = false)
