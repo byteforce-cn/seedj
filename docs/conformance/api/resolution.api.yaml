@@ -1,0 +1,143 @@
+# resolution.api.yaml — EIS 授权解析 API 契约（Spec v1.0.0，冻结）
+# 元结构：授权判定必须支持时点（as_of）；/check 必须返回 allowed 与 reason
+openapi: 3.1.0
+info:
+  title: EIS Authorization Resolution API
+  version: 1.0.0
+  description: |
+    授权解析服务：
+    - /resolve：解析主体在特定时间点的有效角色与权限（支持代理展开）
+    - /check：检查权限，返回 allowed + reason（拒绝时必须给出原因）
+
+paths:
+  /resolve:
+    post:
+      summary: 解析主体在特定时间点的有效角色
+      operationId: resolveRoles
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [principal, as_of]
+              properties:
+                principal:
+                  type: string
+                  format: uuid
+                as_of:
+                  type: string
+                  format: date-time
+                scope:
+                  $ref: '#/components/schemas/Scope'
+                attributes:
+                  $ref: '#/components/schemas/AttributeContext'
+      responses:
+        '200':
+          description: 解析成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  roles:
+                    type: array
+                    items:
+                      type: string
+                  permissions:
+                    type: array
+                    items:
+                      type: string
+                  sod_warnings:
+                    type: array
+                    items:
+                      type: string
+                    description: 命中的 warn 级 SoD 规则 ID（prevent 级冲突在 /check 中拒绝）
+
+  /check:
+    post:
+      summary: 检查权限
+      operationId: checkPermission
+      description: |
+        权限判定：先判「是否持有」，再按声明求值授权条件（ADR-0015）。
+        - 条件权威在 extensions/*/manifest.yaml 的 permissions[].condition；
+        - 请求**不得携带条件**（本 API 无该字段）；条件只能由声明侧提供；
+        - 条件只收窄、不授予；快照缺失/过期/属主不可达/路径缺失一律 fail-closed（ATR-006/007）。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [principal, permission, as_of]
+              properties:
+                principal:
+                  type: string
+                  format: uuid
+                permission:
+                  type: string
+                as_of:
+                  type: string
+                  format: date-time
+                attributes:
+                  $ref: '#/components/schemas/AttributeContext'
+      responses:
+        '200':
+          description: 检查结果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  allowed:
+                    type: boolean
+                  reason:
+                    type: string
+                  reason_code:
+                    type: string
+                    description: >-
+                      机器可读原因码：SOD-xxx（职责分离冲突）/ NO_PERMISSION /
+                      ATTRIBUTE_MISSING / ATTRIBUTE_STALE / ATTRIBUTE_SOURCE_UNAVAILABLE /
+                      ATTRIBUTE_MISMATCH（声明侧授权条件求值，见 attribute.rules.yaml
+                      ATR-006/007/009 与 condition_language）；拒绝原因只含属性路径与状态，
+                      不含属性值全文
+                  attribute_state:
+                    type: string
+                    enum: [fresh, stale, missing, source_unavailable, not_required]
+                    description: 属性快照状态；依赖属性的条件必须 fail-closed
+
+components:
+  schemas:
+    AttributeContext:
+      type: object
+      description: >-
+        调用方已按 ATR-002 拉取的属性快照（可选）；缺省由判定方自行拉取。
+        形状与失败口径见 04-authz-contract/attributes.api.yaml 与 attribute.rules.yaml。
+      properties:
+        as_of:
+          type: string
+          format: date-time
+        source:
+          type: string
+        attribute_state:
+          type: string
+          enum: [fresh, stale, missing, source_unavailable]
+        snapshot:
+          type: object
+    Scope:
+      type: object
+      description: 作用域：键值对（常用键见下；允许扩展键）。作用域与时点一样参与授权判定。
+      properties:
+        department:
+          type: string
+          description: 部门编码，如 "D001"
+        organization:
+          type: string
+          description: 组织编码
+        warehouse:
+          type: string
+          description: 仓库编码
+        project:
+          type: string
+          description: 项目编码
+      additionalProperties: true
