@@ -1,0 +1,177 @@
+# command.openapi.yaml — EIS 命令 API 契约（Spec v1.0.0，冻结）
+# 元结构：POST /commands/{commandType}；必含 payload + idempotency_key；响应 202/400/409
+openapi: 3.1.0
+info:
+  title: EIS Command API
+  version: 1.0.0
+  description: |
+    写操作统一入口。所有命令必须携带幂等键：
+    - 首次提交：校验 + 规则处理 → 202（已接受）或 400（拒绝）
+    - 重复提交（同幂等键）：返回原结果；若内容不一致 → 409
+    - 结果查询：GET /commands/{id} 查询命令终态（异步语义）
+    - 所有拒绝必须携带错误码（见 error-codes.yaml）
+    - 写入专用派生字段（writeOnly）：载荷携带原始值，由域属主服务在写路径派生后落库；
+      原始值与派生值不得进入命令记录/读投影/日志（见
+      01-data-contract/write-only-fields.rules.yaml）
+
+paths:
+  /commands/{commandType}:
+    post:
+      summary: 提交命令
+      operationId: submitCommand
+      parameters:
+        - name: commandType
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^[a-z][a-z0-9_.]*$'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommandRequest'
+      responses:
+        '202':
+          description: 命令已接受
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandAccepted'
+        '400':
+          description: 命令被拒绝
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandRejected'
+        '409':
+          description: 幂等冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdempotencyConflict'
+
+  /commands/{id}:
+    get:
+      summary: 查询命令结果（异步语义）
+      operationId: getCommand
+      description: |
+        GET 路径段解析为命令 ID（command_id）；与 POST /commands/{commandType} 的
+        commandType 路径段互不冲突（HTTP 方法不同）。命令终态：accepted / rejected。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 命令当前状态
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandStatus'
+        '404':
+          description: 命令不存在
+
+components:
+  schemas:
+    CommandRequest:
+      type: object
+      required: [type, payload, idempotency_key]
+      properties:
+        type:
+          type: string
+        payload:
+          type: object
+        idempotency_key:
+          type: string
+        targets:
+          type: array
+          items:
+            type: string
+            format: uuid
+
+    CommandAccepted:
+      type: object
+      description: |
+        命令执行结果定位（ADR-0014）：
+        - 命令响应只表达「命令执行结果」，**不得携带读模型投影**（业务字段/关联字段/计算字段一律由读接口返回）；
+        - 写聚合的命令必须返回 `locator` + `version`：`locator` = 聚合根 ID（单聚合命令）或流程实例 ID
+          （长流程命令）；`version` = `locator` 对应对象的版本（与 `01-data-contract/object.schema.json`
+          的 `version` 同一语义：每次写 +1）；
+        - 失败响应（400/409）不携带 `locator`/`version`；
+        - `locator + version` 是命令契约与查询契约之间唯一的桥：调用方据此读取/等待投影，而不是依赖
+          命令响应里的业务数据。
+      properties:
+        command_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [accepted]
+        event_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        locator:
+          type: string
+          format: uuid
+          description: 聚合根 ID（单聚合命令）或流程实例 ID（长流程命令）
+        version:
+          type: integer
+          minimum: 1
+          description: locator 对应对象的版本（每次写 +1）
+
+    CommandRejected:
+      type: object
+      properties:
+        command_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [rejected]
+        reason:
+          type: string
+        code:
+          type: string
+          description: 错误码（见 error-codes.yaml），如 EIS-400-001
+
+    IdempotencyConflict:
+      type: object
+      properties:
+        idempotency_key:
+          type: string
+        original_command_id:
+          type: string
+          format: uuid
+        original_result:
+          type: object
+
+    CommandStatus:
+      type: object
+      required: [command_id, status]
+      properties:
+        command_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, accepted, rejected]
+        event_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        reason:
+          type: string
+        code:
+          type: string
+          description: 错误码（rejected 时，见 error-codes.yaml）
+        issued_at:
+          type: string
+          format: date-time
