@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>cn.byteforce.seedj</groupId>
+        <artifactId>root</artifactId>
+        <version>${revision}</version>
+    </parent>
+    <artifactId>bom</artifactId>
+    <packaging>pom</packaging>
+
+    <name>Byteforce Seedj :: Dependencies (BOM)</name>
+    <description>Byteforce BOM：统一管理 seedj 各模块、Spring Boot 平台与第三方构件的版本（只管版本，不引包）</description>
+
+    <properties>
+        <!-- spring-boot.version 由根 POM 统一定义（随父链继承解析，单一维护点） -->
+        <coord-java-sdk.version>0.3.5</coord-java-sdk.version>
+        <mybatis-plus.version>3.5.17</mybatis-plus.version>
+        <compile-testing.version>0.23.0</compile-testing.version>
+        <!-- 收敛锚点版本（见下方 dependencyManagement 中的 error_prone_annotations 注释） -->
+        <error-prone.version>2.50.0</error-prone.version>
+
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- Spring Boot 4 平台 -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>core</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>seedj-infra-local</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>seedj-jdbc-postgresql</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>seedj-iam-starter</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>seedj-biz-starter</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <!-- 第三方构件 -->
+
+            <dependency>
+                <groupId>cn.byteforce</groupId>
+                <artifactId>coord-java-sdk</artifactId>
+                <version>${coord-java-sdk.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
+                <version>${mybatis-plus.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-annotation</artifactId>
+                <version>${mybatis-plus.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-core</artifactId>
+                <version>${mybatis-plus.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-jsqlparser</artifactId>
+                <version>${mybatis-plus.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.google.errorprone</groupId>
+                <artifactId>error_prone_annotations</artifactId>
+                <version>${error-prone.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.google.testing.compile</groupId>
+                <artifactId>compile-testing</artifactId>
+                <version>${compile-testing.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>${slf4j.version}</version>
+            </dependency>
+
+            
+
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers-bom</artifactId>
+                <version>${testcontainers.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+</project>

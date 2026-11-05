@@ -1,0 +1,3 @@
+cn.byteforce.seedj.outbox.jdbc.PostgresOutboxAutoConfiguration
+cn.byteforce.seedj.audit.jdbc.PostgresAuditAutoConfiguration
+cn.byteforce.seedj.outbox.wiring.OutboxAutoConfiguration

@@ -1,0 +1,6 @@
+cn.byteforce.seedj.pki.PkiAutoConfiguration
+cn.byteforce.seedj.transit.TransitAutoConfiguration
+cn.byteforce.seedj.eventbus.transport.EventTransportAutoConfiguration
+cn.byteforce.seedj.id.IdAutoConfiguration
+cn.byteforce.seedj.lock.memory.InMemoryLockAutoConfiguration
+cn.byteforce.seedj.audit.memory.InMemoryAuditAutoConfiguration

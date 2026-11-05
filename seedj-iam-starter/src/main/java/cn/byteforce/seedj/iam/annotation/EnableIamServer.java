@@ -1,0 +1,24 @@
+package cn.byteforce.seedj.iam.annotation;
+
+import cn.byteforce.seedj.iam.autoconfigure.IamEnablementConfiguration;
+import org.springframework.context.annotation.Import;
+
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
+/**
+ * Enables the IAM server capability.
+ *
+ * <p>This annotation is only a feature switch. The application must still be a
+ * regular Spring Boot application ({@code @SpringBootApplication}); the
+ * annotation no longer implies component scanning or application startup.</p>
+ */
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+@Documented
+@Import(IamEnablementConfiguration.class)
+public @interface EnableIamServer {
+}

@@ -1,0 +1,6 @@
+cn.byteforce.seedj.biz.infrastructure.InfrastructureAutoConfiguration
+cn.byteforce.seedj.biz.security.BizSecurityAutoConfiguration
+cn.byteforce.seedj.audit.wiring.AuditAutoConfiguration
+cn.byteforce.seedj.cqrs.wiring.CommandAgentAutoConfiguration
+cn.byteforce.seedj.eventbus.wiring.EventBusAutoConfiguration
+cn.byteforce.seedj.observability.wiring.ObservabilityAutoConfiguration

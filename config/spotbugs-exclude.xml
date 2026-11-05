@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  SpotBugs 排除规则。新增排除项必须在本文件内注释原因（根 pom 的 -Panalysis 引用本路径）。
+-->
+<FindBugsFilter>
+    <!--
+      DI 协作者按构造注入并保存在字段里是装配层的正常形状，不是对外暴露可变状态；
+      本类没有 getter 把 appender 交出去。
+    -->
+    <Match>
+        <Class name="cn.byteforce.seedj.audit.wiring.AnnotationCommandAudit"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+</FindBugsFilter>
