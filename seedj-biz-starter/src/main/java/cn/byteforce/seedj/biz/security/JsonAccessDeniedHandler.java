@@ -1,5 +1,7 @@
 package cn.byteforce.seedj.biz.security;
 
+import cn.byteforce.seedj.core.exception.ApiError;
+import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.security.SecurityErrorCode;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -13,7 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 /**
- * 403 响应体：与 401 同形，错误项为 {@link SecurityErrorCode#ACCESS_DENIED}。
+ * 403 响应体：契约错误信封，固定 {@code EIS-403-001}，details 带 reason。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -31,13 +33,13 @@ public class JsonAccessDeniedHandler implements AccessDeniedHandler {
     @Override
     public void handle(HttpServletRequest request, HttpServletResponse response,
                        AccessDeniedException accessDeniedException) throws IOException {
-        SecurityErrorCode code = SecurityErrorCode.ACCESS_DENIED;
-        response.setStatus(code.httpStatus());
+        SecurityErrorCode securityCode = SecurityErrorCode.ACCESS_DENIED;
+        ContractErrorCode contractCode = ContractErrorCode.FORBIDDEN;
+        response.setStatus(contractCode.httpStatus());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-        json.writeValue(response.getOutputStream(), Map.of(
-                "error", code.name(),
-                "message", "access denied"));
-        audit.recordDenial(request, code);
+        json.writeValue(response.getOutputStream(), new ApiError(contractCode.getCode(),
+                "access denied", Map.of("reason", "access denied")));
+        audit.recordDenial(request, securityCode);
     }
 }

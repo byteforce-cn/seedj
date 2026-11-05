@@ -1,5 +1,7 @@
 package cn.byteforce.seedj.biz.security;
 
+import cn.byteforce.seedj.core.exception.ApiError;
+import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.security.SecurityErrorCode;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -15,8 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 /**
- * 401 响应体：与 {@code IamExceptionHandler} 同形（{@code {error, message}}），
- * 前端只写一套解析。
+ * 401 响应体：契约错误信封 {@code {code, message, details?}}。
  *
  * <p>保留 {@code WWW-Authenticate: Bearer} 头：OAuth2 资源服务器要求 401 带该头，
  * Spring Security 的默认实现也会加。</p>
@@ -44,17 +45,18 @@ public class JsonAuthenticationEntryPoint implements AuthenticationEntryPoint {
     @Override
     public void commence(HttpServletRequest request, HttpServletResponse response,
                          AuthenticationException authException) throws IOException {
-        SecurityErrorCode code = authException instanceof InsufficientAuthenticationException
+        SecurityErrorCode securityCode = authException instanceof InsufficientAuthenticationException
                 ? SecurityErrorCode.AUTHENTICATION_REQUIRED
                 : SecurityErrorCode.AUTHENTICATION_FAILED;
+        ContractErrorCode contractCode = ContractErrorCode.UNAUTHENTICATED;
+        String message = securityCode == SecurityErrorCode.AUTHENTICATION_REQUIRED
+                ? "authentication required" : "invalid credentials";
         headerWriter.commence(request, response, authException);
-        response.setStatus(code.httpStatus());
+        response.setStatus(contractCode.httpStatus());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-        json.writeValue(response.getOutputStream(), Map.of(
-                "error", code.name(),
-                "message", code == SecurityErrorCode.AUTHENTICATION_REQUIRED
-                        ? "authentication required" : "invalid credentials"));
-        audit.recordDenial(request, code);
+        json.writeValue(response.getOutputStream(),
+                new ApiError(contractCode.getCode(), message, Map.of()));
+        audit.recordDenial(request, securityCode);
     }
 }

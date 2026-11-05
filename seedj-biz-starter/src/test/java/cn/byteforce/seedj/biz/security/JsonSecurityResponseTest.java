@@ -83,7 +83,7 @@ class JsonSecurityResponseTest {
         assertThat(response.getStatus()).isEqualTo(401);
         assertThat(response.getHeader("WWW-Authenticate")).startsWith("Bearer");
         assertThat(body(response))
-                .containsEntry("error", SecurityErrorCode.AUTHENTICATION_REQUIRED.name())
+                .containsEntry("code", "EIS-401-001")
                 .containsEntry("message", "authentication required");
         assertThat(auditEvents()).singleElement()
                 .satisfies(event -> {
@@ -104,8 +104,8 @@ class JsonSecurityResponseTest {
                 .commence(request, response, new BadCredentialsException("bad token"));
 
         assertThat(response.getStatus()).isEqualTo(401);
-        assertThat(body(response).get("error"))
-                .isEqualTo(SecurityErrorCode.AUTHENTICATION_FAILED.name());
+        assertThat(body(response).get("code"))
+                .isEqualTo("EIS-401-001");
     }
 
     @Test
@@ -119,8 +119,9 @@ class JsonSecurityResponseTest {
 
         assertThat(response.getStatus()).isEqualTo(403);
         assertThat(body(response))
-                .containsEntry("error", SecurityErrorCode.ACCESS_DENIED.name())
+                .containsEntry("code", "EIS-403-001")
                 .containsEntry("message", "access denied");
+        assertThat(body(response).get("details")).isInstanceOf(Map.class);
         assertThat(auditEvents()).singleElement()
                 .satisfies(event -> assertThat(event.action()).isEqualTo("http.delete"));
     }
