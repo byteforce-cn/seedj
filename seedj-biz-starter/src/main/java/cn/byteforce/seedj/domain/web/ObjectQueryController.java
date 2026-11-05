@@ -5,6 +5,7 @@ import cn.byteforce.seedj.core.exception.ContractException;
 import cn.byteforce.seedj.domain.TemporalQuery;
 import cn.byteforce.seedj.domain.TemporalRow;
 import cn.byteforce.seedj.domain.TemporalStore;
+import cn.byteforce.seedj.domain.jdbc.TemporalTables;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -12,6 +13,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -29,13 +32,26 @@ public final class ObjectQueryController {
 
     private final TemporalStore store;
 
+    private final TemporalTables tables;
+
     /**
      * 构造控制器。
      *
      * @param store 对象存储
      */
     public ObjectQueryController(TemporalStore store) {
+        this(store, null);
+    }
+
+    /**
+     * 构造带读投影剔除的控制器。
+     *
+     * @param store  对象存储
+     * @param tables 对象表注册表；可空
+     */
+    public ObjectQueryController(TemporalStore store, TemporalTables tables) {
         this.store = Objects.requireNonNull(store, "store");
+        this.tables = tables;
     }
 
     /**
@@ -70,7 +86,16 @@ public final class ObjectQueryController {
             throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
                     error.getMessage() == null ? "unknown object type" : error.getMessage());
         }
-        return ObjectQueryResponse.from(row);
+        return ObjectQueryResponse.from(redact(row));
+    }
+
+    private TemporalRow redact(TemporalRow row) {
+        if (tables == null) {
+            return row;
+        }
+        Map<String, Object> fields = new LinkedHashMap<>(row.fields());
+        tables.writeOnlyColumns(row.objectType()).forEach(fields::remove);
+        return new TemporalRow(row.objectType(), row.version(), fields);
     }
 
     private static Instant parse(String value, String name) {

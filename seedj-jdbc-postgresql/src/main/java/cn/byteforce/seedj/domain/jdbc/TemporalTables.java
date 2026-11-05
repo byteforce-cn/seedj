@@ -45,4 +45,15 @@ public final class TemporalTables {
         }
         return table;
     }
+
+    /**
+     * 读投影应剔除的写入专用列。
+     *
+     * @param objectType 对象类型
+     * @return 列名集合；未知类型返回空集
+     */
+    public java.util.Set<String> writeOnlyColumns(String objectType) {
+        TemporalTable table = byType.get(objectType);
+        return table == null ? java.util.Set.of() : table.writeOnlyColumns();
+    }
 }

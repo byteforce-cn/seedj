@@ -7,6 +7,7 @@ import cn.byteforce.seedj.core.clock.Clocks;
 import cn.byteforce.seedj.core.security.CallerProvider;
 import cn.byteforce.seedj.cqrs.CommandCatalog;
 import cn.byteforce.seedj.cqrs.CommandRuntime;
+import cn.byteforce.seedj.cqrs.CommandPayloadRedactor;
 import cn.byteforce.seedj.cqrs.TemporalCommandAgent;
 import cn.byteforce.seedj.cqrs.TemporalCommandAudit;
 import cn.byteforce.seedj.cqrs.jdbc.CommandSchemaCapability;
@@ -201,12 +202,14 @@ public class TemporalCommandAutoConfiguration {
                                          Clock clock,
                                          @Qualifier("commandIdGenerator")
                                          IdGenerator<UUID> ids,
-                                         ObjectProvider<TemporalCommandAudit> audit) {
+                                         ObjectProvider<TemporalCommandAudit> audit,
+                                         ObjectProvider<CommandPayloadRedactor> redactor) {
         return new CommandRuntime(new CommandRuntime.Options(
                 tx.getIfAvailable(TransactionRunner::direct),
                 locks.getIfAvailable(LockProvider::disabled),
                 Duration.ofSeconds(30), clock, ids, commands, objects,
-                outbox.getIfAvailable(), audit.getIfAvailable(TemporalCommandAudit::noop)));
+                outbox.getIfAvailable(), audit.getIfAvailable(TemporalCommandAudit::noop),
+                redactor.getIfAvailable(CommandPayloadRedactor::noop)));
     }
 
     /**
@@ -287,8 +290,9 @@ public class TemporalCommandAutoConfiguration {
         @ConditionalOnMissingBean
         @ConditionalOnProperty(prefix = "seedj.object", name = "enabled", havingValue = "true",
                 matchIfMissing = true)
-        ObjectQueryController objectQueryController(TemporalStore objects) {
-            return new ObjectQueryController(objects);
+        ObjectQueryController objectQueryController(TemporalStore objects,
+                                                    ObjectProvider<TemporalTables> tables) {
+            return new ObjectQueryController(objects, tables.getIfAvailable());
         }
     }
 }

@@ -13,13 +13,15 @@ import java.util.regex.Pattern;
  * <p>表名与列名只允许小写标识符，类型只允许常见的 SQL 类型写法；
  * 元字段名（id/version/valid_* 等）不得作为领域列重复声明。</p>
  *
- * @param objectType 对象类型
- * @param tableName  表名
- * @param columns    领域列（列名 → SQL 类型，保持插入顺序）
+ * @param objectType       对象类型
+ * @param tableName        表名
+ * @param columns          领域列（列名 → SQL 类型，保持插入顺序）
+ * @param writeOnlyColumns 写入专用列（读投影剔除）
  * @author ByteForce
  * @since 1.0.0
  */
-public record TemporalTable(String objectType, String tableName, Map<String, String> columns) {
+public record TemporalTable(String objectType, String tableName, Map<String, String> columns,
+                            Set<String> writeOnlyColumns) {
 
     private static final Pattern IDENTIFIER = Pattern.compile("^[a-z][a-z0-9_]*$");
 
@@ -47,6 +49,23 @@ public record TemporalTable(String objectType, String tableName, Map<String, Str
             copy.put(name, type);
         });
         columns = Collections.unmodifiableMap(copy);
+        writeOnlyColumns = writeOnlyColumns == null ? Set.of() : Set.copyOf(writeOnlyColumns);
+        for (String column : writeOnlyColumns) {
+            if (!copy.containsKey(column)) {
+                throw new IllegalArgumentException("writeOnly column is not declared: " + column);
+            }
+        }
+    }
+
+    /**
+     * 构造无写入专用列的映射。
+     *
+     * @param objectType 对象类型
+     * @param tableName  表名
+     * @param columns    领域列
+     */
+    public TemporalTable(String objectType, String tableName, Map<String, String> columns) {
+        this(objectType, tableName, columns, Set.of());
     }
 
     private static void identifier(String value, String role) {

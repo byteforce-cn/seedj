@@ -83,8 +83,9 @@ public final class CommandRuntime {
         }
 
         Instant now = options.clock().now();
+        Map<String, Object> storedPayload = options.payloadRedactor().redact(submission.payload());
         CommandRecord pending = CommandRecord.pending(options.idGenerator().id(), submission.type(),
-                now, submission.issuer(), submission.payload(), submission.idempotencyKey(),
+                now, submission.issuer(), storedPayload, submission.idempotencyKey(),
                 fingerprint, now);
         if (!options.commandStore().insert(pending)) {
             CommandRecord winner = options.commandStore()
@@ -338,21 +339,35 @@ public final class CommandRuntime {
      * @param temporalStore     对象存储
      * @param outboxWriter      outbox 写入器，可为 {@code null}（不投递事件）
      * @param temporalAudit     临时命令审计 seam，空则 noop
+     * @param payloadRedactor   命令记录载荷脱敏，空则 noop
      */
     public record Options(TransactionRunner transactionRunner, LockProvider lockProvider,
                           Duration lockTtl, Clock clock, IdGenerator<UUID> idGenerator,
                           CommandStore commandStore, TemporalStore temporalStore,
-                          OutboxWriter outboxWriter, TemporalCommandAudit temporalAudit) {
+                          OutboxWriter outboxWriter, TemporalCommandAudit temporalAudit,
+                          CommandPayloadRedactor payloadRedactor) {
 
         /**
-         * 兼容旧装配：不写临时命令审计。
+         * 兼容旧装配：不写临时命令审计、不脱敏。
          */
         public Options(TransactionRunner transactionRunner, LockProvider lockProvider,
                        Duration lockTtl, Clock clock, IdGenerator<UUID> idGenerator,
                        CommandStore commandStore, TemporalStore temporalStore,
                        OutboxWriter outboxWriter) {
             this(transactionRunner, lockProvider, lockTtl, clock, idGenerator, commandStore,
-                    temporalStore, outboxWriter, TemporalCommandAudit.noop());
+                    temporalStore, outboxWriter, TemporalCommandAudit.noop(),
+                    CommandPayloadRedactor.noop());
+        }
+
+        /**
+         * 兼容审计 seam 的装配：不脱敏。
+         */
+        public Options(TransactionRunner transactionRunner, LockProvider lockProvider,
+                       Duration lockTtl, Clock clock, IdGenerator<UUID> idGenerator,
+                       CommandStore commandStore, TemporalStore temporalStore,
+                       OutboxWriter outboxWriter, TemporalCommandAudit temporalAudit) {
+            this(transactionRunner, lockProvider, lockTtl, clock, idGenerator, commandStore,
+                    temporalStore, outboxWriter, temporalAudit, CommandPayloadRedactor.noop());
         }
 
         public Options {
@@ -365,6 +380,8 @@ public final class CommandRuntime {
             Objects.requireNonNull(commandStore, "commandStore");
             Objects.requireNonNull(temporalStore, "temporalStore");
             temporalAudit = temporalAudit == null ? TemporalCommandAudit.noop() : temporalAudit;
+            payloadRedactor = payloadRedactor == null
+                    ? CommandPayloadRedactor.noop() : payloadRedactor;
             if (lockTtl.isZero() || lockTtl.isNegative()) {
                 throw new IllegalArgumentException("lockTtl must be positive");
             }

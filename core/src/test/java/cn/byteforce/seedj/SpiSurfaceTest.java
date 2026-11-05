@@ -56,7 +56,8 @@ class SpiSurfaceTest {
     private static final Map<String, List<String>> EXTRA_ALLOWED = Map.of(
             "cn.byteforce.seedj.core.security",
             List.of("AccessTokenRules", "Caller", "CallerProvider", "SecurityAuditEvent",
-                    "SecurityAuditSink", "SecurityErrorCode", "TokenClaims"),
+                    "SecurityAuditSink", "SecurityErrorCode", "TokenClaims", "DerivedField",
+                    "DerivedFieldKeyRing"),
 
             "cn.byteforce.seedj.cqrs",
             List.of("AbstractProjection", "Command", "CommandAgent", "CommandAudit",
@@ -65,7 +66,7 @@ class SpiSurfaceTest {
                     "CqrsErrorCode", "CqrsException", "EventSourcedRepository", "EventStream",
                     "IdCodec", "IdCodecs", "IdempotencyFingerprint", "Query", "QueryAgent",
                     "QueryInterceptor", "QueryInvocation", "StreamId",
-                    "TemporalCommandAgent", "TemporalCommandAudit"),
+                    "TemporalCommandAgent", "TemporalCommandAudit", "CommandPayloadRedactor"),
 
             "cn.byteforce.seedj.cqrs.spi",
             List.of("CommandStore", "EventStore", "TransactionRunner"),
