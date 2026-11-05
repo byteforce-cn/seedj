@@ -60,10 +60,11 @@ class SpiSurfaceTest {
 
             "cn.byteforce.seedj.cqrs",
             List.of("AbstractProjection", "Command", "CommandAgent", "CommandAudit",
-                    "CommandInterceptor",
-                    "CommandInvocation", "CqrsErrorCode", "CqrsException",
-                    "EventSourcedRepository", "EventStream", "IdCodec", "IdCodecs",
-                    "Query", "QueryAgent", "QueryInterceptor", "QueryInvocation", "StreamId"),
+                    "CommandInterceptor", "CommandReceipt", "CommandRecord",
+                    "CommandInvocation", "CommandStatus", "CommandSubmission", "CqrsErrorCode",
+                    "CqrsException", "EventSourcedRepository", "EventStream", "IdCodec",
+                    "IdCodecs", "IdempotencyFingerprint", "Query", "QueryAgent",
+                    "QueryInterceptor", "QueryInvocation", "StreamId"),
 
             "cn.byteforce.seedj.cqrs.spi",
             List.of("EventStore", "TransactionRunner"),
