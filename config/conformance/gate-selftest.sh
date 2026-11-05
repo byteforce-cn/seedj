@@ -4,7 +4,10 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/../.." && pwd)"
-spec_root="${1:-$repo_root/../bf/eis}"
+spec_root="${1:-}"
+if [[ -z "$spec_root" ]]; then
+  spec_root="$repo_root/../bf/eis"
+fi
 checker="$spec_root/tools/compatibility-checker"
 
 if [[ ! -f "$checker" ]]; then

@@ -562,13 +562,13 @@
         <!--
             契约兼容性门禁（规范 compatibility-checker，opt-in）：
             - `mvn -Pconformance -DskipTests verify`；
-            - 规范仓库默认 ../bf/eis，可用 -Dspec.root=<path> 覆盖；
+            - 规范仓库由脚本按仓库相对位置解析，可用 -Dspec.root=<path> 覆盖；
             - 工具或工件缺席时显式失败，不静默跳过。
         -->
         <profile>
             <id>conformance</id>
             <properties>
-                <spec.root>${project.basedir}/../bf/eis</spec.root>
+                <spec.root></spec.root>
             </properties>
             <build>
                 <plugins>
