@@ -5,6 +5,7 @@ import cn.byteforce.seedj.iam.jdbc.JdbcIamBindingStore;
 import cn.byteforce.seedj.iam.memory.InMemoryIamAttributeSource;
 import cn.byteforce.seedj.iam.memory.InMemoryIamBindingStore;
 import cn.byteforce.seedj.iam.spi.IamAuthorizationRepository;
+import cn.byteforce.seedj.core.security.CallerProvider;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -72,5 +73,13 @@ public class IamAuthzConfiguration {
         List<IamPermissionCondition> declared = conditions.orderedStream().toList();
         return new IamContractAuthorizationService(bindings, roles, attributes, declared,
                 ruleSet);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public IamAuthorizationController iamAuthorizationController(
+            IamContractAuthorizationService service,
+            ObjectProvider<CallerProvider> callers) {
+        return new IamAuthorizationController(service, callers);
     }
 }
