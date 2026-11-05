@@ -67,7 +67,7 @@ class SpiSurfaceTest {
                     "QueryInterceptor", "QueryInvocation", "StreamId"),
 
             "cn.byteforce.seedj.cqrs.spi",
-            List.of("EventStore", "TransactionRunner"),
+            List.of("CommandStore", "EventStore", "TransactionRunner"),
 
             "cn.byteforce.seedj.lock",
             List.of("LockErrorCode", "LockException", "LockLease", "LockProvider")
