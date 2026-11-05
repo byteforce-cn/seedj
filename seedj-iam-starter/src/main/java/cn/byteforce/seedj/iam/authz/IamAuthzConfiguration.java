@@ -60,6 +60,12 @@ public class IamAuthzConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    public CallerProvider iamCallerProvider(IamProperties iam) {
+        return new IamCallerProvider(iam.tenantId());
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
     public SodRuleSet sodRuleSet() {
         return SodRuleSet.defaults();
     }
