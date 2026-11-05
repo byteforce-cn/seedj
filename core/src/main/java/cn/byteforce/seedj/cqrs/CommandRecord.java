@@ -57,8 +57,6 @@ public record CommandRecord(
 
     private static final Pattern FINGERPRINT = Pattern.compile("^[0-9a-f]{64}$");
 
-    private static final Pattern ERROR_CODE = Pattern.compile("^EIS-\\d{3}-\\d{3}$");
-
     public CommandRecord {
         Objects.requireNonNull(id, "id");
         Objects.requireNonNull(issuedAt, "issuedAt");
@@ -107,7 +105,7 @@ public record CommandRecord(
                     throw new IllegalArgumentException(
                             "rejected command must not carry locator or version");
                 }
-                if (rejectionCode == null || !ERROR_CODE.matcher(rejectionCode).matches()) {
+                if (!isContractCode(rejectionCode)) {
                     throw new IllegalArgumentException(
                             "rejected command requires a contract error code");
                 }
@@ -176,6 +174,18 @@ public record CommandRecord(
      */
     public boolean isTerminal() {
         return status != CommandStatus.PENDING;
+    }
+
+    private static boolean isContractCode(String code) {
+        if (code == null) {
+            return false;
+        }
+        for (ContractErrorCode candidate : ContractErrorCode.values()) {
+            if (candidate.getCode().equals(code)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static void requireTerminalFieldsAbsent(UUID locator, Long version,
