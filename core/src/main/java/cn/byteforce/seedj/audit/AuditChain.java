@@ -92,15 +92,19 @@ public class AuditChain<ID> implements AuditAppender<ID> {
         }
 
         AuditEntry<ID> unsigned = new AuditEntry<>(id, sequence, timestamp, request.getActor(),
-                request.getAction(), request.getResourceType(), request.getResourceId(), payload, null, prevHash,
-                null);
+                request.getAction(), request.getResourceType(), request.getResourceId(), payload,
+                digest(request), null, prevHash, null);
         String hash = CanonicalHasher.computeHash(unsigned);
         AuditEntry<ID> entry = new AuditEntry<>(id, sequence, timestamp, request.getActor(),
-                request.getAction(), request.getResourceType(), request.getResourceId(), payload, hash, prevHash,
-                null);
+                request.getAction(), request.getResourceType(), request.getResourceId(), payload,
+                digest(request), hash, prevHash, null);
 
         store.insert(entry);
         store.updateHead(hash);
+    }
+
+    private static String digest(AuditAppendRequest<?> request) {
+        return request.getEvents() == null ? null : AuditPayloadDigest.compute(request.getEvents());
     }
 
     /**

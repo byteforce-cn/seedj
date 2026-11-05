@@ -37,6 +37,8 @@ public final class AuditEntry<ID> {
 
     private final JsonNode payload;
 
+    private final String payloadDigest;
+
     private final String hash;
 
     private final String prevHash;
@@ -61,6 +63,33 @@ public final class AuditEntry<ID> {
     public AuditEntry(ID id, long sequence, Instant timestamp, ID actor, String action,
                       String resourceType, ID resourceId, JsonNode payload, String hash, String prevHash,
                       String signature) {
+        this(id, sequence, timestamp, actor, action, resourceType, resourceId, payload, null,
+                hash, prevHash, signature);
+    }
+
+    /**
+     * 构造带 v1.1 摘要的审计条目。
+     *
+     * @param id            条目 ID
+     * @param sequence      链序号（从 1 起、连续）
+     * @param timestamp     时间戳（UTC 微秒）
+     * @param actor         操作人
+     * @param action        动作
+     * @param resourceType  资源类型
+     * @param resourceId    资源 ID（可空）
+     * @param payload       载荷（可空视为 {@code {}}）
+     * @param payloadDigest 事件投影摘要（可空；非空必须是 64 位小写 hex）
+     * @param hash          条目哈希（小写 hex；待计算时可为 {@code null}）
+     * @param prevHash      前序哈希（小写 hex）
+     * @param signature     可选签名（不参与验证）
+     */
+    public AuditEntry(ID id, long sequence, Instant timestamp, ID actor, String action,
+                      String resourceType, ID resourceId, JsonNode payload, String payloadDigest,
+                      String hash, String prevHash, String signature) {
+        if (payloadDigest != null && !payloadDigest.matches("^[0-9a-f]{64}$")) {
+            throw new IllegalArgumentException(
+                    "payload digest must be 64 lowercase hex characters");
+        }
         this.id = id;
         this.sequence = sequence;
         this.timestamp = timestamp;
@@ -69,6 +98,7 @@ public final class AuditEntry<ID> {
         this.resourceType = resourceType;
         this.resourceId = resourceId;
         this.payload = payload;
+        this.payloadDigest = payloadDigest;
         this.hash = hash;
         this.prevHash = prevHash;
         this.signature = signature;
@@ -144,6 +174,15 @@ public final class AuditEntry<ID> {
      */
     public JsonNode getPayload() {
         return payload;
+    }
+
+    /**
+     * 获取事件投影摘要（v1.1）。
+     *
+     * @return 64 位小写 hex；未使用 v1.1 公式时为 {@code null}
+     */
+    public String getPayloadDigest() {
+        return payloadDigest;
     }
 
     /**
