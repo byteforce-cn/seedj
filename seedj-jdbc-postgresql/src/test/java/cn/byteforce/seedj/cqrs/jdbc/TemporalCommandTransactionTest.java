@@ -130,6 +130,27 @@ class TemporalCommandTransactionTest {
         assertThat(record.rejectionCode()).isEqualTo("EIS-400-003");
     }
 
+    @Test
+    @DisplayName("审计失败：对象行与命令终态一起回滚，命令键被释放")
+    void auditFailureRollsBackObjectAndCommand() {
+        CommandRuntime failing = new CommandRuntime(new CommandRuntime.Options(
+                new SpringRunner(new TransactionTemplate(
+                        new DataSourceTransactionManager(jdbc.getDataSource()))),
+                LockProvider.disabled(), Duration.ofSeconds(30), clock,
+                (IdGenerator<UUID>) UUID::randomUUID, commands, objects, null,
+                (record, events) -> {
+                    throw new IllegalStateException("audit down");
+                }));
+        ProbeAgent failingAgent = new ProbeAgent(failing);
+
+        assertThatThrownBy(() -> failingAgent.execute(submission("tx-audit", "Alice", false)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("audit down");
+
+        assertThat(count("probe_object")).isZero();
+        assertThat(commands.findByIdempotencyKey("tx-audit")).isEmpty();
+    }
+
     private static int count(String table) {
         Integer count = jdbc.queryForObject("SELECT count(*) FROM " + table, Integer.class);
         return count == null ? 0 : count;
