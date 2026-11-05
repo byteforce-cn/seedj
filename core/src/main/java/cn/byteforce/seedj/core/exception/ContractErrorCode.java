@@ -3,10 +3,10 @@ package cn.byteforce.seedj.core.exception;
 import cn.byteforce.seedj.core.CodeEnum;
 
 /**
- * 操作契约的冻结错误码目录（线格式 {@code EIS-{http_status}-{seq}}）。
+ * 操作契约的冻结错误码目录（线格式：固定前缀 + HTTP 状态码 + 三位序号）。
  *
  * <p>本枚举是唯一的「错误码字符串」来源：码表由规范冻结，新增属于 MINOR、
- * 修改既有含义属于 MAJOR。领域扩展使用自身前缀，不得占用 {@code EIS-}。</p>
+ * 修改既有含义属于 MAJOR。领域扩展使用自身前缀，不得占用冻结前缀。</p>
  *
  * <p>与仓库既有错误码枚举的关系：本枚举只负责线格式与 HTTP 语义，
  * 不替换 {@code CqrsErrorCode} / {@code IamErrorCode} / {@code SecurityErrorCode} /

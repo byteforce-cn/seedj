@@ -7,7 +7,7 @@ import java.util.Objects;
  * 错误响应信封：所有错误响应必须包含 {@code code} 与 {@code message}，
  * {@code details} 可选。
  *
- * @param code    冻结错误码（{@code EIS-{status}-{seq}}）
+ * @param code    冻结错误码（见 {@link ContractErrorCode}）
  * @param message 面向调用方的消息
  * @param details 可选细节
  * @author ByteForce
