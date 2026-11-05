@@ -102,7 +102,7 @@ class SpiSurfaceTest {
 
             "cn.byteforce.seedj.outbox.spi",
             List.of("ClaimRequest", "ClaimToken", "ClaimedRecord", "OutboxFailure",
-                    "OutboxSink", "OutboxStore"),
+                    "OutboxSink", "OutboxStore", "InboxRecord", "InboxStatus", "InboxStore"),
 
             "cn.byteforce.seedj.id",
             List.of("IdErrorCode", "IdException", "IdGenerator"),

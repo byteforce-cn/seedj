@@ -25,7 +25,8 @@ public record OutboxRecord(
         int contentVersion,
         byte[] payload,
         Map<String, String> headers,
-        Instant occurredAt) {
+        Instant occurredAt,
+        String aggregateType) {
 
     public OutboxRecord {
         Objects.requireNonNull(messageId, "messageId");
@@ -38,6 +39,16 @@ public record OutboxRecord(
         }
         payload = payload.clone();
         headers = headers == null ? Map.of() : Map.copyOf(headers);
+    }
+
+    /**
+     * 兼容旧调用：不携带聚合类型。
+     */
+    public OutboxRecord(String messageId, String destination, String partitionKey,
+                        String contentType, int contentVersion, byte[] payload,
+                        Map<String, String> headers, Instant occurredAt) {
+        this(messageId, destination, partitionKey, contentType, contentVersion, payload,
+                headers, occurredAt, null);
     }
 
     @Override
