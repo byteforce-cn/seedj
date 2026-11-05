@@ -77,6 +77,18 @@ class SealingTest {
     }
 
     @Test
+    void createOnExistingObjectIsConflict() {
+        TemporalRow first = Sealing.next(
+                AppendRequest.create("probe", ID, T0, null, ACTOR, Map.of()), null, T0).appended();
+        assertThatThrownBy(() -> Sealing.next(
+                AppendRequest.create("probe", ID, T0, null, ACTOR, Map.of()),
+                first, T0.plusSeconds(1)))
+                .isInstanceOf(ContractException.class)
+                .extracting(e -> ((ContractException) e).code())
+                .isEqualTo(ContractErrorCode.VERSION_CONFLICT);
+    }
+
+    @Test
     void correctionOnMissingObjectIsNotFound() {
         assertThatThrownBy(() -> Sealing.next(
                 AppendRequest.correction("probe", ID, T0, null, ACTOR, Map.of()), null, T0))

@@ -1,7 +1,6 @@
 package cn.byteforce.seedj.id;
 
-import cn.byteforce.seedj.core.clock.Clock;
-import cn.byteforce.seedj.core.clock.Clocks;
+import cn.byteforce.seedj.core.clock.TestClock;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -16,7 +15,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class Uuid7IdGeneratorTest {
 
-    private final Clock clock = Clocks.fixed(Instant.parse("2026-10-08T09:00:00Z"));
+    private final TestClock clock = new TestClock(Instant.parse("2026-10-08T09:00:00Z"));
 
     private final Uuid7IdGenerator generator = new Uuid7IdGenerator(clock);
 
@@ -40,6 +39,23 @@ class Uuid7IdGeneratorTest {
         UUID first = generator.id();
         UUID second = generator.id();
         assertThat(second.toString()).isGreaterThan(first.toString());
+    }
+
+    @Test
+    void counterOverflowStaysMonotonic() {
+        UUID previous = generator.id();
+        for (int i = 0; i < 5_000; i++) {
+            UUID next = generator.id();
+            assertThat(next.toString()).isGreaterThan(previous.toString());
+            previous = next;
+        }
+    }
+
+    @Test
+    void clockRegressionStaysMonotonic() {
+        UUID first = generator.id();
+        clock.set(Instant.parse("2026-10-08T08:59:55Z"));
+        assertThat(generator.id().toString()).isGreaterThan(first.toString());
     }
 
     @Test

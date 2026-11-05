@@ -1,6 +1,7 @@
 package cn.byteforce.seedj.conformance;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -20,7 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class NamingGuardTest {
 
-    private static final Path ROOT = Path.of(System.getProperty("user.dir")).getParent();
+    private static final Path ROOT = repoRoot(Path.of(System.getProperty("user.dir")));
 
     private static final Pattern ALLOWED = Pattern.compile(
             "EIS-\\d{3}-\\d{3}|eis://[^\\s\"']+|eis_(id|version|timestamp)");
@@ -38,6 +39,28 @@ class NamingGuardTest {
                     .forEach(path -> scan(path, hits));
         }
         assertThat(hits).isEmpty();
+    }
+
+    @Test
+    void resolvesRepositoryRootFromModuleOrRoot(@TempDir Path temp) throws IOException {
+        Files.createDirectories(temp.resolve("core"));
+        Files.createDirectories(temp.resolve("seedj-it"));
+        Files.writeString(temp.resolve("core/pom.xml"), "<project/>");
+        Files.writeString(temp.resolve("seedj-it/pom.xml"), "<project/>");
+        assertThat(NamingGuardTest.repoRoot(temp.resolve("seedj-it"))).isEqualTo(temp);
+        assertThat(NamingGuardTest.repoRoot(temp)).isEqualTo(temp);
+    }
+
+    static Path repoRoot(Path start) {
+        Path candidate = start.toAbsolutePath().normalize();
+        while (candidate != null) {
+            if (Files.isRegularFile(candidate.resolve("core/pom.xml"))
+                    && Files.isRegularFile(candidate.resolve("seedj-it/pom.xml"))) {
+                return candidate;
+            }
+            candidate = candidate.getParent();
+        }
+        throw new IllegalStateException("cannot locate repository root from " + start);
     }
 
     private static boolean isProductArtifact(Path path) {
