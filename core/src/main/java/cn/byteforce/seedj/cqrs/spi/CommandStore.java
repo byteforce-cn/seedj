@@ -55,4 +55,14 @@ public interface CommandStore {
      * @throws IllegalStateException 记录不存在或已处于不同的终态
      */
     void complete(CommandRecord record);
+
+    /**
+     * 放弃一条待处理记录：只删除 {@code PENDING}，并释放幂等键；终态记录不受影响。
+     *
+     * <p>用于依赖不可用等技术故障（{@code EIS-503-001}）——命令未被接受，
+     * 同一幂等键必须可以安全重试，不能被一条永远 pending 的记录挡住。</p>
+     *
+     * @param id 命令 ID
+     */
+    void abandon(UUID id);
 }

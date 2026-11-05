@@ -66,7 +66,22 @@ class TemporalCommandAutoConfigurationTest {
             assertThat(context).doesNotHaveBean(CommandRuntime.class);
             assertThat(context).doesNotHaveBean(CommandCatalog.class);
             assertThat(context).doesNotHaveBean(CommandStore.class);
+            assertThat(context).hasSingleBean(TemporalStore.class);
         });
+    }
+
+    @Test
+    @DisplayName("seedj.object.enabled=false 时关闭对象存储与查询控制器")
+    void objectDisabledBacksOffStoreAndQueryController() {
+        new WebApplicationContextRunner()
+                .withConfiguration(AutoConfigurations.of(TemporalCommandAutoConfiguration.class))
+                .withBean(BizEnabledMarker.class)
+                .withPropertyValues("seedj.object.enabled=false", "seedj.command.enabled=false")
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context).doesNotHaveBean(TemporalStore.class);
+                    assertThat(context).doesNotHaveBean(ObjectQueryController.class);
+                });
     }
 
     @Test

@@ -119,6 +119,11 @@ public final class PostgresCommandStore implements CommandStore {
                 + " (" + existing.status().wireName() + ")");
     }
 
+    @Override
+    public void abandon(UUID id) {
+        jdbc.update("DELETE FROM command_record WHERE id = ? AND status = 'pending'", id);
+    }
+
     private static CommandRecord map(ResultSet rs, int rowNum) throws SQLException {
         UUID locator = rs.getObject("locator", UUID.class);
         long version = rs.getLong("version");

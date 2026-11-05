@@ -81,6 +81,18 @@ class ContractErrorHandlerTest {
     }
 
     @Test
+    @DisplayName("契约内部错误：500 + traceId，不泄露异常消息")
+    void contractInternalErrorIsSanitized() throws Exception {
+        mvc.perform(get("/probe/internal"))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.code").value("EIS-500-001"))
+                .andExpect(jsonPath("$.message").value("internal error"))
+                .andExpect(jsonPath("$.details.traceId").isNotEmpty())
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers
+                        .not(org.hamcrest.Matchers.containsString("secret"))));
+    }
+
+    @Test
     @DisplayName("未处理异常：500 + traceId，不泄露堆栈")
     void unexpectedExceptionIs500WithTraceId() throws Exception {
         mvc.perform(get("/probe/boom"))
@@ -110,6 +122,12 @@ class ContractErrorHandlerTest {
         Map<String, Object> infrastructure() {
             throw new InfrastructureException(InfrastructureErrorCode.MIGRATION_FAILED,
                     "secret database detail");
+        }
+
+        @GetMapping("/probe/internal")
+        Map<String, Object> internal() {
+            throw new ContractException(ContractErrorCode.INTERNAL_ERROR,
+                    "secret internal detail");
         }
 
         @GetMapping("/probe/boom")

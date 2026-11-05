@@ -67,6 +67,16 @@ public final class InMemoryCommandStore implements CommandStore {
         byId.put(record.id(), record);
     }
 
+    @Override
+    public synchronized void abandon(UUID id) {
+        CommandRecord existing = id == null ? null : byId.get(id);
+        if (existing == null || existing.status() != CommandStatus.PENDING) {
+            return;
+        }
+        byId.remove(id);
+        byKey.remove(existing.idempotencyKey(), id);
+    }
+
     /**
      * 清空全部记录（测试用）。
      */

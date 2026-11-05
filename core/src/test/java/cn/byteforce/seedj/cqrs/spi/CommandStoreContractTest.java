@@ -172,6 +172,35 @@ public abstract class CommandStoreContractTest {
                 .isInstanceOf(IllegalStateException.class);
     }
 
+
+    @Test
+    @DisplayName("abandon 移除 pending 并释放幂等键")
+    void abandonRemovesPendingAndFreesKey() {
+        CommandRecord pending = pending("k-abandon");
+        store().insert(pending);
+
+        store().abandon(pending.id());
+
+        assertThat(store().find(pending.id())).isEmpty();
+        assertThat(store().findByIdempotencyKey("k-abandon")).isEmpty();
+        assertThat(store().insert(pending("k-abandon"))).isTrue();
+    }
+
+    @Test
+    @DisplayName("abandon 不删除终态记录")
+    void abandonLeavesTerminalRecord() {
+        CommandRecord pending = pending("k-abandon-terminal");
+        store().insert(pending);
+        CommandRecord accepted = pending.accepted(UUID.randomUUID(), 1L, List.of());
+        store().complete(accepted);
+
+        store().abandon(pending.id());
+
+        assertThat(store().find(pending.id())).get()
+                .extracting(CommandRecord::status)
+                .isEqualTo(CommandStatus.ACCEPTED);
+    }
+
     @Test
     @DisplayName("载荷与事件 ID 往返不丢结构")
     void payloadSurvivesRoundTrip() {

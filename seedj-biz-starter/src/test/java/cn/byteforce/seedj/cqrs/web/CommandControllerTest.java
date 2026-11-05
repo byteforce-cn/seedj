@@ -197,6 +197,20 @@ class CommandControllerTest {
     }
 
     @Test
+    @DisplayName("targets 含 null：400 契约信封")
+    void nullTargetIs400() throws Exception {
+        mvc.perform(post("/commands/probe.update")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"type":"probe.update","payload":{"target":"%s"},
+                                 "idempotency_key":"k-null","targets":[null]}
+                                """.formatted(ID)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value("rejected"))
+                .andExpect(jsonPath("$.code").value("EIS-400-001"));
+    }
+
+    @Test
     @DisplayName("调用方 ID 不是 UUID：401 契约信封")
     void callerWithoutUuidIssuerIs401() throws Exception {
         caller.set(caller("alice"));

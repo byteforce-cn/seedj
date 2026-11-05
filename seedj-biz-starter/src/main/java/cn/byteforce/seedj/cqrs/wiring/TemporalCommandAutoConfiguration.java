@@ -61,8 +61,6 @@ import java.util.UUID;
         afterName = "cn.byteforce.seedj.biz.security.BizSecurityAutoConfiguration",
         after = {DataSourceAutoConfiguration.class, JdbcTemplateAutoConfiguration.class})
 @ConditionalOnBean(BizEnabledMarker.class)
-@ConditionalOnProperty(prefix = "seedj.command", name = "enabled", havingValue = "true",
-        matchIfMissing = true)
 public class TemporalCommandAutoConfiguration {
 
     private static final String COMMAND_PROVIDER = "seedj.command.provider";
@@ -101,6 +99,8 @@ public class TemporalCommandAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "seedj.command", name = "enabled", havingValue = "true",
+            matchIfMissing = true)
     public CommandStore commandStore(Environment environment,
                                      ObjectProvider<JdbcTemplate> jdbc) {
         JdbcTemplate template = jdbc.getIfAvailable();
@@ -129,6 +129,8 @@ public class TemporalCommandAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnBean(TemporalTable.class)
+    @ConditionalOnProperty(prefix = "seedj.object", name = "enabled", havingValue = "true",
+            matchIfMissing = true)
     public TemporalTables temporalTables(ObjectProvider<TemporalTable> tables) {
         List<TemporalTable> declared = tables.orderedStream().toList();
         return new TemporalTables(declared);
@@ -145,6 +147,8 @@ public class TemporalCommandAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "seedj.object", name = "enabled", havingValue = "true",
+            matchIfMissing = true)
     public TemporalStore temporalStore(Environment environment,
                                        ObjectProvider<JdbcTemplate> jdbc,
                                        ObjectProvider<TemporalTables> tables,
@@ -185,6 +189,8 @@ public class TemporalCommandAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "seedj.command", name = "enabled", havingValue = "true",
+            matchIfMissing = true)
     public CommandRuntime commandRuntime(CommandStore commands, TemporalStore objects,
                                          ObjectProvider<TransactionRunner> tx,
                                          ObjectProvider<LockProvider> locks,
@@ -207,6 +213,8 @@ public class TemporalCommandAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "seedj.command", name = "enabled", havingValue = "true",
+            matchIfMissing = true)
     public CommandCatalog commandCatalog(List<TemporalCommandAgent<?>> agents) {
         return new CommandCatalog(agents);
     }
@@ -217,12 +225,14 @@ public class TemporalCommandAutoConfiguration {
     @Configuration(proxyBeanMethods = false)
     @ConditionalOnClass({JdbcTemplate.class, DataSource.class})
     @ConditionalOnBean(DataSource.class)
-    @ConditionalOnProperty(prefix = "seedj.command", name = "provider",
-            havingValue = "postgres", matchIfMissing = true)
+    @ConditionalOnProperty(prefix = "seedj.command", name = "enabled", havingValue = "true",
+            matchIfMissing = true)
     static class CommandSchemaConfiguration {
 
         @Bean
         @ConditionalOnMissingBean(name = "postgresCommandSchemaCapability")
+        @ConditionalOnProperty(prefix = "seedj.command", name = "provider",
+                havingValue = "postgres", matchIfMissing = true)
         InfrastructureCapability postgresCommandSchemaCapability(
                 DataSource dataSource, ObjectProvider<JdbcMigrationRunner> runners) {
             return new CommandSchemaCapability(
@@ -236,12 +246,14 @@ public class TemporalCommandAutoConfiguration {
     @Configuration(proxyBeanMethods = false)
     @ConditionalOnClass({JdbcTemplate.class, DataSource.class})
     @ConditionalOnBean(DataSource.class)
-    @ConditionalOnProperty(prefix = "seedj.object", name = "provider",
-            havingValue = "postgres", matchIfMissing = true)
+    @ConditionalOnProperty(prefix = "seedj.object", name = "enabled", havingValue = "true",
+            matchIfMissing = true)
     static class TemporalSchemaConfiguration {
 
         @Bean
         @ConditionalOnMissingBean(name = "postgresTemporalSchemaCapability")
+        @ConditionalOnProperty(prefix = "seedj.object", name = "provider",
+                havingValue = "postgres", matchIfMissing = true)
         InfrastructureCapability postgresTemporalSchemaCapability(
                 DataSource dataSource, ObjectProvider<JdbcMigrationRunner> runners) {
             return new TemporalSchemaCapability(
@@ -258,6 +270,8 @@ public class TemporalCommandAutoConfiguration {
 
         @Bean
         @ConditionalOnMissingBean
+        @ConditionalOnProperty(prefix = "seedj.command", name = "enabled", havingValue = "true",
+                matchIfMissing = true)
         CommandController commandController(CommandCatalog catalog, CommandStore commands,
                                             ObjectProvider<CallerProvider> callers) {
             CallerProvider provider = callers.getIfAvailable();
@@ -267,6 +281,8 @@ public class TemporalCommandAutoConfiguration {
 
         @Bean
         @ConditionalOnMissingBean
+        @ConditionalOnProperty(prefix = "seedj.object", name = "enabled", havingValue = "true",
+                matchIfMissing = true)
         ObjectQueryController objectQueryController(TemporalStore objects) {
             return new ObjectQueryController(objects);
         }

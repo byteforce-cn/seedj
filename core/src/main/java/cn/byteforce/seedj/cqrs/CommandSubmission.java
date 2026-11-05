@@ -39,7 +39,13 @@ public record CommandSubmission(String type, Map<String, Object> payload, String
             throw new IllegalArgumentException("idempotencyKey is longer than 255 characters");
         }
         Objects.requireNonNull(issuer, "issuer");
-        targets = targets == null ? List.of() : List.copyOf(targets);
+        targets = targets == null ? List.of() : targets;
+        for (UUID target : targets) {
+            if (target == null) {
+                throw new IllegalArgumentException("targets must not contain null");
+            }
+        }
+        targets = List.copyOf(targets);
         payload = Collections.unmodifiableMap(new LinkedHashMap<>(payload));
     }
 }

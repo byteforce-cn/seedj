@@ -1,5 +1,7 @@
 package cn.byteforce.seedj.cqrs;
 
+import cn.byteforce.seedj.core.InfrastructureErrorCode;
+import cn.byteforce.seedj.core.InfrastructureException;
 import cn.byteforce.seedj.core.clock.TestClock;
 import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;
@@ -64,7 +66,7 @@ class TemporalCommandAgentTest {
     private final ProbeAgent agent = new ProbeAgent(runtime);
 
     @BeforeEach
-    void advanceClock() {
+    void resetState() {
         clock.set(T0);
         commands.clear();
         objects.clear();
@@ -177,6 +179,50 @@ class TemporalCommandAgentTest {
         assertThat(payload.get("type")).isEqualTo("probe.updated");
     }
 
+
+    @Test
+    @DisplayName("技术故障释放幂等键，同键可安全重试")
+    void technicalFailureReleasesKeyForRetry() {
+        agent.failTechnically = true;
+
+        assertThatThrownBy(() -> agent.execute(submission("k-tech", "Alice", false)))
+                .isInstanceOf(InfrastructureException.class);
+        assertThat(commands.findByIdempotencyKey("k-tech")).isEmpty();
+
+        agent.failTechnically = false;
+        CommandReceipt receipt = agent.execute(submission("k-tech", "Alice", false));
+
+        assertThat(receipt.status()).isEqualTo(CommandStatus.ACCEPTED);
+        assertThat(objects.history("probe", ID)).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("并发同键只执行一次")
+    void concurrentSameKeyExecutesOnce() throws Exception {
+        java.util.concurrent.ExecutorService pool =
+                java.util.concurrent.Executors.newFixedThreadPool(2);
+        try {
+            java.util.concurrent.CountDownLatch start =
+                    new java.util.concurrent.CountDownLatch(1);
+            java.util.concurrent.Callable<CommandReceipt> task = () -> {
+                start.await();
+                return agent.execute(submission("k-concurrent", "Alice", false));
+            };
+            var first = pool.submit(task);
+            var second = pool.submit(task);
+            start.countDown();
+
+            CommandReceipt firstReceipt = first.get(5, java.util.concurrent.TimeUnit.SECONDS);
+            CommandReceipt secondReceipt = second.get(5, java.util.concurrent.TimeUnit.SECONDS);
+
+            assertThat(firstReceipt.commandId()).isEqualTo(secondReceipt.commandId());
+            assertThat(objects.history("probe", ID)).hasSize(1);
+            assertThat(outbox.records).hasSize(1);
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
     private static CommandSubmission submission(String key, String name, boolean reject) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("target", ID.toString());
@@ -190,6 +236,8 @@ class TemporalCommandAgentTest {
      */
     static final class ProbeAgent extends TemporalCommandAgent<ProbeCommand> {
 
+        private boolean failTechnically;
+
         ProbeAgent(CommandRuntime runtime) {
             super(runtime, "probe.update", "probe", ProbeCommand.class);
         }
@@ -202,6 +250,10 @@ class TemporalCommandAgentTest {
         @Override
         protected AppendRequest append(ProbeCommand command, Optional<TemporalRow> current,
                                        Instant now, UUID actor) {
+            if (failTechnically) {
+                throw new InfrastructureException(InfrastructureErrorCode.NOT_READY,
+                        "temporal store down");
+            }
             if (command.reject()) {
                 throw new ContractException(ContractErrorCode.TEMPORAL_VIOLATION,
                         "rejected by probe");

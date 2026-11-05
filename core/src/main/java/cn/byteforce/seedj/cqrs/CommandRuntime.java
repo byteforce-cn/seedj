@@ -96,36 +96,45 @@ public final class CommandRuntime {
         }
 
         try {
-            work.validate();
-        } catch (ContractException error) {
-            throw reject(pending, error);
-        } catch (IllegalArgumentException error) {
-            throw reject(pending, invalidPayload(error));
-        }
-
-        String lockKey = objectType + ':' + targetId;
-        try (LockLease ignored = options.lockProvider().acquire(lockKey, options.lockTtl())) {
             try {
-                CommandRecord accepted = options.transactionRunner().inTransaction(() -> {
-                    Optional<TemporalRow> current = options.temporalStore()
-                            .current(objectType, targetId);
-                    Instant appendNow = options.clock().now();
-                    AppendRequest request = append(work, current, appendNow, submission.issuer());
-                    AppendResult result = options.temporalStore().append(request);
-                    List<CommandEvent> events = work.events(result, appendNow,
-                            submission.issuer());
-                    List<UUID> eventIds = writeEvents(events);
-                    CommandRecord record = pending.accepted(result.appended().version().id(),
-                            result.appended().version().version(), eventIds);
-                    options.commandStore().complete(record);
-                    return record;
-                });
-                return CommandReceipt.from(accepted);
+                work.validate();
             } catch (ContractException error) {
                 throw reject(pending, error);
             } catch (IllegalArgumentException error) {
                 throw reject(pending, invalidPayload(error));
             }
+
+            String lockKey = objectType + ':' + targetId;
+            try (LockLease ignored = options.lockProvider().acquire(lockKey, options.lockTtl())) {
+                try {
+                    CommandRecord accepted = options.transactionRunner().inTransaction(() -> {
+                        Optional<TemporalRow> current = options.temporalStore()
+                                .current(objectType, targetId);
+                        Instant appendNow = options.clock().now();
+                        AppendRequest request = append(work, current, appendNow,
+                                submission.issuer());
+                        AppendResult result = options.temporalStore().append(request);
+                        List<CommandEvent> events = work.events(result, appendNow,
+                                submission.issuer());
+                        List<UUID> eventIds = writeEvents(events);
+                        CommandRecord record = pending.accepted(result.appended().version().id(),
+                                result.appended().version().version(), eventIds);
+                        options.commandStore().complete(record);
+                        return record;
+                    });
+                    return CommandReceipt.from(accepted);
+                } catch (ContractException error) {
+                    throw reject(pending, error);
+                } catch (IllegalArgumentException error) {
+                    throw reject(pending, invalidPayload(error));
+                }
+            }
+        } catch (ContractException error) {
+            throw error;
+        } catch (RuntimeException error) {
+            // 技术故障没有终态：释放幂等键，让同一命令可以安全重试（EIS-503-001）。
+            options.commandStore().abandon(pending.id());
+            throw error;
         }
     }
 

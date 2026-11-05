@@ -110,12 +110,11 @@ class CommandRecordTest {
     @Test
     @DisplayName("时间统一截断到微秒")
     void timesAreTruncatedToMicroseconds() {
-        Instant withNanos = NOW.plusNanos(123);
+        Instant withNanos = NOW.plus(1, ChronoUnit.MICROS).plusNanos(123);
         CommandRecord record = CommandRecord.pending(ID, "hr.employee.onboard", withNanos, ISSUER,
                 Map.of(), "key-1", FINGERPRINT, withNanos);
 
-        assertThat(record.issuedAt()).isEqualTo(NOW.plus(123, ChronoUnit.NANOS)
-                .truncatedTo(ChronoUnit.MICROS));
+        assertThat(record.issuedAt()).isEqualTo(NOW.plus(1, ChronoUnit.MICROS));
         assertThat(record.createdAt().getNano() % 1000).isZero();
     }
 

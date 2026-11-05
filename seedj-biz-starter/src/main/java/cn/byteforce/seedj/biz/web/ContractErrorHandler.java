@@ -46,6 +46,12 @@ public class ContractErrorHandler {
      */
     @ExceptionHandler(ContractException.class)
     public ResponseEntity<ApiError> handleContract(ContractException error) {
+        if (error.code() == ContractErrorCode.INTERNAL_ERROR) {
+            String traceId = UUID.randomUUID().toString();
+            log.error("seedj: contract internal error traceId={}", traceId, error);
+            return response(ContractErrorCode.INTERNAL_ERROR, "internal error",
+                    Map.of("traceId", traceId));
+        }
         Map<String, Object> details = new LinkedHashMap<>(error.details());
         String reasonCode = error.reasonCode() == null
                 ? error.code().getCode() : error.reasonCode();
