@@ -7,7 +7,7 @@ import java.util.UUID;
  * 内置标识编解码器。
  *
  * <p>覆盖框架自身会产出的三种标识：{@code String}（默认 {@code IdGenerator<String>}）、
- * {@code Long}（雪花原生）、{@code UUID}（EIS 审计契约）。业务值对象（如
+ * {@code Long}（雪花原生）、{@code UUID}（审计契约）。业务值对象（如
  * {@code OrderId(String value)}）请自行实现 {@link IdCodec}，或包装内置实现。
  *
  * @author ByteForce

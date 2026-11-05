@@ -6,7 +6,7 @@ import tools.jackson.databind.JsonNode;
  * 审计追加请求。
  *
  * <p>动作 = 命令类型；resource 由运行时按内核语义推导；payload 由调用方按契约
- * 构造（EIS 固定为 {@code {command_id, event_ids}}）。</p>
+ * 构造（契约固定为 {@code {command_id, event_ids}}）。</p>
  *
  * @param <ID> 审计标识类型
  * @author ByteForce

@@ -11,7 +11,7 @@ import java.time.Instant;
  * id / sequence / timestamp / actor / action / resourceType / resourceId /
  * payload / prevHash；{@code signature} 不参与 v1 链验证（规范 §6：验证忽略）。</p>
  *
- * <p><b>标识类型</b>：{@code ID} 由适配器决定（EIS 契约使用 UUIDv7，其他场景可用
+ * <p><b>标识类型</b>：{@code ID} 由适配器决定（契约使用 UUIDv7，其他场景可用
  * 字符串或业务值对象）。{@link CanonicalHasher} 只依赖 {@code ID.toString()} 的
  * 稳定文本表示；实现方必须保证同一值每次序列化结果一致。</p>
  *
