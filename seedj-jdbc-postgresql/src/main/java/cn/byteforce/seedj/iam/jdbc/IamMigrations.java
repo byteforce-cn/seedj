@@ -11,8 +11,39 @@ public final class IamMigrations {
     }
 
     public static List<Migration> all() {
-        return List.of(new Migration(1, "iam core schema", V1));
+        return List.of(new Migration(1, "iam core schema", V1),
+                new Migration(2, "iam authz bindings", V2));
     }
+
+    private static final String V2 = """
+            CREATE TABLE IF NOT EXISTS iam_binding (
+                id            VARCHAR(64) PRIMARY KEY,
+                principal     VARCHAR(64) NOT NULL,
+                role          VARCHAR(64) NOT NULL,
+                scope         JSONB       NOT NULL DEFAULT '{}'::jsonb,
+                valid_from    TIMESTAMPTZ NOT NULL,
+                valid_to      TIMESTAMPTZ,
+                recorded_at   TIMESTAMPTZ NOT NULL,
+                superseded_at TIMESTAMPTZ
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_iam_binding_principal
+                ON iam_binding (principal, valid_from, valid_to);
+
+            CREATE TABLE IF NOT EXISTS iam_proxy (
+                id            VARCHAR(64) PRIMARY KEY,
+                principal     VARCHAR(64) NOT NULL,
+                agent         VARCHAR(64) NOT NULL,
+                scope         JSONB       NOT NULL DEFAULT '{}'::jsonb,
+                valid_from    TIMESTAMPTZ NOT NULL,
+                valid_to      TIMESTAMPTZ,
+                recorded_at   TIMESTAMPTZ NOT NULL,
+                superseded_at TIMESTAMPTZ
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_iam_proxy_agent
+                ON iam_proxy (agent, valid_from, valid_to);
+            """;
 
     private static final String V1 = """
             CREATE TABLE iam_user (
