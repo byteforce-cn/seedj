@@ -469,6 +469,7 @@ seedj-jdbc-postgresql|cn.byteforce.seedj.audit.jdbc|JdbcAuditStore
 seedj-jdbc-postgresql|cn.byteforce.seedj.audit.jdbc|PostgresAuditAutoConfiguration
 seedj-jdbc-postgresql|cn.byteforce.seedj.cqrs.jdbc|CommandSchemaCapability
 seedj-jdbc-postgresql|cn.byteforce.seedj.cqrs.jdbc|PostgresCommandStore
+seedj-jdbc-postgresql|cn.byteforce.seedj.domain.jdbc|ObjectSchemaCapability
 seedj-jdbc-postgresql|cn.byteforce.seedj.domain.jdbc|PostgresTemporalStore
 seedj-jdbc-postgresql|cn.byteforce.seedj.domain.jdbc|TemporalDdl
 seedj-jdbc-postgresql|cn.byteforce.seedj.domain.jdbc|TemporalSchemaCapability
@@ -504,7 +505,9 @@ seedj-jdbc-postgresql|cn.byteforce.seedj.outbox.wiring|OutboxRelay
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeConfiguration
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeCreate
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeCreateAgent
+seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeePostgresConfiguration
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeSchema
+seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeSchemaCapability
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeUpdate
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeUpdateAgent
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|LocalDevAuthenticationFilter

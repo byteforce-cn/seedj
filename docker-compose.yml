@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: seedj
+      POSTGRES_USER: seedj
+      POSTGRES_PASSWORD: seedj
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U seedj -d seedj"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
