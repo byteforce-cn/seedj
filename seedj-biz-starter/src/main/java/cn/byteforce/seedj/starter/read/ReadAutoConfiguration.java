@@ -11,6 +11,7 @@ import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.module.ObjectModuleRegistry;
 import cn.byteforce.seedj.read.DataScopeResolver;
 import cn.byteforce.seedj.read.FieldPolicyResolver;
+import cn.byteforce.seedj.read.QueryExecutor;
 import cn.byteforce.seedj.read.ReadAuditSink;
 import cn.byteforce.seedj.read.ReadGateway;
 import cn.byteforce.seedj.starter.cqrs.wiring.TemporalCommandAutoConfiguration;
@@ -21,6 +22,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.UUID;
 
@@ -77,11 +79,26 @@ public class ReadAutoConfiguration {
                                    ObjectProvider<DataScopeResolver> scopes,
                                    ObjectProvider<FieldPolicyResolver> fields,
                                    ReadAuditSink audit, ObjectProvider<Clock> clock,
-                                   ObjectProvider<IdGenerator<UUID>> ids) {
+                                   ObjectProvider<IdGenerator<UUID>> ids,
+                                   ObjectProvider<QueryExecutor> executor) {
         return new ReadGateway(registry, store, scopes.orderedStream().toList(),
                 fields.orderedStream().toList(), audit,
                 clock.getIfAvailable(Clocks::system),
-                ids.getIfAvailable(() -> UUID::randomUUID));
+                ids.getIfAvailable(() -> UUID::randomUUID),
+                executor.getIfAvailable());
+    }
+
+    /**
+     * 自定义查询执行器：只在有 JDBC 数据源时注册（PostgreSQL）。
+     *
+     * @param jdbc JDBC 模板
+     * @return 执行器
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnBean(JdbcTemplate.class)
+    public QueryExecutor queryExecutor(JdbcTemplate jdbc) {
+        return new cn.byteforce.seedj.infra.jdbc.read.PostgresQueryExecutor(jdbc);
     }
 
     /**

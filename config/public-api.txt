@@ -242,12 +242,15 @@ core|cn.byteforce.seedj.read|DataScopeResolver
 core|cn.byteforce.seedj.read|FieldAccess
 core|cn.byteforce.seedj.read|FieldPolicy
 core|cn.byteforce.seedj.read|FieldPolicyResolver
+core|cn.byteforce.seedj.read|QueryExecutor
+core|cn.byteforce.seedj.read|QuerySpec
 core|cn.byteforce.seedj.read|ReadAccessEvent
 core|cn.byteforce.seedj.read|ReadAuditSink
 core|cn.byteforce.seedj.read|ReadGateway
 core|cn.byteforce.seedj.read|ReadModel
 core|cn.byteforce.seedj.read|ReadModelRegistry
 core|cn.byteforce.seedj.read|ScopeResolvers
+core|cn.byteforce.seedj.read|TemporalQueryRepository
 core|cn.byteforce.seedj.transit|BatchDecryptRequest
 core|cn.byteforce.seedj.transit|BatchEncryptRequest
 core|cn.byteforce.seedj.transit|BatchItem
@@ -554,6 +557,7 @@ seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.outbox|PostgresOutboxAutoCon
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.outbox|PostgresOutboxProperties
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.outbox|PostgresOutboxSchemaCapability
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.outbox|PostgresOutboxStore
+seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.read|PostgresQueryExecutor
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc|JdbcMigrationRunner
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeConfiguration
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeCreate

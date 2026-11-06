@@ -11,6 +11,8 @@ import cn.byteforce.seedj.domain.FieldDefinition;
 import cn.byteforce.seedj.domain.ObjectSchema;
 import cn.byteforce.seedj.domain.Page;
 import cn.byteforce.seedj.domain.ScopePredicate;
+import cn.byteforce.seedj.domain.PageRequest;
+import cn.byteforce.seedj.domain.SortDirection;
 import cn.byteforce.seedj.domain.TemporalQuery;
 import cn.byteforce.seedj.domain.TemporalRow;
 import cn.byteforce.seedj.domain.TemporalSearch;
@@ -58,6 +60,11 @@ public final class ReadGateway {
 
     private final IdGenerator<UUID> ids;
 
+    private final QueryExecutor executor;
+
+    private static final java.util.regex.Pattern NAMED_PARAMETER =
+            java.util.regex.Pattern.compile(":([a-z][a-z0-9_]*)");
+
     /**
      * 构造网关。
      *
@@ -72,6 +79,26 @@ public final class ReadGateway {
     public ReadGateway(ReadModelRegistry models, TemporalStore store,
                        List<DataScopeResolver> scopes, List<FieldPolicyResolver> fieldPolicies,
                        ReadAuditSink audit, Clock clock, IdGenerator<UUID> ids) {
+        this(models, store, scopes, fieldPolicies, audit, clock, ids, null);
+    }
+
+    /**
+     * 构造带自定义查询执行器的网关。
+     *
+     * @param models        读模型注册表
+     * @param store         对象存储
+     * @param scopes        行范围贡献者
+     * @param fieldPolicies 字段策略贡献者
+     * @param audit         读审计出口
+     * @param clock         取时入口
+     * @param ids           事件 id 生成器
+     * @param executor      自定义查询执行器；{@code null} 表示未装配
+     */
+    public ReadGateway(ReadModelRegistry models, TemporalStore store,
+                       List<DataScopeResolver> scopes, List<FieldPolicyResolver> fieldPolicies,
+                       ReadAuditSink audit, Clock clock, IdGenerator<UUID> ids,
+                       QueryExecutor executor) {
+        this.executor = executor;
         this.models = Objects.requireNonNull(models, "models");
         this.store = Objects.requireNonNull(store, "store");
         this.scopes = sorted(scopes, DataScopeResolver::order);
@@ -160,6 +187,205 @@ public final class ReadGateway {
         List<UUID> rowIds = rows.stream().map(row -> row.version().id()).distinct().toList();
         audit(ReadAccessEvent.Operation.HISTORY, model, caller, Map.of(), rowIds, scope, policy);
         return rows;
+    }
+
+    /**
+     * 执行一条 reviewed SQL 查询，并在网关层注入行范围、字段策略与读审计。
+     *
+     * @param spec       查询声明
+     * @param parameters 命名参数
+     * @param sort       排序字段；空表示用 {@link QuerySpec#defaultSort()}
+     * @param direction  排序方向；空表示升序
+     * @param request    分页；空表示默认分页
+     * @param caller     调用方
+     * @return 渲染后的页
+     */
+    public Page<Map<String, Object>> query(QuerySpec spec, Map<String, Object> parameters,
+                                           String sort, SortDirection direction,
+                                           PageRequest request, Caller caller) {
+        Objects.requireNonNull(spec, "spec");
+        ReadModel model = requireReadable(spec.objectType(), caller);
+        if (executor == null) {
+            throw new ContractException(ContractErrorCode.UNAVAILABLE,
+                    "custom query executor is not configured");
+        }
+        for (String field : spec.fields()) {
+            if (model.schema().field(field).isEmpty()) {
+                throw invalidQuery("unknown field for " + model.objectType() + ": " + field);
+            }
+        }
+        for (String field : spec.sortableFields()) {
+            FieldDefinition definition = model.schema().requireField(field);
+            if (!definition.sortable() || definition.writeOnly()) {
+                throw invalidQuery("field is not sortable: " + field);
+            }
+        }
+        Map<String, Object> values = parameters == null ? Map.of() : parameters;
+        for (String name : values.keySet()) {
+            if (!spec.parameters().contains(name)) {
+                throw invalidQuery("unknown parameter: " + name);
+            }
+        }
+        String sortField = sort == null || sort.isBlank() ? spec.defaultSort() : sort;
+        if (!spec.sortableFields().contains(sortField)) {
+            throw invalidQuery("sort field is not allowed: " + sortField);
+        }
+        PageRequest pageRequest = request == null ? PageRequest.defaults() : request;
+        SortDirection sortDirection = direction == null ? SortDirection.ASC : direction;
+
+        ScopePredicate scope = resolveScope(model, caller);
+        FieldPolicy policy = resolveFields(model, caller);
+        if (scope instanceof ScopePredicate.None) {
+            audit(ReadAccessEvent.Operation.SEARCH, model, caller, values, List.of(), scope,
+                    policy);
+            return new Page<>(List.of(), 0, pageRequest.page(), pageRequest.size());
+        }
+
+        List<Object> innerArguments = new ArrayList<>();
+        String inner = bind(spec, values, innerArguments);
+        List<Object> scopeArguments = new ArrayList<>();
+        String scopeSql = scopeSql(scope, model.schema(), scopeArguments, spec.fields());
+        String from = "(" + inner + ") seedj_q WHERE " + scopeSql;
+        List<Object> pageArguments = new ArrayList<>(innerArguments);
+        pageArguments.addAll(scopeArguments);
+        pageArguments.add(pageRequest.size());
+        pageArguments.add(pageRequest.offset());
+        String pageSql = "SELECT * FROM " + from + " ORDER BY seedj_q.\"" + sortField + "\" "
+                + sortDirection + " LIMIT ? OFFSET ?";
+
+        List<Map<String, Object>> rows = executor.page(pageSql, pageArguments);
+        long total = executor.count("SELECT count(*) FROM " + from,
+                concat(innerArguments, scopeArguments));
+        List<Map<String, Object>> rendered = rows.stream()
+                .map(row -> renderQueryRow(row, policy, model.schema(), spec.fields()))
+                .toList();
+        audit(ReadAccessEvent.Operation.SEARCH, model, caller, values, List.of(), scope, policy);
+        return new Page<>(rendered, total, pageRequest.page(), pageRequest.size());
+    }
+
+    private static ContractException invalidQuery(String message) {
+        return new ContractException(ContractErrorCode.INVALID_PAYLOAD, message);
+    }
+
+    private static List<Object> concat(List<Object> first, List<Object> second) {
+        List<Object> all = new ArrayList<>(first.size() + second.size());
+        all.addAll(first);
+        all.addAll(second);
+        return all;
+    }
+
+    private static String bind(QuerySpec spec, Map<String, Object> values,
+                               List<Object> arguments) {
+        String sql = spec.sql();
+        if (sql.contains("?")) {
+            throw invalidQuery("custom query must use named parameters, not '?'");
+        }
+        java.util.regex.Matcher matcher = NAMED_PARAMETER.matcher(sql);
+        StringBuilder out = new StringBuilder(sql.length() + 32);
+        while (matcher.find()) {
+            String name = matcher.group(1);
+            if (!spec.parameters().contains(name)) {
+                throw invalidQuery("undeclared parameter in query: " + name);
+            }
+            if (!values.containsKey(name)) {
+                throw invalidQuery("missing parameter value: " + name);
+            }
+            arguments.add(values.get(name));
+            matcher.appendReplacement(out, "?");
+        }
+        matcher.appendTail(out);
+        return out.toString();
+    }
+
+    private static Map<String, Object> renderQueryRow(Map<String, Object> row, FieldPolicy policy,
+                                                      ObjectSchema schema,
+                                                      Set<String> fields) {
+        Map<String, Object> rendered = new LinkedHashMap<>();
+        for (String field : fields) {
+            FieldDefinition definition = schema.requireField(field);
+            FieldAccess access = policy.fields().get(field);
+            if (definition.writeOnly() || access == null
+                    || access.action() == FieldAccess.Action.HIDDEN) {
+                continue;
+            }
+            if (!row.containsKey(field)) {
+                throw new IllegalStateException(
+                        "custom query did not return declared field: " + field);
+            }
+            Object value = row.get(field);
+            if (access.action() == FieldAccess.Action.MASKED) {
+                mask(definition, field, value, rendered);
+            } else {
+                rendered.put(field, value);
+            }
+        }
+        return rendered;
+    }
+
+    private static String scopeSql(ScopePredicate predicate, ObjectSchema schema,
+                                   List<Object> arguments, Set<String> projected) {
+        return switch (predicate) {
+            case ScopePredicate.All ignored -> "1=1";
+            case ScopePredicate.None ignored -> "1=0";
+            case ScopePredicate.Eq eq -> {
+                requireProjected(eq.field(), projected);
+                arguments.add(schema.requireField(eq.field()).type().coerce(eq.value()));
+                yield column(eq.field()) + " = ?";
+            }
+            case ScopePredicate.In in -> {
+                requireProjected(in.field(), projected);
+                List<?> values = in.values();
+                if (values.isEmpty()) {
+                    yield "1=0";
+                }
+                StringBuilder sql = new StringBuilder(column(in.field())).append(" IN (");
+                for (int i = 0; i < values.size(); i++) {
+                    if (i > 0) {
+                        sql.append(',');
+                    }
+                    sql.append('?');
+                    arguments.add(schema.requireField(in.field()).type().coerce(values.get(i)));
+                }
+                yield sql.append(')').toString();
+            }
+            case ScopePredicate.NotNull notNull -> {
+                requireProjected(notNull.field(), projected);
+                yield column(notNull.field()) + " IS NOT NULL";
+            }
+            case ScopePredicate.And and -> {
+                StringBuilder sql = new StringBuilder("(");
+                for (int i = 0; i < and.parts().size(); i++) {
+                    if (i > 0) {
+                        sql.append(" AND ");
+                    }
+                    sql.append(scopeSql(and.parts().get(i), schema, arguments, projected));
+                }
+                yield sql.append(')').toString();
+            }
+            case ScopePredicate.Or or -> {
+                StringBuilder sql = new StringBuilder("(");
+                for (int i = 0; i < or.parts().size(); i++) {
+                    if (i > 0) {
+                        sql.append(" OR ");
+                    }
+                    sql.append(scopeSql(or.parts().get(i), schema, arguments, projected));
+                }
+                yield sql.append(')').toString();
+            }
+            case ScopePredicate.Not not -> "NOT ("
+                    + scopeSql(not.part(), schema, arguments, projected) + ")";
+        };
+    }
+
+    private static void requireProjected(String field, Set<String> projected) {
+        if (!projected.contains(field)) {
+            throw new IllegalStateException(
+                    "row scope uses field " + field + " but the custom query does not project it");
+        }
+    }
+
+    private static String column(String field) {
+        return "seedj_q.\"" + field + "\"";
     }
 
     private ReadModel requireReadable(String objectType, Caller caller) {

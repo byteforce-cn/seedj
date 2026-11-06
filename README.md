@@ -25,8 +25,10 @@ curl -s -X POST localhost:8080/commands/hr.employee.create \
 ## 模块
 
 ```text
-core                     契约：错误码、时间轴、命令、IAM、工作流、SPI
+core                     契约：错误码、时间轴、命令、IAM、工作流、SPI、@SeedjObject 注解
+seedj-codegen            构建期注解处理器：schema / OpenAPI / 迁移候选（不进运行时）
 seedj-infra-local        内存 / 文件 / BouncyCastle 适配器
+seedj-workflow-local     workflow SPI 的本地内存实现（库模块，不启动 server）
 seedj-jdbc-postgresql    PostgreSQL 适配器、DDL、版本化迁移
 seedj-biz-starter        业务装配：命令 / 查询 / 审计 / 事件总线
 seedj-iam-starter        IAM 装配：OIDC / SCIM / RBAC / ABAC
@@ -56,6 +58,20 @@ advisory（显式 WARN，不静默跳过）；发布 tag 的 job 已按阻断模
 开发过程文档（设计、计划、评估、验收记录）、ADR 与使用指南统一放在独立文档仓，
 与源码仓分开版本控制；本仓库只保留代码、构建脚本与 README。机器可读的契约
 （OpenAPI、JSON Schema、baseline）在 `config/conformance/`。
+
+版本对应关系：
+
+| 源码 | 文档仓 | 说明 |
+|---|---|---|
+| `1.0.0-SNAPSHOT`（main） | main | 开发中；ADR 与评估为快照 |
+| `v1.0.0`（未来 tag） | 同名 tag | 发布时同步打 tag；文档首页标注兼容版本 |
+
+canonical URL 在首次发布、文档仓建立远端后补入本段。
+
+## 认知负担门禁
+
+`config/cognitive-load-baseline.properties` 记录模板预算、概念预算、测试切片比例、变更放大与
+public API 上限；`seedj-it` 的四个门禁测试在 CI 默认执行，只允许收紧。
 
 ## 兼容性
 
