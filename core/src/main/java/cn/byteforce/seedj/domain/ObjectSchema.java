@@ -87,6 +87,15 @@ public final class ObjectSchema {
     }
 
     /**
+     * 全部字段名。
+     *
+     * @return 不可变字段名集合（保持声明顺序）
+     */
+    public Set<String> fieldNames() {
+        return byName.keySet();
+    }
+
+    /**
      * 按名取字段。
      *
      * @param name 字段名

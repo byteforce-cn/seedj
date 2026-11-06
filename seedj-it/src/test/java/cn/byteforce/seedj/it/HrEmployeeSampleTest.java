@@ -207,7 +207,8 @@ class HrEmployeeSampleTest {
                 .permission("hr.employee.write")
                 .validator(CommandValidator.none())
                 .redactor(redactor)
-                .build(), handler, schema);
+                .build(), handler, schema,
+                java.util.Set.of("id_number", "employee_id"));
     }
 
     private ReadModelRegistry registry() {

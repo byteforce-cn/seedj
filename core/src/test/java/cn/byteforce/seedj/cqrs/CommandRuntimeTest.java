@@ -198,6 +198,61 @@ class CommandRuntimeTest {
     }
 
     @Test
+    void unknownPayloadFieldIsRejectedBeforeDecode() {
+        CountingHandler handler = new CountingHandler("D01", false);
+        FakeCommands commands = new FakeCommands();
+        CommandRuntime runtime = runtime(commands, new FakeObjects(), SNAKE);
+        CommandSubmission unknown = new CommandSubmission("probe.update",
+                Map.of("employee_no", "E-1", "telephone", "123"), "key-2", List.of(), ACTOR);
+
+        assertThatThrownBy(() -> runtime.execute(unknown, registration(handler), CALLER,
+                ScopePredicate.all()))
+                .isInstanceOfSatisfying(ContractException.class, error -> {
+                    assertThat(error.code()).isEqualTo(ContractErrorCode.INVALID_PAYLOAD);
+                    assertThat(error).hasMessageContaining("telephone");
+                });
+        assertThat(handler.targetIdCalls).isZero();
+        assertThat(commands.records).isEmpty();
+    }
+
+    @Test
+    void commandOnlyFieldsAreAllowedInPayload() {
+        CountingHandler handler = new CountingHandler("D01", false);
+        CommandRuntime runtime = runtime(new FakeCommands(), new FakeObjects(), SNAKE);
+        CommandSubmission commandOnly = new CommandSubmission("probe.update",
+                Map.of("employee_no", "E-1", "id_number", "110101"), "key-3", List.of(), ACTOR);
+
+        CommandReceipt receipt = runtime.execute(commandOnly,
+                new CommandRegistration(descriptor(), handler, SCHEMA, Set.of("id_number")),
+                CALLER, ScopePredicate.all());
+
+        assertThat(receipt.status()).isEqualTo(CommandStatus.ACCEPTED);
+    }
+
+    @Test
+    void handlerFieldsOutsideSchemaAreRejected() {
+        CountingHandler handler = new CountingHandler("D01", false) {
+            @Override
+            public AppendRequest decide(Payload command, CommandContext ctx) {
+                Map<String, Object> fields = new LinkedHashMap<>();
+                fields.put("employee_no", command.employeeNo());
+                fields.put("telephone", "123");
+                return AppendRequest.create("probe", ctx.targetId(), ctx.now(), null,
+                        ctx.actor(), fields);
+            }
+        };
+        FakeCommands commands = new FakeCommands();
+        CommandRuntime runtime = runtime(commands, new FakeObjects(), SNAKE);
+
+        assertThatThrownBy(() -> runtime.execute(submission(), registration(handler), CALLER,
+                ScopePredicate.all()))
+                .isInstanceOfSatisfying(ContractException.class, error ->
+                        assertThat(error.code()).isEqualTo(ContractErrorCode.INVALID_PAYLOAD));
+        assertThat(commands.records).hasSize(1);
+        assertThat(commands.records.get(0).status()).isEqualTo(CommandStatus.REJECTED);
+    }
+
+    @Test
     void handlerRejectionWritesRejectedRecord() {
         CountingHandler handler = new CountingHandler("D01", false) {
             @Override
@@ -263,7 +318,7 @@ class CommandRuntimeTest {
         }
     }
 
-    record Payload(String employeeNo) {
+    record Payload(String employeeNo, String idNumber) {
     }
 
     static final class FakeCommands implements CommandStore {

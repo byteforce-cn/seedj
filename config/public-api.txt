@@ -12,6 +12,9 @@ core|cn.byteforce.seedj.audit|AuditPayloadDigest
 core|cn.byteforce.seedj.audit|AuditVerifier
 core|cn.byteforce.seedj.audit|Audited
 core|cn.byteforce.seedj.audit|CanonicalHasher
+core|cn.byteforce.seedj.codegen|MaskerName
+core|cn.byteforce.seedj.codegen|SeedjField
+core|cn.byteforce.seedj.codegen|SeedjObject
 core|cn.byteforce.seedj.core.clock.spi|ClockConfig
 core|cn.byteforce.seedj.core.clock.spi|ClockProvider
 core|cn.byteforce.seedj.core.clock.spi|GlobalSequencer
@@ -558,6 +561,7 @@ seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc|JdbcMigrationRunner
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeConfiguration
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeCreate
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeCreateHandler
+seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeFields
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeModule
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeePostgresConfiguration
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeSchemaCapability

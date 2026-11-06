@@ -61,7 +61,7 @@ class CommandCatalogTest {
     }
 
     private static CommandSubmission submission() {
-        return new CommandSubmission("probe.update", Map.of("employeeNo", "E-1"), "key-1",
+        return new CommandSubmission("probe.update", Map.of("employee_no", "E-1"), "key-1",
                 List.of(), ACTOR);
     }
 
@@ -80,7 +80,7 @@ class CommandCatalogTest {
         CommandCatalog catalog = new CommandCatalog(List.of(registration("probe.write")),
                 CommandPolicy.permissions(), runtime(), (type, caller) -> ScopePredicate.all());
 
-        CommandSubmission missing = new CommandSubmission("probe.missing", Map.of("employeeNo", "E-1"), "key",
+        CommandSubmission missing = new CommandSubmission("probe.missing", Map.of("employee_no", "E-1"), "key",
                 List.of(), ACTOR);
         assertThatThrownBy(() -> catalog.execute(missing, CALLER))
                 .isInstanceOfSatisfying(ContractException.class, error ->
