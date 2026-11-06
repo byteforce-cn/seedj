@@ -46,7 +46,7 @@
 
 - [ ] `verify` 全绿（含 Spotless、覆盖率、DocLink、许可）
 - [ ] 不兼容变更均有 ADR 与变更清单
-- [ ] `config/public-api.txt` 与实际公共 API 一致
+- [ ] `config/public-api.txt`（T0.3 引入）与实际公共 API 一致
 - [ ] 制品 `META-INF/` 含 `LICENSE`、`NOTICE`
 - [ ] SBOM 已生成并随制品归档
 - [ ] 签名可校验（`gpg --verify`）

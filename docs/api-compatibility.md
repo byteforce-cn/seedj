@@ -37,11 +37,11 @@
    [弃用策略](conformance/deprecation-policy.md) 给出的窗口期。
 3. 更新兼容性 schema：先改 `docs/conformance/schema/`，`baseline/` 冻结不动；
    发布冻结后才把 `schema/` 提升为新的 `baseline/`。
-4. 公共 API 清单（`config/public-api.txt`）随变更同步更新——它是 allowlist，不是文档。
+4. 公共 API 清单（`config/public-api.txt`，T0.3 引入）随变更同步更新——它是 allowlist，不是文档。
 
 ## 公共 API 清单的维护
 
-`config/public-api.txt` 由公共 API 门禁测试生成并比对：新增类型必须被门禁显式接受，
+`config/public-api.txt`（T0.3 引入）由公共 API 门禁测试生成并比对：新增类型必须被门禁显式接受，
 删除类型必须先走上面的 ADR 流程。清单变化与代码变化在同一个提交里，评审时一并看。
 
 ## 相关入口

@@ -97,14 +97,23 @@ class DocLinkTest {
 
     /** 文档集合：根 README、docs 下全部 Markdown、以及各模块 README。 */
     private static boolean isDocumentation(Path path) {
-        String normalized = path.toAbsolutePath().normalize().toString();
-        if (normalized.contains("/target/") || normalized.contains("/.git/")) {
+        Path absolute = path.toAbsolutePath().normalize();
+        Path fileName = absolute.getFileName();
+        if (fileName == null || !fileName.toString().endsWith(".md")) {
             return false;
         }
-        if (!normalized.endsWith(".md")) {
-            return false;
+        // 按路径分段判断，而不是字符串 "/target/"：Windows 分隔符是 '\'，字符串匹配会永远落空。
+        boolean inDocs = false;
+        for (Path segment : absolute) {
+            String name = segment.toString();
+            if (name.equals("target") || name.equals(".git")) {
+                return false;
+            }
+            if (name.equals("docs")) {
+                inDocs = true;
+            }
         }
-        return path.getFileName().toString().equals("README.md") || normalized.contains("/docs/");
+        return fileName.toString().equals("README.md") || inDocs;
     }
 
     /** 返回 {@code <doc>: <target>} 形式的失效链接清单，按出现顺序去重。 */
