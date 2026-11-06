@@ -1,0 +1,86 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  schedule:
+    - cron: "0 18 * * *" # conformance nightly（UTC）
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: m2-
+      - name: verify（与本地同源脚本）
+        env:
+          MAVEN_FLAGS: ""
+        run: bash config/ci/verify.sh
+
+  conformance:
+    name: conformance
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: m2-
+      - name: conformance（需要规范仓库）
+        env:
+          MAVEN_FLAGS: ""
+          SPEC_ROOT: ${{ vars.SPEC_ROOT }}
+        run: |
+          if [ -z "${SPEC_ROOT:-}" ]; then
+            echo "SPEC_ROOT 未配置：conformance 需要规范仓库，显式失败而不是静默跳过" >&2
+            exit 1
+          fi
+          bash config/ci/conformance.sh -Dspec.root="$SPEC_ROOT"
+
+  release-gates:
+    name: release-gates
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: m2-
+      - name: release gates
+        env:
+          MAVEN_FLAGS: ""
+          SPOTBUGS_FAIL_ON_ERROR: "true"
+        run: |
+          bash config/ci/verify.sh
+          bash config/ci/release.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: seedj-sbom
+          path: "**/target/seedj-sbom.json"
+          if-no-files-found: error

@@ -15,6 +15,6 @@ if [[ ! -x ./mvnw ]]; then
     exit 1
 fi
 
-exec ./mvnw -B -pl seedj-it -am test \
+exec ./mvnw ${MAVEN_FLAGS:--o} -B -pl seedj-it -am test \
     -Dtest=DocLinkTest \
     -Dsurefire.failIfNoSpecifiedTests=false "$@"

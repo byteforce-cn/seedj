@@ -15,10 +15,17 @@ Seedj1 是面向业务系统的 Java 21 / Spring Boot 多模块基础设施：�
 
 ## 构建
 
+本地与 CI 使用同一套脚本（CI：`.github/workflows/ci.yml`）：
+
 ```bash
-mvn -o -B verify                 # 日常全量（含 Testcontainers PostgreSQL）
-mvn -o -B -Pconformance -DskipTests verify   # 规范兼容性门禁（需规范仓库）
+bash config/ci/verify.sh                      # 主门禁：全量测试 + 覆盖率 + 架构 + 文档链接 + 格式
+bash config/ci/conformance.sh                 # 规范兼容性（需规范仓库，-Dspec.root=<path> 覆盖）
+bash config/ci/release.sh                     # 发布门禁：SBOM + API 兼容性
 ```
+
+脚本默认 `MAVEN_FLAGS=-o`（离线）；CI 设置 `MAVEN_FLAGS=""` 走在线仓库。
+SpotBugs 在 M0–M3 处于 advisory（既有 Medium 发现待 T4.3 逐项修复/排除），脚本会打印
+显式 WARN；发布 tag 的 `release-gates` job 已按阻断模式运行。
 
 `-Pconformance` 默认从仓库相对位置解析规范仓库，可用 `-Dspec.root=<path>` 覆盖；
 工具或工件缺席时构建显式失败，不静默跳过。
