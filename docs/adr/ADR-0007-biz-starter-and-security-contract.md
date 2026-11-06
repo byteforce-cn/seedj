@@ -12,7 +12,7 @@ OIDC 授权服务器打进 classpath**：
 
 - `starter/pom.xml` 依赖 `seedj-iam-starter`（SAS + SCIM + TOTP + JWK + BouncyCastle）；
 - `starter/.../biz/config/BizServerAutoConfiguration.java` 直接
-  `import cn.byteforce.seedj.iam.security.IamJwtValidators`；
+  `import cn.byteforce.seedj.starter.iam.security.IamJwtValidators`；
 - 业务代码要记录一次 403，只能 `import cn.byteforce.seedj.iam.spi.IamAuditSink`。
 
 同时存在两个实测缺陷：

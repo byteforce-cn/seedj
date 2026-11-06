@@ -60,7 +60,7 @@ seedj-infra-local   seedj-jdbc-postgresql
 3. `seedj-iam-starter` 与 `seedj-biz-starter` 互不依赖；都只依赖 `core` + 两个实现模块。
 4. `seedj-server-iam` 只带 `seedj-iam-starter`；`seedj-server-hr` / `seedj-server-im` 只带 `seedj-biz-starter`，classpath 中不得出现 `seedj-iam-starter`。
 5. server 之间零依赖；`seedj-it` 是唯一同时依赖三个 server 的模块，依赖范围为 `test`。
-6. server 包名使用 `cn.byteforce.seedj.server.<name>`，避免与 starter 的 `cn.byteforce.seedj.iam` / `cn.byteforce.seedj.biz` 形成 split package。
+6. server 包名使用 `cn.byteforce.seedj.server.<name>`，避免与 starter 的 `cn.byteforce.seedj.starter.iam` / `cn.byteforce.seedj.biz` 形成 split package。
 
 ### 2.3 合并与迁移
 

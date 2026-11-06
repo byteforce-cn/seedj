@@ -3,7 +3,7 @@ package cn.byteforce.seedj.server.iam;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-import cn.byteforce.seedj.iam.annotation.EnableIamServer;
+import cn.byteforce.seedj.starter.iam.annotation.EnableIamServer;
 
 /**
  * 统一认证/授权服务（OIDC Provider）的可运行宿主。

@@ -1,3 +1,5 @@
 # >600 行主源码文件：T3.5 拆分后清空。
 # 格式：相对仓库根的路径
-seedj-infra-local/src/main/java/cn/byteforce/seedj/workflow/memory/InMemoryWorkflowProvider.java
+seedj-infra-local/src/main/java/cn/byteforce/seedj/infra/local/workflow/InMemoryWorkflowProvider.java
+# T3.2 机械移动后恢复 31 个契约 import，611 行；T3.5 一并拆分/收敛。
+seedj-infra-local/src/main/java/cn/byteforce/seedj/infra/local/transit/BcTransitProvider.java

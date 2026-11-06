@@ -41,7 +41,8 @@ class ArchitectureTest {
                 "biz-does-not-depend-on-iam",
                 ModuleClassPath.classesOf("seedj-biz-starter"),
                 clazz -> clazz.getPackageName().startsWith("cn.byteforce.seedj.biz"),
-                dependency -> dependency.getPackageName().startsWith("cn.byteforce.seedj.iam"));
+                dependency -> dependency.getPackageName().startsWith("cn.byteforce.seedj.iam")
+                                || dependency.getPackageName().startsWith("cn.byteforce.seedj.starter.iam"));
     }
 
     @Test

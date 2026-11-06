@@ -1,7 +1,2 @@
 # 跨模块 split package 已知违规：T3.2 逐模块偿还，清空即门禁全绿。
 # 格式：package|moduleA,moduleB
-cn.byteforce.seedj.iam.authz|core,seedj-iam-starter
-cn.byteforce.seedj.iam.scim|core,seedj-iam-starter
-cn.byteforce.seedj.id|core,seedj-infra-local
-cn.byteforce.seedj.pki|core,seedj-infra-local
-cn.byteforce.seedj.transit|core,seedj-infra-local
