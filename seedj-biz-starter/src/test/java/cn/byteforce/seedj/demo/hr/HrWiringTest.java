@@ -1,8 +1,8 @@
 package cn.byteforce.seedj.demo.hr;
 
 import cn.byteforce.seedj.cqrs.CommandAudit;
-import cn.byteforce.seedj.cqrs.wiring.CommandAgents;
-import cn.byteforce.seedj.cqrs.wiring.CommandMetrics;
+import cn.byteforce.seedj.starter.cqrs.wiring.CommandAgents;
+import cn.byteforce.seedj.starter.cqrs.wiring.CommandMetrics;
 import cn.byteforce.seedj.cqrs.QueryAgent;
 import cn.byteforce.seedj.cqrs.spi.TransactionRunner;
 import cn.byteforce.seedj.lock.LockProvider;

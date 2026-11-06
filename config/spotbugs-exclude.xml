@@ -8,7 +8,7 @@
       本类没有 getter 把 appender 交出去。
     -->
     <Match>
-        <Class name="cn.byteforce.seedj.audit.wiring.AnnotationCommandAudit"/>
+        <Class name="cn.byteforce.seedj.starter.audit.AnnotationCommandAudit"/>
         <Bug pattern="EI_EXPOSE_REP2"/>
     </Match>
 </FindBugsFilter>

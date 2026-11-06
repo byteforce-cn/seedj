@@ -21,8 +21,8 @@ import cn.byteforce.seedj.domain.ObjectSchemaRegistry;
 import cn.byteforce.seedj.domain.TemporalQuery;
 
 import cn.byteforce.seedj.infra.local.domain.InMemoryTemporalStore;
-import cn.byteforce.seedj.domain.web.ObjectQueryController;
-import cn.byteforce.seedj.domain.web.ObjectQueryResponse;
+import cn.byteforce.seedj.starter.domain.web.ObjectQueryController;
+import cn.byteforce.seedj.starter.domain.web.ObjectQueryResponse;
 import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.infra.local.id.Uuid7IdGenerator;
 import cn.byteforce.seedj.it.fixture.hr.HrEmployeeTestSchema;

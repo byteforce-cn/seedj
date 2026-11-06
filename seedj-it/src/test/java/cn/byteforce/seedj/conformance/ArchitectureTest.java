@@ -62,7 +62,7 @@ class ArchitectureTest {
         assertNoDependencies(
                 "generic-command-entrypoint-uses-temporal-path",
                 ModuleClassPath.classesOf("seedj-biz-starter"),
-                clazz -> clazz.getPackageName().startsWith("cn.byteforce.seedj.cqrs.web"),
+                clazz -> clazz.getPackageName().startsWith("cn.byteforce.seedj.starter.cqrs.web"),
                 dependency -> dependency.getSimpleName().equals("CommandAgent"));
     }
 

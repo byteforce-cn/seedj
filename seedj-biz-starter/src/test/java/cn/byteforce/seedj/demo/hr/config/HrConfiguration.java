@@ -1,7 +1,7 @@
 package cn.byteforce.seedj.demo.hr.config;
 
 import cn.byteforce.seedj.cqrs.IdCodec;
-import cn.byteforce.seedj.cqrs.wiring.CommandAgents;
+import cn.byteforce.seedj.starter.cqrs.wiring.CommandAgents;
 import cn.byteforce.seedj.cqrs.QueryAgent;
 import cn.byteforce.seedj.infra.local.cqrs.InMemoryEventStore;
 import cn.byteforce.seedj.cqrs.spi.EventStore;

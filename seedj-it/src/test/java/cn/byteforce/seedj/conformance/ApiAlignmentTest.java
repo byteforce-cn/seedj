@@ -1,11 +1,11 @@
 package cn.byteforce.seedj.conformance;
 
-import cn.byteforce.seedj.cqrs.web.CommandController;
-import cn.byteforce.seedj.cqrs.web.CommandRequest;
+import cn.byteforce.seedj.starter.cqrs.web.CommandController;
+import cn.byteforce.seedj.starter.cqrs.web.CommandRequest;
 import cn.byteforce.seedj.domain.ObjectVersion;
 import cn.byteforce.seedj.domain.TemporalRow;
-import cn.byteforce.seedj.domain.web.ObjectQueryController;
-import cn.byteforce.seedj.domain.web.ObjectQueryResponse;
+import cn.byteforce.seedj.starter.domain.web.ObjectQueryController;
+import cn.byteforce.seedj.starter.domain.web.ObjectQueryResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.bind.annotation.GetMapping;
