@@ -36,6 +36,7 @@ import cn.byteforce.seedj.outbox.OutboxWriter;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -69,6 +70,7 @@ import java.util.UUID;
                 "cn.byteforce.seedj.audit.wiring.AuditAutoConfiguration"},
         after = {DataSourceAutoConfiguration.class, JdbcTemplateAutoConfiguration.class})
 @ConditionalOnBean(BizEnabledMarker.class)
+@EnableConfigurationProperties(CommandRuntimeProperties.class)
 public class TemporalCommandAutoConfiguration {
 
     private static final String COMMAND_PROVIDER = "seedj.command.provider";
@@ -229,14 +231,48 @@ public class TemporalCommandAutoConfiguration {
                                          Clock clock,
                                          @Qualifier("commandIdGenerator")
                                          IdGenerator<UUID> ids,
-                                         ObjectProvider<TemporalCommandAudit> audit) {
-        // T1.6 起改为 fail-fast/degraded-mode；此前的显式默认值让装配仍可启动。
+                                         ObjectProvider<TemporalCommandAudit> audit,
+                                         CommandRuntimeProperties properties) {
+        TransactionRunner transactionRunner = tx.getIfAvailable();
+        LockProvider lockProvider = locks.getIfAvailable();
+        OutboxWriter outboxWriter = outbox.getIfAvailable();
+
+        boolean degrade = properties.isDegradedMode();
+        if (!degrade) {
+            requireDependency(transactionRunner, "TransactionRunner");
+            requireDependency(lockProvider, "LockProvider");
+            if (properties.isRequireOutbox()) {
+                requireDependency(outboxWriter, "OutboxWriter");
+            }
+        }
+        StringBuilder banner = new StringBuilder();
+        if (transactionRunner == null) {
+            transactionRunner = TransactionRunner.direct();
+            banner.append(" tx=direct");
+        }
+        if (lockProvider == null) {
+            lockProvider = LockProvider.disabled();
+            banner.append(" lock=disabled");
+        }
+        if (outboxWriter == null) {
+            outboxWriter = OutboxWriter.discard();
+            banner.append(" outbox=discard");
+        }
+        if (!banner.isEmpty()) {
+            org.slf4j.LoggerFactory.getLogger(TemporalCommandAutoConfiguration.class)
+                    .warn("seedj: command runtime running in degraded mode:{}", banner);
+        }
         return new CommandRuntime(new CommandRuntime.Options(
-                tx.getIfAvailable(TransactionRunner::direct),
-                locks.getIfAvailable(LockProvider::disabled),
-                Duration.ofSeconds(30), clock, ids, commands, objects,
-                outbox.getIfAvailable(OutboxWriter::discard),
-                audit.getIfAvailable(TemporalCommandAudit::noop)));
+                transactionRunner, lockProvider, Duration.ofSeconds(30), clock, ids, commands,
+                objects, outboxWriter, audit.getIfAvailable(TemporalCommandAudit::noop)));
+    }
+
+    private static void requireDependency(Object dependency, String name) {
+        if (dependency == null) {
+            throw new IllegalStateException("seedj.command requires a " + name
+                    + "; configure it, or set seedj.command.degraded-mode=true only for"
+                    + " local/test");
+        }
     }
 
     /**

@@ -344,6 +344,7 @@ seedj-biz-starter|cn.byteforce.seedj.cqrs.wiring|CommandAgentAutoConfiguration
 seedj-biz-starter|cn.byteforce.seedj.cqrs.wiring|CommandAgents
 seedj-biz-starter|cn.byteforce.seedj.cqrs.wiring|CommandMetrics
 seedj-biz-starter|cn.byteforce.seedj.cqrs.wiring|CommandMetricsInterceptor
+seedj-biz-starter|cn.byteforce.seedj.cqrs.wiring|CommandRuntimeProperties
 seedj-biz-starter|cn.byteforce.seedj.cqrs.wiring|SpringTransactionRunner
 seedj-biz-starter|cn.byteforce.seedj.cqrs.wiring|TemporalCommandAutoConfiguration
 seedj-biz-starter|cn.byteforce.seedj.domain.web|ObjectQueryController

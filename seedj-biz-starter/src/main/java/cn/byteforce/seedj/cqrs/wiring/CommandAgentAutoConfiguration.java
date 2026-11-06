@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingClass;
@@ -27,6 +28,7 @@ import java.util.List;
  * 没有时退回 {@link DisabledCommandAudit}（对已标注的命令 WARN 一次，不静默）。</p>
  */
 @AutoConfiguration(afterName = "cn.byteforce.seedj.audit.wiring.AuditAutoConfiguration")
+@EnableConfigurationProperties(CommandRuntimeProperties.class)
 public class CommandAgentAutoConfiguration {
 
     private static final Logger log = LoggerFactory.getLogger(CommandAgentAutoConfiguration.class);
@@ -49,12 +51,18 @@ public class CommandAgentAutoConfiguration {
                                        ObjectProvider<LockProvider> lockProvider,
                                        ObjectProvider<CommandAudit> audit,
                                        ObjectProvider<CommandMetrics> metrics,
-                                       ObjectProvider<CommandInterceptor<?>> interceptors) {
+                                       ObjectProvider<CommandInterceptor<?>> interceptors,
+                                       CommandRuntimeProperties properties) {
         List<CommandInterceptor<?>> ordered = new ArrayList<>();
         interceptors.orderedStream().forEach(ordered::add);
+        LockProvider locks = lockProvider.getIfAvailable();
+        if (locks == null && !properties.isDegradedMode()) {
+            throw new IllegalStateException("seedj.command requires a LockProvider; configure it,"
+                    + " or set seedj.command.degraded-mode=true only for local/test");
+        }
         return new CommandAgents(
                 transactionRunner.getIfAvailable(TransactionRunner::direct),
-                lockProvider.getIfAvailable(LockProvider::disabled),
+                locks == null ? LockProvider.disabled() : locks,
                 audit.getIfAvailable(DisabledCommandAudit::new),
                 metrics.getIfAvailable(CommandMetrics::noop),
                 ordered);

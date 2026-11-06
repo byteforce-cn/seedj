@@ -7,6 +7,8 @@ import cn.byteforce.seedj.cqrs.CommandRuntime;
 import cn.byteforce.seedj.cqrs.TemporalCommandAgent;
 import cn.byteforce.seedj.cqrs.memory.InMemoryCommandStore;
 import cn.byteforce.seedj.cqrs.spi.CommandStore;
+import cn.byteforce.seedj.cqrs.spi.TransactionRunner;
+import cn.byteforce.seedj.lock.LockProvider;
 import cn.byteforce.seedj.cqrs.web.CommandController;
 import cn.byteforce.seedj.domain.AppendRequest;
 import cn.byteforce.seedj.domain.FieldType;
@@ -18,6 +20,9 @@ import cn.byteforce.seedj.domain.memory.InMemoryTemporalStore;
 import cn.byteforce.seedj.domain.web.ObjectQueryController;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
@@ -41,7 +46,8 @@ class TemporalCommandAutoConfigurationTest {
 
     private final ApplicationContextRunner runner = new ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(TemporalCommandAutoConfiguration.class))
-            .withBean(BizEnabledMarker.class);
+            .withBean(BizEnabledMarker.class)
+            .withPropertyValues("seedj.command.degraded-mode=true");
 
     @Test
     @DisplayName("无 DataSource 时默认内存存储，并提供运行时与控制器")
@@ -49,6 +55,7 @@ class TemporalCommandAutoConfigurationTest {
         new WebApplicationContextRunner()
                 .withConfiguration(AutoConfigurations.of(TemporalCommandAutoConfiguration.class))
                 .withBean(BizEnabledMarker.class)
+                .withPropertyValues("seedj.command.degraded-mode=true")
                 .run(context -> {
                     assertThat(context).hasNotFailed();
                     assertThat(context).hasSingleBean(CommandRuntime.class);
@@ -59,6 +66,43 @@ class TemporalCommandAutoConfigurationTest {
                             .isInstanceOf(InMemoryTemporalStore.class);
                     assertThat(context).hasSingleBean(CommandController.class);
                     assertThat(context).hasSingleBean(ObjectQueryController.class);
+                });
+    }
+
+    @Test
+    @DisplayName("缺事务/锁/outbox 默认启动失败，消息指向 degraded-mode")
+    void missingDependenciesFailFastByDefault() {
+        new ApplicationContextRunner()
+                .withConfiguration(AutoConfigurations.of(TemporalCommandAutoConfiguration.class))
+                .withBean(BizEnabledMarker.class)
+                .run(context -> assertThat(context.getStartupFailure())
+                        .hasMessageContaining("seedj.command.degraded-mode"));
+    }
+
+    @Test
+    @ExtendWith(OutputCaptureExtension.class)
+    @DisplayName("degraded-mode=true 才允许降级，并打印 WARN 横幅")
+    void degradedModeStartsAndWarns(CapturedOutput output) {
+        runner.run(context -> {
+            assertThat(context).hasNotFailed();
+            assertThat(context).hasSingleBean(CommandRuntime.class);
+        });
+        assertThat(output).contains("command runtime running in degraded mode");
+        assertThat(output).contains("tx=direct");
+    }
+
+    @Test
+    @DisplayName("require-outbox=false：允许无 outbox，但仍要求锁与事务")
+    void requireOutboxFalseAllowsMissingOutbox() {
+        new ApplicationContextRunner()
+                .withConfiguration(AutoConfigurations.of(TemporalCommandAutoConfiguration.class))
+                .withBean(BizEnabledMarker.class)
+                .withBean(TransactionRunner.class, TransactionRunner::direct)
+                .withBean(LockProvider.class, LockProvider::disabled)
+                .withPropertyValues("seedj.command.require-outbox=false")
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context).hasSingleBean(CommandRuntime.class);
                 });
     }
 
