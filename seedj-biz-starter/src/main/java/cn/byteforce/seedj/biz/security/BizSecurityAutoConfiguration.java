@@ -15,6 +15,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplicat
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.security.oauth2.server.resource.autoconfigure.OAuth2ResourceServerProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.env.Environment;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.task.TaskDecorator;
@@ -224,13 +225,23 @@ public class BizSecurityAutoConfiguration {
         }
 
         /**
-         * CORS：默认放开，生产应收窄到实际前端域名。业务方可用同名 bean 覆盖。
+         * CORS：默认不放开任何来源；必须显式配置 {@code seedj.biz.cors.allowed-origins}。
+         * 生产 profile 下空配置启动失败，避免默认 {@code *} 泄漏到生产。
+         *
+         * @param properties 安全配置
+         * @param environment Spring 环境
+         * @return CORS 来源
          */
         @Bean
         @ConditionalOnMissingBean
-        public CorsConfigurationSource corsConfigurationSource() {
+        public CorsConfigurationSource corsConfigurationSource(BizSecurityProperties properties,
+                                                               Environment environment) {
+            if (environment.matchesProfiles("prod") && properties.corsAllowedOrigins().isEmpty()) {
+                throw new IllegalStateException("seedj.biz.cors.allowed-origins is required"
+                        + " in the prod profile; refusing to run with default CORS");
+            }
             CorsConfiguration config = new CorsConfiguration();
-            config.setAllowedOriginPatterns(List.of("*"));
+            config.setAllowedOriginPatterns(properties.corsAllowedOrigins());
             config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
             config.setAllowedHeaders(List.of("*"));
             config.setAllowCredentials(false);
@@ -238,6 +249,25 @@ public class BizSecurityAutoConfiguration {
             UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
             source.registerCorsConfiguration("/**", config);
             return source;
+        }
+
+        /**
+         * 生产 profile 禁止本地 dev auth：否则固定管理员身份会泄漏到生产。
+         *
+         * @param environment Spring 环境
+         * @return 启动期守卫
+         */
+        @Bean
+        public org.springframework.beans.factory.InitializingBean devAuthProdGuard(
+                Environment environment) {
+            return () -> {
+                boolean devAuth = environment.getProperty("seedj.biz.dev-auth.enabled",
+                        Boolean.class, false);
+                if (devAuth && environment.matchesProfiles("prod")) {
+                    throw new IllegalStateException("seedj.biz.dev-auth.enabled is forbidden in"
+                            + " the prod profile");
+                }
+            };
         }
 
         private static JsonMapper jsonMapper(ObjectProvider<JsonMapper> provider) {

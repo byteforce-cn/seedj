@@ -26,3 +26,7 @@ seedj:
   biz:
     dev-auth:
       enabled: true
+    cors:
+      allowed-origins: http://localhost:3000
+  security:
+    derived-field-keys: local-dev-key

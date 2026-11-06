@@ -14,6 +14,7 @@ import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.id.Uuid7IdGenerator;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -44,14 +45,20 @@ public class HrEmployeeConfiguration {
     }
 
     /**
-     * 证件散列派生；生产必须注入 {@code SEEDJ_FIELD_HASH_KEYS}。
+     * 证件散列派生：优先 {@code seedj.security.derived-field-keys}，否则读环境变量。
      *
+     * <p>两者都缺失时启动失败；生产不得回退到测试密钥。</p>
+     *
+     * @param keys 逗号分隔的密钥（local 用 local-dev-key）
      * @return 派生字段
      */
     @Bean
-    public DerivedField hrIdNumberHash() {
-        return new DerivedField("seedj:hr:employee:id_number_hash:v1",
-                DerivedFieldKeyRing.fromEnvironment());
+    public DerivedField hrIdNumberHash(
+            @Value("${seedj.security.derived-field-keys:}") String keys) {
+        DerivedFieldKeyRing keyRing = keys == null || keys.isBlank()
+                ? DerivedFieldKeyRing.fromEnvironment()
+                : new DerivedFieldKeyRing(keys.split(","));
+        return new DerivedField("seedj:hr:employee:id_number_hash:v1", keyRing);
     }
 
     /**

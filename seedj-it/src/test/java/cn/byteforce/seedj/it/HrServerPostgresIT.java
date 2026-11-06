@@ -63,6 +63,7 @@ class HrServerPostgresIT {
         registry.add("spring.datasource.username", POSTGRES::getUsername);
         registry.add("spring.datasource.password", POSTGRES::getPassword);
         registry.add("seedj.biz.dev-auth.enabled", () -> "true");
+        registry.add("seedj.security.derived-field-keys", () -> "test-key");
     }
 
     @TestConfiguration(proxyBeanMethods = false)
