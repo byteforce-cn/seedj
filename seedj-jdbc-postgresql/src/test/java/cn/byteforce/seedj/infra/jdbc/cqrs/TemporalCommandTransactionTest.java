@@ -160,7 +160,7 @@ class TemporalCommandTransactionTest {
                 LockProvider.disabled(), Duration.ofSeconds(30), clock,
                 (IdGenerator<UUID>) UUID::randomUUID, commands, objects,
                 OutboxWriter.discard(),
-                (record, events) -> {
+                (record, objectType, events) -> {
                     throw new IllegalStateException("audit down");
                 }));
 

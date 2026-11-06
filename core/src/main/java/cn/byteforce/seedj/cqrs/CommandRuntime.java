@@ -134,7 +134,7 @@ public final class CommandRuntime {
                         List<UUID> eventIds = writeEvents(events);
                         CommandRecord record = pending.accepted(result.appended().version().id(),
                                 result.appended().version().version(), eventIds);
-                        options.temporalAudit().accepted(record, events);
+                        options.temporalAudit().accepted(record, descriptor.objectType(), events);
                         options.commandStore().complete(record);
                         return record;
                     });

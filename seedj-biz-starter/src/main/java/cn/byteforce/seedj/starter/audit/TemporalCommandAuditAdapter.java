@@ -44,7 +44,7 @@ public final class TemporalCommandAuditAdapter implements TemporalCommandAudit {
     }
 
     @Override
-    public void accepted(CommandRecord record, List<CommandEvent> events) {
+    public void accepted(CommandRecord record, String objectType, List<CommandEvent> events) {
         List<CommandEvent> safeEvents = events == null ? List.of() : events;
         ObjectNode payload = JSON.createObjectNode();
         payload.put("command_id", record.id().toString());
@@ -56,15 +56,7 @@ public final class TemporalCommandAuditAdapter implements TemporalCommandAudit {
                     JSON.valueToTree(event.payload())));
         }
         String resourceId = record.locator() == null ? null : record.locator().toString();
-        appender.append(new AuditAppendRequest<>(record.type(), actor.get(),
-                resourceType(record.type()), resourceId, payload, projections));
-    }
-
-    /**
-     * 资源类型取命令类型的第一段：{@code employee.onboarded} → {@code employee}。
-     */
-    private static String resourceType(String commandType) {
-        int dot = commandType.indexOf('.');
-        return dot < 0 ? commandType : commandType.substring(0, dot);
+        appender.append(new AuditAppendRequest<>(record.type(), actor.get(), objectType,
+                resourceId, payload, projections));
     }
 }

@@ -31,9 +31,20 @@ class CommandAgentAutoConfigurationTest {
     }
 
     @Test
-    @DisplayName("提供 LockProvider：默认装配成功")
+    @DisplayName("缺 PlatformTransactionManager：非 degraded 启动失败")
+    void missingTransactionManagerFailsFast() {
+        runner.withBean(LockProvider.class, LockProvider::disabled).run(context ->
+                assertThat(context.getStartupFailure())
+                        .hasMessageContaining("PlatformTransactionManager"));
+    }
+
+    @Test
+    @DisplayName("提供 LockProvider 与事务边界：默认装配成功")
     void lockProviderIsEnough() {
-        runner.withBean(LockProvider.class, LockProvider::disabled).run(context -> {
+        runner.withBean(LockProvider.class, LockProvider::disabled)
+                .withBean(cn.byteforce.seedj.cqrs.spi.TransactionRunner.class,
+                        cn.byteforce.seedj.cqrs.spi.TransactionRunner::direct)
+                .run(context -> {
             assertThat(context).hasNotFailed();
             assertThat(context).hasSingleBean(CommandAgents.class);
         });

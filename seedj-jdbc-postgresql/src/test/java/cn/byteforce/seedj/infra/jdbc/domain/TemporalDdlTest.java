@@ -1,5 +1,8 @@
 package cn.byteforce.seedj.infra.jdbc.domain;
 
+import cn.byteforce.seedj.domain.FieldDefinition;
+import cn.byteforce.seedj.domain.FieldType;
+import cn.byteforce.seedj.domain.ObjectSchema;
 import cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -41,6 +44,11 @@ class TemporalDdlTest {
         TemporalTable table = new TemporalTable("probe", "probe_object",
                 new LinkedHashMap<>(Map.of("name", "TEXT")));
         jdbc.execute(TemporalDdl.createTable(table));
+        ObjectSchema indexed = ObjectSchema.builder("probe_indexed", "probe_indexed")
+                .field("name", FieldType.TEXT)
+                .field(FieldDefinition.of("employee_no", FieldType.TEXT).withIndexed())
+                .build();
+        jdbc.execute(TemporalDdl.createTable(TemporalTable.from(indexed)));
     }
 
     @Test
@@ -52,6 +60,16 @@ class TemporalDdlTest {
                 "idx_probe_object_valid_time",
                 "idx_probe_object_recorded_time",
                 "idx_probe_object_bitemporal");
+    }
+
+    @Test
+    void createsPartialIndexForIndexedField() {
+        String definition = jdbc.queryForObject(
+                "SELECT indexdef FROM pg_indexes WHERE indexname ="
+                        + " 'idx_probe_indexed_employee_no'", String.class);
+
+        assertThat(definition).contains("(employee_no)")
+                .contains("WHERE (superseded_at IS NULL)");
     }
 
     @Test

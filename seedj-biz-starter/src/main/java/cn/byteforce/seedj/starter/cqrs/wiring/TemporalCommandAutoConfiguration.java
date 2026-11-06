@@ -278,6 +278,19 @@ public class TemporalCommandAutoConfiguration {
     }
 
     /**
+     * 降级开关守卫。
+     *
+     * @param environment Spring 环境
+     * @return 启动期守卫
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public cn.byteforce.seedj.starter.config.DegradedModeGuard degradedModeGuard(
+            Environment environment) {
+        return new cn.byteforce.seedj.starter.config.DegradedModeGuard(environment);
+    }
+
+    /**
      * 命令级授权策略：以 descriptor 的 permission 为准。
      *
      * @return 权限策略

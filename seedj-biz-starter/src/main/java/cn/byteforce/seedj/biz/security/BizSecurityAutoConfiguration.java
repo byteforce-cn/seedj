@@ -245,22 +245,16 @@ public class BizSecurityAutoConfiguration {
         }
 
         /**
-         * 生产 profile 禁止本地 dev auth：否则固定管理员身份会泄漏到生产。
+         * 降级开关守卫：degraded-mode / dev-auth 只允许 local/test。
          *
          * @param environment Spring 环境
          * @return 启动期守卫
          */
         @Bean
-        public org.springframework.beans.factory.InitializingBean devAuthProdGuard(
+        @ConditionalOnMissingBean
+        public cn.byteforce.seedj.starter.config.DegradedModeGuard degradedModeGuard(
                 Environment environment) {
-            return () -> {
-                boolean devAuth = environment.getProperty("seedj.biz.dev-auth.enabled",
-                        Boolean.class, false);
-                if (devAuth && environment.matchesProfiles("prod")) {
-                    throw new IllegalStateException("seedj.biz.dev-auth.enabled is forbidden in"
-                            + " the prod profile");
-                }
-            };
+            return new cn.byteforce.seedj.starter.config.DegradedModeGuard(environment);
         }
 
         private static JsonMapper jsonMapper(ObjectProvider<JsonMapper> provider) {

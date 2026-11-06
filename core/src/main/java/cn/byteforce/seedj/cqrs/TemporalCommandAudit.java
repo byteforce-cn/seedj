@@ -19,10 +19,11 @@ public interface TemporalCommandAudit {
     /**
      * 受理命令已写入对象与事件。
      *
-     * @param record 已完成的命令记录
-     * @param events 本次命令产生的事件（顺序即写入顺序）
+     * @param record     已完成的命令记录
+     * @param objectType 对象类型（来自模块声明）
+     * @param events     本次命令产生的事件（顺序即写入顺序）
      */
-    void accepted(CommandRecord record, List<CommandEvent> events);
+    void accepted(CommandRecord record, String objectType, List<CommandEvent> events);
 
     /**
      * 空实现，仅供测试与关闭审计的装配路径使用。
@@ -30,7 +31,7 @@ public interface TemporalCommandAudit {
      * @return 不写任何内容的 seam
      */
     static TemporalCommandAudit noop() {
-        return (record, events) -> {
+        return (record, objectType, events) -> {
         };
     }
 }

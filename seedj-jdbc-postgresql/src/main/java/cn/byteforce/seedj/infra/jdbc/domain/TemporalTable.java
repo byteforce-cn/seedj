@@ -24,14 +24,17 @@ import java.util.regex.Pattern;
  * @param tableName        表名
  * @param columns          领域列（列名 → SQL 类型，保持插入顺序）
  * @param writeOnlyColumns 写入专用列（读投影剔除）
- * @param filterableColumns 允许过滤/排序的列
+ * @param filterableColumns 允许过滤的列
  * @param fieldTypes       列名 → 业务字段类型（用于 JDBC 值转换）
+ * @param sortableColumns  允许排序的列
+ * @param indexedColumns   需要当前状态部分索引的列
  * @author ByteForce
  * @since 1.0.0
  */
 public record TemporalTable(String objectType, String tableName, Map<String, String> columns,
                             Set<String> writeOnlyColumns, Set<String> filterableColumns,
-                            Map<String, cn.byteforce.seedj.domain.FieldType> fieldTypes) {
+                            Map<String, cn.byteforce.seedj.domain.FieldType> fieldTypes,
+                            Set<String> sortableColumns, Set<String> indexedColumns) {
 
     private static final Pattern IDENTIFIER = Pattern.compile("^[a-z][a-z0-9_]*$");
 
@@ -74,6 +77,35 @@ public record TemporalTable(String objectType, String tableName, Map<String, Str
                 throw new IllegalArgumentException("field type column is not declared: " + column);
             }
         }
+        sortableColumns = sortableColumns == null ? Set.of() : Set.copyOf(sortableColumns);
+        for (String column : sortableColumns) {
+            if (!copy.containsKey(column)) {
+                throw new IllegalArgumentException("sortable column is not declared: " + column);
+            }
+        }
+        indexedColumns = indexedColumns == null ? Set.of() : Set.copyOf(indexedColumns);
+        for (String column : indexedColumns) {
+            if (!copy.containsKey(column)) {
+                throw new IllegalArgumentException("indexed column is not declared: " + column);
+            }
+        }
+    }
+
+    /**
+     * 构造无排序/索引列的表映射。
+     *
+     * @param objectType       对象类型
+     * @param tableName        表名
+     * @param columns          领域列
+     * @param writeOnlyColumns 写入专用列
+     * @param filterableColumns 可过滤列
+     * @param fieldTypes       字段类型
+     */
+    public TemporalTable(String objectType, String tableName, Map<String, String> columns,
+                         Set<String> writeOnlyColumns, Set<String> filterableColumns,
+                         Map<String, cn.byteforce.seedj.domain.FieldType> fieldTypes) {
+        this(objectType, tableName, columns, writeOnlyColumns, filterableColumns, fieldTypes,
+                Set.of(), Set.of());
     }
 
     /**
@@ -84,7 +116,7 @@ public record TemporalTable(String objectType, String tableName, Map<String, Str
      * @param columns    领域列
      */
     public TemporalTable(String objectType, String tableName, Map<String, String> columns) {
-        this(objectType, tableName, columns, Set.of());
+        this(objectType, tableName, columns, Set.of(), null, null, Set.of(), Set.of());
     }
 
     /**
@@ -97,7 +129,8 @@ public record TemporalTable(String objectType, String tableName, Map<String, Str
      */
     public TemporalTable(String objectType, String tableName, Map<String, String> columns,
                          Set<String> writeOnlyColumns) {
-        this(objectType, tableName, columns, writeOnlyColumns, null, null);
+        this(objectType, tableName, columns, writeOnlyColumns, null, null, Set.of(),
+                Set.of());
     }
 
     /**
@@ -112,6 +145,8 @@ public record TemporalTable(String objectType, String tableName, Map<String, Str
         Map<String, cn.byteforce.seedj.domain.FieldType> types = new LinkedHashMap<>();
         Set<String> writeOnly = new java.util.LinkedHashSet<>();
         Set<String> filterable = new java.util.LinkedHashSet<>();
+        Set<String> sortable = new java.util.LinkedHashSet<>();
+        Set<String> indexed = new java.util.LinkedHashSet<>();
         for (FieldDefinition field : schema.fields()) {
             columns.put(field.name(), field.type().sqlType());
             types.put(field.name(), field.type());
@@ -121,9 +156,15 @@ public record TemporalTable(String objectType, String tableName, Map<String, Str
             if (field.filterable()) {
                 filterable.add(field.name());
             }
+            if (field.sortable()) {
+                sortable.add(field.name());
+            }
+            if (field.indexed()) {
+                indexed.add(field.name());
+            }
         }
         return new TemporalTable(schema.objectType(), schema.tableName(), columns, writeOnly,
-                filterable, types);
+                filterable, types, sortable, indexed);
     }
 
     private static void identifier(String value, String role) {

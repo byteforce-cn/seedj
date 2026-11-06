@@ -44,7 +44,8 @@ class TemporalCommandAutoConfigurationTest {
     private final ApplicationContextRunner runner = new ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(TemporalCommandAutoConfiguration.class))
             .withBean(BizEnabledMarker.class)
-            .withPropertyValues("seedj.command.degraded-mode=true");
+            .withPropertyValues("spring.profiles.active=local",
+                    "seedj.command.degraded-mode=true");
 
     @Test
     @DisplayName("无 DataSource 时默认内存存储，并提供运行时与控制器")
@@ -53,7 +54,8 @@ class TemporalCommandAutoConfigurationTest {
                 .withConfiguration(AutoConfigurations.of(TemporalCommandAutoConfiguration.class,
                         ObjectModuleAutoConfiguration.class))
                 .withBean(BizEnabledMarker.class)
-                .withPropertyValues("seedj.command.degraded-mode=true")
+                .withPropertyValues("spring.profiles.active=local",
+                        "seedj.command.degraded-mode=true")
                 .run(context -> {
                     assertThat(context).hasNotFailed();
                     assertThat(context).hasSingleBean(CommandRuntime.class);
@@ -185,7 +187,7 @@ class TemporalCommandAutoConfigurationTest {
                 .withConfiguration(AutoConfigurations.of(TemporalCommandAutoConfiguration.class,
                         ObjectModuleAutoConfiguration.class))
                 .withBean(BizEnabledMarker.class)
-                .withPropertyValues("seedj.command.degraded-mode=true")
+                .withPropertyValues("spring.profiles.active=local", "seedj.command.degraded-mode=true")
                 .withBean(ObjectModuleConfigurer.class, () -> modules ->
                         modules.object("probe", "probe_object")
                                 .readPermission("probe.read")

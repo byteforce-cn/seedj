@@ -37,6 +37,21 @@ class TemporalTableTest {
     }
 
     @Test
+    @DisplayName("sortable/indexed 从字段声明派生")
+    void derivesSortableAndIndexedColumns() {
+        ObjectSchema schema = ObjectSchema.builder("employee", "hr_employee")
+                .field(FieldDefinition.of("employee_no", FieldType.TEXT)
+                        .withFilterable().withSortable().withIndexed())
+                .field(FieldDefinition.of("org_unit_id", FieldType.TEXT).withIndexed())
+                .build();
+
+        TemporalTable table = TemporalTable.from(schema);
+
+        assertThat(table.sortableColumns()).containsExactly("employee_no");
+        assertThat(table.indexedColumns()).containsExactly("employee_no", "org_unit_id");
+    }
+
+    @Test
     @DisplayName("旧四参构造器默认全部列可过滤、无字段类型")
     void legacyConstructorKeepsOldDefaults() {
         TemporalTable table = new TemporalTable("probe", "probe_object", Map.of("name", "TEXT"));
