@@ -300,6 +300,42 @@ class CommandControllerTest {
     }
 
     @Test
+    @DisplayName("另一 issuer 读取命令终态：404")
+    void statusOfAnotherIssuerIs404() throws Exception {
+        String accepted = mvc.perform(post("/commands/probe.update")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body("k-owner-1", "Alice", false)))
+                .andExpect(status().isAccepted())
+                .andReturn().getResponse().getContentAsString();
+        String commandId = com.jayway.jsonpath.JsonPath.read(accepted, "$.command_id");
+
+        caller.set(caller(UUID.randomUUID().toString()));
+
+        mvc.perform(get("/commands/" + commandId))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("EIS-404-001"));
+    }
+
+    @Test
+    @DisplayName("拥有 seedj.command.admin 可读取任意命令终态")
+    void adminCanReadAnyCommand() throws Exception {
+        String accepted = mvc.perform(post("/commands/probe.update")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body("k-owner-2", "Alice", false)))
+                .andExpect(status().isAccepted())
+                .andReturn().getResponse().getContentAsString();
+        String commandId = com.jayway.jsonpath.JsonPath.read(accepted, "$.command_id");
+
+        caller.set(new Caller(UUID.randomUUID().toString(), "admin", "default", Set.of(),
+                Set.of("seedj.command.admin"), Set.of(), Set.of(Caller.DEFAULT_AMR),
+                Caller.DEFAULT_ACR, Map.of()));
+
+        mvc.perform(get("/commands/" + commandId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("accepted"));
+    }
+
+    @Test
     @DisplayName("未知命令的 GET：404 契约信封")
     void unknownCommandStatusIs404() throws Exception {
         mvc.perform(get("/commands/" + UUID.randomUUID()))

@@ -103,6 +103,21 @@ class CommandRuntimeTest {
     }
 
     @Test
+    void sameKeyDifferentIssuerIsNotReplay() {
+        CountingHandler handler = new CountingHandler("D01", false);
+        CommandRuntime runtime = runtime(new FakeCommands(), new FakeObjects(), SNAKE);
+        UUID otherIssuer = UUID.randomUUID();
+        CommandSubmission other = new CommandSubmission("probe.update",
+                Map.of("employee_no", "E-1"), "key-1", List.of(), otherIssuer);
+
+        runtime.execute(submission(), registration(handler), CALLER, ScopePredicate.all());
+        runtime.execute(other, registration(handler), CALLER, ScopePredicate.all());
+
+        assertThat(handler.targetIdCalls).isEqualTo(2);
+        assertThat(handler.decideCalls).isEqualTo(2);
+    }
+
+    @Test
     void writeScopeRejectsTargetBeforeDecide() {
         CountingHandler handler = new CountingHandler("D02", false);
         FakeCommands commands = new FakeCommands();
@@ -261,15 +276,16 @@ class CommandRuntimeTest {
         }
 
         @Override
-        public Optional<CommandRecord> findByIdempotencyKey(String idempotencyKey) {
+        public Optional<CommandRecord> findByIdempotencyKey(UUID issuer, String idempotencyKey) {
             return records.stream().filter(record ->
-                    record.idempotencyKey().equals(idempotencyKey)).findFirst();
+                    record.issuer().equals(issuer)
+                            && record.idempotencyKey().equals(idempotencyKey)).findFirst();
         }
 
         @Override
         public boolean insert(CommandRecord record) {
             if (find(record.id()).isPresent()
-                    || findByIdempotencyKey(record.idempotencyKey()).isPresent()) {
+                    || findByIdempotencyKey(record.issuer(), record.idempotencyKey()).isPresent()) {
                 return false;
             }
             records.add(record);

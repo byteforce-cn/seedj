@@ -58,8 +58,9 @@ public final class PostgresCommandStore implements CommandStore {
     }
 
     @Override
-    public Optional<CommandRecord> findByIdempotencyKey(String idempotencyKey) {
-        return jdbc.query(SELECT + " WHERE idempotency_key = ?", MAPPER, idempotencyKey)
+    public Optional<CommandRecord> findByIdempotencyKey(UUID issuer, String idempotencyKey) {
+        return jdbc.query(SELECT + " WHERE issuer = ? AND idempotency_key = ?", MAPPER,
+                        issuer, idempotencyKey)
                 .stream()
                 .findFirst();
     }

@@ -32,7 +32,7 @@ final class CommandMigrations {
                     locator             UUID,
                     version             BIGINT,
                     created_at          TIMESTAMPTZ(6) NOT NULL,
-                    CONSTRAINT uq_command_record_idempotency UNIQUE (idempotency_key),
+                    CONSTRAINT uq_command_record_idempotency UNIQUE (issuer, idempotency_key),
                     CONSTRAINT ck_command_record_status
                         CHECK (status IN ('pending', 'accepted', 'rejected')),
                     CONSTRAINT ck_command_record_fingerprint

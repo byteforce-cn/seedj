@@ -57,7 +57,12 @@ public abstract class CommandStoreContractTest {
     }
 
     protected CommandRecord pending(UUID id, String idempotencyKey, Map<String, Object> payload) {
-        return CommandRecord.pending(id, TYPE, NOW, ISSUER, payload, idempotencyKey,
+        return pending(id, ISSUER, idempotencyKey, payload);
+    }
+
+    protected CommandRecord pending(UUID id, UUID issuer, String idempotencyKey,
+                                    Map<String, Object> payload) {
+        return CommandRecord.pending(id, TYPE, NOW, issuer, payload, idempotencyKey,
                 FINGERPRINT, NOW);
     }
 
@@ -68,14 +73,28 @@ public abstract class CommandStoreContractTest {
 
         assertThat(store().insert(record)).isTrue();
         assertThat(store().find(record.id())).contains(record);
-        assertThat(store().findByIdempotencyKey("k-1")).contains(record);
+        assertThat(store().findByIdempotencyKey(ISSUER, "k-1")).contains(record);
     }
 
     @Test
     @DisplayName("缺失记录返回空")
     void missingRecordsAreEmpty() {
         assertThat(store().find(UUID.randomUUID())).isEmpty();
-        assertThat(store().findByIdempotencyKey("missing")).isEmpty();
+        assertThat(store().findByIdempotencyKey(ISSUER, "missing")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("同一幂等键在不同 issuer 下互不冲突")
+    void sameKeyDifferentIssuerIsIndependent() {
+        UUID otherIssuer = UUID.randomUUID();
+        CommandRecord first = pending("k-shared");
+        CommandRecord second = pending(UUID.randomUUID(), otherIssuer, "k-shared", Map.of());
+
+        assertThat(store().insert(first)).isTrue();
+        assertThat(store().insert(second)).isTrue();
+        assertThat(store().findByIdempotencyKey(ISSUER, "k-shared")).contains(first);
+        assertThat(store().findByIdempotencyKey(otherIssuer, "k-shared")).contains(second);
+        assertThat(store().findByIdempotencyKey(UUID.randomUUID(), "k-shared")).isEmpty();
     }
 
     @Test
@@ -86,7 +105,7 @@ public abstract class CommandStoreContractTest {
 
         assertThat(store().insert(first)).isTrue();
         assertThat(store().insert(second)).isFalse();
-        assertThat(store().findByIdempotencyKey("k-2"))
+        assertThat(store().findByIdempotencyKey(ISSUER, "k-2"))
                 .get()
                 .extracting(CommandRecord::id)
                 .isEqualTo(first.id());
@@ -182,7 +201,7 @@ public abstract class CommandStoreContractTest {
         store().abandon(pending.id());
 
         assertThat(store().find(pending.id())).isEmpty();
-        assertThat(store().findByIdempotencyKey("k-abandon")).isEmpty();
+        assertThat(store().findByIdempotencyKey(ISSUER, "k-abandon")).isEmpty();
         assertThat(store().insert(pending("k-abandon"))).isTrue();
     }
 

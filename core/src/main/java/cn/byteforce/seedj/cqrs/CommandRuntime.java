@@ -86,7 +86,7 @@ public final class CommandRuntime {
         String fingerprint = IdempotencyFingerprint.of(submission);
 
         Optional<CommandRecord> existing = options.commandStore()
-                .findByIdempotencyKey(submission.idempotencyKey());
+                .findByIdempotencyKey(submission.issuer(), submission.idempotencyKey());
         if (existing.isPresent()) {
             return replayOrConflict(existing.get(), fingerprint);
         }
@@ -102,7 +102,7 @@ public final class CommandRuntime {
                 fingerprint, now);
         if (!options.commandStore().insert(pending)) {
             CommandRecord winner = options.commandStore()
-                    .findByIdempotencyKey(submission.idempotencyKey())
+                    .findByIdempotencyKey(submission.issuer(), submission.idempotencyKey())
                     .orElseThrow(() -> new IllegalStateException(
                             "idempotency key conflicted but no record is readable: "
                                     + submission.idempotencyKey()));

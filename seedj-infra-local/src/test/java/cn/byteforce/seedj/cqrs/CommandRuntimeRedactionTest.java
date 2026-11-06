@@ -62,7 +62,7 @@ class CommandRuntimeRedactionTest {
         CommandReceipt first = runtime.execute(submission("probe.update", "k-1", "raw-1", ID),
                 redacting, CALLER, ScopePredicate.all());
 
-        assertThat(commands.findByIdempotencyKey("k-1")).get()
+        assertThat(commands.findByIdempotencyKey(ACTOR, "k-1")).get()
                 .satisfies(record -> assertThat(record.payload()).doesNotContainKey("secret"));
         CommandReceipt replay = runtime.execute(submission("probe.update", "k-1", "raw-1", ID),
                 redacting, CALLER, ScopePredicate.all());
@@ -91,9 +91,9 @@ class CommandRuntimeRedactionTest {
                 UUID.fromString("018f2e3a-1234-7000-8000-000000000002")), plain, CALLER,
                 ScopePredicate.all());
 
-        assertThat(commands.findByIdempotencyKey("k-3")).get()
+        assertThat(commands.findByIdempotencyKey(ACTOR, "k-3")).get()
                 .satisfies(record -> assertThat(record.payload()).doesNotContainKey("secret"));
-        assertThat(commands.findByIdempotencyKey("k-4")).get()
+        assertThat(commands.findByIdempotencyKey(ACTOR, "k-4")).get()
                 .satisfies(record -> assertThat(record.payload()).containsEntry("secret", "raw-4"));
     }
 

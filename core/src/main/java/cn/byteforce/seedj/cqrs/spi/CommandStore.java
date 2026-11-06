@@ -33,12 +33,13 @@ public interface CommandStore {
     Optional<CommandRecord> find(UUID id);
 
     /**
-     * 按幂等键查询。
+     * 按发起者与幂等键查询。
      *
+     * @param issuer         发起者
      * @param idempotencyKey 幂等键
      * @return 记录；不存在为空
      */
-    Optional<CommandRecord> findByIdempotencyKey(String idempotencyKey);
+    Optional<CommandRecord> findByIdempotencyKey(UUID issuer, String idempotencyKey);
 
     /**
      * 插入一条待处理记录。

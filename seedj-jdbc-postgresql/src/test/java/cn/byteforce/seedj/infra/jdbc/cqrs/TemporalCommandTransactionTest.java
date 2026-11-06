@@ -146,7 +146,7 @@ class TemporalCommandTransactionTest {
                         assertThat(error.code()).isEqualTo(ContractErrorCode.TEMPORAL_VIOLATION));
 
         assertThat(count("probe_object")).isZero();
-        CommandRecord record = commands.findByIdempotencyKey("tx-2").orElseThrow();
+        CommandRecord record = commands.findByIdempotencyKey(ACTOR, "tx-2").orElseThrow();
         assertThat(record.status()).isEqualTo(CommandStatus.REJECTED);
         assertThat(record.rejectionCode()).isEqualTo("EIS-400-003");
     }
@@ -171,7 +171,7 @@ class TemporalCommandTransactionTest {
                 .hasMessage("audit down");
 
         assertThat(count("probe_object")).isZero();
-        assertThat(commands.findByIdempotencyKey("tx-audit")).isEmpty();
+        assertThat(commands.findByIdempotencyKey(ACTOR, "tx-audit")).isEmpty();
     }
 
     private static int count(String table) {

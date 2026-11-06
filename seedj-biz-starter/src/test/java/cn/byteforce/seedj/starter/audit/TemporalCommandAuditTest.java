@@ -149,7 +149,7 @@ class TemporalCommandAuditTest {
                 .isInstanceOf(ContractException.class);
 
         assertThat(auditStore.loadAll()).isEmpty();
-        assertThat(commands.findByIdempotencyKey("k-3")).get()
+        assertThat(commands.findByIdempotencyKey(ACTOR, "k-3")).get()
                 .satisfies(record -> assertThat(record.status()).isEqualTo(CommandStatus.REJECTED));
     }
 
@@ -170,7 +170,7 @@ class TemporalCommandAuditTest {
                 registration, CALLER, ScopePredicate.all()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("audit store down");
-        assertThat(commands.findByIdempotencyKey("k-4")).isEmpty();
+        assertThat(commands.findByIdempotencyKey(ACTOR, "k-4")).isEmpty();
     }
 
     private static CommandSubmission submission(String key, String name, boolean reject) {
