@@ -55,9 +55,12 @@ class SpiSurfaceTest {
 
     private static final Map<String, List<String>> EXTRA_ALLOWED = Map.of(
             "cn.byteforce.seedj.core.security",
-            List.of("AccessTokenRules", "Caller", "CallerProvider", "SecurityAuditEvent",
-                    "SecurityAuditSink", "SecurityErrorCode", "TokenClaims", "DerivedField",
-                    "DerivedFieldKeyRing", "CallerIdCodec", "DerivedFieldRegistry"),
+            List.of("AccessTokenRules", "Caller", "CallerIdCodec", "CallerProvider",
+                    "ContextResolver", "ContextSink", "ContextWriter", "DefaultContextResolver",
+                    "DerivedField", "DerivedFieldKeyRing", "DerivedFieldRegistry",
+                    "ScopeContext", "ScopeContextHolder", "ScopeKey", "ScopeKeyCatalog",
+                    "ScopeKeyType", "SecurityAuditEvent", "SecurityAuditSink",
+                    "SecurityErrorCode", "TokenClaims"),
 
             "cn.byteforce.seedj.cqrs",
             List.of("AbstractProjection", "Command", "CommandAgent", "CommandAudit",
