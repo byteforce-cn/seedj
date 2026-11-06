@@ -1,0 +1,12 @@
+# 架构规则已知违规：T3 逐个偿还，清空即门禁全绿。
+# 格式：rule|origin -> target（与 ArchitectureTest 的违规 key 一致）
+core-is-framework-free|cn.byteforce.seedj.core.clock.spi.pg.PgGlobalSequencer -> java.sql.Connection
+core-is-framework-free|cn.byteforce.seedj.core.clock.spi.pg.PgGlobalSequencer -> java.sql.PreparedStatement
+core-is-framework-free|cn.byteforce.seedj.core.clock.spi.pg.PgGlobalSequencer -> java.sql.ResultSet
+core-is-framework-free|cn.byteforce.seedj.core.clock.spi.pg.PgGlobalSequencer -> java.sql.SQLException
+core-is-framework-free|cn.byteforce.seedj.core.clock.spi.pg.PgGlobalSequencer -> javax.sql.DataSource
+core-is-framework-free|cn.byteforce.seedj.core.clock.spi.pg.PgHybridStateStore -> java.sql.Connection
+core-is-framework-free|cn.byteforce.seedj.core.clock.spi.pg.PgHybridStateStore -> java.sql.PreparedStatement
+core-is-framework-free|cn.byteforce.seedj.core.clock.spi.pg.PgHybridStateStore -> java.sql.ResultSet
+core-is-framework-free|cn.byteforce.seedj.core.clock.spi.pg.PgHybridStateStore -> java.sql.SQLException
+core-is-framework-free|cn.byteforce.seedj.core.clock.spi.pg.PgHybridStateStore -> javax.sql.DataSource

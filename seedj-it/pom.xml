@@ -20,9 +20,16 @@
         <seedj.compat.skip>true</seedj.compat.skip>
         <!-- 纯测试模块，无主源码 -->
         <seedj.jacoco.guard.skip>true</seedj.jacoco.guard.skip>
+        <archunit.version>1.5.1</archunit.version>
     </properties>
 
     <dependencies>
+        <dependency>
+            <groupId>com.tngtech.archunit</groupId>
+            <artifactId>archunit-junit5</artifactId>
+            <version>${archunit.version}</version>
+            <scope>test</scope>
+        </dependency>
         <!-- 被测服务：只在此模块同时出现 -->
         <dependency>
             <groupId>cn.byteforce.seedj</groupId>
