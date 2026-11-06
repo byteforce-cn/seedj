@@ -44,6 +44,17 @@ class DocsIsolationTest {
                 .isEmpty();
     }
 
+    @Test
+    @DisplayName("仓库根不存在 docs/ 与 .superpowers 目录")
+    void obsoleteDirectoriesStayDeleted() {
+        assertThat(ROOT.resolve("docs"))
+                .as("过程文档必须留在独立文档仓")
+                .doesNotExist();
+        assertThat(ROOT.resolve(".superpowers"))
+                .as("superpowers 工作目录不得进入仓库")
+                .doesNotExist();
+    }
+
     private static boolean isScanned(Path path) {
         String p = path.toAbsolutePath().normalize().toString().replace('\\', '/');
         if (p.contains("/target/") || p.contains("/.git/") || p.endsWith("/" + SELF)) {
