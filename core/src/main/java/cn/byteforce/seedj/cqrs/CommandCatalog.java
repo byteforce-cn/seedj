@@ -3,6 +3,7 @@ package cn.byteforce.seedj.cqrs;
 import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;
 import cn.byteforce.seedj.core.security.Caller;
+import cn.byteforce.seedj.domain.ScopePredicate;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -14,7 +15,7 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * 命令类型到代理的注册表，并在这里统一执行命令级授权。
+ * 命令类型到注册项的执行面注册表，并在这里统一执行命令级授权。
  *
  * <p>重复命令类型、缺少权限声明都在启动期失败：一条没有权限的命令不允许“默认放行”。
  * 未知类型按无效载荷拒绝，不静默回退。</p>
@@ -24,28 +25,37 @@ import java.util.Set;
  */
 public final class CommandCatalog {
 
-    private final Map<String, TemporalCommandAgent<?>> byType;
+    private final Map<String, CommandRegistration> byType;
 
     private final CommandPolicy policy;
+
+    private final CommandRuntime runtime;
+
+    private final WriteScopeProvider writeScopes;
 
     /**
      * 构造注册表。
      *
-     * @param agents 命令代理
-     * @param policy 命令级授权策略
+     * @param registrations 命令注册项
+     * @param policy        命令级授权策略
+     * @param runtime       命令运行时
+     * @param writeScopes   写范围提供者
      */
-    public CommandCatalog(List<TemporalCommandAgent<?>> agents, CommandPolicy policy) {
-        Objects.requireNonNull(agents, "agents");
+    public CommandCatalog(List<CommandRegistration> registrations, CommandPolicy policy,
+                          CommandRuntime runtime, WriteScopeProvider writeScopes) {
+        Objects.requireNonNull(registrations, "registrations");
         this.policy = Objects.requireNonNull(policy, "policy");
-        Map<String, TemporalCommandAgent<?>> copy = new LinkedHashMap<>();
-        for (TemporalCommandAgent<?> agent : agents) {
-            Objects.requireNonNull(agent, "agent");
-            CommandDescriptor descriptor = agent.descriptor();
+        this.runtime = Objects.requireNonNull(runtime, "runtime");
+        this.writeScopes = Objects.requireNonNull(writeScopes, "writeScopes");
+        Map<String, CommandRegistration> copy = new LinkedHashMap<>();
+        for (CommandRegistration registration : registrations) {
+            Objects.requireNonNull(registration, "registration");
+            CommandDescriptor descriptor = registration.descriptor();
             if (descriptor.permission() == null || descriptor.permission().isBlank()) {
                 throw new IllegalArgumentException(
                         "command " + descriptor.type() + " must declare a permission");
             }
-            TemporalCommandAgent<?> previous = copy.putIfAbsent(descriptor.type(), agent);
+            CommandRegistration previous = copy.putIfAbsent(descriptor.type(), registration);
             if (previous != null) {
                 throw new IllegalArgumentException(
                         "duplicate command type: " + descriptor.type());
@@ -55,7 +65,7 @@ public final class CommandCatalog {
     }
 
     /**
-     * 执行命令：先授权，再交给代理。
+     * 执行命令：先授权，再解析写范围并交给运行时。
      *
      * @param submission 命令提交
      * @param caller     调用方
@@ -63,22 +73,27 @@ public final class CommandCatalog {
      */
     public CommandReceipt execute(CommandSubmission submission, Caller caller) {
         Objects.requireNonNull(submission, "submission");
-        TemporalCommandAgent<?> agent = byType.get(submission.type());
-        if (agent == null) {
+        CommandRegistration registration = byType.get(submission.type());
+        if (registration == null) {
             throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
                     "unknown command type: " + submission.type());
         }
-        policy.authorize(agent.descriptor(), caller, submission.payload());
-        return agent.execute(submission);
+        policy.authorize(registration.descriptor(), caller, submission.payload());
+        ScopePredicate scope = writeScopes.scope(registration.descriptor().objectType(), caller);
+        if (scope == null) {
+            throw new IllegalStateException("write scope provider returned null for "
+                    + registration.descriptor().objectType());
+        }
+        return runtime.execute(submission, registration, caller, scope);
     }
 
     /**
-     * 按类型查找代理。
+     * 按类型查找注册项。
      *
      * @param type 命令类型
-     * @return 代理；未知为空
+     * @return 注册项；未知为空
      */
-    public Optional<TemporalCommandAgent<?>> find(String type) {
+    public Optional<CommandRegistration> find(String type) {
         return Optional.ofNullable(type == null ? null : byType.get(type));
     }
 
@@ -98,8 +113,8 @@ public final class CommandCatalog {
      */
     public List<CommandDescriptor> descriptors() {
         List<CommandDescriptor> descriptors = new ArrayList<>();
-        for (TemporalCommandAgent<?> agent : byType.values()) {
-            descriptors.add(agent.descriptor());
+        for (CommandRegistration registration : byType.values()) {
+            descriptors.add(registration.descriptor());
         }
         descriptors.sort(Comparator.comparing(CommandDescriptor::type));
         return List.copyOf(descriptors);
