@@ -9,6 +9,8 @@ import cn.byteforce.seedj.cqrs.memory.InMemoryCommandStore;
 import cn.byteforce.seedj.cqrs.spi.CommandStore;
 import cn.byteforce.seedj.cqrs.web.CommandController;
 import cn.byteforce.seedj.domain.AppendRequest;
+import cn.byteforce.seedj.domain.FieldType;
+import cn.byteforce.seedj.domain.ObjectSchema;
 import cn.byteforce.seedj.domain.TemporalStore;
 import cn.byteforce.seedj.domain.jdbc.TemporalTable;
 import cn.byteforce.seedj.domain.jdbc.TemporalTables;
@@ -112,6 +114,22 @@ class TemporalCommandAutoConfigurationTest {
             assertThat(context).hasNotFailed();
             assertThat(context).hasSingleBean(TemporalTables.class);
             assertThat(context.getBean(TemporalTables.class).require("probe")).isEqualTo(table);
+        });
+    }
+
+    @Test
+    @DisplayName("ObjectSchema bean 自动派生 TemporalTables（无需手工表定义）")
+    void derivesTemporalTablesFromObjectSchema() {
+        ObjectSchema schema = ObjectSchema.builder("probe", "probe_object")
+                .field("name", FieldType.TEXT)
+                .build();
+
+        runner.withBean(ObjectSchema.class, () -> schema).run(context -> {
+            assertThat(context).hasNotFailed();
+            TemporalTables tables = context.getBean(TemporalTables.class);
+            assertThat(tables.require("probe").columns()).containsEntry("name", "TEXT");
+            assertThat(tables.require("probe").fieldTypes())
+                    .containsEntry("name", FieldType.TEXT);
         });
     }
 

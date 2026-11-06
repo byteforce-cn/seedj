@@ -47,6 +47,15 @@ public final class TemporalTables {
     }
 
     /**
+     * 是否没有任何对象表。
+     *
+     * @return 空注册表为 {@code true}
+     */
+    public boolean isEmpty() {
+        return byType.isEmpty();
+    }
+
+    /**
      * 读投影应剔除的写入专用列。
      *
      * @param objectType 对象类型

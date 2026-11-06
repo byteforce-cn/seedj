@@ -19,6 +19,8 @@ import cn.byteforce.seedj.cqrs.memory.InMemoryCommandStore;
 import cn.byteforce.seedj.cqrs.spi.CommandStore;
 import cn.byteforce.seedj.cqrs.spi.TransactionRunner;
 import cn.byteforce.seedj.cqrs.web.CommandController;
+import cn.byteforce.seedj.domain.ObjectSchema;
+import cn.byteforce.seedj.domain.ObjectSchemaRegistry;
 import cn.byteforce.seedj.domain.TemporalStore;
 import cn.byteforce.seedj.domain.jdbc.PostgresTemporalStore;
 import cn.byteforce.seedj.domain.jdbc.TemporalSchemaCapability;
@@ -134,12 +136,33 @@ public class TemporalCommandAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
-    @ConditionalOnBean(TemporalTable.class)
     @ConditionalOnProperty(prefix = "seedj.object", name = "enabled", havingValue = "true",
             matchIfMissing = true)
-    public TemporalTables temporalTables(ObjectProvider<TemporalTable> tables) {
+    public ObjectSchemaRegistry objectSchemaRegistry(ObjectProvider<ObjectSchema> schemas) {
+        List<ObjectSchema> declared = schemas.orderedStream().toList();
+        return declared.isEmpty()
+                ? ObjectSchemaRegistry.empty() : new ObjectSchemaRegistry(declared);
+    }
+
+    /**
+     * 对象表映射：优先使用显式声明的 {@link TemporalTable}，否则由 {@link ObjectSchema}
+     * 派生。两者都没有时是空注册表，访问未知类型会在使用点失败。
+     *
+     * @param tables  显式表定义
+     * @param schemas 业务 schema 注册表
+     * @return 表注册表
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "seedj.object", name = "enabled", havingValue = "true",
+            matchIfMissing = true)
+    public TemporalTables temporalTables(ObjectProvider<TemporalTable> tables,
+                                         ObjectSchemaRegistry schemas) {
         List<TemporalTable> declared = tables.orderedStream().toList();
-        return new TemporalTables(declared);
+        if (!declared.isEmpty()) {
+            return new TemporalTables(declared);
+        }
+        return new TemporalTables(schemas.all().stream().map(TemporalTable::from).toList());
     }
 
     /**
@@ -170,9 +193,10 @@ public class TemporalCommandAutoConfiguration {
                     throw new IllegalStateException(
                             "seedj.object.provider=postgres requires a DataSource/JdbcTemplate");
                 }
-                if (registry == null) {
+                if (registry == null || registry.isEmpty()) {
                     throw new IllegalStateException(
-                            "seedj.object.provider=postgres requires registered TemporalTables");
+                            "seedj.object.provider=postgres requires registered TemporalTables "
+                                    + "or ObjectSchema beans");
                 }
                 yield new PostgresTemporalStore(template, clock, registry);
             }

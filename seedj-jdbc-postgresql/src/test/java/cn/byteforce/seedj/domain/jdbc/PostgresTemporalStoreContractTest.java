@@ -1,7 +1,12 @@
 package cn.byteforce.seedj.domain.jdbc;
 
 import cn.byteforce.seedj.core.clock.TestClock;
+import cn.byteforce.seedj.domain.AppendRequest;
+import cn.byteforce.seedj.domain.AppendResult;
+import cn.byteforce.seedj.domain.FieldType;
+import cn.byteforce.seedj.domain.ObjectSchema;
 import cn.byteforce.seedj.domain.TemporalQuery;
+import cn.byteforce.seedj.domain.TemporalRow;
 import cn.byteforce.seedj.domain.TemporalStore;
 import cn.byteforce.seedj.domain.TemporalStoreContractTest;
 import cn.byteforce.seedj.jdbc.JdbcMigrationRunner;
@@ -13,10 +18,13 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
@@ -36,6 +44,8 @@ class PostgresTemporalStoreContractTest extends TemporalStoreContractTest {
 
     private static TestClock clock;
 
+    private static TemporalTable typedTable;
+
     private static TemporalStore store;
 
     @BeforeAll
@@ -46,9 +56,17 @@ class PostgresTemporalStoreContractTest extends TemporalStoreContractTest {
         new TemporalSchemaCapability(new JdbcMigrationRunner(dataSource)).initialize();
         TemporalTable table = new TemporalTable("probe", "probe_object",
                 new LinkedHashMap<>(Map.of("name", "TEXT")));
+        ObjectSchema typedSchema = ObjectSchema.builder("probe_typed", "probe_typed_object")
+                .field("name", FieldType.TEXT)
+                .field("hire_date", FieldType.DATE)
+                .field("ref_id", FieldType.UUID)
+                .build();
+        typedTable = TemporalTable.from(typedSchema);
         jdbc.execute(TemporalDdl.createTable(table));
+        jdbc.execute(TemporalDdl.createTable(typedTable));
         clock = new TestClock(T0);
-        store = new PostgresTemporalStore(jdbc, clock, new TemporalTables(List.of(table)));
+        store = new PostgresTemporalStore(jdbc, clock,
+                new TemporalTables(List.of(table, typedTable)));
     }
 
     @Override
@@ -64,6 +82,24 @@ class PostgresTemporalStoreContractTest extends TemporalStoreContractTest {
     @Override
     protected void reset() {
         jdbc.execute("TRUNCATE probe_object");
+        jdbc.execute("TRUNCATE probe_typed_object");
+    }
+
+    @Test
+    void dateAndUuidFieldsRoundTripThroughJdbc() {
+        LocalDate hireDate = LocalDate.parse("2026-10-01");
+        UUID refId = UUID.fromString("018f2e3a-9999-7000-8000-000000000001");
+
+        AppendResult result = store.append(AppendRequest.create("probe_typed", ID, T0, null,
+                ACTOR, Map.of("name", "Alice", "hire_date", hireDate, "ref_id", refId)));
+        TemporalRow row = store.find("probe_typed", ID, TemporalQuery.current()).orElseThrow();
+
+        assertThat(result.appended().version().version()).isEqualTo(1L);
+        assertThat(row.fields())
+                .containsEntry("hire_date", hireDate)
+                .containsEntry("ref_id", refId);
+        assertThat(row.fields().get("hire_date"))
+                .isInstanceOf(LocalDate.class);
     }
 
     @Test

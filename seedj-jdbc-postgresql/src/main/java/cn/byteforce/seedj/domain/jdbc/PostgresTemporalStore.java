@@ -150,7 +150,8 @@ public final class PostgresTemporalStore implements TemporalStore {
         args.add(timestamp(version.updatedAt()));
         for (String column : table.columns().keySet()) {
             columns.add(column);
-            args.add(row.fields().get(column));
+            args.add(TemporalValues.toJdbc(table.fieldTypes().get(column),
+                    row.fields().get(column)));
         }
         String placeholders = String.join(", ", java.util.Collections.nCopies(columns.size(), "?"));
         jdbc.update("INSERT INTO " + table.tableName() + " (" + String.join(", ", columns)
@@ -171,7 +172,8 @@ public final class PostgresTemporalStore implements TemporalStore {
                 instant(row.get("updated_at")));
         Map<String, Object> fields = new LinkedHashMap<>();
         for (String column : table.columns().keySet()) {
-            fields.put(column, row.get(column));
+            fields.put(column, TemporalValues.fromJdbc(table.fieldTypes().get(column),
+                    row.get(column)));
         }
         return new TemporalRow(table.objectType(), version, fields);
     }

@@ -98,6 +98,10 @@ core|cn.byteforce.seedj.domain|AbstractEntity
 core|cn.byteforce.seedj.domain|AppendKind
 core|cn.byteforce.seedj.domain|AppendRequest
 core|cn.byteforce.seedj.domain|AppendResult
+core|cn.byteforce.seedj.domain|FieldDefinition
+core|cn.byteforce.seedj.domain|FieldType
+core|cn.byteforce.seedj.domain|ObjectSchema
+core|cn.byteforce.seedj.domain|ObjectSchemaRegistry
 core|cn.byteforce.seedj.domain|ObjectVersion
 core|cn.byteforce.seedj.domain|Repository
 core|cn.byteforce.seedj.domain|Sealing
@@ -468,6 +472,7 @@ seedj-jdbc-postgresql|cn.byteforce.seedj.domain.jdbc|TemporalDdl
 seedj-jdbc-postgresql|cn.byteforce.seedj.domain.jdbc|TemporalSchemaCapability
 seedj-jdbc-postgresql|cn.byteforce.seedj.domain.jdbc|TemporalTable
 seedj-jdbc-postgresql|cn.byteforce.seedj.domain.jdbc|TemporalTables
+seedj-jdbc-postgresql|cn.byteforce.seedj.domain.jdbc|TemporalValues
 seedj-jdbc-postgresql|cn.byteforce.seedj.iam.jdbc|IamMigrations
 seedj-jdbc-postgresql|cn.byteforce.seedj.iam.jdbc|IamSchemaCapability
 seedj-jdbc-postgresql|cn.byteforce.seedj.iam.jdbc|JdbcIamAuditSink
