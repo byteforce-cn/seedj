@@ -2,10 +2,10 @@ package cn.byteforce.seedj.server.hr.employee;
 
 import cn.byteforce.seedj.core.Migration;
 import cn.byteforce.seedj.domain.ObjectSchema;
-import cn.byteforce.seedj.domain.jdbc.ObjectSchemaCapability;
-import cn.byteforce.seedj.domain.jdbc.TemporalDdl;
-import cn.byteforce.seedj.domain.jdbc.TemporalTable;
-import cn.byteforce.seedj.jdbc.JdbcMigrationRunner;
+import cn.byteforce.seedj.infra.jdbc.domain.ObjectSchemaCapability;
+import cn.byteforce.seedj.infra.jdbc.domain.TemporalDdl;
+import cn.byteforce.seedj.infra.jdbc.domain.TemporalTable;
+import cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner;
 
 import java.util.List;
 

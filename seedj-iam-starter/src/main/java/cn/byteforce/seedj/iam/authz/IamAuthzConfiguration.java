@@ -1,7 +1,7 @@
 package cn.byteforce.seedj.iam.authz;
 
 import cn.byteforce.seedj.iam.config.IamProperties;
-import cn.byteforce.seedj.iam.jdbc.JdbcIamBindingStore;
+import cn.byteforce.seedj.infra.jdbc.iam.JdbcIamBindingStore;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamAttributeSource;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamBindingStore;
 import cn.byteforce.seedj.iam.spi.IamAuthorizationRepository;

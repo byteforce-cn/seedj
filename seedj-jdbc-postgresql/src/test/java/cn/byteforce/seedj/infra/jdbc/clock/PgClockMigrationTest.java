@@ -3,7 +3,7 @@ package cn.byteforce.seedj.infra.jdbc.clock;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import cn.byteforce.seedj.core.clock.HybridTimestamp;
-import cn.byteforce.seedj.jdbc.JdbcMigrationRunner;
+import cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

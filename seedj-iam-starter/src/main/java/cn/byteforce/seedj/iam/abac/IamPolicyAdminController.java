@@ -5,7 +5,7 @@ import cn.byteforce.seedj.iam.IamException;
 import cn.byteforce.seedj.iam.IamPolicy;
 import cn.byteforce.seedj.iam.IamPolicyEffect;
 import cn.byteforce.seedj.iam.config.IamProperties;
-import cn.byteforce.seedj.iam.jdbc.PolicyConditionCodec;
+import cn.byteforce.seedj.infra.jdbc.iam.PolicyConditionCodec;
 import cn.byteforce.seedj.iam.policy.PolicyCondition;
 import cn.byteforce.seedj.iam.spi.IamPolicyRepository;
 import cn.byteforce.seedj.id.IdGenerator;

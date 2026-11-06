@@ -3,7 +3,7 @@ package cn.byteforce.seedj.eventbus.wiring;
 /**
  * eventbus 消费侧的指标 seam：有 micrometer 时由装配层注入真实实现，否则用 no-op。
  *
- * <p>outbox relay 的指标在 {@link cn.byteforce.seedj.outbox.wiring.OutboxMetrics}，
+ * <p>outbox relay 的指标在 {@link cn.byteforce.seedj.infra.jdbc.outbox.wiring.OutboxMetrics}，
  * 两者不共用接口。
  */
 public interface EventBusMetrics {

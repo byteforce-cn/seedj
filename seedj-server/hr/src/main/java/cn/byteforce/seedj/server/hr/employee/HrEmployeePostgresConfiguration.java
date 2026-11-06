@@ -2,7 +2,7 @@ package cn.byteforce.seedj.server.hr.employee;
 
 import cn.byteforce.seedj.core.InfrastructureCapability;
 import cn.byteforce.seedj.domain.ObjectSchema;
-import cn.byteforce.seedj.jdbc.JdbcMigrationRunner;
+import cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
