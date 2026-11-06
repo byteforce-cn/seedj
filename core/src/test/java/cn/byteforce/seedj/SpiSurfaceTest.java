@@ -57,7 +57,7 @@ class SpiSurfaceTest {
             "cn.byteforce.seedj.core.security",
             List.of("AccessTokenRules", "Caller", "CallerProvider", "SecurityAuditEvent",
                     "SecurityAuditSink", "SecurityErrorCode", "TokenClaims", "DerivedField",
-                    "DerivedFieldKeyRing", "CallerIdCodec"),
+                    "DerivedFieldKeyRing", "CallerIdCodec", "DerivedFieldRegistry"),
 
             "cn.byteforce.seedj.cqrs",
             List.of("AbstractProjection", "Command", "CommandAgent", "CommandAudit",

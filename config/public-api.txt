@@ -37,6 +37,7 @@ core|cn.byteforce.seedj.core.security|CallerIdCodec
 core|cn.byteforce.seedj.core.security|CallerProvider
 core|cn.byteforce.seedj.core.security|DerivedField
 core|cn.byteforce.seedj.core.security|DerivedFieldKeyRing
+core|cn.byteforce.seedj.core.security|DerivedFieldRegistry
 core|cn.byteforce.seedj.core.security|SecurityAuditEvent
 core|cn.byteforce.seedj.core.security|SecurityAuditSink
 core|cn.byteforce.seedj.core.security|SecurityErrorCode
@@ -502,6 +503,7 @@ seedj-jdbc-postgresql|cn.byteforce.seedj.outbox.wiring|OutboxRelay
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeConfiguration
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeCreate
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeCreateAgent
+seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeSchema
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeUpdate
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeUpdateAgent
 seedj-server/hr|cn.byteforce.seedj.server.hr|HrServer

@@ -2,7 +2,7 @@ package cn.byteforce.seedj.server.hr.employee;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import java.util.UUID;
+import java.time.LocalDate;
 
 /**
  * HR 样板命令载荷：员工建档。
@@ -17,13 +17,8 @@ import java.util.UUID;
  */
 public record HrEmployeeCreate(
         String name,
-        @JsonProperty("hire_date") String hireDate,
+        @JsonProperty("hire_date") LocalDate hireDate,
         @JsonProperty("employment_type") String employmentType,
         @JsonProperty("work_location") String workLocation,
         @JsonProperty("id_number") String idNumber) {
-
-    /**
-     * 目标 ID 占位（创建时由代理生成）。
-     */
-    public static final UUID NONE = new UUID(0, 0);
 }
