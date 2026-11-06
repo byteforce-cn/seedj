@@ -430,7 +430,7 @@ public class BcTransitProvider implements TransitProvider {
                         if (verifier.verify(signature)) {
                             return true;
                         }
-                    } catch (Exception ignored) {
+                    } catch (java.security.GeneralSecurityException | RuntimeException ignored) {
                         // 尝试下一个版本
                     }
                 }

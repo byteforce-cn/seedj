@@ -53,7 +53,6 @@ final class InMemoryWorkflowSupport {
     final ConcurrentHashMap<String, WorkflowDefinition> definitions = new ConcurrentHashMap<>();
     final ConcurrentHashMap<WorkflowInstanceId, InstanceState> instances = new ConcurrentHashMap<>();
     final ConcurrentHashMap<String, WorkflowInstanceId> actionIndex = new ConcurrentHashMap<>();
-    final Object actionGate = new Object();
     final AtomicBoolean closed = new AtomicBoolean();
     InMemoryWorkflowSupport(Clock clock, ScheduledExecutorService scheduler, boolean ownsScheduler,
             IdGenerator<String> idGenerator) {

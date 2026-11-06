@@ -119,7 +119,6 @@ final class InMemoryWorkflowTimeouts {
         if (state.terminal()) {
             return;
         }
-        Instant now = support.now();
         lifecycle.cancelAllActiveTasks(state, "WORKFLOW_TIMEOUT");
         lifecycle.discardAllAfterPending(state, "UPSTREAM_ROLLBACK");
         engine.failInstance(state, "WORKFLOW_TIMEOUT",

@@ -147,6 +147,9 @@ public class IamStoreConfiguration {
 
     @Configuration(proxyBeanMethods = false)
     static class AesSecretConfiguration {
+
+        private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+
         @Bean
         @ConditionalOnMissingBean(IamSecretProtector.class)
         IamSecretProtector aesSecretProtector(IamProperties properties) {
@@ -162,7 +165,7 @@ public class IamStoreConfiguration {
                                     + "survive a restart");
                 }
                 key = new byte[32];
-                new SecureRandom().nextBytes(key);
+                SECURE_RANDOM.nextBytes(key);
                 log.warn("seedj.iam.secret.key is not set; generated an ephemeral AES key. "
                         + "Set a stable key or enable Transit for restarts.");
             }

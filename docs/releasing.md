@@ -15,12 +15,15 @@
 
 ```bash
 ./mvnw -B clean verify                 # 全量测试（含 Testcontainers PostgreSQL）
-./mvnw -B -Pcompat -DskipTests verify  # 基线存在时的二进制兼容门禁
+./mvnw -B -Pcompat -DskipTests verify  # 基线存在时的二进制兼容门禁（建议用下面一行）
+bash config/ci/check-compat.sh          # 先检查基线可解析，再执行 -Pcompat
 ./mvnw -B -Pconformance -DskipTests verify  # 规范兼容性对照（需规范仓库）
+bash config/ci/dependency-check.sh      # OWASP 依赖漏洞扫描（failBuildOnCVSS=7）
 ```
 
-`verify` 同时执行 Spotless 格式检查、JaCoCo 覆盖率门禁与各模块测试；
-任何一项失败都视为不可发布。
+`verify` 同时执行 Spotless 格式检查、JaCoCo 覆盖率门禁、SpotBugs（Medium 阻断）与
+各模块测试；任何一项失败都视为不可发布。覆盖率与目标终值的差距见
+[覆盖率差距（2026-11-06）](assessment/2026-11-06-coverage-gap.md)。
 
 ## 3. 制品与签名
 
@@ -33,6 +36,8 @@
 - 每个制品的 `META-INF/` 必须包含 `LICENSE` 与 `NOTICE`（根 POM 的 `copy-license-notice` 负责），
   `LicensePresenceTest` 对样本制品做断言。
 - SBOM 随制品归档；依赖变更导致的许可变化在这一步暴露。
+- 首次发布（`1.0.0`）还没有兼容基线，发布作业必须显式设置 `SEEDJ_FIRST_RELEASE=true`；
+  之后的发布由 `config/ci/check-compat.sh` 强制要求基线可解析。
 
 ## 4. 发布后
 

@@ -16,7 +16,7 @@
     <description>本地实现：内存/文件承载的 PKI、Transit、EventBus、ID、Lock、Audit、IAM memory 与 Workflow</description>
 
     <properties>
-        <seedj.coverage.line>0.71</seedj.coverage.line>
+        <seedj.coverage.line>0.72</seedj.coverage.line>
         <seedj.coverage.branch>0.52</seedj.coverage.branch>
     </properties>
 

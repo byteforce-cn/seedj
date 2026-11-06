@@ -61,6 +61,10 @@ public final class InMemoryWorkflowProvider implements WorkflowProvider {
     private final InMemoryWorkflowActions actions;
     private final InMemoryWorkflowQueryService queries;
 
+    private final Object startGate = new Object();
+
+    private final Object actionGate = new Object();
+
     /** 默认构造：系统时钟、自有调度线程、进程内 ID。 */
     public InMemoryWorkflowProvider() {
         this(Clock.systemUTC(), newScheduler(), true, localIdGenerator());
@@ -139,7 +143,7 @@ public final class InMemoryWorkflowProvider implements WorkflowProvider {
     @Override
     public WorkflowInstance start(StartWorkflowRequest request) {
         Objects.requireNonNull(request, "request cannot be null");
-        synchronized (support.instances) {
+        synchronized (startGate) {
             InstanceState existing = support.instances.get(request.instanceId());
             if (existing != null) {
                 if (!existing.definition.id().equals(request.definitionId())) {
@@ -201,7 +205,7 @@ public final class InMemoryWorkflowProvider implements WorkflowProvider {
     public WorkflowInstance act(ActionRequest request) {
         Objects.requireNonNull(request, "request cannot be null");
         WorkflowAction action = request.action();
-        synchronized (support.actionGate) {
+        synchronized (actionGate) {
             WorkflowInstanceId prior = support.actionIndex.get(action.actionId());
             if (prior != null) {
                 return support.snapshot(support.requireInstance(prior));

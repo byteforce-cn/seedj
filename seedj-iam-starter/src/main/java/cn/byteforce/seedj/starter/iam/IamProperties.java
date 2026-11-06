@@ -36,7 +36,7 @@ public record IamProperties(
     }
 
     public IamProperties {
-        enabled = enabled == null || enabled;
+        enabled = enabled == null ? Boolean.TRUE : enabled;
         tenantId = tenantId == null || tenantId.isBlank() ? "default" : tenantId;
         store = store == null ? Store.MEMORY : store;
         admin = admin == null ? new Admin(null, null, null) : admin;
@@ -79,7 +79,7 @@ public record IamProperties(
     public record Totp(Boolean enabled, String issuer, Integer digits, Duration period,
                        Integer window, Integer recoveryCodes, String secretKey) {
         public Totp {
-            enabled = enabled == null || enabled;
+            enabled = enabled == null ? Boolean.TRUE : enabled;
             issuer = issuer == null || issuer.isBlank() ? "Seedj" : issuer;
             digits = digits == null ? 6 : digits;
             period = period == null ? Duration.ofSeconds(30) : period;
@@ -100,8 +100,8 @@ public record IamProperties(
     public record NativeAuth(Boolean enabled, Boolean mfaRequired, Duration mfaTokenTtl,
                              Integer maxAttempts) {
         public NativeAuth {
-            enabled = enabled != null && enabled;
-            mfaRequired = mfaRequired == null || mfaRequired;
+            enabled = enabled == null ? Boolean.FALSE : enabled;
+            mfaRequired = mfaRequired == null ? Boolean.TRUE : mfaRequired;
             mfaTokenTtl = mfaTokenTtl == null ? Duration.ofMinutes(5) : mfaTokenTtl;
             maxAttempts = maxAttempts == null ? 5 : maxAttempts;
         }
@@ -109,28 +109,28 @@ public record IamProperties(
 
     public record Scim(Boolean enabled, String basePath) {
         public Scim {
-            enabled = enabled == null || enabled;
+            enabled = enabled == null ? Boolean.TRUE : enabled;
             basePath = basePath == null || basePath.isBlank() ? "/scim/v2" : basePath;
         }
     }
 
     public record Rbac(Boolean enabled, Duration cacheTtl) {
         public Rbac {
-            enabled = enabled == null || enabled;
+            enabled = enabled == null ? Boolean.TRUE : enabled;
             cacheTtl = cacheTtl == null ? Duration.ofSeconds(30) : cacheTtl;
         }
     }
 
     public record Abac(Boolean enabled, Duration cacheTtl) {
         public Abac {
-            enabled = enabled == null || enabled;
+            enabled = enabled == null ? Boolean.TRUE : enabled;
             cacheTtl = cacheTtl == null ? Duration.ofSeconds(30) : cacheTtl;
         }
     }
 
     public record Demo(Boolean enabled) {
         public Demo {
-            enabled = enabled != null && enabled;
+            enabled = enabled == null ? Boolean.FALSE : enabled;
         }
     }
 

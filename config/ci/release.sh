@@ -10,6 +10,6 @@ cd "$(dirname "$0")/../.." || {
 MAVEN_FLAGS="${MAVEN_FLAGS:--o}"
 
 ./mvnw $MAVEN_FLAGS -B -Psbom -DskipTests package
-./mvnw $MAVEN_FLAGS -B -Pcompat -DskipTests verify
+bash config/ci/check-compat.sh
 
-echo "release: OK（API 兼容性需要已发布的 1.0.0 基线）"
+echo "release: OK（API 兼容门禁由 check-compat.sh 执行；基线缺失即失败）"

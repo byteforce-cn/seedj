@@ -9,9 +9,16 @@
 - 门禁为 opt-in：`mvn -Pcompat -DskipTests verify`，基线版本由 `-Dseedj.compat.baseline=<x.y.z>` 指定
   （默认 `1.0.0`，即首个正式版本）。
 - 基线制品必须能从本地仓库或私服解析；解析不到时构建**失败**，不静默跳过。
+  实现上由 `config/ci/check-compat.sh` 先用 `dependency:get` 逐个确认基线制品，再调用
+  `-Pcompat`（japicmp 0.26.3 自身在基线缺失时只告警，不能依赖它）。
+  首次发布（还没有任何基线）必须显式设置 `SEEDJ_FIRST_RELEASE=true`。
 - 二进制不兼容默认**阻断**；源码不兼容当前只报告（`breakBuildOnSourceIncompatibleModifications=false`），
   因为有意的变更需要 ADR + 变更清单，而不是让门禁替人做决定。
 - `seedj-it` 是测试模块，在自身 POM 声明 `seedj.compat.skip=true`。
+- 1.0.0 发布前的包拓扑调整（T3.1–T3.4）按
+  [ADR-0009](adr/ADR-0009-package-topology-and-api-convergence.md) 与
+  [变更清单](conformance/change-list-2026-11-06-architecture-remediation.md) 登记；
+  发布后才进入 `-Pcompat` 的二进制比较。
 
 ## 允许的变更（不需要 ADR）
 
@@ -46,7 +53,8 @@
 
 ## 相关入口
 
-- 兼容性门禁实现：[config/conformance/README.md](../config/conformance/README.md)
+- 兼容性门禁实现：[config/ci/check-compat.sh](../config/ci/check-compat.sh)、
+  [config/conformance/README.md](../config/conformance/README.md)
 - 契约一致性设计与分期验收：[设计](superpowers/specs/2026-11-05-contract-conformance-design.md)、
   [验收记录](conformance/runs/)
 - 发布流程：[releasing.md](releasing.md)

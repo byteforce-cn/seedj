@@ -41,6 +41,9 @@ bash config/ci/verify.sh                            # 主门禁：测试 + 覆�
   `target/site/jacoco/jacoco.xml`，任何模块低于基线 0.5 个百分点即失败。
 - 只允许上调；下调必须改基线文件并在 PR 说明原因。
 - 变更行目标 ≥ 90%；CI 安装 `diff-cover` 后按 `--fail-under=90` 执行。
+- 热点报告：`bash config/ci/coverage-report.sh`（写入 `target/coverage-hotspots.md`）。
+- 当前与 T4.3 目标终值的差距记录在
+  [覆盖率差距（2026-11-06）](assessment/2026-11-06-coverage-gap.md)；未达标不伪造。
 
 ## 架构与文档门禁
 
@@ -53,6 +56,7 @@ bash config/ci/verify.sh                            # 主门禁：测试 + 覆�
 | `FileSizeGuardTest` | 单文件 ≤ 600 行；允许清单为空 |
 | `PackageInfoTest` | 每个模块至少一个 package-info，说明职责与依赖方向 |
 | `DocLinkTest` | 所有 Markdown 相对链接可解析；README 不含退役模块名 |
+| `CommandApiConformanceTest` | `config/conformance/commands.yaml` 与 `CommandCatalog` 一致 |
 
 新增 public 类型后运行：
 
@@ -62,6 +66,13 @@ bash config/ci/verify.sh                            # 主门禁：测试 + 覆�
 ```
 
 并提交 `config/public-api.txt` 的 diff。
+
+## SpotBugs 与依赖扫描
+
+- `-Panalysis` 在 `verify` 阶段执行 SpotBugs，Medium 及以上默认**阻断**；
+  排除项必须带原因，集中在 `config/spotbugs-exclude.xml`。
+- `bash config/ci/dependency-check.sh` 是 CI/发布专用门禁（需要在线仓库与 NVD 数据），
+  `failBuildOnCVSS=7`；离线调用显式失败，不静默跳过。
 
 ## 相关文档
 

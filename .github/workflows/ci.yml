@@ -76,8 +76,11 @@ jobs:
         env:
           MAVEN_FLAGS: ""
           SPOTBUGS_FAIL_ON_ERROR: "true"
+          # 首个正式版本没有可比较的基线；之后的 tag 必须解析到基线，否则 check-compat.sh 失败。
+          SEEDJ_FIRST_RELEASE: ${{ github.ref_name == 'v1.0.0' }}
         run: |
           bash config/ci/verify.sh
+          bash config/ci/dependency-check.sh
           bash config/ci/release.sh
       - uses: actions/upload-artifact@v4
         with:

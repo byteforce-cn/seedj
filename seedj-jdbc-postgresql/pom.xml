@@ -17,7 +17,7 @@
 
     <properties>
         <seedj.coverage.line>0.73</seedj.coverage.line>
-        <seedj.coverage.branch>0.54</seedj.coverage.branch>
+        <seedj.coverage.branch>0.55</seedj.coverage.branch>
     </properties>
 
     <dependencies>
