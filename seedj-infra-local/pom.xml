@@ -13,7 +13,7 @@
     <packaging>jar</packaging>
 
     <name>Byteforce Seedj :: Infrastructure :: Local</name>
-    <description>本地实现：内存/文件承载的 PKI、Transit、EventBus、ID、Lock、Audit、IAM memory 与 Workflow</description>
+    <description>本地实现：内存/文件承载的 PKI、Transit、EventBus、ID、Lock、Audit 与 IAM memory（workflow 见 seedj-workflow-local）</description>
 
     <properties>
         <seedj.coverage.line>0.72</seedj.coverage.line>

@@ -510,9 +510,6 @@ seedj-infra-local|cn.byteforce.seedj.infra.local.security|InMemorySecurityAuditS
 seedj-infra-local|cn.byteforce.seedj.infra.local.transit|BcTransitProvider
 seedj-infra-local|cn.byteforce.seedj.infra.local.transit|TransitAutoConfiguration
 seedj-infra-local|cn.byteforce.seedj.infra.local.transit|TransitProperties
-seedj-infra-local|cn.byteforce.seedj.infra.local.workflow|InMemoryWorkflowProvider
-seedj-infra-local|cn.byteforce.seedj.infra.local.workflow|WorkflowAutoConfiguration
-seedj-infra-local|cn.byteforce.seedj.infra.local.workflow|WorkflowProperties
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.audit|AuditSchemaCapability
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.audit|JdbcAuditStore
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.audit|PostgresAuditAutoConfiguration
@@ -577,3 +574,6 @@ seedj-server/hr|cn.byteforce.seedj.server.hr.employee|OrgUnitDirectory
 seedj-server/hr|cn.byteforce.seedj.server.hr|HrServer
 seedj-server/iam|cn.byteforce.seedj.server.iam|IamServer
 seedj-server/im|cn.byteforce.seedj.server.im|ImServer
+seedj-workflow-local|cn.byteforce.seedj.infra.local.workflow|InMemoryWorkflowProvider
+seedj-workflow-local|cn.byteforce.seedj.infra.local.workflow|WorkflowAutoConfiguration
+seedj-workflow-local|cn.byteforce.seedj.infra.local.workflow|WorkflowProperties

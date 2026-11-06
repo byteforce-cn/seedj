@@ -47,6 +47,7 @@
         <module>core</module>
         <module>seedj-codegen</module>
         <module>seedj-infra-local</module>
+        <module>seedj-workflow-local</module>
         <module>seedj-jdbc-postgresql</module>
         <module>seedj-iam-starter</module>
         <module>seedj-biz-starter</module>

@@ -36,7 +36,7 @@ public class HrEmployeeModule implements ObjectModuleConfigurer {
 
     @Override
     public void configure(ObjectModules modules) {
-        // 字段声明只有一个来源：@SeedjObject record 生成的 schema。
+        // 字段声明只有一个来源：代码生成器从业务 record 产出的 schema。
         modules.object(HrEmployeeFieldsSchema.schema())
                 .readPermission("hr.employee.read")
                 .contextKey(HrScopeKeys.ORG_UNITS)

@@ -22,5 +22,9 @@
   "seedj-jdbc-postgresql": {
     "branch": 0.55,
     "line": 0.73
+  },
+  "seedj-workflow-local": {
+    "branch": 0.52,
+    "line": 0.72
   }
 }
