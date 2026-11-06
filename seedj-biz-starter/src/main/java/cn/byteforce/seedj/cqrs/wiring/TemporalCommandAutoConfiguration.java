@@ -4,8 +4,12 @@ import cn.byteforce.seedj.biz.autoconfigure.BizEnabledMarker;
 import cn.byteforce.seedj.core.InfrastructureCapability;
 import cn.byteforce.seedj.core.clock.Clock;
 import cn.byteforce.seedj.core.clock.Clocks;
+import cn.byteforce.seedj.core.security.CallerIdCodec;
 import cn.byteforce.seedj.core.security.CallerProvider;
+import cn.byteforce.seedj.biz.validation.BeanValidationCommandValidator;
 import cn.byteforce.seedj.cqrs.CommandCatalog;
+import cn.byteforce.seedj.cqrs.CommandPolicy;
+import cn.byteforce.seedj.cqrs.CommandValidator;
 import cn.byteforce.seedj.cqrs.CommandRuntime;
 import cn.byteforce.seedj.cqrs.TemporalCommandAgent;
 import cn.byteforce.seedj.cqrs.TemporalCommandAudit;
@@ -221,8 +225,47 @@ public class TemporalCommandAutoConfiguration {
     @ConditionalOnMissingBean
     @ConditionalOnProperty(prefix = "seedj.command", name = "enabled", havingValue = "true",
             matchIfMissing = true)
-    public CommandCatalog commandCatalog(List<TemporalCommandAgent<?>> agents) {
-        return new CommandCatalog(agents);
+    public CommandCatalog commandCatalog(List<TemporalCommandAgent<?>> agents,
+                                         CommandPolicy policy) {
+        return new CommandCatalog(agents, policy);
+    }
+
+    /**
+     * 命令级授权策略：以 descriptor 的 permission 为准。
+     *
+     * @return 权限策略
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public CommandPolicy commandPolicy() {
+        return CommandPolicy.permissions();
+    }
+
+    /**
+     * 调用方标识编解码：默认要求 UUID；非 UUID IdP 由应用覆盖为 nameUuid()。
+     *
+     * @return 编解码
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public CallerIdCodec callerIdCodec() {
+        return CallerIdCodec.uuid();
+    }
+
+    /**
+     * 命令载荷校验：存在 Bean Validation 时使用注解校验，否则不校验。
+     *
+     * @param validator Bean Validation 校验器
+     * @return 命令校验器
+     */
+    @Bean
+    @ConditionalOnMissingBean(CommandValidator.class)
+    @ConditionalOnClass(name = "jakarta.validation.Validator")
+    public CommandValidator beanValidationCommandValidator(
+            ObjectProvider<jakarta.validation.Validator> validator) {
+        jakarta.validation.Validator delegate = validator.getIfAvailable();
+        return delegate == null
+                ? CommandValidator.none() : new BeanValidationCommandValidator(delegate);
     }
 
     /**
@@ -279,10 +322,11 @@ public class TemporalCommandAutoConfiguration {
         @ConditionalOnProperty(prefix = "seedj.command", name = "enabled", havingValue = "true",
                 matchIfMissing = true)
         CommandController commandController(CommandCatalog catalog, CommandStore commands,
-                                            ObjectProvider<CallerProvider> callers) {
+                                            ObjectProvider<CallerProvider> callers,
+                                            CallerIdCodec callerIds) {
             CallerProvider provider = callers.getIfAvailable();
             return new CommandController(catalog, commands,
-                    provider == null ? Optional::empty : provider);
+                    provider == null ? Optional::empty : provider, callerIds);
         }
 
         @Bean

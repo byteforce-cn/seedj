@@ -2,6 +2,7 @@ package cn.byteforce.seedj.cqrs.wiring;
 
 import cn.byteforce.seedj.biz.autoconfigure.BizEnabledMarker;
 import cn.byteforce.seedj.cqrs.CommandCatalog;
+import cn.byteforce.seedj.cqrs.CommandDescriptor;
 import cn.byteforce.seedj.cqrs.CommandRuntime;
 import cn.byteforce.seedj.cqrs.TemporalCommandAgent;
 import cn.byteforce.seedj.cqrs.memory.InMemoryCommandStore;
@@ -136,7 +137,12 @@ class TemporalCommandAutoConfigurationTest {
     static final class ProbeAgent extends TemporalCommandAgent<ProbeCommand> {
 
         ProbeAgent(CommandRuntime runtime) {
-            super(runtime, "probe.update", "probe", ProbeCommand.class);
+            super(runtime, CommandDescriptor.builder()
+                    .type("probe.update")
+                    .objectType("probe")
+                    .payloadType(ProbeCommand.class)
+                    .permission("probe.write")
+                    .build());
         }
 
         @Override

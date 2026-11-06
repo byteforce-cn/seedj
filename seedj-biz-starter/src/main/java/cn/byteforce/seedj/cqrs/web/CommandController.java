@@ -3,6 +3,7 @@ package cn.byteforce.seedj.cqrs.web;
 import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;
 import cn.byteforce.seedj.core.security.Caller;
+import cn.byteforce.seedj.core.security.CallerIdCodec;
 import cn.byteforce.seedj.core.security.CallerProvider;
 import cn.byteforce.seedj.cqrs.CommandCatalog;
 import cn.byteforce.seedj.cqrs.CommandReceipt;
@@ -40,18 +41,22 @@ public final class CommandController {
 
     private final CallerProvider callers;
 
+    private final CallerIdCodec callerIds;
+
     /**
      * 构造控制器。
      *
-     * @param catalog  命令注册表
-     * @param commands 命令记录存储
-     * @param callers  当前调用方
+     * @param catalog   命令注册表
+     * @param commands  命令记录存储
+     * @param callers   当前调用方
+     * @param callerIds 调用方标识 → actor 编解码
      */
     public CommandController(CommandCatalog catalog, CommandStore commands,
-                             CallerProvider callers) {
+                             CallerProvider callers, CallerIdCodec callerIds) {
         this.catalog = Objects.requireNonNull(catalog, "catalog");
         this.commands = Objects.requireNonNull(commands, "commands");
         this.callers = Objects.requireNonNull(callers, "callers");
+        this.callerIds = Objects.requireNonNull(callerIds, "callerIds");
     }
 
     /**
@@ -66,15 +71,17 @@ public final class CommandController {
                                     @RequestBody CommandRequest request) {
         try {
             validateRequest(commandType, request);
+            Caller caller = currentCaller();
             CommandSubmission submission;
             try {
                 submission = new CommandSubmission(commandType, request.payload(),
-                        request.idempotencyKey(), request.targets(), issuer());
+                        request.idempotencyKey(), request.targets(),
+                        callerIds.toActor(caller));
             } catch (IllegalArgumentException error) {
                 throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
                         messageOf(error, "invalid command request"));
             }
-            CommandReceipt receipt = catalog.execute(submission);
+            CommandReceipt receipt = catalog.execute(submission, caller);
             return switch (receipt.status()) {
                 case ACCEPTED -> ResponseEntity.status(202).body(accepted(receipt));
                 case REJECTED -> ResponseEntity.status(400).body(rejected(receipt));
@@ -86,6 +93,7 @@ public final class CommandController {
                 return ResponseEntity.status(409).body(conflict(error));
             }
             if (error.code() == ContractErrorCode.UNAUTHENTICATED
+                    || error.code() == ContractErrorCode.FORBIDDEN
                     || error.code() == ContractErrorCode.UNAVAILABLE) {
                 throw error;
             }
@@ -141,16 +149,10 @@ public final class CommandController {
         }
     }
 
-    private UUID issuer() {
-        Caller caller = callers.find()
+    private Caller currentCaller() {
+        return callers.find()
                 .orElseThrow(() -> new ContractException(ContractErrorCode.UNAUTHENTICATED,
                         "authentication required"));
-        try {
-            return UUID.fromString(caller.id());
-        } catch (IllegalArgumentException error) {
-            throw new ContractException(ContractErrorCode.UNAUTHENTICATED,
-                    "caller id is not a UUID");
-        }
     }
 
     private static Map<String, Object> accepted(CommandReceipt receipt) {

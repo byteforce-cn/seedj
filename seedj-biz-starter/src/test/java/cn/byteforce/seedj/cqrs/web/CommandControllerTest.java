@@ -5,8 +5,10 @@ import cn.byteforce.seedj.core.clock.Clock;
 import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;
 import cn.byteforce.seedj.core.security.Caller;
+import cn.byteforce.seedj.core.security.CallerIdCodec;
 import cn.byteforce.seedj.core.security.CallerProvider;
 import cn.byteforce.seedj.cqrs.CommandDescriptor;
+import cn.byteforce.seedj.cqrs.CommandPolicy;
 import cn.byteforce.seedj.cqrs.CommandCatalog;
 import cn.byteforce.seedj.cqrs.CommandRuntime;
 import cn.byteforce.seedj.cqrs.TemporalCommandAgent;
@@ -63,7 +65,8 @@ class CommandControllerTest {
 
     private final CallerProvider callers = () -> Optional.ofNullable(caller.get());
 
-    private final CommandCatalog catalog = new CommandCatalog(List.of(new ProbeAgent(runtime)));
+    private final CommandCatalog catalog =
+            new CommandCatalog(List.of(new ProbeAgent(runtime)), CommandPolicy.permissions());
 
     private MockMvc mvc;
 
@@ -72,7 +75,7 @@ class CommandControllerTest {
         commands.clear();
         objects.clear();
         caller.set(caller(ACTOR.toString()));
-        mvc = MockMvcBuilders.standaloneSetup(new CommandController(catalog, commands, callers))
+        mvc = MockMvcBuilders.standaloneSetup(new CommandController(catalog, commands, callers, CallerIdCodec.uuid()))
                 .setControllerAdvice(new ContractErrorHandler())
                 .build();
     }
@@ -225,6 +228,37 @@ class CommandControllerTest {
     }
 
     @Test
+    @DisplayName("无命令权限：403 EIS-403-001，不进入锁与事务")
+    void unauthorizedCommandIs403() throws Exception {
+        caller.set(callerWithoutPermission(ACTOR.toString()));
+
+        mvc.perform(post("/commands/probe.update")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body("k-9", "Alice", false)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("EIS-403-001"))
+                .andExpect(jsonPath("$.details.reason_code").value("EIS-403-001"));
+
+        org.assertj.core.api.Assertions.assertThat(objects.history("probe", ID)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("非 UUID 主体 + nameUuid 编解码：命令可执行")
+    void nameUuidCodecAcceptsNonUuidCaller() throws Exception {
+        caller.set(new Caller("u-1", "alice", "default", Set.of(), Set.of("probe.write"),
+                Set.of(), Set.of(Caller.DEFAULT_AMR), Caller.DEFAULT_ACR, Map.of()));
+        MockMvc nameUuidMvc = MockMvcBuilders.standaloneSetup(
+                        new CommandController(catalog, commands, callers, CallerIdCodec.nameUuid()))
+                .setControllerAdvice(new ContractErrorHandler())
+                .build();
+
+        nameUuidMvc.perform(post("/commands/probe.update")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body("k-10", "Alice", false)))
+                .andExpect(status().isAccepted());
+    }
+
+    @Test
     @DisplayName("未知命令的 GET：404 契约信封")
     void unknownCommandStatusIs404() throws Exception {
         mvc.perform(get("/commands/" + UUID.randomUUID()))
@@ -243,7 +277,12 @@ class CommandControllerTest {
     }
 
     private static Caller caller(String id) {
-        return new Caller(id, "alice", "default", Set.of(), Set.of(), Set.of(),
+        return new Caller(id, "alice", "default", Set.of(), Set.of("probe.write"), Set.of(),
+                Set.of(Caller.DEFAULT_AMR), Caller.DEFAULT_ACR, Map.of());
+    }
+
+    private static Caller callerWithoutPermission(String id) {
+        return new Caller(id, "bob", "default", Set.of(), Set.of("probe.read"), Set.of(),
                 Set.of(Caller.DEFAULT_AMR), Caller.DEFAULT_ACR, Map.of());
     }
 
@@ -254,6 +293,7 @@ class CommandControllerTest {
                     .type("probe.update")
                     .objectType("probe")
                     .payloadType(ProbeCommand.class)
+                    .permission("probe.write")
                     .build());
         }
 

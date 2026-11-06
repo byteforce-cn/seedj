@@ -33,6 +33,7 @@ core|cn.byteforce.seedj.core.exception|ContractException
 core|cn.byteforce.seedj.core.exception|RemoteException
 core|cn.byteforce.seedj.core.security|AccessTokenRules
 core|cn.byteforce.seedj.core.security|Caller
+core|cn.byteforce.seedj.core.security|CallerIdCodec
 core|cn.byteforce.seedj.core.security|CallerProvider
 core|cn.byteforce.seedj.core.security|DerivedField
 core|cn.byteforce.seedj.core.security|DerivedFieldKeyRing
@@ -330,6 +331,7 @@ seedj-biz-starter|cn.byteforce.seedj.biz.security|JwtCallerProvider
 seedj-biz-starter|cn.byteforce.seedj.biz.security|JwtClaimsMapper
 seedj-biz-starter|cn.byteforce.seedj.biz.security|SecurityDenialAudit
 seedj-biz-starter|cn.byteforce.seedj.biz.security|ThreadLocalCallerPropagation
+seedj-biz-starter|cn.byteforce.seedj.biz.validation|BeanValidationCommandValidator
 seedj-biz-starter|cn.byteforce.seedj.biz.web|ContractErrorHandler
 seedj-biz-starter|cn.byteforce.seedj.cqrs.web|CommandController
 seedj-biz-starter|cn.byteforce.seedj.cqrs.web|CommandRequest

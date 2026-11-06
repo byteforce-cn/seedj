@@ -1,6 +1,7 @@
 package cn.byteforce.seedj.biz.security;
 
 import cn.byteforce.seedj.biz.autoconfigure.BizEnabledMarker;
+import cn.byteforce.seedj.biz.web.ContractErrorHandler;
 import cn.byteforce.seedj.core.security.AccessTokenRules;
 import cn.byteforce.seedj.core.security.CallerProvider;
 import cn.byteforce.seedj.core.security.SecurityAuditSink;
@@ -71,6 +72,17 @@ public class BizSecurityAutoConfiguration {
      * 6 biz / LAST IAM 浏览器登录（见 {@code IamServerAutoConfiguration}）。
      */
     public static final int BIZ_FILTER_CHAIN_ORDER = 6;
+
+    /**
+     * 契约错误信封：所有业务/基础设施错误都走同一映射，避免各 controller 自拼响应。
+     *
+     * @return 错误处理器
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public ContractErrorHandler contractErrorHandler() {
+        return new ContractErrorHandler();
+    }
 
     @Bean
     @ConditionalOnMissingBean
