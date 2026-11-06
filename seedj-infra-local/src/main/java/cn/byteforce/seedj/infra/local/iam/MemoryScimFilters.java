@@ -1,7 +1,7 @@
 package cn.byteforce.seedj.infra.local.iam;
 
-import cn.byteforce.seedj.iam.scim.ScimComparisonOperator;
-import cn.byteforce.seedj.iam.scim.ScimFilter;
+import cn.byteforce.seedj.iam.ScimComparisonOperator;
+import cn.byteforce.seedj.iam.ScimFilter;
 
 import java.util.Collection;
 import java.util.Locale;

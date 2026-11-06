@@ -1,4 +1,5 @@
-package cn.byteforce.seedj.iam.scim;
+package cn.byteforce.seedj.iam;
+
 
 import java.util.List;
 import java.util.Objects;

@@ -1,5 +1,7 @@
 package cn.byteforce.seedj.starter.iam.config;
 
+import cn.byteforce.seedj.starter.iam.IamProperties;
+
 import org.springframework.core.env.Environment;
 
 /** Resolves the issuer from {@code seedj.iam.issuer} or the Boot standard property. */

@@ -1,9 +1,9 @@
 package cn.byteforce.seedj.infra.jdbc.iam;
 
-import cn.byteforce.seedj.iam.policy.PolicyComparisonOperator;
-import cn.byteforce.seedj.iam.policy.PolicyCondition;
-import cn.byteforce.seedj.iam.policy.PolicyOperand;
-import cn.byteforce.seedj.iam.policy.PolicyOperandSource;
+import cn.byteforce.seedj.iam.PolicyComparisonOperator;
+import cn.byteforce.seedj.iam.PolicyCondition;
+import cn.byteforce.seedj.iam.PolicyOperand;
+import cn.byteforce.seedj.iam.PolicyOperandSource;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ArrayNode;

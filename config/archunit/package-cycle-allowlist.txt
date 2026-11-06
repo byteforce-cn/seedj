@@ -3,5 +3,3 @@
 cn.byteforce.seedj.audit,cn.byteforce.seedj.audit.spi
 cn.byteforce.seedj.core.clock,cn.byteforce.seedj.core.clock.spi
 cn.byteforce.seedj.cqrs,cn.byteforce.seedj.cqrs.spi
-cn.byteforce.seedj.iam,cn.byteforce.seedj.iam.policy,cn.byteforce.seedj.iam.scim,cn.byteforce.seedj.iam.spi
-cn.byteforce.seedj.starter.iam.config,cn.byteforce.seedj.starter.iam.identity,cn.byteforce.seedj.starter.iam.nativeauth,cn.byteforce.seedj.starter.iam.scim,cn.byteforce.seedj.starter.iam.security,cn.byteforce.seedj.starter.iam.token,cn.byteforce.seedj.starter.iam.web

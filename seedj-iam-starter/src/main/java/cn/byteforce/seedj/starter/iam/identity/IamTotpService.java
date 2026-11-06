@@ -6,7 +6,7 @@ import cn.byteforce.seedj.iam.IamException;
 import cn.byteforce.seedj.iam.IamRecoveryCode;
 import cn.byteforce.seedj.iam.IamTotpState;
 import cn.byteforce.seedj.iam.IamUser;
-import cn.byteforce.seedj.starter.iam.config.IamProperties;
+import cn.byteforce.seedj.starter.iam.IamProperties;
 import cn.byteforce.seedj.core.security.SecurityAuditSink;
 import cn.byteforce.seedj.iam.spi.IamPasswordHasher;
 import cn.byteforce.seedj.iam.spi.IamSecretProtector;

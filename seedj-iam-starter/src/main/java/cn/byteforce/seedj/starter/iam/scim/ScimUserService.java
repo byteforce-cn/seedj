@@ -10,7 +10,7 @@ import cn.byteforce.seedj.iam.IamGroup;
 import cn.byteforce.seedj.iam.IamPage;
 import cn.byteforce.seedj.iam.IamUser;
 import cn.byteforce.seedj.iam.IamUserQuery;
-import cn.byteforce.seedj.starter.iam.config.IamProperties;
+import cn.byteforce.seedj.starter.iam.IamProperties;
 import cn.byteforce.seedj.starter.iam.identity.IamIdentityService;
 import cn.byteforce.seedj.iam.spi.IamGroupRepository;
 import cn.byteforce.seedj.iam.spi.IamPasswordHasher;

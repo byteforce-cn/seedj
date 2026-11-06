@@ -1,6 +1,6 @@
 package cn.byteforce.seedj.starter.iam.security;
 
-import cn.byteforce.seedj.starter.iam.config.IamProperties;
+import cn.byteforce.seedj.starter.iam.IamProperties;
 import cn.byteforce.seedj.id.IdGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -3,7 +3,7 @@ package cn.byteforce.seedj.starter.iam.identity;
 import cn.byteforce.seedj.iam.IamErrorCode;
 import cn.byteforce.seedj.iam.IamException;
 import cn.byteforce.seedj.iam.IamMfaChallenge;
-import cn.byteforce.seedj.starter.iam.config.IamProperties;
+import cn.byteforce.seedj.starter.iam.IamProperties;
 import cn.byteforce.seedj.iam.spi.IamTotpRepository;
 import cn.byteforce.seedj.id.IdGenerator;
 

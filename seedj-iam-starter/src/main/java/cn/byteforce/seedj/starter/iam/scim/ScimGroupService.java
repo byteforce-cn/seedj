@@ -1,5 +1,7 @@
 package cn.byteforce.seedj.starter.iam.scim;
 
+
+
 import cn.byteforce.seedj.iam.scim.ScimFilterParser;
 import cn.byteforce.seedj.iam.scim.ScimPatchOperation;
 import cn.byteforce.seedj.iam.scim.ScimPatchParser;
@@ -10,7 +12,7 @@ import cn.byteforce.seedj.iam.IamException;
 import cn.byteforce.seedj.iam.IamGroup;
 import cn.byteforce.seedj.iam.IamGroupQuery;
 import cn.byteforce.seedj.iam.IamPage;
-import cn.byteforce.seedj.starter.iam.config.IamProperties;
+import cn.byteforce.seedj.starter.iam.IamProperties;
 import cn.byteforce.seedj.iam.spi.IamAuthorizationRepository;
 import cn.byteforce.seedj.iam.spi.IamGroupRepository;
 import cn.byteforce.seedj.iam.spi.IamUserRepository;
@@ -254,9 +256,9 @@ public class ScimGroupService {
             }
         }
 
-        private static String filterValue(cn.byteforce.seedj.iam.scim.ScimFilter filter) {
-            if (filter instanceof cn.byteforce.seedj.iam.scim.ScimFilter.Compare compare
-                    && compare.operator() == cn.byteforce.seedj.iam.scim.ScimComparisonOperator.EQ) {
+        private static String filterValue(cn.byteforce.seedj.iam.ScimFilter filter) {
+            if (filter instanceof cn.byteforce.seedj.iam.ScimFilter.Compare compare
+                    && compare.operator() == cn.byteforce.seedj.iam.ScimComparisonOperator.EQ) {
                 return String.valueOf(compare.value());
             }
             return null;

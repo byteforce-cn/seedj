@@ -149,12 +149,6 @@ core|cn.byteforce.seedj.iam.authz|SodRule
 core|cn.byteforce.seedj.iam.authz|SodRuleSet
 core|cn.byteforce.seedj.iam.authz|SodScope
 core|cn.byteforce.seedj.iam.policy|DefaultIamPolicyDecisionPoint
-core|cn.byteforce.seedj.iam.policy|PolicyComparisonOperator
-core|cn.byteforce.seedj.iam.policy|PolicyCondition
-core|cn.byteforce.seedj.iam.policy|PolicyOperand
-core|cn.byteforce.seedj.iam.policy|PolicyOperandSource
-core|cn.byteforce.seedj.iam.scim|ScimComparisonOperator
-core|cn.byteforce.seedj.iam.scim|ScimFilter
 core|cn.byteforce.seedj.iam.scim|ScimFilterParser
 core|cn.byteforce.seedj.iam.scim|ScimPatchOperation
 core|cn.byteforce.seedj.iam.scim|ScimPatchParser
@@ -193,6 +187,12 @@ core|cn.byteforce.seedj.iam|IamSubjectAuthorization
 core|cn.byteforce.seedj.iam|IamTotpState
 core|cn.byteforce.seedj.iam|IamUser
 core|cn.byteforce.seedj.iam|IamUserQuery
+core|cn.byteforce.seedj.iam|PolicyComparisonOperator
+core|cn.byteforce.seedj.iam|PolicyCondition
+core|cn.byteforce.seedj.iam|PolicyOperand
+core|cn.byteforce.seedj.iam|PolicyOperandSource
+core|cn.byteforce.seedj.iam|ScimComparisonOperator
+core|cn.byteforce.seedj.iam|ScimFilter
 core|cn.byteforce.seedj.id|IdErrorCode
 core|cn.byteforce.seedj.id|IdException
 core|cn.byteforce.seedj.id|IdGenerator
@@ -386,7 +386,6 @@ seedj-iam-starter|cn.byteforce.seedj.starter.iam.autoconfigure|IamStoreConfigura
 seedj-iam-starter|cn.byteforce.seedj.starter.iam.autoconfigure|IamUserDetailsAutoConfiguration
 seedj-iam-starter|cn.byteforce.seedj.starter.iam.autoconfigure|IamWebConfiguration
 seedj-iam-starter|cn.byteforce.seedj.starter.iam.config|IamIssuerResolver
-seedj-iam-starter|cn.byteforce.seedj.starter.iam.config|IamProperties
 seedj-iam-starter|cn.byteforce.seedj.starter.iam.config|IamServerAutoConfiguration
 seedj-iam-starter|cn.byteforce.seedj.starter.iam.identity|IamAuthorizationService
 seedj-iam-starter|cn.byteforce.seedj.starter.iam.identity|IamBootstrapRunner
@@ -415,7 +414,6 @@ seedj-iam-starter|cn.byteforce.seedj.starter.iam.security|IamClientFactory
 seedj-iam-starter|cn.byteforce.seedj.starter.iam.security|IamInMemoryRegisteredClientRepository
 seedj-iam-starter|cn.byteforce.seedj.starter.iam.security|IamJwkAdminController
 seedj-iam-starter|cn.byteforce.seedj.starter.iam.security|IamJwtValidators
-seedj-iam-starter|cn.byteforce.seedj.starter.iam.security|IamMfaAuthenticationSuccessHandler
 seedj-iam-starter|cn.byteforce.seedj.starter.iam.security|IamRevocableAuthorizationService
 seedj-iam-starter|cn.byteforce.seedj.starter.iam.security|NativeAuthGrantType
 seedj-iam-starter|cn.byteforce.seedj.starter.iam.security|PkiIamSigningKeyStore
@@ -425,10 +423,12 @@ seedj-iam-starter|cn.byteforce.seedj.starter.iam.web|AuthorizationRequestConform
 seedj-iam-starter|cn.byteforce.seedj.starter.iam.web|EndpointParameterConformanceFilter
 seedj-iam-starter|cn.byteforce.seedj.starter.iam.web|IamBearerTokenEntryPoint
 seedj-iam-starter|cn.byteforce.seedj.starter.iam.web|IamExceptionHandler
+seedj-iam-starter|cn.byteforce.seedj.starter.iam.web|IamMfaAuthenticationSuccessHandler
 seedj-iam-starter|cn.byteforce.seedj.starter.iam.web|IamMfaController
 seedj-iam-starter|cn.byteforce.seedj.starter.iam.web|IamTotpController
 seedj-iam-starter|cn.byteforce.seedj.starter.iam.web|IdTokenIntrospectionGuard
 seedj-iam-starter|cn.byteforce.seedj.starter.iam.web|ReauthAwareAuthenticationSuccessHandler
+seedj-iam-starter|cn.byteforce.seedj.starter.iam|IamProperties
 seedj-infra-local|cn.byteforce.seedj.infra.local.audit|InMemoryAuditAutoConfiguration
 seedj-infra-local|cn.byteforce.seedj.infra.local.audit|InMemoryAuditStore
 seedj-infra-local|cn.byteforce.seedj.infra.local.cqrs|InMemoryCommandStore

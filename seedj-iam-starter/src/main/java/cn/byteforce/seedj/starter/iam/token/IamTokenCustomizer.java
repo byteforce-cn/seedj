@@ -2,7 +2,7 @@ package cn.byteforce.seedj.starter.iam.token;
 
 import cn.byteforce.seedj.iam.IamSubjectAuthorization;
 import cn.byteforce.seedj.iam.IamUser;
-import cn.byteforce.seedj.starter.iam.config.IamProperties;
+import cn.byteforce.seedj.starter.iam.IamProperties;
 import cn.byteforce.seedj.starter.iam.identity.IamAuthorizationService;
 import cn.byteforce.seedj.iam.spi.IamUserRepository;
 import org.springframework.security.core.Authentication;

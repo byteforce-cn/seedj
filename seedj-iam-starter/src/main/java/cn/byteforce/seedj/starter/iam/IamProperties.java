@@ -1,4 +1,4 @@
-package cn.byteforce.seedj.starter.iam.config;
+package cn.byteforce.seedj.starter.iam;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 

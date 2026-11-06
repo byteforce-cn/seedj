@@ -2,8 +2,8 @@ package cn.byteforce.seedj.infra.jdbc.iam;
 
 import cn.byteforce.seedj.iam.IamErrorCode;
 import cn.byteforce.seedj.iam.IamException;
-import cn.byteforce.seedj.iam.scim.ScimComparisonOperator;
-import cn.byteforce.seedj.iam.scim.ScimFilter;
+import cn.byteforce.seedj.iam.ScimComparisonOperator;
+import cn.byteforce.seedj.iam.ScimFilter;
 
 import java.util.ArrayList;
 import java.util.List;

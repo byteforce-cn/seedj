@@ -1,5 +1,7 @@
 package cn.byteforce.seedj.starter.iam.config;
 
+import cn.byteforce.seedj.starter.iam.IamProperties;
+
 import cn.byteforce.seedj.starter.iam.nativeauth.NativeAuthAuthenticationConverter;
 import cn.byteforce.seedj.starter.iam.nativeauth.NativeAuthAuthenticationProvider;
 import cn.byteforce.seedj.starter.iam.nativeauth.NativeAuthErrorResponseHandler;
@@ -9,7 +11,7 @@ import cn.byteforce.seedj.infra.local.iam.InMemoryIamTokenRevoker;
 import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.starter.iam.security.IamClientBootstrapRunner;
 import cn.byteforce.seedj.starter.iam.security.IamInMemoryRegisteredClientRepository;
-import cn.byteforce.seedj.starter.iam.security.IamMfaAuthenticationSuccessHandler;
+import cn.byteforce.seedj.starter.iam.web.IamMfaAuthenticationSuccessHandler;
 import cn.byteforce.seedj.starter.iam.security.IamRevocableAuthorizationService;
 import cn.byteforce.seedj.starter.iam.security.NativeAuthGrantType;
 import cn.byteforce.seedj.iam.spi.IamSigningKeyStore;

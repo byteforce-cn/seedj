@@ -1,7 +1,7 @@
 package cn.byteforce.seedj.starter.iam.scim;
 
 import cn.byteforce.seedj.iam.IamException;
-import cn.byteforce.seedj.starter.iam.config.IamProperties;
+import cn.byteforce.seedj.starter.iam.IamProperties;
 import cn.byteforce.seedj.starter.iam.identity.IamIdentityService;
 import cn.byteforce.seedj.starter.iam.identity.IamPasswordHasherAdapter;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamAuditSink;

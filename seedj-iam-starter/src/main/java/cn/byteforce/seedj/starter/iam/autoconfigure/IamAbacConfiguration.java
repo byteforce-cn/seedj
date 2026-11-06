@@ -3,7 +3,7 @@ package cn.byteforce.seedj.starter.iam.autoconfigure;
 import cn.byteforce.seedj.starter.iam.abac.CachingIamPolicyDecisionPoint;
 import cn.byteforce.seedj.starter.iam.abac.IamAuthorizationFacade;
 import cn.byteforce.seedj.starter.iam.abac.IamPolicyAdminController;
-import cn.byteforce.seedj.starter.iam.config.IamProperties;
+import cn.byteforce.seedj.starter.iam.IamProperties;
 import cn.byteforce.seedj.starter.iam.identity.IamAuthorizationService;
 import cn.byteforce.seedj.iam.policy.DefaultIamPolicyDecisionPoint;
 import cn.byteforce.seedj.core.security.SecurityAuditSink;

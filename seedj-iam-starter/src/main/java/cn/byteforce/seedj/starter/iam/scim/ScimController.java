@@ -1,5 +1,6 @@
 package cn.byteforce.seedj.starter.iam.scim;
 
+
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -33,7 +34,7 @@ public class ScimController {
     private final String basePath;
 
     public ScimController(ScimUserService users, ScimGroupService groups,
-                          cn.byteforce.seedj.starter.iam.config.IamProperties properties) {
+                          cn.byteforce.seedj.starter.iam.IamProperties properties) {
         this.users = users;
         this.groups = groups;
         this.basePath = properties.scim().basePath();

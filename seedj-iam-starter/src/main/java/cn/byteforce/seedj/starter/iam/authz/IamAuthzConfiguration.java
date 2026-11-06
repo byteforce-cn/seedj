@@ -5,7 +5,7 @@ import cn.byteforce.seedj.iam.authz.IamBindingStore;
 import cn.byteforce.seedj.iam.authz.IamPermissionCondition;
 import cn.byteforce.seedj.iam.authz.SodRuleSet;
 
-import cn.byteforce.seedj.starter.iam.config.IamProperties;
+import cn.byteforce.seedj.starter.iam.IamProperties;
 import cn.byteforce.seedj.infra.jdbc.iam.JdbcIamBindingStore;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamAttributeSource;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamBindingStore;

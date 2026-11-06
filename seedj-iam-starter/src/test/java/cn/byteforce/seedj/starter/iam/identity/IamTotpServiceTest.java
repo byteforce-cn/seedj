@@ -2,7 +2,7 @@ package cn.byteforce.seedj.starter.iam.identity;
 
 import cn.byteforce.seedj.iam.IamException;
 import cn.byteforce.seedj.iam.IamUser;
-import cn.byteforce.seedj.starter.iam.config.IamProperties;
+import cn.byteforce.seedj.starter.iam.IamProperties;
 import cn.byteforce.seedj.infra.local.iam.AesGcmIamSecretProtector;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamAuditSink;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamTotpRepository;

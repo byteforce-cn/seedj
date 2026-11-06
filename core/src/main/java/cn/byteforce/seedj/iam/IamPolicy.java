@@ -1,6 +1,5 @@
 package cn.byteforce.seedj.iam;
 
-import cn.byteforce.seedj.iam.policy.PolicyCondition;
 
 import java.util.Objects;
 import java.util.Set;

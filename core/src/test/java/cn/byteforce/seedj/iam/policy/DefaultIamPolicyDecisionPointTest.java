@@ -1,5 +1,10 @@
 package cn.byteforce.seedj.iam.policy;
 
+import cn.byteforce.seedj.iam.PolicyOperand;
+import cn.byteforce.seedj.iam.PolicyComparisonOperator;
+
+import cn.byteforce.seedj.iam.PolicyCondition;
+
 import cn.byteforce.seedj.iam.IamAuthorizationDecision;
 import cn.byteforce.seedj.iam.IamAuthorizationRequest;
 import cn.byteforce.seedj.iam.IamPolicy;

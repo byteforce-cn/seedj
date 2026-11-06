@@ -1,4 +1,4 @@
-package cn.byteforce.seedj.iam.scim;
+package cn.byteforce.seedj.iam;
 
 /** SCIM 2.0 filter operators supported by the built-in subset. */
 public enum ScimComparisonOperator {
