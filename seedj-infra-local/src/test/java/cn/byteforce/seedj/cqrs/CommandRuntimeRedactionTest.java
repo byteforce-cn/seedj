@@ -3,11 +3,11 @@ package cn.byteforce.seedj.cqrs;
 import cn.byteforce.seedj.core.clock.Clock;
 import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;
-import cn.byteforce.seedj.cqrs.memory.InMemoryCommandStore;
+import cn.byteforce.seedj.infra.local.cqrs.InMemoryCommandStore;
 import cn.byteforce.seedj.domain.AppendRequest;
 import cn.byteforce.seedj.domain.TemporalRow;
-import cn.byteforce.seedj.domain.memory.InMemoryTemporalStore;
-import cn.byteforce.seedj.id.Uuid7IdGenerator;
+import cn.byteforce.seedj.infra.local.domain.InMemoryTemporalStore;
+import cn.byteforce.seedj.infra.local.id.Uuid7IdGenerator;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

@@ -2,8 +2,8 @@ package cn.byteforce.seedj.iam.identity;
 
 import cn.byteforce.seedj.iam.IamPermission;
 import cn.byteforce.seedj.iam.IamRole;
-import cn.byteforce.seedj.iam.memory.InMemoryIamAuthorizationRepository;
-import cn.byteforce.seedj.iam.memory.InMemoryIamGroupRepository;
+import cn.byteforce.seedj.infra.local.iam.InMemoryIamAuthorizationRepository;
+import cn.byteforce.seedj.infra.local.iam.InMemoryIamGroupRepository;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;

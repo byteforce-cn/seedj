@@ -1,6 +1,6 @@
 package cn.byteforce.seedj.it.extension;
 
-import cn.byteforce.seedj.pki.BcPkiProvider;
+import cn.byteforce.seedj.infra.local.pki.BcPkiProvider;
 import cn.byteforce.seedj.pki.PkiProvider;
 import cn.byteforce.seedj.pki.PkiProvider.IssuedCertificate;
 import org.bouncycastle.asn1.x500.X500Name;

@@ -5,7 +5,7 @@ import cn.byteforce.seedj.iam.nativeauth.NativeAuthAuthenticationProvider;
 import cn.byteforce.seedj.iam.nativeauth.NativeAuthErrorResponseHandler;
 import cn.byteforce.seedj.iam.identity.IamAuthorizationService;
 import cn.byteforce.seedj.iam.identity.IamTotpService;
-import cn.byteforce.seedj.iam.memory.InMemoryIamTokenRevoker;
+import cn.byteforce.seedj.infra.local.iam.InMemoryIamTokenRevoker;
 import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.iam.security.IamClientBootstrapRunner;
 import cn.byteforce.seedj.iam.security.IamInMemoryRegisteredClientRepository;

@@ -1,9 +1,9 @@
 package cn.byteforce.seedj.iam.authz;
 
 import cn.byteforce.seedj.iam.IamRole;
-import cn.byteforce.seedj.iam.memory.InMemoryIamAttributeSource;
-import cn.byteforce.seedj.iam.memory.InMemoryIamAuthorizationRepository;
-import cn.byteforce.seedj.iam.memory.InMemoryIamBindingStore;
+import cn.byteforce.seedj.infra.local.iam.InMemoryIamAttributeSource;
+import cn.byteforce.seedj.infra.local.iam.InMemoryIamAuthorizationRepository;
+import cn.byteforce.seedj.infra.local.iam.InMemoryIamBindingStore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

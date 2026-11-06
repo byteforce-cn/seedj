@@ -1,10 +1,10 @@
 package cn.byteforce.seedj.audit.wiring;
 
 import cn.byteforce.seedj.audit.AuditException;
-import cn.byteforce.seedj.audit.memory.InMemoryAuditAutoConfiguration;
+import cn.byteforce.seedj.infra.local.audit.InMemoryAuditAutoConfiguration;
 import cn.byteforce.seedj.audit.spi.AuditStore;
 import cn.byteforce.seedj.cqrs.CommandAudit;
-import cn.byteforce.seedj.id.IdAutoConfiguration;
+import cn.byteforce.seedj.infra.local.id.IdAutoConfiguration;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;

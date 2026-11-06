@@ -11,7 +11,7 @@ import cn.byteforce.seedj.cqrs.CommandValidator;
 import cn.byteforce.seedj.domain.ObjectSchema;
 import cn.byteforce.seedj.domain.TemporalStore;
 import cn.byteforce.seedj.id.IdGenerator;
-import cn.byteforce.seedj.id.Uuid7IdGenerator;
+import cn.byteforce.seedj.infra.local.id.Uuid7IdGenerator;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;

@@ -4,7 +4,7 @@ import cn.byteforce.seedj.eventbus.EventPublisher;
 import cn.byteforce.seedj.eventbus.EventMessage;
 import cn.byteforce.seedj.eventbus.spi.EventBusTransport;
 import cn.byteforce.seedj.outbox.spi.OutboxStore;
-import cn.byteforce.seedj.eventbus.transport.FileEventBusTransport;
+import cn.byteforce.seedj.infra.local.eventbus.FileEventBusTransport;
 import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.transit.Ciphertext;
 import cn.byteforce.seedj.transit.CreateKeyRequest;

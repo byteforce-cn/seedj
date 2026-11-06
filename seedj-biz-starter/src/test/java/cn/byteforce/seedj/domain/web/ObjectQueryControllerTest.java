@@ -6,7 +6,7 @@ import cn.byteforce.seedj.domain.AppendRequest;
 import cn.byteforce.seedj.domain.TemporalQuery;
 import cn.byteforce.seedj.domain.TemporalRow;
 import cn.byteforce.seedj.domain.TemporalStore;
-import cn.byteforce.seedj.domain.memory.InMemoryTemporalStore;
+import cn.byteforce.seedj.infra.local.domain.InMemoryTemporalStore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

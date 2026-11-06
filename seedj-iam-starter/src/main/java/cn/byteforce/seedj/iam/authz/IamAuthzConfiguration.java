@@ -2,8 +2,8 @@ package cn.byteforce.seedj.iam.authz;
 
 import cn.byteforce.seedj.iam.config.IamProperties;
 import cn.byteforce.seedj.iam.jdbc.JdbcIamBindingStore;
-import cn.byteforce.seedj.iam.memory.InMemoryIamAttributeSource;
-import cn.byteforce.seedj.iam.memory.InMemoryIamBindingStore;
+import cn.byteforce.seedj.infra.local.iam.InMemoryIamAttributeSource;
+import cn.byteforce.seedj.infra.local.iam.InMemoryIamBindingStore;
 import cn.byteforce.seedj.iam.spi.IamAuthorizationRepository;
 import cn.byteforce.seedj.core.security.CallerProvider;
 import org.springframework.beans.factory.ObjectProvider;

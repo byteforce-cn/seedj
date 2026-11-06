@@ -1,6 +1,6 @@
 package cn.byteforce.seedj.iam.security;
 
-import cn.byteforce.seedj.iam.memory.InMemoryIamTokenRevoker;
+import cn.byteforce.seedj.infra.local.iam.InMemoryIamTokenRevoker;
 import org.springframework.security.oauth2.server.authorization.OAuth2Authorization;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;

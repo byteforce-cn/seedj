@@ -5,7 +5,7 @@ import cn.byteforce.seedj.cqrs.CqrsErrorCode;
 import cn.byteforce.seedj.cqrs.CqrsException;
 import cn.byteforce.seedj.cqrs.QueryAgent;
 import cn.byteforce.seedj.cqrs.StreamId;
-import cn.byteforce.seedj.cqrs.memory.InMemoryEventStore;
+import cn.byteforce.seedj.infra.local.cqrs.InMemoryEventStore;
 import cn.byteforce.seedj.lock.LockLease;
 import cn.byteforce.seedj.lock.LockProvider;
 import cn.byteforce.seedj.demo.hr.app.HrCommandService;
