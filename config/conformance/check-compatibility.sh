@@ -20,9 +20,9 @@ bash "$script_dir/gate-selftest.sh" "$spec_root"
 
 shopt -s nullglob
 checked=0
-for baseline in "$repo_root"/docs/conformance/baseline/*.schema.json; do
+for baseline in "$repo_root"/config/conformance/baseline/*.schema.json; do
   name="$(basename "$baseline")"
-  current="$repo_root/docs/conformance/schema/$name"
+  current="$repo_root/config/conformance/schema/$name"
   if [[ ! -f "$current" ]]; then
     echo "ERROR: missing current schema $current" >&2
     exit 1

@@ -14,7 +14,7 @@
  * </ul>
  *
  * <h2>与仓库约束的关系</h2>
- * 本包遵循 {@code docs/spi/README.md}：一类型一文件、构造期校验、零 Spring 依赖。
+ * 本包遵循 SPI 宪法：一类型一文件、构造期校验、零 Spring 依赖。
  * 装配不使用 v2.4 草案 §6 的 {@code ProviderFactory}/{@code reflective provider lookup}，
  * 改由实现模块的 {@code @AutoConfiguration} + bean 名 + {@code seedj.workflow.provider}
  * 选择（见 ADR-0002）。
