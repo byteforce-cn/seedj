@@ -26,6 +26,7 @@
             <artifactId>lombok</artifactId>
             <optional>true</optional>
         </dependency>
+        <!-- 线格式依赖：Jackson 3 由运行期提供；见 ADR-0010。禁止 Jackson 2 回流。 -->
         <dependency>
             <groupId>tools.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
