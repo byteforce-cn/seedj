@@ -11,6 +11,7 @@ import java.time.LocalDate;
  * @param hireDate       入职日期（yyyy-MM-dd）
  * @param employmentType 雇佣类型
  * @param workLocation   工作地点
+ * @param orgUnitId      组织单元（读范围使用）
  * @param idNumber       证件号原始值（writeOnly）
  * @author ByteForce
  * @since 1.0.0
@@ -20,5 +21,6 @@ public record HrEmployeeCreate(
         @JsonProperty("hire_date") LocalDate hireDate,
         @JsonProperty("employment_type") String employmentType,
         @JsonProperty("work_location") String workLocation,
+        @JsonProperty("org_unit_id") String orgUnitId,
         @JsonProperty("id_number") String idNumber) {
 }

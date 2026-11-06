@@ -29,7 +29,8 @@ import java.util.UUID;
  * @author ByteForce
  * @since 1.0.0
  */
-@AutoConfiguration(after = TemporalCommandAutoConfiguration.class)
+@AutoConfiguration(after = TemporalCommandAutoConfiguration.class, afterName =
+        "cn.byteforce.seedj.starter.read.ObjectModuleAutoConfiguration")
 @ConditionalOnBean({TemporalStore.class, ObjectModuleRegistry.class})
 public class ReadAutoConfiguration {
 

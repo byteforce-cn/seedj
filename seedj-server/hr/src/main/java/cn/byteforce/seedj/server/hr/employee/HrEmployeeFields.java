@@ -32,6 +32,7 @@ final class HrEmployeeFields {
         putIfPresent(fields, "hire_date", command.hireDate());
         putIfPresent(fields, "employment_type", command.employmentType());
         putIfPresent(fields, "work_location", command.workLocation());
+        putIfPresent(fields, "org_unit_id", command.orgUnitId());
         if (command.idNumber() != null && !command.idNumber().isBlank()) {
             fields.put(ID_NUMBER_HASH, derived.require(ID_NUMBER_HASH).derive(command.idNumber()));
         }
@@ -49,6 +50,9 @@ final class HrEmployeeFields {
         }
         if (command.workLocation() != null) {
             fields.put("work_location", command.workLocation());
+        }
+        if (command.orgUnitId() != null) {
+            fields.put("org_unit_id", command.orgUnitId());
         }
         if (command.idNumber() != null && !command.idNumber().isBlank()) {
             fields.put(ID_NUMBER_HASH, derived.require(ID_NUMBER_HASH).derive(command.idNumber()));

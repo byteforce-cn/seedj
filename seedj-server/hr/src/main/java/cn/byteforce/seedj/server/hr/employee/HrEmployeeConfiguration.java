@@ -3,14 +3,16 @@ package cn.byteforce.seedj.server.hr.employee;
 import cn.byteforce.seedj.core.clock.Clock;
 import cn.byteforce.seedj.core.security.DerivedField;
 import cn.byteforce.seedj.core.security.DerivedFieldKeyRing;
+import cn.byteforce.seedj.core.security.ContextSink;
+import cn.byteforce.seedj.core.security.ContextWriter;
 import cn.byteforce.seedj.core.security.DerivedFieldRegistry;
 import cn.byteforce.seedj.cqrs.CommandDescriptor;
 import cn.byteforce.seedj.cqrs.CommandPayloadRedactor;
 import cn.byteforce.seedj.cqrs.CommandRuntime;
 import cn.byteforce.seedj.cqrs.CommandValidator;
 import cn.byteforce.seedj.domain.ObjectSchema;
-import cn.byteforce.seedj.domain.TemporalStore;
 import cn.byteforce.seedj.id.IdGenerator;
+import cn.byteforce.seedj.module.ObjectModuleRegistry;
 import cn.byteforce.seedj.infra.local.id.Uuid7IdGenerator;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -18,14 +20,16 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 /**
  * HR 员工活样板装配：schema、派生字段、命令描述与两个命令代理。
  *
- * <p>字段只在 {@link HrEmployeeSchema} 声明一次；权限、校验、脱敏声明在 descriptor 上，由
+ * <p>字段只在 {@link HrEmployeeModule} 声明一次；权限、校验、脱敏声明在 descriptor 上，由
  * {@code CommandCatalog} 统一执行。</p>
  *
  * @author ByteForce
@@ -35,13 +39,14 @@ import java.util.UUID;
 public class HrEmployeeConfiguration {
 
     /**
-     * 员工对象 schema。
+     * 员工对象 schema（来自冻结的模块声明）。
      *
+     * @param registry 模块注册表
      * @return schema
      */
     @Bean
-    public ObjectSchema hrEmployeeSchema() {
-        return new HrEmployeeSchema().schema();
+    public ObjectSchema hrEmployeeSchema(ObjectModuleRegistry registry) {
+        return registry.require("employee").schema();
     }
 
     /**
@@ -86,6 +91,31 @@ public class HrEmployeeConfiguration {
             redacted.remove("id_number_hash");
             return redacted;
         };
+    }
+
+    /**
+     * 员工读范围：从调用方属性 {@code org_units} 写入请求事实。
+     *
+     * @return writer
+     */
+    @Bean
+    public ContextWriter hrOrgUnitContextWriter() {
+        return (ContextSink sink, cn.byteforce.seedj.core.security.Caller caller) -> {
+            Object raw = caller.attributes().get("org_units");
+            List<String> units = raw instanceof Collection<?> values
+                    ? values.stream().map(String::valueOf).toList() : List.of();
+            sink.put(HrScopeKeys.ORG_UNITS, units);
+        };
+    }
+
+    /**
+     * 员工读范围解析器。
+     *
+     * @return resolver
+     */
+    @Bean
+    public HrOrgUnitScopeResolver hrOrgUnitScopeResolver() {
+        return new HrOrgUnitScopeResolver();
     }
 
     /**
@@ -138,19 +168,6 @@ public class HrEmployeeConfiguration {
     public IdGenerator<String> hrEmployeeNoGenerator(Clock clock) {
         IdGenerator<UUID> uuid7 = new Uuid7IdGenerator(clock);
         return () -> uuid7.id().toString();
-    }
-
-    /**
-     * 员工读模型查询服务。
-     *
-     * @param store  对象存储
-     * @param schema 员工 schema
-     * @return 查询服务
-     */
-    @Bean
-    public HrEmployeeQueryService hrEmployeeQueryService(TemporalStore store,
-                                                        ObjectSchema schema) {
-        return new HrEmployeeQueryService(store, schema);
     }
 
     /**

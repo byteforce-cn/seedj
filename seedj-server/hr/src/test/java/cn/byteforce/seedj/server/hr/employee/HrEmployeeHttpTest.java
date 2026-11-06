@@ -40,6 +40,7 @@ class HrEmployeeHttpTest {
                         .content("""
                                 {"type":"hr.employee.create",
                                  "payload":{"name":"张三","hire_date":"2026-10-01",
+                                            "org_unit_id":"D01",
                                             "id_number":"110101199001011234"},
                                  "idempotency_key":"http-1"}
                                 """))
@@ -74,6 +75,7 @@ class HrEmployeeHttpTest {
                         .content("""
                                 {"type":"hr.employee.create",
                                  "payload":{"name":"张三","hire_date":"2026-10-01",
+                                            "org_unit_id":"D01",
                                             "id_number":"110101199001011234"},
                                  "idempotency_key":"http-typed-1"}
                                 """))
@@ -88,11 +90,11 @@ class HrEmployeeHttpTest {
                 .andExpect(jsonPath("$.items[0].employee_no").isNotEmpty())
                 .andExpect(jsonPath("$.items[0].id_number_hash").doesNotExist());
 
-        mvc.perform(get("/api/hr/employees/" + id))
+        mvc.perform(get("/objects/employee/" + id))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("张三"))
-                .andExpect(jsonPath("$.hire_date").value("2026-10-01"))
-                .andExpect(jsonPath("$.id_number_hash").doesNotExist());
+                .andExpect(jsonPath("$.data.name").value("张三"))
+                .andExpect(jsonPath("$.data.hire_date").value("2026-10-01"))
+                .andExpect(jsonPath("$.data.id_number_hash").doesNotExist());
     }
 
     @Test
@@ -185,7 +187,8 @@ class HrEmployeeHttpTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"type":"hr.employee.create",
-                                 "payload":{"name":"张三","hire_date":"2026-10-01"},
+                                 "payload":{"name":"张三","hire_date":"2026-10-01",
+                                            "org_unit_id":"D01"},
                                  "idempotency_key":"http-6"}
                                 """))
                 .andExpect(status().isAccepted())

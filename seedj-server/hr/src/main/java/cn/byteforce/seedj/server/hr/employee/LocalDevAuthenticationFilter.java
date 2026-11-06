@@ -52,7 +52,8 @@ public final class LocalDevAuthenticationFilter extends OncePerRequestFilter {
     public static Caller localAdmin() {
         return new Caller(LOCAL_ADMIN_ID.toString(), "local-admin", "default",
                 Set.of("ADMIN"), Set.of("hr.employee.write", "hr.employee.read"), Set.of(),
-                Set.of(Caller.DEFAULT_AMR), Caller.DEFAULT_ACR, Map.of());
+                Set.of(Caller.DEFAULT_AMR), Caller.DEFAULT_ACR,
+                Map.of("org_units", List.of("D01")));
     }
 
     @Override

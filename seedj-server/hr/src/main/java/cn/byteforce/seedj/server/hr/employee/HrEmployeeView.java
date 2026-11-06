@@ -20,6 +20,7 @@ import java.util.UUID;
  * @param hireDate       入职日期
  * @param employmentType 雇佣类型
  * @param workLocation   工作地点
+ * @param phone          联系电话（默认打码）
  * @param orgUnitId      组织单元
  * @author ByteForce
  * @since 1.0.0
@@ -27,4 +28,5 @@ import java.util.UUID;
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public record HrEmployeeView(UUID id, long version, Instant validFrom, Instant validTo,
                              String employeeNo, String name, String status, LocalDate hireDate,
-                             String employmentType, String workLocation, String orgUnitId) {}
+                             String employmentType, String workLocation, String phone,
+                             String orgUnitId) {}
