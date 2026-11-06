@@ -61,7 +61,8 @@ class TemporalCommandAgentTest {
 
     private final CommandRuntime runtime = new CommandRuntime(new CommandRuntime.Options(
             TransactionRunner.direct(), lock, Duration.ofSeconds(30), clock,
-            new Uuid7IdGenerator(clock), commands, objects, outbox));
+            new Uuid7IdGenerator(clock), commands, objects, outbox,
+            TemporalCommandAudit.noop()));
 
     private final ProbeAgent agent = new ProbeAgent(runtime);
 

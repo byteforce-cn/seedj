@@ -373,20 +373,6 @@ public final class CommandRuntime {
                     OutboxWriter.discard(), TemporalCommandAudit.noop());
         }
 
-        /**
-         * 兼容旧装配：不写临时命令审计；{@code outboxWriter} 为空时显式丢弃。
-         *
-         * @deprecated 使用全参构造或 {@link #forTests}
-         */
-        public Options(TransactionRunner transactionRunner, LockProvider lockProvider,
-                       Duration lockTtl, Clock clock, IdGenerator<UUID> idGenerator,
-                       CommandStore commandStore, TemporalStore temporalStore,
-                       OutboxWriter outboxWriter) {
-            this(transactionRunner, lockProvider, lockTtl, clock, idGenerator, commandStore,
-                    temporalStore, outboxWriter == null ? OutboxWriter.discard() : outboxWriter,
-                    TemporalCommandAudit.noop());
-        }
-
         public Options {
             transactionRunner = transactionRunner == null
                     ? TransactionRunner.direct() : transactionRunner;

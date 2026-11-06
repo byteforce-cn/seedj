@@ -13,6 +13,8 @@ import cn.byteforce.seedj.cqrs.CqrsErrorCode;
 import cn.byteforce.seedj.cqrs.CqrsException;
 import cn.byteforce.seedj.cqrs.CommandCatalog;
 import cn.byteforce.seedj.cqrs.CommandRuntime;
+import cn.byteforce.seedj.cqrs.TemporalCommandAudit;
+import cn.byteforce.seedj.outbox.OutboxWriter;
 import cn.byteforce.seedj.cqrs.TemporalCommandAgent;
 import cn.byteforce.seedj.infra.local.cqrs.InMemoryCommandStore;
 import cn.byteforce.seedj.cqrs.spi.TransactionRunner;
@@ -61,7 +63,8 @@ class CommandControllerTest {
 
     private final CommandRuntime runtime = new CommandRuntime(new CommandRuntime.Options(
             TransactionRunner.direct(), LockProvider.disabled(), Duration.ofSeconds(30), clock,
-            new Uuid7IdGenerator(clock), commands, objects, null));
+            new Uuid7IdGenerator(clock), commands, objects,
+            OutboxWriter.discard(), TemporalCommandAudit.noop()));
 
     private final AtomicReference<Caller> caller = new AtomicReference<>(caller(ACTOR.toString()));
 

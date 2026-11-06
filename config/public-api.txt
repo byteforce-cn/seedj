@@ -24,11 +24,8 @@ core|cn.byteforce.seedj.core.clock|Clocks
 core|cn.byteforce.seedj.core.clock|HybridClock
 core|cn.byteforce.seedj.core.clock|HybridTimestamp
 core|cn.byteforce.seedj.core.exception|ApiError
-core|cn.byteforce.seedj.core.exception|BaseException
-core|cn.byteforce.seedj.core.exception|BizException
 core|cn.byteforce.seedj.core.exception|ContractErrorCode
 core|cn.byteforce.seedj.core.exception|ContractException
-core|cn.byteforce.seedj.core.exception|RemoteException
 core|cn.byteforce.seedj.core.security|AccessTokenRules
 core|cn.byteforce.seedj.core.security|Caller
 core|cn.byteforce.seedj.core.security|CallerIdCodec
