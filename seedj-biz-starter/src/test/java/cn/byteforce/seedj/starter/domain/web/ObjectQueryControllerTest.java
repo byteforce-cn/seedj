@@ -2,11 +2,18 @@ package cn.byteforce.seedj.starter.domain.web;
 
 import cn.byteforce.seedj.biz.web.ContractErrorHandler;
 import cn.byteforce.seedj.core.clock.Clock;
+import cn.byteforce.seedj.core.security.Caller;
+import cn.byteforce.seedj.core.security.ScopeContext;
 import cn.byteforce.seedj.domain.AppendRequest;
-import cn.byteforce.seedj.domain.TemporalQuery;
-import cn.byteforce.seedj.domain.TemporalRow;
-import cn.byteforce.seedj.domain.TemporalStore;
+import cn.byteforce.seedj.domain.FieldType;
+import cn.byteforce.seedj.domain.ObjectSchemaRegistry;
+import cn.byteforce.seedj.domain.ScopePredicate;
 import cn.byteforce.seedj.infra.local.domain.InMemoryTemporalStore;
+import cn.byteforce.seedj.module.ObjectModuleRegistry;
+import cn.byteforce.seedj.module.ObjectModules;
+import cn.byteforce.seedj.read.DataScopeResolver;
+import cn.byteforce.seedj.read.ReadAuditSink;
+import cn.byteforce.seedj.read.ReadGateway;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,6 +24,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -26,7 +34,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * 对象时点查询的线格式与 404/409 语义。
+ * 对象时点查询的线格式与 404/409 语义（经 ReadGateway）。
  */
 class ObjectQueryControllerTest {
 
@@ -36,11 +44,17 @@ class ObjectQueryControllerTest {
 
     private static final UUID ACTOR = UUID.fromString("018f2e3a-0000-7000-8000-000000000001");
 
+    private static final Caller CALLER = new Caller("u-1", "alice", "default", Set.of(),
+            Set.of("probe.read"), Set.of(), Set.of("pwd"), "urn:seedj:acr:pwd", Map.of());
+
     private final AtomicReference<Instant> now = new AtomicReference<>(T0);
 
     private final Clock clock = now::get;
 
-    private final InMemoryTemporalStore store = new InMemoryTemporalStore(clock);
+    private final ObjectModuleRegistry registry = registry();
+
+    private final InMemoryTemporalStore store = new InMemoryTemporalStore(clock,
+            new ObjectSchemaRegistry(List.of(registry.require("probe").schema())));
 
     private MockMvc mvc;
 
@@ -48,7 +62,22 @@ class ObjectQueryControllerTest {
     void setUp() {
         now.set(T0);
         store.clear();
-        mvc = MockMvcBuilders.standaloneSetup(new ObjectQueryController(store))
+        DataScopeResolver all = new DataScopeResolver() {
+            @Override
+            public boolean supports(String objectType) {
+                return true;
+            }
+
+            @Override
+            public ScopePredicate resolve(String objectType, Caller caller,
+                                          ScopeContext context) {
+                return ScopePredicate.all();
+            }
+        };
+        ReadGateway gateway = new ReadGateway(registry, store, List.of(all), List.of(),
+                ReadAuditSink.noop(), clock, () -> UUID.randomUUID());
+        mvc = MockMvcBuilders.standaloneSetup(
+                        new ObjectQueryController(gateway, () -> Optional.of(CALLER)))
                 .setControllerAdvice(new ContractErrorHandler())
                 .build();
     }
@@ -136,15 +165,11 @@ class ObjectQueryControllerTest {
     }
 
     @Test
-    @DisplayName("未知对象类型：400 且消息含类型名")
-    void unknownObjectTypeIs400WithMessageContainingType() throws Exception {
-        mvc = MockMvcBuilders.standaloneSetup(new ObjectQueryController(new StrictStore()))
-                .setControllerAdvice(new ContractErrorHandler())
-                .build();
-
+    @DisplayName("未知对象类型：404 且消息含类型名")
+    void unknownObjectTypeIs404WithMessageContainingType() throws Exception {
         mvc.perform(get("/objects/missing/" + ID))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("EIS-400-001"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("EIS-404-001"))
                 .andExpect(jsonPath("$.message")
                         .value(org.hamcrest.Matchers.containsString("missing")));
     }
@@ -204,33 +229,13 @@ class ObjectQueryControllerTest {
                 Map.of("name", "v2")));
     }
 
-    /**
-     * 只认 probe 的存储，用来证明未知类型会转成 400。
-     */
-    private static final class StrictStore implements TemporalStore {
-
-        @Override
-        public Optional<TemporalRow> find(String objectType, UUID id, TemporalQuery query) {
-            if (!"probe".equals(objectType)) {
-                throw new IllegalArgumentException("unknown object type: " + objectType);
-            }
-            return Optional.empty();
-        }
-
-        @Override
-        public cn.byteforce.seedj.domain.AppendResult append(AppendRequest request) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public List<TemporalRow> history(String objectType, UUID id) {
-            return List.of();
-        }
-
-        @Override
-        public cn.byteforce.seedj.domain.Page<TemporalRow> search(
-                cn.byteforce.seedj.domain.TemporalSearch search) {
-            throw new UnsupportedOperationException();
-        }
+    private static ObjectModuleRegistry registry() {
+        ObjectModules modules = ObjectModules.create();
+        modules.object("probe", "probe_object")
+                .readPermission("probe.read")
+                .field("name", FieldType.TEXT).filterable().sortable()
+                .field("status", FieldType.TEXT).filterable()
+                .field("hire_date", FieldType.DATE).filterable();
+        return modules.freeze();
     }
 }

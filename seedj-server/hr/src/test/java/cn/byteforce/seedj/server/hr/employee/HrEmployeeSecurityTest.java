@@ -75,6 +75,6 @@ class HrEmployeeSecurityTest {
     private static Caller caller(Set<String> permissions) {
         return new Caller("018f2e3a-0000-7000-8000-00000000beef", "tester", "default",
                 Set.of(), permissions, Set.of(), Set.of(Caller.DEFAULT_AMR),
-                Caller.DEFAULT_ACR, Map.of());
+                Caller.DEFAULT_ACR, Map.of("org_units", List.of("D01")));
     }
 }

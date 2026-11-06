@@ -67,6 +67,18 @@ class ArchitectureTest {
                 dependency -> dependency.getSimpleName().equals("CommandAgent"));
     }
 
+    @Test
+    @DisplayName("业务包不得直接依赖 TemporalStore（读只经 ReadGateway）")
+    void businessCodeDoesNotUseTemporalStore() {
+        assertNoDependencies(
+                "business-code-uses-read-gateway",
+                ModuleClassPath.allClasses(),
+                clazz -> clazz.getPackageName().startsWith("cn.byteforce.seedj.server")
+                        || clazz.getPackageName().startsWith("cn.byteforce.seedj.demo"),
+                dependency -> dependency.getName()
+                        .equals("cn.byteforce.seedj.domain.TemporalStore"));
+    }
+
     private static void assertNoDependencies(
             String rule,
             List<JavaClass> classes,

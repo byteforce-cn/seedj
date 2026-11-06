@@ -14,13 +14,18 @@ import cn.byteforce.seedj.cqrs.CommandReceipt;
 import cn.byteforce.seedj.cqrs.CommandRuntime;
 import cn.byteforce.seedj.cqrs.CommandStatus;
 import cn.byteforce.seedj.cqrs.CommandSubmission;
-import cn.byteforce.seedj.cqrs.TemporalCommandAgent;
+import cn.byteforce.seedj.cqrs.CommandContext;
+import cn.byteforce.seedj.cqrs.CommandHandler;
+import cn.byteforce.seedj.cqrs.CommandRegistration;
+import cn.byteforce.seedj.core.security.Caller;
+import cn.byteforce.seedj.domain.FieldType;
+import cn.byteforce.seedj.domain.ObjectSchema;
+import cn.byteforce.seedj.domain.ScopePredicate;
 import cn.byteforce.seedj.infra.local.cqrs.InMemoryCommandStore;
 import cn.byteforce.seedj.cqrs.spi.TransactionRunner;
 import cn.byteforce.seedj.outbox.OutboxWriter;
 import cn.byteforce.seedj.domain.AppendRequest;
 import cn.byteforce.seedj.domain.AppendResult;
-import cn.byteforce.seedj.domain.TemporalRow;
 import cn.byteforce.seedj.domain.event.CommandEvent;
 import cn.byteforce.seedj.infra.local.domain.InMemoryTemporalStore;
 import cn.byteforce.seedj.infra.local.id.Uuid7IdGenerator;
@@ -35,7 +40,6 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -78,7 +82,24 @@ class TemporalCommandAuditTest {
             TransactionRunner.direct(), LockProvider.disabled(), Duration.ofSeconds(30), clock,
             new Uuid7IdGenerator(clock), commands, objects, OutboxWriter.discard(), audit));
 
-    private final ProbeAgent agent = new ProbeAgent(runtime);
+    private static final ObjectSchema SCHEMA = ObjectSchema.builder("probe", "probe_object")
+            .field("name", FieldType.TEXT)
+            .build();
+
+    private static final Caller CALLER = new Caller(ACTOR.toString(), "alice", "default",
+            null, null, null, null, null, null);
+
+    private final CommandRegistration registration = registration();
+
+    private static CommandRegistration registration() {
+        var descriptor = cn.byteforce.seedj.cqrs.CommandDescriptor.builder()
+                .type("probe.update")
+                .objectType("probe")
+                .payloadType(ProbeCommand.class)
+                .permission("probe.write")
+                .build();
+        return new CommandRegistration(descriptor, new ProbeHandler(), SCHEMA);
+    }
 
     @BeforeEach
     void reset() {
@@ -90,7 +111,8 @@ class TemporalCommandAuditTest {
     @Test
     @DisplayName("受理命令写一条审计：动作、资源、命令 ID 与事件 ID")
     void acceptedCommandWritesOneAudit() {
-        CommandReceipt receipt = agent.execute(submission("k-1", "Alice", false));
+        CommandReceipt receipt = runtime.execute(submission("k-1", "Alice", false), registration, CALLER,
+                ScopePredicate.all());
 
         assertThat(auditStore.loadAll()).hasSize(1);
         AuditEntry<String> entry = auditStore.loadAll().get(0);
@@ -108,7 +130,8 @@ class TemporalCommandAuditTest {
     @Test
     @DisplayName("摘要与写入事件一致，事件导出可复算")
     void digestVerifiesAgainstWrittenEvents() {
-        CommandReceipt receipt = agent.execute(submission("k-2", "Alice", false));
+        CommandReceipt receipt = runtime.execute(submission("k-2", "Alice", false), registration, CALLER,
+                ScopePredicate.all());
         UUID eventId = receipt.eventIds().get(0);
         AuditEvent event = new AuditEvent(eventId, "probe.updated",
                 JSON.valueToTree(Map.of("name", "Alice")));
@@ -121,11 +144,12 @@ class TemporalCommandAuditTest {
     @Test
     @DisplayName("业务拒绝不进入哈希链")
     void rejectedCommandDoesNotWriteHashChain() {
-        assertThatThrownBy(() -> agent.execute(submission("k-3", "Alice", true)))
+        assertThatThrownBy(() -> runtime.execute(submission("k-3", "Alice", true), registration, CALLER,
+                ScopePredicate.all()))
                 .isInstanceOf(ContractException.class);
 
         assertThat(auditStore.loadAll()).isEmpty();
-        assertThat(commands.findByIdempotencyKey("k-3")).get()
+        assertThat(commands.findByIdempotencyKey(ACTOR, "k-3")).get()
                 .satisfies(record -> assertThat(record.status()).isEqualTo(CommandStatus.REJECTED));
     }
 
@@ -140,12 +164,13 @@ class TemporalCommandAuditTest {
                 clock, new Uuid7IdGenerator(clock), commands, objects,
                 OutboxWriter.discard(),
                 new TemporalCommandAuditAdapter(failing, () -> "tester")));
-        ProbeAgent failingAgent = new ProbeAgent(failingRuntime);
 
-        assertThatThrownBy(() -> failingAgent.execute(submission("k-4", "Alice", false)))
+
+        assertThatThrownBy(() -> failingRuntime.execute(submission("k-4", "Alice", false),
+                registration, CALLER, ScopePredicate.all()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("audit store down");
-        assertThat(commands.findByIdempotencyKey("k-4")).isEmpty();
+        assertThat(commands.findByIdempotencyKey(ACTOR, "k-4")).isEmpty();
     }
 
     private static CommandSubmission submission(String key, String name, boolean reject) {
@@ -156,42 +181,32 @@ class TemporalCommandAuditTest {
         return new CommandSubmission("probe.update", payload, key, List.of(ID), ACTOR);
     }
 
-    static final class ProbeAgent extends TemporalCommandAgent<ProbeCommand> {
-
-        ProbeAgent(CommandRuntime runtime) {
-            super(runtime, "probe.update", "probe", ProbeCommand.class);
-        }
+    static final class ProbeHandler implements CommandHandler<ProbeCommand> {
 
         @Override
-        protected UUID targetId(ProbeCommand command) {
+        public UUID targetId(ProbeCommand command) {
             return command.target();
         }
 
         @Override
-        protected void validate(ProbeCommand command) {
+        public AppendRequest decide(ProbeCommand command, CommandContext ctx) {
             if (command.reject()) {
                 throw new ContractException(ContractErrorCode.TEMPORAL_VIOLATION,
                         "rejected by probe");
             }
-        }
-
-        @Override
-        protected AppendRequest append(ProbeCommand command, Optional<TemporalRow> current,
-                                       Instant now, UUID actor) {
             Map<String, Object> fields = Map.of("name", command.name());
-            if (current.isPresent()) {
-                return AppendRequest.correction("probe", command.target(), now, null, actor,
-                        fields);
+            if (ctx.current().isPresent()) {
+                return AppendRequest.correction("probe", command.target(), ctx.now(), null,
+                        ctx.actor(), fields);
             }
-            return AppendRequest.create("probe", command.target(), now, null, actor, fields);
+            return AppendRequest.create("probe", command.target(), ctx.now(), null,
+                    ctx.actor(), fields);
         }
 
         @Override
-        protected List<CommandEvent> events(ProbeCommand command, AppendResult result,
-                                           Instant now, UUID actor) {
-            return List.of(new CommandEvent(newId(), "probe.updated", now, now, actor,
-                    List.of(command.target()), Map.of("name", command.name()),
-                    "probe.update:probe:1", 1));
+        public List<CommandEvent> events(ProbeCommand command, AppendResult result,
+                                         CommandContext ctx) {
+            return List.of(ctx.event("probe.updated", Map.of("name", command.name())));
         }
     }
 

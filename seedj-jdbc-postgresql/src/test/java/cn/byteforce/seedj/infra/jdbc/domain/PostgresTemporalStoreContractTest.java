@@ -5,6 +5,7 @@ import cn.byteforce.seedj.domain.AppendRequest;
 import cn.byteforce.seedj.domain.AppendResult;
 import cn.byteforce.seedj.domain.FieldType;
 import cn.byteforce.seedj.domain.ObjectSchema;
+import cn.byteforce.seedj.domain.ScopePredicate;
 import cn.byteforce.seedj.domain.TemporalQuery;
 import cn.byteforce.seedj.domain.TemporalRow;
 import cn.byteforce.seedj.domain.TemporalStore;
@@ -63,7 +64,8 @@ class PostgresTemporalStoreContractTest extends TemporalStoreContractTest {
         TemporalTable table = new TemporalTable("probe", "probe_object", columns, Set.of(),
                 Set.of("name", "status", "hire_date"),
                 Map.of("name", FieldType.TEXT, "status", FieldType.TEXT,
-                        "secret", FieldType.TEXT, "hire_date", FieldType.DATE));
+                        "secret", FieldType.TEXT, "hire_date", FieldType.DATE),
+                Set.of("name"), Set.of());
         ObjectSchema typedSchema = ObjectSchema.builder("probe_typed", "probe_typed_object")
                 .field("name", FieldType.TEXT)
                 .field("hire_date", FieldType.DATE)
@@ -100,7 +102,7 @@ class PostgresTemporalStoreContractTest extends TemporalStoreContractTest {
 
         AppendResult result = store.append(AppendRequest.create("probe_typed", ID, T0, null,
                 ACTOR, Map.of("name", "Alice", "hire_date", hireDate, "ref_id", refId)));
-        TemporalRow row = store.find("probe_typed", ID, TemporalQuery.current()).orElseThrow();
+        TemporalRow row = store.find("probe_typed", ID, TemporalQuery.current(), ScopePredicate.all()).orElseThrow();
 
         assertThat(result.appended().version().version()).isEqualTo(1L);
         assertThat(row.fields())
@@ -112,7 +114,7 @@ class PostgresTemporalStoreContractTest extends TemporalStoreContractTest {
 
     @Test
     void unknownObjectTypeIsRejectedClearly() {
-        assertThatThrownBy(() -> store.find("missing", ID, TemporalQuery.current()))
+        assertThatThrownBy(() -> store.find("missing", ID, TemporalQuery.current(), ScopePredicate.all()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("missing");
     }

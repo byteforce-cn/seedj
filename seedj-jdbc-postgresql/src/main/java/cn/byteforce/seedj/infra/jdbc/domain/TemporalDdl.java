@@ -67,6 +67,11 @@ public final class TemporalDdl {
         sql.append("CREATE INDEX idx_").append(name)
                 .append("_bitemporal ON ").append(name)
                 .append(" (valid_from, valid_to, recorded_at, superseded_at);\n");
+        for (String column : table.indexedColumns()) {
+            sql.append("CREATE INDEX idx_").append(name).append('_').append(column)
+                    .append(" ON ").append(name).append(" (").append(column)
+                    .append(") WHERE superseded_at IS NULL;\n");
+        }
         sql.append(asOfFunctions(name));
         return sql.toString();
     }

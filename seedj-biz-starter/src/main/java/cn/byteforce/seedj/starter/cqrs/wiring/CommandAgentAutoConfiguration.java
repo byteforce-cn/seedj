@@ -36,9 +36,15 @@ public class CommandAgentAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public TransactionRunner seedjTransactionRunner(
-            ObjectProvider<PlatformTransactionManager> managers) {
+            ObjectProvider<PlatformTransactionManager> managers,
+            CommandRuntimeProperties properties) {
         PlatformTransactionManager manager = managers.getIfAvailable();
         if (manager == null) {
+            if (!properties.isDegradedMode()) {
+                throw new IllegalStateException("seedj.command requires a"
+                        + " PlatformTransactionManager; configure it, or set"
+                        + " seedj.command.degraded-mode=true only for local/test");
+            }
             log.warn("seedj: no PlatformTransactionManager; commands run without a transaction");
             return TransactionRunner.direct();
         }

@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test;
 class ObjectSchemaTest {
 
     private static final ObjectSchema EMPLOYEE = ObjectSchema.builder("employee", "hr_employee")
-            .field(new FieldDefinition("employee_no", FieldType.TEXT, true, false, true, true))
+            .field(FieldDefinition.required("employee_no", FieldType.TEXT).withFilterable())
             .field("hire_date", FieldType.DATE)
             .field("ref_id", FieldType.UUID)
             .writeOnly("id_number_hash", FieldType.TEXT)
@@ -58,7 +58,7 @@ class ObjectSchemaTest {
     @DisplayName("writeOnly 与 eventVisible 互斥")
     void writeOnlyCannotBeEventVisible() {
         assertThatThrownBy(() -> new FieldDefinition("secret", FieldType.TEXT, false, true, true,
-                false))
+                        false, false, false, Privacy.PUBLIC, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("writeOnly");
     }
@@ -101,6 +101,17 @@ class ObjectSchemaTest {
         assertThat(EMPLOYEE.eventFields()).containsExactly("employee_no", "hire_date", "ref_id");
         assertThat(EMPLOYEE.writeOnlyFields()).containsExactly("id_number_hash");
         assertThat(EMPLOYEE.filterableFields()).containsExactly("employee_no");
+    }
+
+    @Test
+    @DisplayName("敏感字段不得进入事件白名单")
+    void sensitiveFieldCannotBeEventVisible() {
+        assertThatThrownBy(() -> ObjectSchema.builder("employee", "hr_employee")
+                .field(new FieldDefinition("id_number", FieldType.TEXT, false, false, true,
+                        false, false, false, Privacy.SENSITIVE, null))
+                .build())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("eventVisible");
     }
 
     @Test

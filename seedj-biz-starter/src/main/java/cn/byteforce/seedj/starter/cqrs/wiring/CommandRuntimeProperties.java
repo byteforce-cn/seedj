@@ -2,6 +2,8 @@ package cn.byteforce.seedj.starter.cqrs.wiring;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import java.time.Duration;
+
 /**
  * 命令运行时装配属性。
  *
@@ -20,6 +22,9 @@ public class CommandRuntimeProperties {
     /** 是否要求 outbox；默认 true。degraded-mode 下允许显式关闭。 */
     private boolean requireOutbox = true;
 
+    /** PENDING 租约时长；默认 60 秒。 */
+    private Duration pendingLease = Duration.ofSeconds(60);
+
     public boolean isDegradedMode() {
         return degradedMode;
     }
@@ -34,5 +39,13 @@ public class CommandRuntimeProperties {
 
     public void setRequireOutbox(boolean requireOutbox) {
         this.requireOutbox = requireOutbox;
+    }
+
+    public Duration getPendingLease() {
+        return pendingLease;
+    }
+
+    public void setPendingLease(Duration pendingLease) {
+        this.pendingLease = pendingLease;
     }
 }

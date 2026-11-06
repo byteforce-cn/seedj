@@ -32,7 +32,7 @@ class InMemoryCommandStoreContractTest extends CommandStoreContractTest {
         insert("k-clear");
         store.clear();
 
-        assertThat(store.findByIdempotencyKey("k-clear")).isEmpty();
+        assertThat(store.findByIdempotencyKey(ISSUER, "k-clear")).isEmpty();
     }
 
     private void insert(String key) {

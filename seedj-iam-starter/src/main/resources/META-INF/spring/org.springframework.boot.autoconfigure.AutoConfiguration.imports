@@ -1,2 +1,3 @@
 cn.byteforce.seedj.starter.iam.autoconfigure.IamAutoConfiguration
 cn.byteforce.seedj.starter.iam.autoconfigure.IamUserDetailsAutoConfiguration
+cn.byteforce.seedj.starter.iam.read.ReadPolicyAutoConfiguration

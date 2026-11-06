@@ -9,6 +9,8 @@ import cn.byteforce.seedj.domain.ObjectSchema;
 import cn.byteforce.seedj.domain.ObjectSchemaRegistry;
 import cn.byteforce.seedj.domain.ObjectVersion;
 import cn.byteforce.seedj.domain.Page;
+import cn.byteforce.seedj.domain.ScopePredicate;
+import cn.byteforce.seedj.domain.ScopePredicates;
 import cn.byteforce.seedj.domain.SortDirection;
 import cn.byteforce.seedj.domain.TemporalSearch;
 import cn.byteforce.seedj.domain.Sealing;
@@ -63,10 +65,12 @@ public final class InMemoryTemporalStore implements TemporalStore {
     }
 
     @Override
-    public Optional<TemporalRow> find(String objectType, UUID id, TemporalQuery query) {
+    public Optional<TemporalRow> find(String objectType, UUID id, TemporalQuery query,
+                                      ScopePredicate scope) {
         Objects.requireNonNull(objectType, "objectType");
         Objects.requireNonNull(id, "id");
         Objects.requireNonNull(query, "query");
+        Objects.requireNonNull(scope, "scope");
         List<TemporalRow> versions = rows.get(new Key(objectType, id));
         if (versions == null) {
             return Optional.empty();
@@ -74,7 +78,8 @@ public final class InMemoryTemporalStore implements TemporalStore {
         synchronized (versions) {
             Optional<TemporalRow> hit = versions.stream()
                     .filter(row -> matches(row.version(), query))
-                    .max(Comparator.comparingLong(row -> row.version().version()));
+                    .max(Comparator.comparingLong(row -> row.version().version()))
+                    .filter(row -> matchesScope(row, scope));
             if (hit.isPresent() && query.minVersion() != null
                     && hit.get().version().version() < query.minVersion()) {
                 long readable = hit.get().version().version();
@@ -106,8 +111,9 @@ public final class InMemoryTemporalStore implements TemporalStore {
     }
 
     @Override
-    public Page<TemporalRow> search(TemporalSearch search) {
+    public Page<TemporalRow> search(TemporalSearch search, ScopePredicate scope) {
         Objects.requireNonNull(search, "search");
+        Objects.requireNonNull(scope, "scope");
         ObjectSchema schema = schemas.find(search.objectType()).orElse(null);
         Map<String, Object> filters = typedFilters(search, schema);
         String sortField = typedSortField(search.sortField(), schema);
@@ -122,6 +128,7 @@ public final class InMemoryTemporalStore implements TemporalStore {
                         .filter(row -> matches(row.version(), search.asOf(),
                                 search.recordedAsOf()))
                         .max(Comparator.comparingLong(row -> row.version().version()))
+                        .filter(row -> matchesScope(row, scope))
                         .filter(row -> matchesFilters(row, filters))
                         .ifPresent(matched::add);
             }
@@ -156,7 +163,7 @@ public final class InMemoryTemporalStore implements TemporalStore {
             return null;
         }
         requireSchema(null, schema);
-        if (!schema.filterableFields().contains(field)) {
+        if (!schema.sortableFields().contains(field)) {
             throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
                     "unknown or non-sortable field: " + field);
         }
@@ -207,16 +214,31 @@ public final class InMemoryTemporalStore implements TemporalStore {
     }
 
     @Override
-    public List<TemporalRow> history(String objectType, UUID id) {
+    public List<TemporalRow> history(String objectType, UUID id, ScopePredicate scope) {
+        Objects.requireNonNull(scope, "scope");
         List<TemporalRow> versions = rows.get(new Key(objectType, id));
         if (versions == null) {
             return List.of();
         }
         synchronized (versions) {
             return versions.stream()
+                    .filter(row -> matchesScope(row, scope))
                     .sorted(Comparator.comparing(row -> row.version().recordedAt()))
                     .toList();
         }
+    }
+
+    private boolean matchesScope(TemporalRow row, ScopePredicate scope) {
+        if (scope instanceof ScopePredicate.All) {
+            return true;
+        }
+        if (scope instanceof ScopePredicate.None) {
+            return false;
+        }
+        ObjectSchema schema = schemas.find(row.objectType()).orElseThrow(
+                () -> new ContractException(ContractErrorCode.INVALID_PAYLOAD,
+                        "object type has no schema: " + row.objectType()));
+        return ScopePredicates.matches(row, scope, schema);
     }
 
     /**

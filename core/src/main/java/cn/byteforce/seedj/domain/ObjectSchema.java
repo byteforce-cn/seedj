@@ -158,6 +158,21 @@ public final class ObjectSchema {
     }
 
     /**
+     * 可排序字段。
+     *
+     * @return 不可变集合
+     */
+    public Set<String> sortableFields() {
+        Set<String> result = new LinkedHashSet<>();
+        for (FieldDefinition field : fields) {
+            if (field.sortable()) {
+                result.add(field.name());
+            }
+        }
+        return Set.copyOf(result);
+    }
+
+    /**
      * 校验并类型化一份业务载荷。
      *
      * @param payload 原始载荷（HTTP Map）

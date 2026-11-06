@@ -2,6 +2,7 @@ package cn.byteforce.seedj.cqrs.spi;
 
 import cn.byteforce.seedj.cqrs.CommandRecord;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -33,12 +34,13 @@ public interface CommandStore {
     Optional<CommandRecord> find(UUID id);
 
     /**
-     * 按幂等键查询。
+     * 按发起者与幂等键查询。
      *
+     * @param issuer         发起者
      * @param idempotencyKey 幂等键
      * @return 记录；不存在为空
      */
-    Optional<CommandRecord> findByIdempotencyKey(String idempotencyKey);
+    Optional<CommandRecord> findByIdempotencyKey(UUID issuer, String idempotencyKey);
 
     /**
      * 插入一条待处理记录。
@@ -65,4 +67,12 @@ public interface CommandStore {
      * @param id 命令 ID
      */
     void abandon(UUID id);
+
+    /**
+     * 删除租约已过期的 {@code PENDING} 记录，释放幂等键。
+     *
+     * @param now 当前时间
+     * @return 删除条数
+     */
+    long expirePending(Instant now);
 }

@@ -46,7 +46,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @Testcontainers
 @SpringBootTest(classes = HrServer.class, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
-@ActiveProfiles("postgres")
+@ActiveProfiles({"postgres", "test"})
 @Import(HrServerPostgresIT.JwtConfig.class)
 class HrServerPostgresIT {
 
@@ -178,7 +178,8 @@ class HrServerPostgresIT {
             long winners = (first.get(30, TimeUnit.SECONDS) ? 1 : 0)
                     + (second.get(30, TimeUnit.SECONDS) ? 1 : 0);
             assertThat(winners).isEqualTo(1);
-            assertThat(store.find("employee", id, TemporalQuery.current())).isPresent();
+            assertThat(store.find("employee", id, TemporalQuery.current(),
+                        cn.byteforce.seedj.domain.ScopePredicate.all())).isPresent();
         } finally {
             pool.shutdownNow();
         }

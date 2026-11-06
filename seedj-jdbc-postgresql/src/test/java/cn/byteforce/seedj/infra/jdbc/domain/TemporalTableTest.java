@@ -16,7 +16,7 @@ class TemporalTableTest {
     @DisplayName("from(schema) 映射 SQL 类型并保留过滤/写入语义")
     void derivesColumnsAndFlagsFromSchema() {
         ObjectSchema schema = ObjectSchema.builder("employee", "hr_employee")
-                .field(new FieldDefinition("employee_no", FieldType.TEXT, true, false, true, true))
+                .field(FieldDefinition.required("employee_no", FieldType.TEXT).withFilterable())
                 .field("hire_date", FieldType.DATE)
                 .field("ref_id", FieldType.UUID)
                 .field("score", FieldType.DECIMAL)
@@ -34,6 +34,21 @@ class TemporalTableTest {
         assertThat(table.fieldTypes()).containsEntry("hire_date", FieldType.DATE);
         assertThat(table.writeOnlyColumns()).containsExactly("id_number_hash");
         assertThat(table.filterableColumns()).containsExactly("employee_no");
+    }
+
+    @Test
+    @DisplayName("sortable/indexed 从字段声明派生")
+    void derivesSortableAndIndexedColumns() {
+        ObjectSchema schema = ObjectSchema.builder("employee", "hr_employee")
+                .field(FieldDefinition.of("employee_no", FieldType.TEXT)
+                        .withFilterable().withSortable().withIndexed())
+                .field(FieldDefinition.of("org_unit_id", FieldType.TEXT).withIndexed())
+                .build();
+
+        TemporalTable table = TemporalTable.from(schema);
+
+        assertThat(table.sortableColumns()).containsExactly("employee_no");
+        assertThat(table.indexedColumns()).containsExactlyInAnyOrder("employee_no", "org_unit_id");
     }
 
     @Test

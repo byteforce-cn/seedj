@@ -57,8 +57,18 @@ public abstract class CommandStoreContractTest {
     }
 
     protected CommandRecord pending(UUID id, String idempotencyKey, Map<String, Object> payload) {
-        return CommandRecord.pending(id, TYPE, NOW, ISSUER, payload, idempotencyKey,
-                FINGERPRINT, NOW);
+        return pending(id, ISSUER, idempotencyKey, payload);
+    }
+
+    protected CommandRecord pending(UUID id, UUID issuer, String idempotencyKey,
+                                    Map<String, Object> payload) {
+        return pending(id, issuer, idempotencyKey, payload, NOW.plusSeconds(60));
+    }
+
+    protected CommandRecord pending(UUID id, UUID issuer, String idempotencyKey,
+                                    Map<String, Object> payload, Instant leaseUntil) {
+        return CommandRecord.pending(id, TYPE, NOW, issuer, payload, idempotencyKey,
+                FINGERPRINT, NOW, leaseUntil);
     }
 
     @Test
@@ -68,14 +78,28 @@ public abstract class CommandStoreContractTest {
 
         assertThat(store().insert(record)).isTrue();
         assertThat(store().find(record.id())).contains(record);
-        assertThat(store().findByIdempotencyKey("k-1")).contains(record);
+        assertThat(store().findByIdempotencyKey(ISSUER, "k-1")).contains(record);
     }
 
     @Test
     @DisplayName("缺失记录返回空")
     void missingRecordsAreEmpty() {
         assertThat(store().find(UUID.randomUUID())).isEmpty();
-        assertThat(store().findByIdempotencyKey("missing")).isEmpty();
+        assertThat(store().findByIdempotencyKey(ISSUER, "missing")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("同一幂等键在不同 issuer 下互不冲突")
+    void sameKeyDifferentIssuerIsIndependent() {
+        UUID otherIssuer = UUID.randomUUID();
+        CommandRecord first = pending("k-shared");
+        CommandRecord second = pending(UUID.randomUUID(), otherIssuer, "k-shared", Map.of());
+
+        assertThat(store().insert(first)).isTrue();
+        assertThat(store().insert(second)).isTrue();
+        assertThat(store().findByIdempotencyKey(ISSUER, "k-shared")).contains(first);
+        assertThat(store().findByIdempotencyKey(otherIssuer, "k-shared")).contains(second);
+        assertThat(store().findByIdempotencyKey(UUID.randomUUID(), "k-shared")).isEmpty();
     }
 
     @Test
@@ -86,7 +110,7 @@ public abstract class CommandStoreContractTest {
 
         assertThat(store().insert(first)).isTrue();
         assertThat(store().insert(second)).isFalse();
-        assertThat(store().findByIdempotencyKey("k-2"))
+        assertThat(store().findByIdempotencyKey(ISSUER, "k-2"))
                 .get()
                 .extracting(CommandRecord::id)
                 .isEqualTo(first.id());
@@ -182,7 +206,7 @@ public abstract class CommandStoreContractTest {
         store().abandon(pending.id());
 
         assertThat(store().find(pending.id())).isEmpty();
-        assertThat(store().findByIdempotencyKey("k-abandon")).isEmpty();
+        assertThat(store().findByIdempotencyKey(ISSUER, "k-abandon")).isEmpty();
         assertThat(store().insert(pending("k-abandon"))).isTrue();
     }
 
@@ -199,6 +223,26 @@ public abstract class CommandStoreContractTest {
         assertThat(store().find(pending.id())).get()
                 .extracting(CommandRecord::status)
                 .isEqualTo(CommandStatus.ACCEPTED);
+    }
+
+    @Test
+    @DisplayName("expirePending 只删除租约过期的 PENDING，并释放幂等键")
+    void expirePendingDeletesOnlyExpiredPending() {
+        CommandRecord expired = pending(UUID.randomUUID(), ISSUER, "k-expired", Map.of(),
+                NOW.minusSeconds(1));
+        CommandRecord active = pending(UUID.randomUUID(), ISSUER, "k-active", Map.of(),
+                NOW.plusSeconds(60));
+        CommandRecord terminal = pending(UUID.randomUUID(), ISSUER, "k-terminal", Map.of(),
+                NOW.minusSeconds(1)).accepted(UUID.randomUUID(), 1L, List.of());
+        store().insert(expired);
+        store().insert(active);
+        store().insert(terminal);
+
+        assertThat(store().expirePending(NOW)).isEqualTo(1);
+        assertThat(store().findByIdempotencyKey(ISSUER, "k-expired")).isEmpty();
+        assertThat(store().findByIdempotencyKey(ISSUER, "k-active")).contains(active);
+        assertThat(store().findByIdempotencyKey(ISSUER, "k-terminal")).contains(terminal);
+        assertThat(store().insert(pending("k-expired"))).isTrue();
     }
 
     @Test

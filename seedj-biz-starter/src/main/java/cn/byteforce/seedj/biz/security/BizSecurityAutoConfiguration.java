@@ -105,19 +105,12 @@ public class BizSecurityAutoConfiguration {
     }
 
     /**
-     * 把当前调用方带进 {@code @Async} 线程；Boot 自动配置的执行器会应用该装饰器。
+     * 把当前调用方与请求事实带进 {@code @Async} 线程；Boot 自动配置的执行器会应用该装饰器。
      */
     @Bean
     @ConditionalOnMissingBean(TaskDecorator.class)
-    public TaskDecorator callerTaskDecorator(CallerPropagation propagation) {
-        return runnable -> {
-            var current = propagation.current().orElse(null);
-            return () -> {
-                try (CallerPropagation.Scope ignored = propagation.open(current)) {
-                    runnable.run();
-                }
-            };
-        };
+    public TaskDecorator requestContextDecorator(CallerPropagation propagation) {
+        return new RequestContextDecorator(propagation);
     }
 
     @Configuration(proxyBeanMethods = false)
@@ -252,22 +245,16 @@ public class BizSecurityAutoConfiguration {
         }
 
         /**
-         * 生产 profile 禁止本地 dev auth：否则固定管理员身份会泄漏到生产。
+         * 降级开关守卫：degraded-mode / dev-auth 只允许 local/test。
          *
          * @param environment Spring 环境
          * @return 启动期守卫
          */
         @Bean
-        public org.springframework.beans.factory.InitializingBean devAuthProdGuard(
+        @ConditionalOnMissingBean
+        public cn.byteforce.seedj.starter.config.DegradedModeGuard degradedModeGuard(
                 Environment environment) {
-            return () -> {
-                boolean devAuth = environment.getProperty("seedj.biz.dev-auth.enabled",
-                        Boolean.class, false);
-                if (devAuth && environment.matchesProfiles("prod")) {
-                    throw new IllegalStateException("seedj.biz.dev-auth.enabled is forbidden in"
-                            + " the prod profile");
-                }
-            };
+            return new cn.byteforce.seedj.starter.config.DegradedModeGuard(environment);
         }
 
         private static JsonMapper jsonMapper(ObjectProvider<JsonMapper> provider) {

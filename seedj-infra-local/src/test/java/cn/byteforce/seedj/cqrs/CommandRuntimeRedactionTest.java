@@ -3,9 +3,12 @@ package cn.byteforce.seedj.cqrs;
 import cn.byteforce.seedj.core.clock.Clock;
 import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;
-import cn.byteforce.seedj.infra.local.cqrs.InMemoryCommandStore;
+import cn.byteforce.seedj.core.security.Caller;
 import cn.byteforce.seedj.domain.AppendRequest;
-import cn.byteforce.seedj.domain.TemporalRow;
+import cn.byteforce.seedj.domain.FieldType;
+import cn.byteforce.seedj.domain.ObjectSchema;
+import cn.byteforce.seedj.domain.ScopePredicate;
+import cn.byteforce.seedj.infra.local.cqrs.InMemoryCommandStore;
 import cn.byteforce.seedj.infra.local.domain.InMemoryTemporalStore;
 import cn.byteforce.seedj.infra.local.id.Uuid7IdGenerator;
 import org.junit.jupiter.api.DisplayName;
@@ -29,6 +32,14 @@ class CommandRuntimeRedactionTest {
     private static final UUID ID = UUID.fromString("018f2e3a-1234-7000-8000-000000000001");
     private static final UUID ACTOR = UUID.fromString("018f2e3a-0000-7000-8000-000000000001");
 
+    private static final Caller CALLER = new Caller(ACTOR.toString(), "alice", "default",
+            null, null, null, null, null, null);
+
+    private static final ObjectSchema SCHEMA = ObjectSchema.builder("probe", "probe_object")
+            .field("name", FieldType.TEXT)
+            .field("secret", FieldType.TEXT)
+            .build();
+
     private final AtomicReference<Instant> now = new AtomicReference<>(
             Instant.parse("2026-10-08T09:00:00Z"));
     private final Clock clock = now::get;
@@ -37,47 +48,63 @@ class CommandRuntimeRedactionTest {
     private final CommandRuntime runtime = new CommandRuntime(
             CommandRuntime.Options.forTests(clock, new Uuid7IdGenerator(clock), commands, objects));
 
-    private final RecordingAgent redacting = new RecordingAgent(runtime, "probe.update",
-            payload -> {
-                Map<String, Object> redacted = new LinkedHashMap<>(payload);
-                redacted.remove("secret");
-                return redacted;
-            });
-    private final RecordingAgent plain = new RecordingAgent(runtime, "probe.plain",
+    private final CommandRegistration redacting = registration("probe.update", payload -> {
+        Map<String, Object> redacted = new LinkedHashMap<>(payload);
+        redacted.remove("secret");
+        return redacted;
+    });
+    private final CommandRegistration plain = registration("probe.plain",
             CommandPayloadRedactor.noop());
 
     @Test
     @DisplayName("命令记录不含原始字段，重放仍命中幂等")
     void commandRecordIsRedactedAndReplayWorks() {
-        CommandReceipt first = redacting.execute(submission("probe.update", "k-1", "raw-1", ID));
+        CommandReceipt first = runtime.execute(submission("probe.update", "k-1", "raw-1", ID),
+                redacting, CALLER, ScopePredicate.all());
 
-        assertThat(commands.findByIdempotencyKey("k-1")).get()
+        assertThat(commands.findByIdempotencyKey(ACTOR, "k-1")).get()
                 .satisfies(record -> assertThat(record.payload()).doesNotContainKey("secret"));
-        CommandReceipt replay = redacting.execute(submission("probe.update", "k-1", "raw-1", ID));
+        CommandReceipt replay = runtime.execute(submission("probe.update", "k-1", "raw-1", ID),
+                redacting, CALLER, ScopePredicate.all());
         assertThat(replay.commandId()).isEqualTo(first.commandId());
     }
 
     @Test
     @DisplayName("同键不同原始字段仍触发幂等冲突")
     void fingerprintStillUsesRawPayload() {
-        redacting.execute(submission("probe.update", "k-2", "raw-1", ID));
+        runtime.execute(submission("probe.update", "k-2", "raw-1", ID), redacting, CALLER,
+                ScopePredicate.all());
 
-        assertThatThrownBy(() -> redacting.execute(submission("probe.update", "k-2", "raw-2", ID)))
+        assertThatThrownBy(() -> runtime.execute(
+                submission("probe.update", "k-2", "raw-2", ID), redacting, CALLER,
+                ScopePredicate.all()))
                 .isInstanceOfSatisfying(ContractException.class, error ->
                         assertThat(error.code()).isEqualTo(ContractErrorCode.IDEMPOTENCY_CONFLICT));
     }
 
     @Test
-    @DisplayName("两个 agent 的 redactor 互不影响")
-    void redactorsArePerAgent() {
-        redacting.execute(submission("probe.update", "k-3", "raw-3", ID));
-        plain.execute(submission("probe.plain", "k-4", "raw-4",
-                                UUID.fromString("018f2e3a-1234-7000-8000-000000000002")));
+    @DisplayName("两个注册项的 redactor 互不影响")
+    void redactorsArePerRegistration() {
+        runtime.execute(submission("probe.update", "k-3", "raw-3", ID), redacting, CALLER,
+                ScopePredicate.all());
+        runtime.execute(submission("probe.plain", "k-4", "raw-4",
+                UUID.fromString("018f2e3a-1234-7000-8000-000000000002")), plain, CALLER,
+                ScopePredicate.all());
 
-        assertThat(commands.findByIdempotencyKey("k-3")).get()
+        assertThat(commands.findByIdempotencyKey(ACTOR, "k-3")).get()
                 .satisfies(record -> assertThat(record.payload()).doesNotContainKey("secret"));
-        assertThat(commands.findByIdempotencyKey("k-4")).get()
+        assertThat(commands.findByIdempotencyKey(ACTOR, "k-4")).get()
                 .satisfies(record -> assertThat(record.payload()).containsEntry("secret", "raw-4"));
+    }
+
+    private static CommandRegistration registration(String type, CommandPayloadRedactor redactor) {
+        CommandDescriptor descriptor = CommandDescriptor.builder()
+                .type(type)
+                .objectType("probe")
+                .payloadType(Probe.class)
+                .redactor(redactor)
+                .build();
+        return new CommandRegistration(descriptor, new ProbeHandler(), SCHEMA);
     }
 
     private static CommandSubmission submission(String type, String key, String secret, UUID target) {
@@ -88,26 +115,16 @@ class CommandRuntimeRedactionTest {
         return new CommandSubmission(type, payload, key, List.of(target), ACTOR);
     }
 
-    static final class RecordingAgent extends TemporalCommandAgent<Probe> {
-
-        RecordingAgent(CommandRuntime runtime, String type, CommandPayloadRedactor redactor) {
-            super(runtime, CommandDescriptor.builder()
-                    .type(type)
-                    .objectType("probe")
-                    .payloadType(Probe.class)
-                    .redactor(redactor)
-                    .build());
-        }
+    static final class ProbeHandler implements CommandHandler<Probe> {
 
         @Override
-        protected UUID targetId(Probe command) {
+        public UUID targetId(Probe command) {
             return command.target();
         }
 
         @Override
-        protected AppendRequest append(Probe command, java.util.Optional<TemporalRow> current,
-                                       Instant now, UUID actor) {
-            return AppendRequest.create("probe", command.target(), now, null, actor,
+        public AppendRequest decide(Probe command, CommandContext ctx) {
+            return AppendRequest.create("probe", command.target(), ctx.now(), null, ctx.actor(),
                     Map.of("name", command.name()));
         }
     }

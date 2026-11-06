@@ -1,7 +1,7 @@
 package cn.byteforce.seedj.server.hr.employee;
 
 import cn.byteforce.seedj.core.InfrastructureCapability;
-import cn.byteforce.seedj.domain.ObjectSchema;
+import cn.byteforce.seedj.module.ObjectModuleRegistry;
 import cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
@@ -27,15 +27,15 @@ public class HrEmployeePostgresConfiguration {
      *
      * @param dataSource 数据源
      * @param runners    迁移执行器
-     * @param schema     员工 schema
+     * @param modules    模块注册表
      * @return 能力
      */
     @Bean
     public InfrastructureCapability hrEmployeeSchemaCapability(
             DataSource dataSource,
             ObjectProvider<JdbcMigrationRunner> runners,
-            ObjectSchema schema) {
+            ObjectModuleRegistry modules) {
         return new HrEmployeeSchemaCapability(
-                runners.getIfAvailable(() -> new JdbcMigrationRunner(dataSource)), schema);
+                runners.getIfAvailable(() -> new JdbcMigrationRunner(dataSource)), modules);
     }
 }

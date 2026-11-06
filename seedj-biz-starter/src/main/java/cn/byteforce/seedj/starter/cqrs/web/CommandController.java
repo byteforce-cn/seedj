@@ -35,6 +35,9 @@ import java.util.UUID;
 @RestController
 public final class CommandController {
 
+    /** 允许读取任意命令终态的管理权限。 */
+    public static final String ADMIN_PERMISSION = "seedj.command.admin";
+
     private final CommandCatalog catalog;
 
     private final CommandStore commands;
@@ -110,7 +113,11 @@ public final class CommandController {
      */
     @GetMapping("/commands/{id}")
     public ResponseEntity<?> status(@PathVariable UUID id) {
+        Caller caller = currentCaller();
+        UUID actor = callerIds.toActor(caller);
         CommandRecord record = commands.find(id)
+                .filter(found -> found.issuer().equals(actor)
+                        || caller.hasPermission(ADMIN_PERMISSION))
                 .orElseThrow(() -> new ContractException(ContractErrorCode.OBJECT_NOT_FOUND,
                         "command not found"));
         Map<String, Object> body = new LinkedHashMap<>();

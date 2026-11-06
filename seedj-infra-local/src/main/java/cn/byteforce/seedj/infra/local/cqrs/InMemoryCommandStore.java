@@ -4,6 +4,7 @@ import cn.byteforce.seedj.cqrs.CommandRecord;
 import cn.byteforce.seedj.cqrs.CommandStatus;
 import cn.byteforce.seedj.cqrs.spi.CommandStore;
 
+import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -30,21 +31,22 @@ public final class InMemoryCommandStore implements CommandStore {
     }
 
     @Override
-    public Optional<CommandRecord> findByIdempotencyKey(String idempotencyKey) {
-        if (idempotencyKey == null) {
+    public Optional<CommandRecord> findByIdempotencyKey(UUID issuer, String idempotencyKey) {
+        if (issuer == null || idempotencyKey == null) {
             return Optional.empty();
         }
-        UUID id = byKey.get(idempotencyKey);
+        UUID id = byKey.get(key(issuer, idempotencyKey));
         return id == null ? Optional.empty() : Optional.ofNullable(byId.get(id));
     }
 
     @Override
     public synchronized boolean insert(CommandRecord record) {
-        if (byId.containsKey(record.id()) || byKey.containsKey(record.idempotencyKey())) {
+        String key = key(record.issuer(), record.idempotencyKey());
+        if (byId.containsKey(record.id()) || byKey.containsKey(key)) {
             return false;
         }
         byId.put(record.id(), record);
-        byKey.put(record.idempotencyKey(), record.id());
+        byKey.put(key, record.id());
         return true;
     }
 
@@ -74,7 +76,30 @@ public final class InMemoryCommandStore implements CommandStore {
             return;
         }
         byId.remove(id);
-        byKey.remove(existing.idempotencyKey(), id);
+        byKey.remove(key(existing.issuer(), existing.idempotencyKey()), id);
+    }
+
+    private static String key(UUID issuer, String idempotencyKey) {
+        return issuer + "\u0000" + idempotencyKey;
+    }
+
+    @Override
+    public synchronized long expirePending(Instant now) {
+        java.util.List<UUID> expired = new java.util.ArrayList<>();
+        byId.forEach((id, record) -> {
+            if (record.status() == CommandStatus.PENDING
+                    && record.leaseUntil() != null
+                    && record.leaseUntil().isBefore(now)) {
+                expired.add(id);
+            }
+        });
+        for (UUID id : expired) {
+            CommandRecord record = byId.remove(id);
+            if (record != null) {
+                byKey.remove(key(record.issuer(), record.idempotencyKey()), id);
+            }
+        }
+        return expired.size();
     }
 
     /**

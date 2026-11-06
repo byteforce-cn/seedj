@@ -11,7 +11,6 @@ import cn.byteforce.seedj.cqrs.CommandCatalog;
 import cn.byteforce.seedj.cqrs.CommandPolicy;
 import cn.byteforce.seedj.cqrs.CommandValidator;
 import cn.byteforce.seedj.cqrs.CommandRuntime;
-import cn.byteforce.seedj.cqrs.TemporalCommandAgent;
 import cn.byteforce.seedj.cqrs.TemporalCommandAudit;
 import cn.byteforce.seedj.infra.jdbc.cqrs.CommandSchemaCapability;
 import cn.byteforce.seedj.infra.jdbc.cqrs.PostgresCommandStore;
@@ -27,7 +26,6 @@ import cn.byteforce.seedj.infra.jdbc.domain.TemporalSchemaCapability;
 import cn.byteforce.seedj.infra.jdbc.domain.TemporalTable;
 import cn.byteforce.seedj.infra.jdbc.domain.TemporalTables;
 import cn.byteforce.seedj.infra.local.domain.InMemoryTemporalStore;
-import cn.byteforce.seedj.starter.domain.web.ObjectQueryController;
 import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.infra.local.id.Uuid7IdGenerator;
 import cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner;
@@ -266,7 +264,9 @@ public class TemporalCommandAutoConfiguration {
         }
         return new CommandRuntime(new CommandRuntime.Options(
                 transactionRunner, lockProvider, Duration.ofSeconds(30), clock, ids, commands,
-                objects, outboxWriter, audit.getIfAvailable(TemporalCommandAudit::noop)));
+                objects, outboxWriter, audit.getIfAvailable(TemporalCommandAudit::noop),
+                tools.jackson.databind.json.JsonMapper.builder().build(),
+                properties.getPendingLease()));
     }
 
     private static void requireDependency(Object dependency, String name) {
@@ -278,18 +278,16 @@ public class TemporalCommandAutoConfiguration {
     }
 
     /**
-     * 命令注册表。
+     * 降级开关守卫。
      *
-     * @param agents 应用声明的命令代理
-     * @return 注册表
+     * @param environment Spring 环境
+     * @return 启动期守卫
      */
     @Bean
     @ConditionalOnMissingBean
-    @ConditionalOnProperty(prefix = "seedj.command", name = "enabled", havingValue = "true",
-            matchIfMissing = true)
-    public CommandCatalog commandCatalog(List<TemporalCommandAgent<?>> agents,
-                                         CommandPolicy policy) {
-        return new CommandCatalog(agents, policy);
+    public cn.byteforce.seedj.starter.config.DegradedModeGuard degradedModeGuard(
+            Environment environment) {
+        return new cn.byteforce.seedj.starter.config.DegradedModeGuard(environment);
     }
 
     /**
@@ -389,15 +387,6 @@ public class TemporalCommandAutoConfiguration {
             CallerProvider provider = callers.getIfAvailable();
             return new CommandController(catalog, commands,
                     provider == null ? Optional::empty : provider, callerIds);
-        }
-
-        @Bean
-        @ConditionalOnMissingBean
-        @ConditionalOnProperty(prefix = "seedj.object", name = "enabled", havingValue = "true",
-                matchIfMissing = true)
-        ObjectQueryController objectQueryController(TemporalStore objects,
-                                                    ObjectSchemaRegistry schemas) {
-            return new ObjectQueryController(objects, schemas);
         }
     }
 }

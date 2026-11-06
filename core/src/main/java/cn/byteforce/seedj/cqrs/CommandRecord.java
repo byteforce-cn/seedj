@@ -34,6 +34,7 @@ import java.util.regex.Pattern;
  * @param locator            写入的聚合根 ID（仅接受态）
  * @param version            locator 对应的对象版本（仅接受态）
  * @param createdAt          记录创建时间
+ * @param leaseUntil         PENDING 租约到期时间；终态保留原值
  * @author ByteForce
  * @since 1.0.0
  */
@@ -51,7 +52,8 @@ public record CommandRecord(
         List<UUID> eventIds,
         UUID locator,
         Long version,
-        Instant createdAt) {
+        Instant createdAt,
+        Instant leaseUntil) {
 
     private static final Pattern TYPE = Pattern.compile("^[a-z][a-z0-9_.]*$");
 
@@ -78,6 +80,7 @@ public record CommandRecord(
         }
         issuedAt = issuedAt.truncatedTo(ChronoUnit.MICROS);
         createdAt = createdAt.truncatedTo(ChronoUnit.MICROS);
+        leaseUntil = leaseUntil == null ? null : leaseUntil.truncatedTo(ChronoUnit.MICROS);
 
         Map<String, Object> payloadCopy = new LinkedHashMap<>(payload);
         payload = Collections.unmodifiableMap(payloadCopy);
@@ -86,6 +89,10 @@ public record CommandRecord(
         switch (status) {
             case PENDING -> {
                 requireTerminalFieldsAbsent(locator, version, rejectionCode, rejectionReason);
+                if (leaseUntil == null) {
+                    throw new IllegalArgumentException(
+                            "pending command requires a lease");
+                }
             }
             case ACCEPTED -> {
                 if (locator == null) {
@@ -134,9 +141,31 @@ public record CommandRecord(
     public static CommandRecord pending(UUID id, String type, Instant issuedAt, UUID issuer,
                                         Map<String, Object> payload, String idempotencyKey,
                                         String payloadFingerprint, Instant createdAt) {
+        return pending(id, type, issuedAt, issuer, payload, idempotencyKey,
+                payloadFingerprint, createdAt, createdAt.plusSeconds(60));
+    }
+
+    /**
+     * 新建一条带租约的待处理记录。
+     *
+     * @param id                 命令 ID
+     * @param type               命令类型
+     * @param issuedAt           签发时间
+     * @param issuer             发起者
+     * @param payload            载荷
+     * @param idempotencyKey     幂等键
+     * @param payloadFingerprint 载荷指纹
+     * @param createdAt          记录创建时间
+     * @param leaseUntil         租约到期时间
+     * @return 待处理记录
+     */
+    public static CommandRecord pending(UUID id, String type, Instant issuedAt, UUID issuer,
+                                        Map<String, Object> payload, String idempotencyKey,
+                                        String payloadFingerprint, Instant createdAt,
+                                        Instant leaseUntil) {
         return new CommandRecord(id, type, issuedAt, issuer, payload, idempotencyKey,
                 payloadFingerprint, CommandStatus.PENDING, null, null, List.of(), null, null,
-                createdAt);
+                createdAt, leaseUntil);
     }
 
     /**
@@ -150,7 +179,7 @@ public record CommandRecord(
     public CommandRecord accepted(UUID locator, long version, List<UUID> eventIds) {
         return new CommandRecord(id, type, issuedAt, issuer, payload, idempotencyKey,
                 payloadFingerprint, CommandStatus.ACCEPTED, null, null, eventIds, locator,
-                version, createdAt);
+                version, createdAt, leaseUntil);
     }
 
     /**
@@ -164,7 +193,7 @@ public record CommandRecord(
         Objects.requireNonNull(code, "code");
         return new CommandRecord(id, type, issuedAt, issuer, payload, idempotencyKey,
                 payloadFingerprint, CommandStatus.REJECTED, code.getCode(), reason, List.of(),
-                null, null, createdAt);
+                null, null, createdAt, leaseUntil);
     }
 
     /**
