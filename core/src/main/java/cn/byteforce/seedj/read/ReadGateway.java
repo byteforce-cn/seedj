@@ -11,7 +11,6 @@ import cn.byteforce.seedj.domain.FieldDefinition;
 import cn.byteforce.seedj.domain.ObjectSchema;
 import cn.byteforce.seedj.domain.Page;
 import cn.byteforce.seedj.domain.ScopePredicate;
-import cn.byteforce.seedj.domain.ScopePredicates;
 import cn.byteforce.seedj.domain.TemporalQuery;
 import cn.byteforce.seedj.domain.TemporalRow;
 import cn.byteforce.seedj.domain.TemporalSearch;
@@ -180,30 +179,8 @@ public final class ReadGateway {
 
     private ScopePredicate resolveScope(ReadModel model, Caller caller) {
         ScopeContext context = ScopeContextHolder.current().orElse(ScopeContext.empty());
-        List<ScopePredicate> parts = new ArrayList<>();
-        for (DataScopeResolver resolver : scopes) {
-            if (!resolver.supports(model.objectType())) {
-                continue;
-            }
-            ScopePredicate predicate;
-            try {
-                predicate = resolver.resolve(model.objectType(), caller, context);
-            } catch (RuntimeException error) {
-                throw unavailable("data scope resolution failed for " + model.objectType(),
-                        error);
-            }
-            if (predicate == null) {
-                throw new IllegalStateException(
-                        "data scope resolver returned null for " + model.objectType());
-            }
-            requireKnownFields(predicate, model.schema());
-            parts.add(predicate);
-        }
-        if (parts.isEmpty()) {
-            throw new ContractException(ContractErrorCode.FORBIDDEN,
-                    "no data scope resolver for " + model.objectType());
-        }
-        return ScopePredicates.and(parts);
+        return ScopeResolvers.resolve(model.objectType(), caller, context, scopes,
+                model.schema());
     }
 
     private static ContractException unavailable(String message, RuntimeException cause) {
@@ -212,26 +189,9 @@ public final class ReadGateway {
         return error;
     }
 
-    private static void requireKnownFields(ScopePredicate predicate, ObjectSchema schema) {
-        switch (predicate) {
-            case ScopePredicate.All ignored -> {
-            }
-            case ScopePredicate.None ignored -> {
-            }
-            case ScopePredicate.Eq eq -> field(schema, eq.field());
-            case ScopePredicate.In in -> field(schema, in.field());
-            case ScopePredicate.NotNull notNull -> field(schema, notNull.field());
-            case ScopePredicate.And and -> and.parts().forEach(part -> requireKnownFields(part,
-                    schema));
-            case ScopePredicate.Or or -> or.parts().forEach(part -> requireKnownFields(part,
-                    schema));
-            case ScopePredicate.Not not -> requireKnownFields(not.part(), schema);
-        }
-    }
-
     private static void field(ObjectSchema schema, String field) {
         if (schema.field(field).isEmpty()) {
-            throw new IllegalStateException("data scope references unknown field: " + field);
+            throw new IllegalStateException("field policy references unknown field: " + field);
         }
     }
 

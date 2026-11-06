@@ -7,7 +7,10 @@ import cn.byteforce.seedj.core.exception.ContractException;
 import cn.byteforce.seedj.core.security.Caller;
 import cn.byteforce.seedj.core.security.CallerIdCodec;
 import cn.byteforce.seedj.core.security.CallerProvider;
+import cn.byteforce.seedj.cqrs.CommandContext;
 import cn.byteforce.seedj.cqrs.CommandDescriptor;
+import cn.byteforce.seedj.cqrs.CommandHandler;
+import cn.byteforce.seedj.cqrs.CommandRegistration;
 import cn.byteforce.seedj.cqrs.CommandPolicy;
 import cn.byteforce.seedj.cqrs.CqrsErrorCode;
 import cn.byteforce.seedj.cqrs.CqrsException;
@@ -15,12 +18,12 @@ import cn.byteforce.seedj.cqrs.CommandCatalog;
 import cn.byteforce.seedj.cqrs.CommandRuntime;
 import cn.byteforce.seedj.cqrs.TemporalCommandAudit;
 import cn.byteforce.seedj.outbox.OutboxWriter;
-import cn.byteforce.seedj.cqrs.TemporalCommandAgent;
 import cn.byteforce.seedj.infra.local.cqrs.InMemoryCommandStore;
 import cn.byteforce.seedj.cqrs.spi.TransactionRunner;
 import cn.byteforce.seedj.domain.AppendRequest;
+import cn.byteforce.seedj.domain.FieldType;
+import cn.byteforce.seedj.domain.ObjectSchema;
 import cn.byteforce.seedj.domain.ScopePredicate;
-import cn.byteforce.seedj.domain.TemporalRow;
 import cn.byteforce.seedj.infra.local.domain.InMemoryTemporalStore;
 import cn.byteforce.seedj.infra.local.id.Uuid7IdGenerator;
 import cn.byteforce.seedj.lock.LockProvider;
@@ -71,9 +74,26 @@ class CommandControllerTest {
 
     private final CallerProvider callers = () -> Optional.ofNullable(caller.get());
 
+    private static final ObjectSchema SCHEMA = ObjectSchema.builder("probe", "probe_object")
+            .field("name", FieldType.TEXT)
+            .build();
+
+    private final CommandRegistration probe = registration("probe.update", new ProbeHandler());
+    private final CommandRegistration cqrs = registration("probe.cqrs", new CqrsRejectHandler());
+
     private final CommandCatalog catalog = new CommandCatalog(
-            List.of(new ProbeAgent(runtime), new CqrsRejectAgent(runtime)),
-            CommandPolicy.permissions());
+            List.of(probe, cqrs), CommandPolicy.permissions(), runtime,
+            (objectType, caller) -> ScopePredicate.all());
+
+    private static CommandRegistration registration(String type, CommandHandler<ProbeCommand> handler) {
+        CommandDescriptor descriptor = CommandDescriptor.builder()
+                .type(type)
+                .objectType("probe")
+                .payloadType(ProbeCommand.class)
+                .permission("probe.write")
+                .build();
+        return new CommandRegistration(descriptor, handler, SCHEMA);
+    }
 
     private MockMvc mvc;
 
@@ -307,58 +327,39 @@ class CommandControllerTest {
                 Set.of(Caller.DEFAULT_AMR), Caller.DEFAULT_ACR, Map.of());
     }
 
-    static final class CqrsRejectAgent extends TemporalCommandAgent<ProbeCommand> {
-
-        CqrsRejectAgent(CommandRuntime runtime) {
-            super(runtime, CommandDescriptor.builder()
-                    .type("probe.cqrs")
-                    .objectType("probe")
-                    .payloadType(ProbeCommand.class)
-                    .permission("probe.write")
-                    .build());
-        }
+    static final class CqrsRejectHandler implements CommandHandler<ProbeCommand> {
 
         @Override
-        protected UUID targetId(ProbeCommand command) {
+        public UUID targetId(ProbeCommand command) {
             return command.target();
         }
 
         @Override
-        protected AppendRequest append(ProbeCommand command, Optional<TemporalRow> current,
-                                       Instant now, UUID actor) {
+        public AppendRequest decide(ProbeCommand command, CommandContext ctx) {
             throw new CqrsException(CqrsErrorCode.COMMAND_REJECTED, "rejected by projector");
         }
     }
 
-    static final class ProbeAgent extends TemporalCommandAgent<ProbeCommand> {
-
-        ProbeAgent(CommandRuntime runtime) {
-            super(runtime, CommandDescriptor.builder()
-                    .type("probe.update")
-                    .objectType("probe")
-                    .payloadType(ProbeCommand.class)
-                    .permission("probe.write")
-                    .build());
-        }
+    static final class ProbeHandler implements CommandHandler<ProbeCommand> {
 
         @Override
-        protected UUID targetId(ProbeCommand command) {
+        public UUID targetId(ProbeCommand command) {
             return command.target();
         }
 
         @Override
-        protected AppendRequest append(ProbeCommand command, Optional<TemporalRow> current,
-                                       Instant now, UUID actor) {
+        public AppendRequest decide(ProbeCommand command, CommandContext ctx) {
             if (command.reject()) {
                 throw new ContractException(ContractErrorCode.TEMPORAL_VIOLATION,
                         "rejected by probe");
             }
             Map<String, Object> fields = Map.of("name", command.name());
-            if (current.isPresent()) {
-                return AppendRequest.correction("probe", command.target(), now, null, actor,
-                        fields);
+            if (ctx.current().isPresent()) {
+                return AppendRequest.correction("probe", command.target(), ctx.now(), null,
+                        ctx.actor(), fields);
             }
-            return AppendRequest.create("probe", command.target(), now, null, actor, fields);
+            return AppendRequest.create("probe", command.target(), ctx.now(), null,
+                    ctx.actor(), fields);
         }
     }
 

@@ -1,6 +1,7 @@
 package cn.byteforce.seedj.module;
 
 import cn.byteforce.seedj.core.security.ScopeKeyCatalog;
+import cn.byteforce.seedj.cqrs.CommandRegistration;
 import cn.byteforce.seedj.read.ReadModel;
 import cn.byteforce.seedj.read.ReadModelRegistry;
 
@@ -22,12 +23,19 @@ public final class ObjectModuleRegistry implements ReadModelRegistry {
 
     private final List<QueryDeclaration> queries;
 
+    private final List<CommandDeclaration> commandDeclarations;
+
+    private final List<CommandRegistration> commands;
+
     private final ScopeKeyCatalog scopeKeys;
 
     ObjectModuleRegistry(Map<String, ReadModel> models, List<QueryDeclaration> queries,
-                         ScopeKeyCatalog scopeKeys) {
+                         List<CommandDeclaration> commandDeclarations,
+                         List<CommandRegistration> commands, ScopeKeyCatalog scopeKeys) {
         this.models = Collections.unmodifiableMap(new LinkedHashMap<>(models));
         this.queries = List.copyOf(queries);
+        this.commandDeclarations = List.copyOf(commandDeclarations);
+        this.commands = List.copyOf(commands);
         this.scopeKeys = scopeKeys;
     }
 
@@ -59,6 +67,24 @@ public final class ObjectModuleRegistry implements ReadModelRegistry {
      */
     public List<QueryDeclaration> queries() {
         return queries;
+    }
+
+    /**
+     * 命令注册项。
+     *
+     * @return 不可变列表
+     */
+    public List<CommandRegistration> commands() {
+        return commands;
+    }
+
+    /**
+     * 命令声明快照。
+     *
+     * @return 不可变列表
+     */
+    public List<CommandDeclaration> commandDeclarations() {
+        return commandDeclarations;
     }
 
     /**

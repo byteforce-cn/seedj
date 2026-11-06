@@ -2,14 +2,16 @@ package cn.byteforce.seedj.starter.cqrs.wiring;
 
 import cn.byteforce.seedj.biz.autoconfigure.BizEnabledMarker;
 import cn.byteforce.seedj.cqrs.CommandCatalog;
-import cn.byteforce.seedj.cqrs.CommandDescriptor;
 import cn.byteforce.seedj.cqrs.CommandRuntime;
-import cn.byteforce.seedj.cqrs.TemporalCommandAgent;
 import cn.byteforce.seedj.infra.local.cqrs.InMemoryCommandStore;
 import cn.byteforce.seedj.cqrs.spi.CommandStore;
 import cn.byteforce.seedj.cqrs.spi.TransactionRunner;
 import cn.byteforce.seedj.lock.LockProvider;
+import cn.byteforce.seedj.module.ObjectModuleConfigurer;
 import cn.byteforce.seedj.starter.cqrs.web.CommandController;
+import cn.byteforce.seedj.starter.read.ObjectModuleAutoConfiguration;
+import cn.byteforce.seedj.cqrs.CommandContext;
+import cn.byteforce.seedj.cqrs.CommandHandler;
 import cn.byteforce.seedj.domain.AppendRequest;
 import cn.byteforce.seedj.domain.FieldType;
 import cn.byteforce.seedj.domain.ObjectSchema;
@@ -25,14 +27,10 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
 
-import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -52,7 +50,8 @@ class TemporalCommandAutoConfigurationTest {
     @DisplayName("无 DataSource 时默认内存存储，并提供运行时与控制器")
     void memoryDefaultsProvideRuntimeCatalogAndControllers() {
         new WebApplicationContextRunner()
-                .withConfiguration(AutoConfigurations.of(TemporalCommandAutoConfiguration.class))
+                .withConfiguration(AutoConfigurations.of(TemporalCommandAutoConfiguration.class,
+                        ObjectModuleAutoConfiguration.class))
                 .withBean(BizEnabledMarker.class)
                 .withPropertyValues("seedj.command.degraded-mode=true")
                 .run(context -> {
@@ -121,7 +120,8 @@ class TemporalCommandAutoConfigurationTest {
     @DisplayName("seedj.object.enabled=false 时关闭对象存储与查询控制器")
     void objectDisabledBacksOffStoreAndQueryController() {
         new WebApplicationContextRunner()
-                .withConfiguration(AutoConfigurations.of(TemporalCommandAutoConfiguration.class))
+                .withConfiguration(AutoConfigurations.of(TemporalCommandAutoConfiguration.class,
+                        ObjectModuleAutoConfiguration.class))
                 .withBean(BizEnabledMarker.class)
                 .withPropertyValues("seedj.object.enabled=false", "seedj.command.enabled=false")
                 .run(context -> {
@@ -179,43 +179,38 @@ class TemporalCommandAutoConfigurationTest {
     }
 
     @Test
-    @DisplayName("命令代理 bean 自动进入 CommandCatalog")
-    void collectsAgentBeansIntoCatalog() {
-        runner.withUserConfiguration(AgentConfiguration.class).run(context -> {
-            assertThat(context).hasNotFailed();
-            assertThat(context).hasSingleBean(CommandCatalog.class);
-            assertThat(context.getBean(CommandCatalog.class).types()).containsExactly("probe.update");
-        });
+    @DisplayName("模块命令声明自动进入 CommandCatalog")
+    void collectsModuleCommandsIntoCatalog() {
+        new ApplicationContextRunner()
+                .withConfiguration(AutoConfigurations.of(TemporalCommandAutoConfiguration.class,
+                        ObjectModuleAutoConfiguration.class))
+                .withBean(BizEnabledMarker.class)
+                .withPropertyValues("seedj.command.degraded-mode=true")
+                .withBean(ObjectModuleConfigurer.class, () -> modules ->
+                        modules.object("probe", "probe_object")
+                                .readPermission("probe.read")
+                                .field("name", FieldType.TEXT)
+                                .command("probe.update", ProbeCommand.class)
+                                    .permission("probe.write")
+                                    .handler(new ProbeHandler())
+                                    .commandField("target"))
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context).hasSingleBean(CommandCatalog.class);
+                    assertThat(context.getBean(CommandCatalog.class).types())
+                            .containsExactly("probe.update");
+                });
     }
 
-    @Configuration(proxyBeanMethods = false)
-    static class AgentConfiguration {
-
-        @Bean
-        ProbeAgent probeAgent(CommandRuntime runtime) {
-            return new ProbeAgent(runtime);
-        }
-    }
-
-    static final class ProbeAgent extends TemporalCommandAgent<ProbeCommand> {
-
-        ProbeAgent(CommandRuntime runtime) {
-            super(runtime, CommandDescriptor.builder()
-                    .type("probe.update")
-                    .objectType("probe")
-                    .payloadType(ProbeCommand.class)
-                    .permission("probe.write")
-                    .build());
-        }
+    static final class ProbeHandler implements CommandHandler<ProbeCommand> {
 
         @Override
-        protected UUID targetId(ProbeCommand command) {
+        public UUID targetId(ProbeCommand command) {
             return command.target();
         }
 
         @Override
-        protected AppendRequest append(ProbeCommand command, Optional<cn.byteforce.seedj.domain.TemporalRow> current,
-                                       Instant now, UUID actor) {
+        public AppendRequest decide(ProbeCommand command, CommandContext ctx) {
             throw new UnsupportedOperationException();
         }
     }

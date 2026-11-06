@@ -11,7 +11,6 @@ import cn.byteforce.seedj.cqrs.CommandCatalog;
 import cn.byteforce.seedj.cqrs.CommandPolicy;
 import cn.byteforce.seedj.cqrs.CommandValidator;
 import cn.byteforce.seedj.cqrs.CommandRuntime;
-import cn.byteforce.seedj.cqrs.TemporalCommandAgent;
 import cn.byteforce.seedj.cqrs.TemporalCommandAudit;
 import cn.byteforce.seedj.infra.jdbc.cqrs.CommandSchemaCapability;
 import cn.byteforce.seedj.infra.jdbc.cqrs.PostgresCommandStore;
@@ -274,21 +273,6 @@ public class TemporalCommandAutoConfiguration {
                     + "; configure it, or set seedj.command.degraded-mode=true only for"
                     + " local/test");
         }
-    }
-
-    /**
-     * 命令注册表。
-     *
-     * @param agents 应用声明的命令代理
-     * @return 注册表
-     */
-    @Bean
-    @ConditionalOnMissingBean
-    @ConditionalOnProperty(prefix = "seedj.command", name = "enabled", havingValue = "true",
-            matchIfMissing = true)
-    public CommandCatalog commandCatalog(List<TemporalCommandAgent<?>> agents,
-                                         CommandPolicy policy) {
-        return new CommandCatalog(agents, policy);
     }
 
     /**

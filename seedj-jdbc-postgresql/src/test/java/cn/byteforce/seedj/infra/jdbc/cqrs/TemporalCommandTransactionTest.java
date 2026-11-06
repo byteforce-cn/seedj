@@ -9,13 +9,18 @@ import cn.byteforce.seedj.cqrs.CommandRecord;
 import cn.byteforce.seedj.cqrs.CommandRuntime;
 import cn.byteforce.seedj.cqrs.CommandStatus;
 import cn.byteforce.seedj.cqrs.CommandSubmission;
-import cn.byteforce.seedj.cqrs.TemporalCommandAgent;
+import cn.byteforce.seedj.cqrs.CommandContext;
+import cn.byteforce.seedj.cqrs.CommandHandler;
+import cn.byteforce.seedj.cqrs.CommandRegistration;
+import cn.byteforce.seedj.core.security.Caller;
+import cn.byteforce.seedj.domain.FieldType;
+import cn.byteforce.seedj.domain.ObjectSchema;
+import cn.byteforce.seedj.domain.ScopePredicate;
 import cn.byteforce.seedj.cqrs.spi.TransactionRunner;
 import cn.byteforce.seedj.cqrs.TemporalCommandAudit;
 import cn.byteforce.seedj.outbox.OutboxWriter;
 import cn.byteforce.seedj.domain.AppendRequest;
 import cn.byteforce.seedj.domain.AppendResult;
-import cn.byteforce.seedj.domain.TemporalRow;
 import cn.byteforce.seedj.domain.event.CommandEvent;
 import cn.byteforce.seedj.infra.jdbc.domain.PostgresTemporalStore;
 import cn.byteforce.seedj.infra.jdbc.domain.TemporalTables;
@@ -42,7 +47,6 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
 
@@ -78,7 +82,10 @@ class TemporalCommandTransactionTest {
 
     private static CommandRuntime runtime;
 
-    private static ProbeAgent agent;
+    private static CommandRegistration registration;
+
+    private static final Caller CALLER = new Caller(ACTOR.toString(), "alice", "default",
+            null, null, null, null, null, null);
 
     @BeforeAll
     static void initialize() {
@@ -101,7 +108,15 @@ class TemporalCommandTransactionTest {
                 LockProvider.disabled(), Duration.ofSeconds(30), clock,
                 (IdGenerator<UUID>) UUID::randomUUID, commands, objects,
                 OutboxWriter.discard(), TemporalCommandAudit.noop()));
-        agent = new ProbeAgent(runtime);
+        ObjectSchema schema = ObjectSchema.builder("probe", "probe_object")
+                .field("name", FieldType.TEXT)
+                .build();
+        CommandDescriptor descriptor = CommandDescriptor.builder()
+                .type("probe.update")
+                .objectType("probe")
+                .payloadType(ProbeCommand.class)
+                .build();
+        registration = new CommandRegistration(descriptor, new ProbeHandler(), schema);
     }
 
     @BeforeEach
@@ -113,7 +128,8 @@ class TemporalCommandTransactionTest {
     @Test
     @DisplayName("接受命令：对象行与 accepted 命令记录一起提交")
     void acceptedWritesObjectAndCommandInOneTransaction() {
-        CommandReceipt receipt = agent.execute(submission("tx-1", "Alice", false));
+        CommandReceipt receipt = runtime.execute(submission("tx-1", "Alice", false), registration, CALLER,
+                ScopePredicate.all());
 
         assertThat(receipt.status()).isEqualTo(CommandStatus.ACCEPTED);
         assertThat(count("probe_object")).isEqualTo(1);
@@ -124,7 +140,8 @@ class TemporalCommandTransactionTest {
     @Test
     @DisplayName("追加后拒绝：对象行回滚，rejected 命令记录仍可查")
     void rejectedAfterAppendRollsBackObjectButKeepsRejectedCommand() {
-        assertThatThrownBy(() -> agent.execute(submission("tx-2", "Bob", true)))
+        assertThatThrownBy(() -> runtime.execute(submission("tx-2", "Bob", true), registration, CALLER,
+                ScopePredicate.all()))
                 .isInstanceOfSatisfying(ContractException.class, error ->
                         assertThat(error.code()).isEqualTo(ContractErrorCode.TEMPORAL_VIOLATION));
 
@@ -146,9 +163,10 @@ class TemporalCommandTransactionTest {
                 (record, events) -> {
                     throw new IllegalStateException("audit down");
                 }));
-        ProbeAgent failingAgent = new ProbeAgent(failing);
 
-        assertThatThrownBy(() -> failingAgent.execute(submission("tx-audit", "Alice", false)))
+
+        assertThatThrownBy(() -> failing.execute(submission("tx-audit", "Alice", false), registration, CALLER,
+                ScopePredicate.all()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("audit down");
 
@@ -169,35 +187,27 @@ class TemporalCommandTransactionTest {
         return new CommandSubmission("probe.update", payload, key, List.of(ID), ACTOR);
     }
 
-    static final class ProbeAgent extends TemporalCommandAgent<ProbeCommand> {
-
-        ProbeAgent(CommandRuntime runtime) {
-            super(runtime, CommandDescriptor.builder()
-                    .type("probe.update")
-                    .objectType("probe")
-                    .payloadType(ProbeCommand.class)
-                    .build());
-        }
+    static final class ProbeHandler implements CommandHandler<ProbeCommand> {
 
         @Override
-        protected UUID targetId(ProbeCommand command) {
+        public UUID targetId(ProbeCommand command) {
             return command.target();
         }
 
         @Override
-        protected AppendRequest append(ProbeCommand command, Optional<TemporalRow> current,
-                                       Instant now, UUID actor) {
+        public AppendRequest decide(ProbeCommand command, CommandContext ctx) {
             Map<String, Object> fields = Map.of("name", command.name());
-            if (current.isPresent()) {
-                return AppendRequest.correction("probe", command.target(), now, null, actor,
-                        fields);
+            if (ctx.current().isPresent()) {
+                return AppendRequest.correction("probe", command.target(), ctx.now(), null,
+                        ctx.actor(), fields);
             }
-            return AppendRequest.create("probe", command.target(), now, null, actor, fields);
+            return AppendRequest.create("probe", command.target(), ctx.now(), null,
+                    ctx.actor(), fields);
         }
 
         @Override
-        protected List<CommandEvent> events(ProbeCommand command, AppendResult result,
-                                           Instant now, UUID actor) {
+        public List<CommandEvent> events(ProbeCommand command, AppendResult result,
+                                         CommandContext ctx) {
             if (command.fail()) {
                 throw new ContractException(ContractErrorCode.TEMPORAL_VIOLATION,
                         "failure after append");
