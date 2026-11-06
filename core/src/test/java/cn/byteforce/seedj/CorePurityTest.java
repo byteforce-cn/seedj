@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test;
  * 形状门禁：core 只能依赖契约本身，不得出现监控框架或 Spring。
  *
  * <p>Jackson（`tools.jackson.*`）是唯一允许的第三方线格式依赖，且必须是 provided；
- * 见 {@code docs/adr/ADR-0010-core-provided-jackson.md}。Jackson 2 不得回流。</p>
+ * Jackson 2 不得回流。</p>
  */
 class CorePurityTest {
 

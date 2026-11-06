@@ -28,7 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * 手写 OpenAPI 工件与控制器/线格式的对照。
  *
  * <p>规范工具不在日常测试路径里；这里用反射与序列化断言保证「代码与
- * {@code docs/conformance/api/} 的冻结契约同形」。</p>
+ * {@code config/conformance/api/} 的冻结契约同形」。</p>
  */
 class ApiAlignmentTest {
 
@@ -40,7 +40,7 @@ class ApiAlignmentTest {
     @Test
     @DisplayName("命令 OpenAPI 工件包含冻结路径与响应")
     void commandSpecContainsFrozenPaths() throws Exception {
-        String spec = read("docs/conformance/api/command.openapi.yaml");
+        String spec = read("config/conformance/api/command.openapi.yaml");
 
         assertThat(spec).contains("openapi: 3.1.0");
         assertThat(spec).contains("/commands/{commandType}");
@@ -56,7 +56,7 @@ class ApiAlignmentTest {
     @Test
     @DisplayName("查询 OpenAPI 工件包含时点参数与 Retry-After")
     void querySpecContainsTemporalParameters() throws Exception {
-        String spec = read("docs/conformance/api/query.openapi.yaml");
+        String spec = read("config/conformance/api/query.openapi.yaml");
 
         assertThat(spec).contains("/objects/{objectType}/{id}");
         assertThat(spec).contains("/objects/{objectType}:");
@@ -70,7 +70,7 @@ class ApiAlignmentTest {
     @Test
     @DisplayName("列表控制器路径与分页/排序参数同工件一致")
     void listControllerMatchesSpec() throws Exception {
-        String spec = read("docs/conformance/api/query.openapi.yaml");
+        String spec = read("config/conformance/api/query.openapi.yaml");
         Method list = ObjectQueryController.class.getMethod("list", String.class, Map.class);
         GetMapping mapping = list.getAnnotation(GetMapping.class);
         assertThat(mapping).isNotNull();

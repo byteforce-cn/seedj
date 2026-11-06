@@ -20,7 +20,7 @@ curl -s -X POST localhost:8080/commands/hr.employee.create \
                   "org_unit_id":"D01"}}'
 ```
 
-完整走查见 [15 分钟 quickstart](docs/quickstart.md)。
+15 分钟 quickstart 见独立文档仓（与源码仓分开版本控制）。
 
 ## 模块
 
@@ -36,15 +36,14 @@ seedj-it                 契约对照、并发与端到端集成测试
 
 依赖方向：`server → starter → infra/jdbc → core`；实现包在
 `cn.byteforce.seedj.infra.*`，装配包在 `cn.byteforce.seedj.starter.*`，契约包在
-`cn.byteforce.seedj.<cap>`。见 [ADR-0008](docs/adr/ADR-0008-module-topology.md) 与
-[ADR-0009](docs/adr/ADR-0009-package-topology-and-api-convergence.md)。
+`cn.byteforce.seedj.<cap>`。模块与包拓扑由 ADR-0008、ADR-0009 记录（独立文档仓）。
 
 ## 构建与门禁
 
 本地与 CI 使用同一套脚本：
 
 ```bash
-bash config/ci/verify.sh        # 全量测试 + 覆盖率 + ArchUnit + 文档链接 + 格式
+bash config/ci/verify.sh        # 全量测试 + 覆盖率 + ArchUnit + 格式
 bash config/ci/conformance.sh   # 规范兼容性（需规范仓库）
 bash config/ci/release.sh      # 发布门禁：SBOM + API 兼容性
 ```
@@ -54,19 +53,12 @@ advisory（显式 WARN，不静默跳过）；发布 tag 的 job 已按阻断模
 
 ## 文档
 
-| 想了解 | 入口 |
-|---|---|
-| 本地跑起来 | [quickstart](docs/quickstart.md) |
-| 该用 temporal 还是 event-sourced | [决策指南](docs/decision-guide.md) |
-| 命令、权限、校验、错误码 | [命令契约](docs/command-contract.md) |
-| `/objects`、分页、过滤、时点读 | [读模型](docs/read-model.md) |
-| Caller、CORS、派生密钥、dev auth | [安全](docs/security.md) |
-| 测试分层与覆盖率门禁 | [测试](docs/testing.md) |
-| 全部 ADR 与规范证据 | [文档索引](docs/README.md) |
-| 已知偏差 | [差距评估](docs/assessment/2026-11-05-eis-conformance-gap.md) |
+开发过程文档（设计、计划、评估、验收记录）、ADR 与使用指南统一放在独立文档仓，
+与源码仓分开版本控制；本仓库只保留代码、构建脚本与 README。机器可读的契约
+（OpenAPI、JSON Schema、baseline）在 `config/conformance/`。
 
 ## 兼容性
 
 1.0.0 尚未发布。线格式 `/commands/{type}`、`/objects/{type}/{id}` 与错误信封
 `{code,message,details}` 保持稳定；Java 包名与类型在 1.0.0 前允许破坏性调整，
-每次调整都记录在 [ADR](docs/adr/) 与 [变更清单](docs/conformance/change-list-2026-11-06-architecture-remediation.md)。
+每次调整都记录在 ADR 与变更清单（独立文档仓）。

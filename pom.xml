@@ -355,7 +355,6 @@
                     <java>
                         <excludes>
                             <exclude>target/**/*.java</exclude>
-                            <exclude>.superpowers/**/*.java</exclude>
                         </excludes>
                         <removeUnusedImports />
                         <googleJavaFormat>
@@ -444,7 +443,7 @@
         <!--
             API 兼容性门禁（japicmp，opt-in）：
             - 基线经 -Dseedj.compat.baseline=<x.y.z> 指定（默认 1.0.0，首个正式版本发布后生效）；
-            - 二进制不兼容默认阻断构建；源码不兼容当前仅报告（阈值与豁免见 docs/api-compatibility.md）；
+            - 二进制不兼容默认阻断构建；源码不兼容当前仅报告（阈值与豁免由独立文档仓维护）；
             - 前提：基线版本制品可从本地仓库 / 私服解析；
             - 测试套件模块（seedj-it）在自身 POM 声明 seedj.compat.skip=true 豁免。
         -->
@@ -497,7 +496,7 @@
 
         <!--
             SBOM（CycloneDX，opt-in）：从仓库根执行 `mvn -Psbom package`，
-            聚合全部模块产出 root target/seedj-sbom.json（发布演练随制品归档，见 docs/releasing.md）。
+            聚合全部模块产出 root target/seedj-sbom.json（发布演练随制品归档）。
         -->
         <profile>
             <id>sbom</id>

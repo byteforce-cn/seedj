@@ -19,7 +19,6 @@ if [[ "$SPOTBUGS_FAIL_ON_ERROR" != "true" ]]; then
 fi
 
 ./mvnw $MAVEN_FLAGS -B -Panalysis verify -Dspotbugs.failOnError="$SPOTBUGS_FAIL_ON_ERROR"
-bash config/ci/check-doc-links.sh
 bash config/ci/check-coverage.sh
 ./mvnw $MAVEN_FLAGS -B spotless:check
 
