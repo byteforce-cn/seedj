@@ -4,6 +4,9 @@ import cn.byteforce.seedj.core.InfrastructureErrorCode;
 import cn.byteforce.seedj.core.InfrastructureException;
 import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;
+import cn.byteforce.seedj.cqrs.CqrsErrorCode;
+import cn.byteforce.seedj.cqrs.CqrsException;
+import cn.byteforce.seedj.domain.exception.AggregateNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -93,6 +96,42 @@ class ContractErrorHandlerTest {
     }
 
     @Test
+    @DisplayName("CQRS 业务拒绝：400 EIS-400-002，不是 503")
+    void cqrsCommandRejectedIs400() throws Exception {
+        mvc.perform(get("/probe/command-rejected"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("EIS-400-002"))
+                .andExpect(jsonPath("$.details.reason_code")
+                        .value("CQRS-COMMAND_REJECTED"));
+    }
+
+    @Test
+    @DisplayName("CQRS 乐观并发：409 EIS-409-002")
+    void cqrsConcurrencyConflictIs409() throws Exception {
+        mvc.perform(get("/probe/concurrency"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("EIS-409-002"));
+    }
+
+    @Test
+    @DisplayName("聚合不存在：404 EIS-404-001，带聚合细节")
+    void aggregateNotFoundIs404() throws Exception {
+        mvc.perform(get("/probe/aggregate-missing"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("EIS-404-001"))
+                .andExpect(jsonPath("$.details.repository").value("orders"))
+                .andExpect(jsonPath("$.details.aggregate_id").value("o-1"));
+    }
+
+    @Test
+    @DisplayName("CQRS 存储缺失：503")
+    void cqrsStoreUnavailableIs503() throws Exception {
+        mvc.perform(get("/probe/store-unavailable"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("EIS-503-001"));
+    }
+
+    @Test
     @DisplayName("未处理异常：500 + traceId，不泄露堆栈")
     void unexpectedExceptionIs500WithTraceId() throws Exception {
         mvc.perform(get("/probe/boom"))
@@ -128,6 +167,26 @@ class ContractErrorHandlerTest {
         Map<String, Object> internal() {
             throw new ContractException(ContractErrorCode.INTERNAL_ERROR,
                     "secret internal detail");
+        }
+
+        @GetMapping("/probe/command-rejected")
+        Map<String, Object> commandRejected() {
+            throw new CqrsException(CqrsErrorCode.COMMAND_REJECTED, "rejected by aggregate");
+        }
+
+        @GetMapping("/probe/concurrency")
+        Map<String, Object> concurrency() {
+            throw new CqrsException(CqrsErrorCode.CONCURRENCY_CONFLICT, "version moved");
+        }
+
+        @GetMapping("/probe/aggregate-missing")
+        Map<String, Object> aggregateMissing() {
+            throw new AggregateNotFoundException("orders", "o-1");
+        }
+
+        @GetMapping("/probe/store-unavailable")
+        Map<String, Object> storeUnavailable() {
+            throw new CqrsException(CqrsErrorCode.STORE_UNAVAILABLE, "no event store");
         }
 
         @GetMapping("/probe/boom")

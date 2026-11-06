@@ -9,6 +9,8 @@ import cn.byteforce.seedj.core.security.CallerIdCodec;
 import cn.byteforce.seedj.core.security.CallerProvider;
 import cn.byteforce.seedj.cqrs.CommandDescriptor;
 import cn.byteforce.seedj.cqrs.CommandPolicy;
+import cn.byteforce.seedj.cqrs.CqrsErrorCode;
+import cn.byteforce.seedj.cqrs.CqrsException;
 import cn.byteforce.seedj.cqrs.CommandCatalog;
 import cn.byteforce.seedj.cqrs.CommandRuntime;
 import cn.byteforce.seedj.cqrs.TemporalCommandAgent;
@@ -65,8 +67,9 @@ class CommandControllerTest {
 
     private final CallerProvider callers = () -> Optional.ofNullable(caller.get());
 
-    private final CommandCatalog catalog =
-            new CommandCatalog(List.of(new ProbeAgent(runtime)), CommandPolicy.permissions());
+    private final CommandCatalog catalog = new CommandCatalog(
+            List.of(new ProbeAgent(runtime), new CqrsRejectAgent(runtime)),
+            CommandPolicy.permissions());
 
     private MockMvc mvc;
 
@@ -215,6 +218,20 @@ class CommandControllerTest {
     }
 
     @Test
+    @DisplayName("事件溯源业务拒绝：400 EIS-400-002，不是 503")
+    void cqrsRejectionIs400Not503() throws Exception {
+        mvc.perform(post("/commands/probe.cqrs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"type":"probe.cqrs",
+                                 "payload":{"target":"%s","name":"Alice","reject":false},
+                                 "idempotency_key":"k-cqrs"}
+                                """.formatted(ID)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("EIS-400-002"));
+    }
+
+    @Test
     @DisplayName("调用方 ID 不是 UUID：401 契约信封")
     void callerWithoutUuidIssuerIs401() throws Exception {
         caller.set(caller("alice"));
@@ -284,6 +301,29 @@ class CommandControllerTest {
     private static Caller callerWithoutPermission(String id) {
         return new Caller(id, "bob", "default", Set.of(), Set.of("probe.read"), Set.of(),
                 Set.of(Caller.DEFAULT_AMR), Caller.DEFAULT_ACR, Map.of());
+    }
+
+    static final class CqrsRejectAgent extends TemporalCommandAgent<ProbeCommand> {
+
+        CqrsRejectAgent(CommandRuntime runtime) {
+            super(runtime, CommandDescriptor.builder()
+                    .type("probe.cqrs")
+                    .objectType("probe")
+                    .payloadType(ProbeCommand.class)
+                    .permission("probe.write")
+                    .build());
+        }
+
+        @Override
+        protected UUID targetId(ProbeCommand command) {
+            return command.target();
+        }
+
+        @Override
+        protected AppendRequest append(ProbeCommand command, Optional<TemporalRow> current,
+                                       Instant now, UUID actor) {
+            throw new CqrsException(CqrsErrorCode.COMMAND_REJECTED, "rejected by projector");
+        }
     }
 
     static final class ProbeAgent extends TemporalCommandAgent<ProbeCommand> {

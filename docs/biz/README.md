@@ -59,7 +59,8 @@ public class OrderService {
     public void cancel(String orderId) {
         Caller caller = callers.find().orElseThrow();   // 公开端点也可能为空
         if (!caller.hasPermission("order:cancel")) {
-            throw new IllegalStateException("no permission");  // 由执行点转 403
+            throw new ContractException(ContractErrorCode.FORBIDDEN,
+                    "missing permission: order:cancel");  // 403 EIS-403-001
         }
         audit.record(SecurityAuditEvent.of(ids.id(), caller,
                 "order.cancel", "order", orderId, SecurityAuditEvent.OUTCOME_SUCCESS, ""));
@@ -82,12 +83,12 @@ OrderService service = new OrderService(provider);
 401 与 403 使用同一形状，前端只写一套解析：
 
 ```json
-{ "error": "ACCESS_DENIED", "message": "access denied" }
+{ "code": "EIS-403-001", "message": "forbidden", "details": { "reason_code": "EIS-403-001" } }
 ```
 
-`error` 取值来自 `SecurityErrorCode`：`AUTHENTICATION_REQUIRED` /
-`AUTHENTICATION_FAILED` / `TOKEN_EXPIRED` / `ACCESS_DENIED`。
-401 保留 RFC 6750 的 `WWW-Authenticate: Bearer`（无效令牌带 `error="invalid_token"`）。
+401 是 `EIS-401-001`、403 是 `EIS-403-001`，形状相同，前端只写一套解析；
+完整矩阵见 [errors.md](../errors.md)。401 保留 RFC 6750 的 `WWW-Authenticate: Bearer`
+（无效令牌带 `error="invalid_token"`）。
 
 ## 过滤器链顺序
 

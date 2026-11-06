@@ -16,7 +16,7 @@ import java.util.Objects;
  * @author ByteForce
  * @since 1.0.0
  */
-public final class ContractException extends RuntimeException {
+public class ContractException extends RuntimeException {
 
     private static final long serialVersionUID = 1L;
 
