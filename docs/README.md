@@ -22,7 +22,7 @@
 | 业务接入 | [biz starter](biz/README.md)、[IAM starter](iam/README.md)、[基础设施 SPI 宪法](spi/README.md) |
 | 发布与兼容性 | [发布流程](releasing.md)、[API 兼容性规则](api-compatibility.md) |
 | 开发指南 | [quickstart](quickstart.md)、[决策指南](decision-guide.md)、[命令契约](command-contract.md)、[读模型](read-model.md)、[安全](security.md)、[测试](testing.md) |
-| 质量证据 | [覆盖率差距（2026-11-06）](assessment/2026-11-06-coverage-gap.md)、[架构整改变更清单](conformance/change-list-2026-11-06-architecture-remediation.md) |
+| 质量证据 | [A- 验收记录（2026-11-06）](conformance/runs/2026-11-06-a-minus.md)、[覆盖率差距（2026-11-06）](assessment/2026-11-06-coverage-gap.md)、[架构整改变更清单](conformance/change-list-2026-11-06-architecture-remediation.md) |
 
 ## 维护约定
 
