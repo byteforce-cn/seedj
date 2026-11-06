@@ -61,8 +61,12 @@ public class QueryEndpointAutoConfiguration {
                                                             ReadGateway gateway,
                                                             CallerProvider callers,
                                                             ViewMapper viewMapper) {
+        List<QueryDeclaration> queries = registry.queries();
+        if (queries.isEmpty()) {
+            return request -> java.util.Optional.empty();
+        }
         RouterFunctions.Builder builder = RouterFunctions.route();
-        for (QueryDeclaration query : registry.queries()) {
+        for (QueryDeclaration query : queries) {
             builder.GET(query.path(), request -> handle(query, request, gateway, callers,
                     viewMapper));
         }

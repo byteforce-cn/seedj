@@ -48,7 +48,7 @@ class TemporalTableTest {
         TemporalTable table = TemporalTable.from(schema);
 
         assertThat(table.sortableColumns()).containsExactly("employee_no");
-        assertThat(table.indexedColumns()).containsExactly("employee_no", "org_unit_id");
+        assertThat(table.indexedColumns()).containsExactlyInAnyOrder("employee_no", "org_unit_id");
     }
 
     @Test

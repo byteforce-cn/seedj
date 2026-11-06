@@ -1,6 +1,5 @@
-package cn.byteforce.seedj.starter.read;
+package cn.byteforce.seedj.biz.security;
 
-import cn.byteforce.seedj.biz.security.CallerPropagation;
 import cn.byteforce.seedj.core.security.Caller;
 import cn.byteforce.seedj.core.security.ScopeContext;
 import cn.byteforce.seedj.core.security.ScopeContextHolder;

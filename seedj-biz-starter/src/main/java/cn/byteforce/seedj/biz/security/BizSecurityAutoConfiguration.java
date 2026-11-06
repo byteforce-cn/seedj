@@ -110,7 +110,7 @@ public class BizSecurityAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(TaskDecorator.class)
     public TaskDecorator requestContextDecorator(CallerPropagation propagation) {
-        return new cn.byteforce.seedj.starter.read.RequestContextDecorator(propagation);
+        return new RequestContextDecorator(propagation);
     }
 
     @Configuration(proxyBeanMethods = false)

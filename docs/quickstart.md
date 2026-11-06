@@ -41,6 +41,7 @@ curl -s -X POST localhost:8080/commands/hr.employee.create \
       "name": "张三",
       "hire_date": "2026-10-01",
       "employment_type": "full_time",
+      "org_unit_id": "D01",
       "id_number": "110101199001011234"
     },
     "idempotency_key": "quickstart-1"

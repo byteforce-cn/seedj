@@ -6,6 +6,9 @@ spring:
     password: ${SPRING_DATASOURCE_PASSWORD:seedj}
 
 seedj:
+  read:
+    # 样板在 PostgreSQL 模式仍暴露通用 /objects 面；生产宿主默认保持关闭。
+    generic-surface: enabled
   command:
     provider: postgres
   object:

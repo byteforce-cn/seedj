@@ -13,7 +13,11 @@ PostgreSQL 适配器并列，starter 负责装配，宿主只做组合。默认�
 
 curl -s -X POST localhost:8080/commands/hr.employee.create \
   -H 'Content-Type: application/json' \
-  -d '{"employee_id":"e-1","name":"Alice","hire_date":"2026-01-05","employment_type":"FULL_TIME"}'
+  -d '{"type":"hr.employee.create",
+       "idempotency_key":"demo-1",
+       "payload":{"name":"Alice","hire_date":"2026-01-05",
+                  "employment_type":"FULL_TIME","work_location":"SH",
+                  "org_unit_id":"D01"}}'
 ```
 
 完整走查见 [15 分钟 quickstart](docs/quickstart.md)。
