@@ -16,6 +16,7 @@ import cn.byteforce.seedj.domain.TemporalStore;
 import cn.byteforce.seedj.infra.local.domain.InMemoryTemporalStore;
 import cn.byteforce.seedj.module.ObjectModuleConfigurer;
 import cn.byteforce.seedj.module.ObjectModuleRegistry;
+import cn.byteforce.seedj.read.ReadAccessEvent;
 import cn.byteforce.seedj.read.ReadAuditSink;
 import cn.byteforce.seedj.read.ReadGateway;
 import cn.byteforce.seedj.starter.domain.web.ObjectQueryController;
@@ -23,12 +24,14 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.springframework.core.task.TaskDecorator;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -106,6 +109,24 @@ class ReadAutoConfigurationTest {
         assertThat(view.employeeNo()).isEqualTo("E-1");
         assertThat(view.id()).isEqualTo(id);
         assertThat(view.version()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("默认读审计记录 Micrometer 计数")
+    void defaultReadAuditRecordsMetrics() {
+        SimpleMeterRegistry meters = new SimpleMeterRegistry();
+
+        runner.withBean(SimpleMeterRegistry.class, () -> meters).run(context -> {
+            ReadAuditSink sink = context.getBean(ReadAuditSink.class);
+            sink.record(new ReadAccessEvent(UUID.randomUUID(), "u-1", "employee",
+                    ReadAccessEvent.Operation.FIND, Map.of(), List.of(), "digest",
+                    Set.of("p-1"), NOW));
+
+            assertThat(meters.get("seedj.read.access")
+                    .tag("object_type", "employee")
+                    .tag("operation", "FIND")
+                    .counter().count()).isEqualTo(1.0);
+        });
     }
 
     @Test

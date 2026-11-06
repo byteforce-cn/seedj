@@ -64,7 +64,8 @@ class PostgresTemporalStoreContractTest extends TemporalStoreContractTest {
         TemporalTable table = new TemporalTable("probe", "probe_object", columns, Set.of(),
                 Set.of("name", "status", "hire_date"),
                 Map.of("name", FieldType.TEXT, "status", FieldType.TEXT,
-                        "secret", FieldType.TEXT, "hire_date", FieldType.DATE));
+                        "secret", FieldType.TEXT, "hire_date", FieldType.DATE),
+                Set.of("name"), Set.of());
         ObjectSchema typedSchema = ObjectSchema.builder("probe_typed", "probe_typed_object")
                 .field("name", FieldType.TEXT)
                 .field("hire_date", FieldType.DATE)

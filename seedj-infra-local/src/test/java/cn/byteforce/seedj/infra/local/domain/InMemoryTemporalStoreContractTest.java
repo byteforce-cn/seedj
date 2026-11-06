@@ -17,7 +17,8 @@ class InMemoryTemporalStoreContractTest extends TemporalStoreContractTest {
 
     private final InMemoryTemporalStore store = new InMemoryTemporalStore(clock,
             new ObjectSchemaRegistry(List.of(ObjectSchema.builder("probe", "probe_object")
-                    .filterable("name", FieldType.TEXT)
+                    .field(cn.byteforce.seedj.domain.FieldDefinition
+                            .filterable("name", FieldType.TEXT).withSortable())
                     .filterable("status", FieldType.TEXT)
                     .filterable("hire_date", FieldType.DATE)
                     .field("secret", FieldType.TEXT)

@@ -14,6 +14,7 @@ import cn.byteforce.seedj.read.FieldPolicyResolver;
 import cn.byteforce.seedj.read.ReadAuditSink;
 import cn.byteforce.seedj.read.ReadGateway;
 import cn.byteforce.seedj.starter.cqrs.wiring.TemporalCommandAutoConfiguration;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -35,14 +36,15 @@ import java.util.UUID;
 public class ReadAutoConfiguration {
 
     /**
-     * 默认审计出口：不记录；业务可覆盖为结构化日志/指标/持久化。
+     * 默认审计出口：结构化日志 + Micrometer 计数；业务可覆盖为持久化审计。
      *
+     * @param meters 可选指标注册表
      * @return 审计出口
      */
     @Bean
     @ConditionalOnMissingBean
-    public ReadAuditSink readAuditSink() {
-        return ReadAuditSink.noop();
+    public ReadAuditSink readAuditSink(ObjectProvider<MeterRegistry> meters) {
+        return new LoggingReadAuditSink(meters.getIfAvailable());
     }
 
     /**

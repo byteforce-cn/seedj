@@ -163,7 +163,7 @@ public final class InMemoryTemporalStore implements TemporalStore {
             return null;
         }
         requireSchema(null, schema);
-        if (!schema.filterableFields().contains(field)) {
+        if (!schema.sortableFields().contains(field)) {
             throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
                     "unknown or non-sortable field: " + field);
         }

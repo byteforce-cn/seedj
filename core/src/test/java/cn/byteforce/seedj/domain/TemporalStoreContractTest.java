@@ -272,6 +272,17 @@ public abstract class TemporalStoreContractTest {
     }
 
     @Test
+    @DisplayName("search：sort 必须是 sortable 字段，filterable 不够")
+    void searchRejectsFilterableButNonSortableField() {
+        seed("a", T0);
+
+        assertThatThrownBy(() -> store().search(new TemporalSearch(TYPE, Map.of(),
+                        null, null, null, "status", SortDirection.ASC,
+                        new PageRequest(1, 20)), ALL))
+                .isInstanceOf(ContractException.class);
+    }
+
+    @Test
     @DisplayName("search：size>200 在分页构造期拒绝")
     void searchRejectsSizeOver200() {
         assertThatThrownBy(() -> new PageRequest(1, 201))
@@ -299,6 +310,64 @@ public abstract class TemporalStoreContractTest {
                 ScopePredicate.eq("status", "inactive"))).isEmpty();
         assertThat(store().find(TYPE, ID, TemporalQuery.current(),
                 ScopePredicate.eq("status", "active"))).isPresent();
+    }
+
+    @Test
+    @DisplayName("find：先选当前版本，再应用 scope；旧版本不能复活")
+    void findUsesTheLatestVersionBeforeScope() {
+        seedWith(ID, Map.of("name", "v1", "status", "active"), T0);
+        correctWith(ID, Map.of("name", "v2", "status", "inactive"),
+                T0.plusSeconds(60), T0.plusSeconds(60));
+
+        assertThat(store().find(TYPE, ID, TemporalQuery.current(),
+                ScopePredicate.eq("status", "active"))).isEmpty();
+        assertThat(store().find(TYPE, ID, TemporalQuery.current(),
+                ScopePredicate.eq("status", "inactive"))).isPresent();
+    }
+
+    @Test
+    @DisplayName("find(as_of)：先选时点上的最新版本，再应用 scope")
+    void findUsesTheLatestVersionBeforeScopeAtAnAsOfTime() {
+        seedWith(ID, Map.of("name", "v1", "status", "active"), T0);
+        correctWith(ID, Map.of("name", "v2", "status", "inactive"),
+                T0.plusSeconds(60), T0.plusSeconds(60));
+
+        assertThat(store().find(TYPE, ID,
+                new TemporalQuery(T0.plusSeconds(90), null, null),
+                ScopePredicate.eq("status", "active"))).isEmpty();
+        assertThat(store().find(TYPE, ID,
+                new TemporalQuery(T0.plusSeconds(90), null, null),
+                ScopePredicate.eq("status", "inactive"))).isPresent();
+    }
+
+    @Test
+    @DisplayName("search：先选当前版本，再应用 scope；旧版本不能复活")
+    void searchUsesTheLatestVersionBeforeScope() {
+        seedWith(ID, Map.of("name", "v1", "status", "active"), T0);
+        correctWith(ID, Map.of("name", "v2", "status", "inactive"),
+                T0.plusSeconds(60), T0.plusSeconds(60));
+
+        Page<TemporalRow> page = store().search(new TemporalSearch(TYPE, Map.of(), null, null,
+                        null, null, SortDirection.ASC, new PageRequest(1, 20)),
+                ScopePredicate.eq("status", "active"));
+
+        assertThat(page.items()).isEmpty();
+        assertThat(page.total()).isZero();
+    }
+
+    @Test
+    @DisplayName("search：等值过滤作用于当前版本，历史版本不会被匹配")
+    void searchEqualsFiltersTheLatestVersion() {
+        seedWith(ID, Map.of("name", "v1", "status", "active"), T0);
+        correctWith(ID, Map.of("name", "v2", "status", "inactive"),
+                T0.plusSeconds(60), T0.plusSeconds(60));
+
+        Page<TemporalRow> page = store().search(new TemporalSearch(TYPE,
+                        Map.of("status", "active"), null, null, null, null, SortDirection.ASC,
+                        new PageRequest(1, 20)), ALL);
+
+        assertThat(page.items()).isEmpty();
+        assertThat(page.total()).isZero();
     }
 
     @Test

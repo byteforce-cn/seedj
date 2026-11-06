@@ -67,31 +67,31 @@ public final class PostgresTemporalStore implements TemporalStore {
         Objects.requireNonNull(query, "query");
         Objects.requireNonNull(scope, "scope");
         TemporalTable table = tables.require(objectType);
-        StringBuilder sql = new StringBuilder(SELECT_ALL).append(table.tableName())
-                .append(" WHERE id = ?");
-        List<Object> args = new ArrayList<>();
-        args.add(id);
+        StringBuilder selected = new StringBuilder(" WHERE id = ?");
+        List<Object> selectedArgs = new ArrayList<>();
+        selectedArgs.add(id);
         if (query.asOf() == null && query.recordedAsOf() == null) {
-            sql.append(" AND superseded_at IS NULL AND valid_to IS NULL");
+            selected.append(" AND superseded_at IS NULL AND valid_to IS NULL");
         } else {
             if (query.asOf() != null) {
-                sql.append(" AND valid_from <= ? AND (valid_to IS NULL OR valid_to > ?)");
-                args.add(timestamp(query.asOf()));
-                args.add(timestamp(query.asOf()));
+                selected.append(" AND valid_from <= ? AND (valid_to IS NULL OR valid_to > ?)");
+                selectedArgs.add(timestamp(query.asOf()));
+                selectedArgs.add(timestamp(query.asOf()));
             }
             if (query.recordedAsOf() != null) {
-                sql.append(" AND recorded_at <= ?")
+                selected.append(" AND recorded_at <= ?")
                         .append(" AND (superseded_at IS NULL OR superseded_at > ?)");
-                args.add(timestamp(query.recordedAsOf()));
-                args.add(timestamp(query.recordedAsOf()));
+                selectedArgs.add(timestamp(query.recordedAsOf()));
+                selectedArgs.add(timestamp(query.recordedAsOf()));
             }
         }
         ScopeSql.Clause scoped = ScopeSql.compile(scope, table);
-        sql.append(" AND (").append(scoped.sql()).append(")");
+        String sql = "SELECT * FROM (SELECT * FROM " + table.tableName() + selected
+                + " ORDER BY version DESC LIMIT 1) t WHERE (" + scoped.sql() + ")";
+        List<Object> args = new ArrayList<>(selectedArgs);
         args.addAll(scoped.args());
-        sql.append(" ORDER BY version DESC LIMIT 1");
 
-        List<Map<String, Object>> rows = jdbc.queryForList(sql.toString(), args.toArray());
+        List<Map<String, Object>> rows = jdbc.queryForList(sql, args.toArray());
         if (rows.isEmpty()) {
             return Optional.empty();
         }
@@ -124,9 +124,28 @@ public final class PostgresTemporalStore implements TemporalStore {
         Objects.requireNonNull(search, "search");
         Objects.requireNonNull(scope, "scope");
         TemporalTable table = tables.require(search.objectType());
-        List<Object> args = new ArrayList<>();
-        StringBuilder where = new StringBuilder(" WHERE 1 = 1");
+        List<Object> selectedArgs = new ArrayList<>();
+        StringBuilder selected = new StringBuilder(" WHERE 1 = 1");
 
+        if (search.asOf() != null) {
+            selected.append(" AND valid_from <= ? AND (valid_to IS NULL OR valid_to > ?)");
+            selectedArgs.add(timestamp(search.asOf()));
+            selectedArgs.add(timestamp(search.asOf()));
+        }
+        if (search.recordedAsOf() != null) {
+            selected.append(" AND recorded_at <= ?")
+                    .append(" AND (superseded_at IS NULL OR superseded_at > ?)");
+            selectedArgs.add(timestamp(search.recordedAsOf()));
+            selectedArgs.add(timestamp(search.recordedAsOf()));
+        }
+        String latestPerId = "SELECT DISTINCT ON (id) * FROM " + table.tableName()
+                + selected + " ORDER BY id, version DESC";
+
+        List<Object> outerArgs = new ArrayList<>();
+        StringBuilder outer = new StringBuilder(" WHERE 1 = 1");
+        ScopeSql.Clause scoped = ScopeSql.compile(scope, table);
+        outer.append(" AND (").append(scoped.sql()).append(")");
+        outerArgs.addAll(scoped.args());
         search.equals().forEach((field, value) -> {
             if (!table.filterableColumns().contains(field)) {
                 throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
@@ -134,36 +153,23 @@ public final class PostgresTemporalStore implements TemporalStore {
             }
             Object coerced = table.fieldTypes().containsKey(field)
                     ? table.fieldTypes().get(field).coerce(value) : value;
-            where.append(" AND ").append(field).append(" = ?");
-            args.add(TemporalValues.toJdbc(table.fieldTypes().get(field), coerced));
+            outer.append(" AND ").append(field).append(" = ?");
+            outerArgs.add(TemporalValues.toJdbc(table.fieldTypes().get(field), coerced));
         });
         if (search.sortField() != null
-                && !table.filterableColumns().contains(search.sortField())) {
+                && !table.sortableColumns().contains(search.sortField())) {
             throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
                     "unknown or non-sortable field: " + search.sortField());
         }
-        if (search.asOf() != null) {
-            where.append(" AND valid_from <= ? AND (valid_to IS NULL OR valid_to > ?)");
-            args.add(timestamp(search.asOf()));
-            args.add(timestamp(search.asOf()));
-        }
-        if (search.recordedAsOf() != null) {
-            where.append(" AND recorded_at <= ?")
-                    .append(" AND (superseded_at IS NULL OR superseded_at > ?)");
-            args.add(timestamp(search.recordedAsOf()));
-            args.add(timestamp(search.recordedAsOf()));
-        }
 
-        ScopeSql.Clause scoped = ScopeSql.compile(scope, table);
-        where.append(" AND (").append(scoped.sql()).append(")");
-        args.addAll(scoped.args());
-
-        Long total = jdbc.queryForObject("SELECT COUNT(DISTINCT id) FROM "
-                + table.tableName() + where, Long.class, args.toArray());
+        List<Object> args = new ArrayList<>(selectedArgs);
+        args.addAll(outerArgs);
+        Long total = jdbc.queryForObject("SELECT COUNT(*) FROM (" + latestPerId + ") t"
+                + outer, Long.class, args.toArray());
         String sort = search.sortField() == null ? "t.id" : "t." + search.sortField();
-        String sql = "SELECT * FROM (SELECT DISTINCT ON (id) * FROM " + table.tableName()
-                + where + " ORDER BY id, version DESC) t ORDER BY " + sort + " "
-                + search.direction() + ", t.id LIMIT ? OFFSET ?";
+        String sql = "SELECT * FROM (" + latestPerId + ") t" + outer
+                + " ORDER BY " + sort + " " + search.direction()
+                + ", t.id LIMIT ? OFFSET ?";
         List<Object> pageArgs = new ArrayList<>(args);
         pageArgs.add(search.page().size());
         pageArgs.add(search.page().offset());
