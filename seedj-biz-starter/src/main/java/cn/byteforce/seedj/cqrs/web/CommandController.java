@@ -94,6 +94,7 @@ public final class CommandController {
             }
             if (error.code() == ContractErrorCode.UNAUTHENTICATED
                     || error.code() == ContractErrorCode.FORBIDDEN
+                    || error.code() == ContractErrorCode.OBJECT_NOT_FOUND
                     || error.code() == ContractErrorCode.UNAVAILABLE) {
                 throw error;
             }

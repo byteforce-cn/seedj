@@ -128,6 +128,8 @@ public class BizSecurityAutoConfiguration {
         @Bean
         @Order(BIZ_FILTER_CHAIN_ORDER)
         @ConditionalOnMissingBean(name = "bizSecurityFilterChain")
+        @ConditionalOnProperty(prefix = "seedj.biz.dev-auth", name = "enabled",
+                havingValue = "false", matchIfMissing = true)
         public SecurityFilterChain bizSecurityFilterChain(
                 HttpSecurity http,
                 BizSecurityProperties properties,

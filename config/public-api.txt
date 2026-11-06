@@ -506,6 +506,9 @@ seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeCreateAgent
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeSchema
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeUpdate
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeUpdateAgent
+seedj-server/hr|cn.byteforce.seedj.server.hr.employee|LocalDevAuthenticationFilter
+seedj-server/hr|cn.byteforce.seedj.server.hr.employee|LocalDevJwtConfiguration
+seedj-server/hr|cn.byteforce.seedj.server.hr.employee|LocalDevSecurityConfiguration
 seedj-server/hr|cn.byteforce.seedj.server.hr|HrServer
 seedj-server/iam|cn.byteforce.seedj.server.iam|IamServer
 seedj-server/im|cn.byteforce.seedj.server.im|ImServer

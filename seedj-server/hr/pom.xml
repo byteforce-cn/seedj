@@ -15,6 +15,11 @@
     <name>Byteforce Seedj :: Server :: HR</name>
     <description>HR 参考服务：验证 biz-starter 与 core/infra 在分布式场景下的能力</description>
 
+    <properties>
+        <!-- T1.5 起 HR 有 HTTP 集成测试，覆盖率门禁不再跳过 -->
+        <seedj.jacoco.guard.skip>false</seedj.jacoco.guard.skip>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>cn.byteforce.seedj</groupId>
@@ -41,6 +46,22 @@
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-webmvc-test</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 </project>
