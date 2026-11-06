@@ -16,7 +16,7 @@ class TemporalTableTest {
     @DisplayName("from(schema) 映射 SQL 类型并保留过滤/写入语义")
     void derivesColumnsAndFlagsFromSchema() {
         ObjectSchema schema = ObjectSchema.builder("employee", "hr_employee")
-                .field(new FieldDefinition("employee_no", FieldType.TEXT, true, false, true, true))
+                .field(FieldDefinition.required("employee_no", FieldType.TEXT).withFilterable())
                 .field("hire_date", FieldType.DATE)
                 .field("ref_id", FieldType.UUID)
                 .field("score", FieldType.DECIMAL)

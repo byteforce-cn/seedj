@@ -22,9 +22,9 @@ public final class HrEmployeeSchema {
      */
     public ObjectSchema schema() {
         return ObjectSchema.builder("employee", "hr_employee")
-                .field(new FieldDefinition("employee_no", FieldType.TEXT, true, false, true, true))
-                .field(new FieldDefinition("name", FieldType.TEXT, true, false, true, false))
-                .field(new FieldDefinition("status", FieldType.TEXT, true, false, true, false))
+                .field(FieldDefinition.required("employee_no", FieldType.TEXT).withFilterable())
+                .field(FieldDefinition.required("name", FieldType.TEXT))
+                .field(FieldDefinition.required("status", FieldType.TEXT))
                 .field("hire_date", FieldType.DATE)
                 .field("employment_type", FieldType.TEXT)
                 .field("work_location", FieldType.TEXT)
