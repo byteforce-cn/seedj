@@ -497,6 +497,10 @@ seedj-jdbc-postgresql|cn.byteforce.seedj.iam.jdbc|OAuth2Migrations
 seedj-jdbc-postgresql|cn.byteforce.seedj.iam.jdbc|OAuth2SchemaCapability
 seedj-jdbc-postgresql|cn.byteforce.seedj.iam.jdbc|PolicyConditionCodec
 seedj-jdbc-postgresql|cn.byteforce.seedj.jdbc|JdbcMigrationRunner
+seedj-jdbc-postgresql|cn.byteforce.seedj.lock.jdbc|PostgresLockAutoConfiguration
+seedj-jdbc-postgresql|cn.byteforce.seedj.lock.jdbc|PostgresLockMigrations
+seedj-jdbc-postgresql|cn.byteforce.seedj.lock.jdbc|PostgresLockProvider
+seedj-jdbc-postgresql|cn.byteforce.seedj.lock.jdbc|PostgresLockSchemaCapability
 seedj-jdbc-postgresql|cn.byteforce.seedj.outbox.jdbc|JdbcInboxStore
 seedj-jdbc-postgresql|cn.byteforce.seedj.outbox.jdbc|PostgresOutboxAutoConfiguration
 seedj-jdbc-postgresql|cn.byteforce.seedj.outbox.jdbc|PostgresOutboxProperties

@@ -16,6 +16,8 @@ seedj:
     enabled: true
   lock:
     memory:
+      enabled: false
+    postgres:
       enabled: true
   biz:
     dev-auth:
