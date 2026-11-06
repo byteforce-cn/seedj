@@ -351,6 +351,7 @@ seedj-biz-starter|cn.byteforce.seedj.cqrs.wiring|CommandMetricsInterceptor
 seedj-biz-starter|cn.byteforce.seedj.cqrs.wiring|CommandRuntimeProperties
 seedj-biz-starter|cn.byteforce.seedj.cqrs.wiring|SpringTransactionRunner
 seedj-biz-starter|cn.byteforce.seedj.cqrs.wiring|TemporalCommandAutoConfiguration
+seedj-biz-starter|cn.byteforce.seedj.domain.web|ObjectPageResponse
 seedj-biz-starter|cn.byteforce.seedj.domain.web|ObjectQueryController
 seedj-biz-starter|cn.byteforce.seedj.domain.web|ObjectQueryResponse
 seedj-biz-starter|cn.byteforce.seedj.eventbus.wiring|DefaultEventPublisher

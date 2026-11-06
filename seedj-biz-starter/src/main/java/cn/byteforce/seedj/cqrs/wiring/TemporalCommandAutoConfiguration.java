@@ -396,8 +396,8 @@ public class TemporalCommandAutoConfiguration {
         @ConditionalOnProperty(prefix = "seedj.object", name = "enabled", havingValue = "true",
                 matchIfMissing = true)
         ObjectQueryController objectQueryController(TemporalStore objects,
-                                                    ObjectProvider<TemporalTables> tables) {
-            return new ObjectQueryController(objects, tables.getIfAvailable());
+                                                    ObjectSchemaRegistry schemas) {
+            return new ObjectQueryController(objects, schemas);
         }
     }
 }

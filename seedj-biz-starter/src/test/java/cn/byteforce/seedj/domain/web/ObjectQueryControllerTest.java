@@ -149,6 +149,53 @@ class ObjectQueryControllerTest {
                         .value(org.hamcrest.Matchers.containsString("missing")));
     }
 
+    @Test
+    @DisplayName("列表：size=1 返回 1 条、total=2、page=1")
+    void listReturnsPage() throws Exception {
+        seed("a", T0);
+        seed("b", T0);
+
+        mvc.perform(get("/objects/probe").queryParam("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.total").value(2))
+                .andExpect(jsonPath("$.page").value(1))
+                .andExpect(jsonPath("$.size").value(1));
+    }
+
+    @Test
+    @DisplayName("列表：未知过滤字段 400；size>200 400")
+    void listRejectsUnknownFilterAndOversizePage() throws Exception {
+        seed("a", T0);
+
+        mvc.perform(get("/objects/probe").queryParam("missing", "x"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("EIS-400-001"));
+
+        mvc.perform(get("/objects/probe").queryParam("size", "201"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("EIS-400-001"));
+    }
+
+    @Test
+    @DisplayName("列表：as_of 只返回当时有效的行")
+    void listAppliesAsOf() throws Exception {
+        store.append(AppendRequest.create("probe", ID, T0, null, ACTOR, Map.of("name", "v1")));
+        now.set(T0.plusSeconds(60));
+        store.append(AppendRequest.correction("probe", ID, T0.plusSeconds(60), null, ACTOR,
+                Map.of("name", "v2")));
+
+        mvc.perform(get("/objects/probe").queryParam("as_of", T0.plusSeconds(30).toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(1))
+                .andExpect(jsonPath("$.items[0].data.name").value("v1"));
+    }
+
+    private void seed(String name, Instant validFrom) {
+        store.append(AppendRequest.create("probe", UUID.randomUUID(), validFrom, null, ACTOR,
+                Map.of("name", name)));
+    }
+
     private void seedTwoVersions() {
         store.append(AppendRequest.create("probe", ID, T0, T0.plusSeconds(60), ACTOR,
                 Map.of("name", "v1")));

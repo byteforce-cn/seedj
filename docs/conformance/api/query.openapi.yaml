@@ -23,6 +23,60 @@ info:
       消费方只使用契约声明的权限标识。
 
 paths:
+  /objects/{objectType}:
+    get:
+      summary: 按对象类型列表查询（过滤/分页/排序/时点）
+      operationId: listObjects
+      parameters:
+        - name: objectType
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 20
+        - name: sort
+          in: query
+          schema:
+            type: string
+          description: 可过滤字段名；缺省按 id 升序
+        - name: direction
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+        - name: as_of
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: recorded_as_of
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: 一页对象
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ObjectPage'
+        '400':
+          description: 未知过滤/排序字段、非法分页或时点（EIS-400-001）
+
   /objects/{objectType}/{id}:
     get:
       summary: 按 ID 查询业务对象
@@ -140,6 +194,25 @@ components:
         data:
           type: object
           description: 对象领域数据（由扩展 Schema 定义）
+
+    ObjectPage:
+      type: object
+      required: [items, page, size, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ObjectResponse'
+        page:
+          type: integer
+          minimum: 1
+        size:
+          type: integer
+          minimum: 1
+          maximum: 200
+        total:
+          type: integer
+          minimum: 0
 
     BalanceResponse:
       type: object

@@ -17,9 +17,9 @@ import cn.byteforce.seedj.cqrs.CommandSubmission;
 import cn.byteforce.seedj.cqrs.CommandValidator;
 import cn.byteforce.seedj.cqrs.memory.InMemoryCommandStore;
 import cn.byteforce.seedj.domain.ObjectSchema;
+import cn.byteforce.seedj.domain.ObjectSchemaRegistry;
 import cn.byteforce.seedj.domain.TemporalQuery;
-import cn.byteforce.seedj.domain.jdbc.TemporalTable;
-import cn.byteforce.seedj.domain.jdbc.TemporalTables;
+
 import cn.byteforce.seedj.domain.memory.InMemoryTemporalStore;
 import cn.byteforce.seedj.domain.web.ObjectQueryController;
 import cn.byteforce.seedj.domain.web.ObjectQueryResponse;
@@ -72,9 +72,8 @@ class HrEmployeeSampleTest {
             descriptor("hr.employee.create", HrEmployeeCreate.class), schema, derivedFields, ids);
     private final HrEmployeeUpdateAgent update = new HrEmployeeUpdateAgent(runtime,
             descriptor("hr.employee.update", HrEmployeeUpdate.class), schema, derivedFields);
-    private final TemporalTables tables =
-            new TemporalTables(List.of(TemporalTable.from(schema)));
-    private final ObjectQueryController query = new ObjectQueryController(objects, tables);
+    private final ObjectSchemaRegistry schemas = new ObjectSchemaRegistry(List.of(schema));
+    private final ObjectQueryController query = new ObjectQueryController(objects, schemas);
 
     @BeforeEach
     void reset() {
