@@ -21,8 +21,8 @@
             仓储（由 seedj-iam-starter 的服务测试覆盖，不计入本模块 JaCoCo）。基线按拆分后
             实测值重设，之后只升不降。
         -->
-        <seedj.coverage.line>0.67</seedj.coverage.line>
-        <seedj.coverage.branch>0.48</seedj.coverage.branch>
+        <seedj.coverage.line>0.84</seedj.coverage.line>
+        <seedj.coverage.branch>0.69</seedj.coverage.branch>
     </properties>
 
     <dependencies>
