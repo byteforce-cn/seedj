@@ -1,7 +1,7 @@
 package cn.byteforce.seedj.server.hr.employee;
 
 import cn.byteforce.seedj.core.Migration;
-import cn.byteforce.seedj.domain.ObjectSchema;
+import cn.byteforce.seedj.module.ObjectModuleRegistry;
 import cn.byteforce.seedj.infra.jdbc.domain.ObjectSchemaCapability;
 import cn.byteforce.seedj.infra.jdbc.domain.TemporalDdl;
 import cn.byteforce.seedj.infra.jdbc.domain.TemporalTable;
@@ -27,10 +27,13 @@ public final class HrEmployeeSchemaCapability extends ObjectSchemaCapability {
      * 构造能力。
      *
      * @param runner 迁移执行器
-     * @param schema 员工 schema
+     * @param modules 模块注册表
      */
-    public HrEmployeeSchemaCapability(JdbcMigrationRunner runner, ObjectSchema schema) {
-        super(NAME, runner, schema, List.of(new Migration(1, "create hr_employee table",
-                TemporalDdl.createTable(TemporalTable.from(schema)))));
+    public HrEmployeeSchemaCapability(JdbcMigrationRunner runner,
+                                      ObjectModuleRegistry modules) {
+        super(NAME, runner, modules.require("employee").schema(),
+                List.of(new Migration(1, "create hr_employee table",
+                        TemporalDdl.createTable(TemporalTable.from(
+                                modules.require("employee").schema())))));
     }
 }

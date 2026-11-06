@@ -2,6 +2,7 @@ package cn.byteforce.seedj.server.hr.employee;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.time.LocalDate;
 import java.util.UUID;
 
 /**
@@ -11,6 +12,9 @@ import java.util.UUID;
  * @param name           姓名（可选）
  * @param employmentType 雇佣类型（可选）
  * @param workLocation   工作地点（可选）
+ * @param phone          联系电话（可选）
+ * @param status         状态（可选，只允许前进迁移）
+ * @param hireDate       入职日期（可选）
  * @param orgUnitId      组织单元（可选）
  * @param idNumber       证件号原始值（可选，writeOnly）
  * @author ByteForce
@@ -21,6 +25,9 @@ public record HrEmployeeUpdate(
         String name,
         @JsonProperty("employment_type") String employmentType,
         @JsonProperty("work_location") String workLocation,
+        @JsonProperty("phone") String phone,
+        @JsonProperty("status") String status,
+        @JsonProperty("hire_date") LocalDate hireDate,
         @JsonProperty("org_unit_id") String orgUnitId,
         @JsonProperty("id_number") String idNumber) {
 }

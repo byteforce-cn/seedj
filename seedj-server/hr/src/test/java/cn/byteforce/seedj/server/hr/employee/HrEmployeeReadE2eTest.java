@@ -141,7 +141,12 @@ class HrEmployeeReadE2eTest {
 
     private static ObjectModuleRegistry registry() {
         ObjectModules modules = ObjectModules.create();
-        new HrEmployeeModule().configure(modules);
+        var derived = new cn.byteforce.seedj.core.security.DerivedFieldRegistry(Map.of());
+        var orgUnits = (OrgUnitDirectory) unit -> true;
+        var create = new HrEmployeeCreateHandler(() -> UUID.randomUUID(),
+                () -> "E-1", derived, orgUnits);
+        var update = new HrEmployeeUpdateHandler(derived, orgUnits);
+        new HrEmployeeModule(create, update, payload -> payload).configure(modules);
         return modules.freeze();
     }
 }
