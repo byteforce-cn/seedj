@@ -173,6 +173,7 @@ public class TemporalCommandAutoConfiguration {
      * @param environment 配置
      * @param jdbc        JDBC 模板
      * @param tables      对象表注册表
+     * @param schemas     对象 schema 注册表
      * @param clock       取时入口
      * @return 对象存储
      */
@@ -183,13 +184,14 @@ public class TemporalCommandAutoConfiguration {
     public TemporalStore temporalStore(Environment environment,
                                        ObjectProvider<JdbcTemplate> jdbc,
                                        ObjectProvider<TemporalTables> tables,
+                                       ObjectSchemaRegistry schemas,
                                        Clock clock) {
         JdbcTemplate template = jdbc.getIfAvailable();
         TemporalTables registry = tables.getIfAvailable();
         String provider = environment.getProperty(OBJECT_PROVIDER,
                 template == null || registry == null ? "memory" : "postgres");
         return switch (provider) {
-            case "memory" -> new InMemoryTemporalStore(clock);
+            case "memory" -> new InMemoryTemporalStore(clock, schemas);
             case "postgres" -> {
                 if (template == null) {
                     throw new IllegalStateException(

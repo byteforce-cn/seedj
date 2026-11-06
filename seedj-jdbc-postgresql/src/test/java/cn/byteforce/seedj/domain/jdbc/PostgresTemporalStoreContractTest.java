@@ -22,6 +22,7 @@ import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -54,8 +55,15 @@ class PostgresTemporalStoreContractTest extends TemporalStoreContractTest {
                 POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
         jdbc = new JdbcTemplate(dataSource);
         new TemporalSchemaCapability(new JdbcMigrationRunner(dataSource)).initialize();
-        TemporalTable table = new TemporalTable("probe", "probe_object",
-                new LinkedHashMap<>(Map.of("name", "TEXT")));
+        Map<String, String> columns = new LinkedHashMap<>();
+        columns.put("name", "TEXT");
+        columns.put("status", "TEXT");
+        columns.put("secret", "TEXT");
+        columns.put("hire_date", "DATE");
+        TemporalTable table = new TemporalTable("probe", "probe_object", columns, Set.of(),
+                Set.of("name", "status", "hire_date"),
+                Map.of("name", FieldType.TEXT, "status", FieldType.TEXT,
+                        "secret", FieldType.TEXT, "hire_date", FieldType.DATE));
         ObjectSchema typedSchema = ObjectSchema.builder("probe_typed", "probe_typed_object")
                 .field("name", FieldType.TEXT)
                 .field("hire_date", FieldType.DATE)

@@ -104,11 +104,15 @@ core|cn.byteforce.seedj.domain|FieldType
 core|cn.byteforce.seedj.domain|ObjectSchema
 core|cn.byteforce.seedj.domain|ObjectSchemaRegistry
 core|cn.byteforce.seedj.domain|ObjectVersion
+core|cn.byteforce.seedj.domain|Page
+core|cn.byteforce.seedj.domain|PageRequest
 core|cn.byteforce.seedj.domain|Repository
 core|cn.byteforce.seedj.domain|Sealing
+core|cn.byteforce.seedj.domain|SortDirection
 core|cn.byteforce.seedj.domain|TemporalQuery
 core|cn.byteforce.seedj.domain|TemporalRow
 core|cn.byteforce.seedj.domain|TemporalRules
+core|cn.byteforce.seedj.domain|TemporalSearch
 core|cn.byteforce.seedj.domain|TemporalStore
 core|cn.byteforce.seedj.eventbus.spi|DeadLetter
 core|cn.byteforce.seedj.eventbus.spi|DeliveryFailure

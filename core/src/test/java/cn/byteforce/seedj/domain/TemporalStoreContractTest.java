@@ -4,11 +4,14 @@ import cn.byteforce.seedj.core.clock.TestClock;
 import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -61,8 +64,19 @@ public abstract class TemporalStoreContractTest {
     }
 
     protected TemporalRow seed(String name, Instant validFrom) {
-        return store().append(AppendRequest.create(TYPE, ID, validFrom, null, ACTOR,
-                Map.of("name", name))).appended();
+        return seedWith(ID, Map.of("name", name), validFrom);
+    }
+
+    protected TemporalRow seedWith(UUID id, Map<String, Object> fields, Instant validFrom) {
+        return store().append(AppendRequest.create(TYPE, id, validFrom, null, ACTOR, fields))
+                .appended();
+    }
+
+    protected TemporalRow correctWith(UUID id, Map<String, Object> fields, Instant validFrom,
+                                      Instant now) {
+        clock().set(now);
+        return store().append(AppendRequest.correction(TYPE, id, validFrom, null, ACTOR, fields))
+                .appended();
     }
 
     @Test
@@ -179,5 +193,99 @@ public abstract class TemporalStoreContractTest {
                 .isInstanceOf(ContractException.class)
                 .extracting(e -> ((ContractException) e).code())
                 .isEqualTo(ContractErrorCode.OBJECT_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("search：等值过滤 + 分页，total 是过滤后的总数")
+    void searchFiltersByEqualsAndPages() {
+        seedWith(UUID.fromString("018f2e3a-1234-7000-8000-000000000101"),
+                Map.of("name", "a", "status", "active"), T0);
+        seedWith(UUID.fromString("018f2e3a-1234-7000-8000-000000000102"),
+                Map.of("name", "b", "status", "active"), T0);
+        seedWith(UUID.fromString("018f2e3a-1234-7000-8000-000000000103"),
+                Map.of("name", "c", "status", "inactive"), T0);
+
+        Page<TemporalRow> page = store().search(new TemporalSearch(TYPE,
+                Map.of("status", "active"), null, null, null, "name", SortDirection.ASC,
+                new PageRequest(1, 1)));
+
+        assertThat(page.total()).isEqualTo(2);
+        assertThat(page.items()).hasSize(1);
+        assertThat(page.items().get(0).fields()).containsEntry("name", "a");
+        assertThat(page.page()).isEqualTo(1);
+        assertThat(page.size()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("search：按可过滤字段排序，两个方向都生效")
+    void searchSortsByFilterableField() {
+        seedWith(UUID.fromString("018f2e3a-1234-7000-8000-000000000111"),
+                Map.of("name", "b"), T0);
+        seedWith(UUID.fromString("018f2e3a-1234-7000-8000-000000000112"),
+                Map.of("name", "a"), T0);
+
+        List<String> ascending = store().search(new TemporalSearch(TYPE, Map.of(), null, null,
+                        null, "name", SortDirection.ASC, new PageRequest(1, 20)))
+                .items().stream().map(row -> (String) row.fields().get("name")).toList();
+        List<String> descending = store().search(new TemporalSearch(TYPE, Map.of(), null, null,
+                        null, "name", SortDirection.DESC, new PageRequest(1, 20)))
+                .items().stream().map(row -> (String) row.fields().get("name")).toList();
+
+        assertThat(ascending).containsExactly("a", "b");
+        assertThat(descending).containsExactly("b", "a");
+    }
+
+    @Test
+    @DisplayName("search：as_of 返回历史行")
+    void searchAsOfReturnsHistoricalRow() {
+        seedWith(UUID.fromString("018f2e3a-1234-7000-8000-000000000121"),
+                Map.of("name", "v1"), T0);
+        correctWith(UUID.fromString("018f2e3a-1234-7000-8000-000000000121"),
+                Map.of("name", "v2"), T0.plusSeconds(60), T0.plusSeconds(60));
+
+        Page<TemporalRow> page = store().search(new TemporalSearch(TYPE, Map.of(),
+                T0.plusSeconds(30), null, null, null, SortDirection.ASC,
+                new PageRequest(1, 20)));
+
+        assertThat(page.total()).isEqualTo(1);
+        assertThat(page.items().get(0).fields()).containsEntry("name", "v1");
+    }
+
+    @Test
+    @DisplayName("search：未知过滤字段/未知排序字段/非可过滤列都拒绝")
+    void searchRejectsUnknownAndNonFilterableFields() {
+        seed("a", T0);
+
+        assertThatThrownBy(() -> store().search(new TemporalSearch(TYPE,
+                Map.of("missing", "x"), null, null, null, null, SortDirection.ASC,
+                new PageRequest(1, 20))))
+                .isInstanceOf(ContractException.class);
+        assertThatThrownBy(() -> store().search(new TemporalSearch(TYPE, Map.of(), null, null,
+                        null, "missing", SortDirection.ASC, new PageRequest(1, 20))))
+                .isInstanceOf(ContractException.class);
+        assertThatThrownBy(() -> store().search(new TemporalSearch(TYPE,
+                Map.of("secret", "x"), null, null, null, null, SortDirection.ASC,
+                new PageRequest(1, 20))))
+                .isInstanceOf(ContractException.class);
+    }
+
+    @Test
+    @DisplayName("search：size>200 在分页构造期拒绝")
+    void searchRejectsSizeOver200() {
+        assertThatThrownBy(() -> new PageRequest(1, 201))
+                .isInstanceOf(ContractException.class);
+    }
+
+    @Test
+    @DisplayName("search：字符串过滤值按字段类型转换")
+    void searchCoercesStringFilters() {
+        seedWith(UUID.fromString("018f2e3a-1234-7000-8000-000000000131"),
+                Map.of("name", "a", "hire_date", LocalDate.parse("2026-10-01")), T0);
+
+        Page<TemporalRow> page = store().search(new TemporalSearch(TYPE,
+                Map.of("hire_date", "2026-10-01"), null, null, null, null, SortDirection.ASC,
+                new PageRequest(1, 20)));
+
+        assertThat(page.total()).isEqualTo(1);
     }
 }

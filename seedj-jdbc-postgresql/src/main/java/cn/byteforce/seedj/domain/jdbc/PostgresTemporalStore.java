@@ -8,7 +8,9 @@ import cn.byteforce.seedj.domain.AppendResult;
 import cn.byteforce.seedj.domain.ObjectVersion;
 import cn.byteforce.seedj.domain.Sealing;
 import cn.byteforce.seedj.domain.TemporalQuery;
+import cn.byteforce.seedj.domain.Page;
 import cn.byteforce.seedj.domain.TemporalRow;
+import cn.byteforce.seedj.domain.TemporalSearch;
 import cn.byteforce.seedj.domain.TemporalStore;
 import org.springframework.jdbc.core.JdbcTemplate;
 
@@ -112,6 +114,57 @@ public final class PostgresTemporalStore implements TemporalStore {
     }
 
     @Override
+    public Page<TemporalRow> search(TemporalSearch search) {
+        Objects.requireNonNull(search, "search");
+        TemporalTable table = tables.require(search.objectType());
+        List<Object> args = new ArrayList<>();
+        StringBuilder where = new StringBuilder(" WHERE 1 = 1");
+
+        search.equals().forEach((field, value) -> {
+            if (!table.filterableColumns().contains(field)) {
+                throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
+                        "unknown or non-filterable field: " + field);
+            }
+            Object coerced = table.fieldTypes().containsKey(field)
+                    ? table.fieldTypes().get(field).coerce(value) : value;
+            where.append(" AND ").append(field).append(" = ?");
+            args.add(TemporalValues.toJdbc(table.fieldTypes().get(field), coerced));
+        });
+        if (search.sortField() != null
+                && !table.filterableColumns().contains(search.sortField())) {
+            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
+                    "unknown or non-sortable field: " + search.sortField());
+        }
+        if (search.asOf() != null) {
+            where.append(" AND valid_from <= ? AND (valid_to IS NULL OR valid_to > ?)");
+            args.add(timestamp(search.asOf()));
+            args.add(timestamp(search.asOf()));
+        }
+        if (search.recordedAsOf() != null) {
+            where.append(" AND recorded_at <= ?")
+                    .append(" AND (superseded_at IS NULL OR superseded_at > ?)");
+            args.add(timestamp(search.recordedAsOf()));
+            args.add(timestamp(search.recordedAsOf()));
+        }
+
+        Long total = jdbc.queryForObject("SELECT COUNT(DISTINCT id) FROM "
+                + table.tableName() + where, Long.class, args.toArray());
+        String sort = search.sortField() == null ? "t.id" : "t." + search.sortField();
+        String sql = "SELECT * FROM (SELECT DISTINCT ON (id) * FROM " + table.tableName()
+                + where + " ORDER BY id, version DESC) t ORDER BY " + sort + " "
+                + search.direction() + ", t.id LIMIT ? OFFSET ?";
+        List<Object> pageArgs = new ArrayList<>(args);
+        pageArgs.add(search.page().size());
+        pageArgs.add(search.page().offset());
+
+        List<TemporalRow> items = jdbc.queryForList(sql, pageArgs.toArray()).stream()
+                .map(row -> toRow(table, row))
+                .toList();
+        return new Page<>(items, total == null ? 0 : total, search.page().page(),
+                search.page().size());
+    }
+
+    @Override
     public List<TemporalRow> history(String objectType, UUID id) {
         TemporalTable table = tables.require(objectType);
         return jdbc.queryForList(SELECT_ALL + table.tableName()
@@ -172,8 +225,11 @@ public final class PostgresTemporalStore implements TemporalStore {
                 instant(row.get("updated_at")));
         Map<String, Object> fields = new LinkedHashMap<>();
         for (String column : table.columns().keySet()) {
-            fields.put(column, TemporalValues.fromJdbc(table.fieldTypes().get(column),
-                    row.get(column)));
+            Object value = TemporalValues.fromJdbc(table.fieldTypes().get(column),
+                    row.get(column));
+            if (value != null) {
+                fields.put(column, value);
+            }
         }
         return new TemporalRow(table.objectType(), version, fields);
     }

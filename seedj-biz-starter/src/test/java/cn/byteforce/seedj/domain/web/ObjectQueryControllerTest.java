@@ -179,5 +179,11 @@ class ObjectQueryControllerTest {
         public List<TemporalRow> history(String objectType, UUID id) {
             return List.of();
         }
+
+        @Override
+        public cn.byteforce.seedj.domain.Page<TemporalRow> search(
+                cn.byteforce.seedj.domain.TemporalSearch search) {
+            throw new UnsupportedOperationException();
+        }
     }
 }
