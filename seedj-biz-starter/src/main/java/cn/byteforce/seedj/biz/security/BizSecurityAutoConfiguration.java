@@ -105,19 +105,12 @@ public class BizSecurityAutoConfiguration {
     }
 
     /**
-     * 把当前调用方带进 {@code @Async} 线程；Boot 自动配置的执行器会应用该装饰器。
+     * 把当前调用方与请求事实带进 {@code @Async} 线程；Boot 自动配置的执行器会应用该装饰器。
      */
     @Bean
     @ConditionalOnMissingBean(TaskDecorator.class)
-    public TaskDecorator callerTaskDecorator(CallerPropagation propagation) {
-        return runnable -> {
-            var current = propagation.current().orElse(null);
-            return () -> {
-                try (CallerPropagation.Scope ignored = propagation.open(current)) {
-                    runnable.run();
-                }
-            };
-        };
+    public TaskDecorator requestContextDecorator(CallerPropagation propagation) {
+        return new cn.byteforce.seedj.starter.read.RequestContextDecorator(propagation);
     }
 
     @Configuration(proxyBeanMethods = false)

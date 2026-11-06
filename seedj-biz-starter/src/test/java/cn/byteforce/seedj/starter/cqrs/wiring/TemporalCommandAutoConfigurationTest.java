@@ -17,7 +17,6 @@ import cn.byteforce.seedj.domain.TemporalStore;
 import cn.byteforce.seedj.infra.jdbc.domain.TemporalTable;
 import cn.byteforce.seedj.infra.jdbc.domain.TemporalTables;
 import cn.byteforce.seedj.infra.local.domain.InMemoryTemporalStore;
-import cn.byteforce.seedj.starter.domain.web.ObjectQueryController;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -65,7 +64,8 @@ class TemporalCommandAutoConfigurationTest {
                     assertThat(context.getBean(TemporalStore.class))
                             .isInstanceOf(InMemoryTemporalStore.class);
                     assertThat(context).hasSingleBean(CommandController.class);
-                    assertThat(context).hasSingleBean(ObjectQueryController.class);
+                    assertThat(context).doesNotHaveBean(
+                            cn.byteforce.seedj.starter.domain.web.ObjectQueryController.class);
                 });
     }
 
@@ -127,7 +127,8 @@ class TemporalCommandAutoConfigurationTest {
                 .run(context -> {
                     assertThat(context).hasNotFailed();
                     assertThat(context).doesNotHaveBean(TemporalStore.class);
-                    assertThat(context).doesNotHaveBean(ObjectQueryController.class);
+                    assertThat(context).doesNotHaveBean(
+                            cn.byteforce.seedj.starter.domain.web.ObjectQueryController.class);
                 });
     }
 

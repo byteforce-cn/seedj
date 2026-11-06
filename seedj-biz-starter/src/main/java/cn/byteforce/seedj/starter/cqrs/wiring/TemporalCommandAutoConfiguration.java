@@ -27,7 +27,6 @@ import cn.byteforce.seedj.infra.jdbc.domain.TemporalSchemaCapability;
 import cn.byteforce.seedj.infra.jdbc.domain.TemporalTable;
 import cn.byteforce.seedj.infra.jdbc.domain.TemporalTables;
 import cn.byteforce.seedj.infra.local.domain.InMemoryTemporalStore;
-import cn.byteforce.seedj.starter.domain.web.ObjectQueryController;
 import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.infra.local.id.Uuid7IdGenerator;
 import cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner;
@@ -389,15 +388,6 @@ public class TemporalCommandAutoConfiguration {
             CallerProvider provider = callers.getIfAvailable();
             return new CommandController(catalog, commands,
                     provider == null ? Optional::empty : provider, callerIds);
-        }
-
-        @Bean
-        @ConditionalOnMissingBean
-        @ConditionalOnProperty(prefix = "seedj.object", name = "enabled", havingValue = "true",
-                matchIfMissing = true)
-        ObjectQueryController objectQueryController(TemporalStore objects,
-                                                    ObjectSchemaRegistry schemas) {
-            return new ObjectQueryController(objects, schemas);
         }
     }
 }

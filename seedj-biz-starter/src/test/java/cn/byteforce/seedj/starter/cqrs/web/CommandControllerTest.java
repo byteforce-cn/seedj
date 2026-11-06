@@ -19,6 +19,7 @@ import cn.byteforce.seedj.cqrs.TemporalCommandAgent;
 import cn.byteforce.seedj.infra.local.cqrs.InMemoryCommandStore;
 import cn.byteforce.seedj.cqrs.spi.TransactionRunner;
 import cn.byteforce.seedj.domain.AppendRequest;
+import cn.byteforce.seedj.domain.ScopePredicate;
 import cn.byteforce.seedj.domain.TemporalRow;
 import cn.byteforce.seedj.infra.local.domain.InMemoryTemporalStore;
 import cn.byteforce.seedj.infra.local.id.Uuid7IdGenerator;
@@ -117,7 +118,7 @@ class CommandControllerTest {
                 .andExpect(jsonPath("$.command_id").value(commandId))
                 .andExpect(jsonPath("$.version").value(1));
 
-        org.assertj.core.api.Assertions.assertThat(objects.history("probe", ID)).hasSize(1);
+        org.assertj.core.api.Assertions.assertThat(objects.history("probe", ID, ScopePredicate.all())).hasSize(1);
     }
 
     @Test
@@ -259,7 +260,7 @@ class CommandControllerTest {
                 .andExpect(jsonPath("$.code").value("EIS-403-001"))
                 .andExpect(jsonPath("$.details.reason_code").value("EIS-403-001"));
 
-        org.assertj.core.api.Assertions.assertThat(objects.history("probe", ID)).isEmpty();
+        org.assertj.core.api.Assertions.assertThat(objects.history("probe", ID, ScopePredicate.all())).isEmpty();
     }
 
     @Test
