@@ -3,6 +3,7 @@ package cn.byteforce.seedj.core;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Objects;
 
 /**
  * 迁移内容的规范化与 checksum 工具。
@@ -23,6 +24,21 @@ public final class MigrationChecksums {
      */
     public static String checksum(String content) {
         return sha256(normalize(content));
+    }
+
+    /**
+     * 对迁移条目计算 checksum：有回滚脚本时同时覆盖正向与回滚；
+     * 无回滚脚本时与 {@link #checksum(String)} 完全一致，保证既有历史不变。
+     *
+     * @param migration 迁移条目
+     * @return 64 位小写十六进制
+     */
+    public static String checksum(Migration migration) {
+        Objects.requireNonNull(migration, "migration");
+        if (migration.rollback() == null) {
+            return checksum(migration.content());
+        }
+        return checksum(migration.content() + "\n-- rollback --\n" + migration.rollback());
     }
 
     /**

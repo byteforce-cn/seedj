@@ -56,17 +56,20 @@ class SpiSurfaceTest {
     private static final Map<String, List<String>> EXTRA_ALLOWED = Map.of(
             "cn.byteforce.seedj.core.security",
             List.of("AccessTokenRules", "Caller", "CallerProvider", "SecurityAuditEvent",
-                    "SecurityAuditSink", "SecurityErrorCode", "TokenClaims"),
+                    "SecurityAuditSink", "SecurityErrorCode", "TokenClaims", "DerivedField",
+                    "DerivedFieldKeyRing"),
 
             "cn.byteforce.seedj.cqrs",
             List.of("AbstractProjection", "Command", "CommandAgent", "CommandAudit",
-                    "CommandInterceptor",
-                    "CommandInvocation", "CqrsErrorCode", "CqrsException",
-                    "EventSourcedRepository", "EventStream", "IdCodec", "IdCodecs",
-                    "Query", "QueryAgent", "QueryInterceptor", "QueryInvocation", "StreamId"),
+                    "CommandCatalog", "CommandInterceptor", "CommandReceipt", "CommandRecord",
+                    "CommandInvocation", "CommandRuntime", "CommandStatus", "CommandSubmission",
+                    "CqrsErrorCode", "CqrsException", "EventSourcedRepository", "EventStream",
+                    "IdCodec", "IdCodecs", "IdempotencyFingerprint", "Query", "QueryAgent",
+                    "QueryInterceptor", "QueryInvocation", "StreamId",
+                    "TemporalCommandAgent", "TemporalCommandAudit", "CommandPayloadRedactor"),
 
             "cn.byteforce.seedj.cqrs.spi",
-            List.of("EventStore", "TransactionRunner"),
+            List.of("CommandStore", "EventStore", "TransactionRunner"),
 
             "cn.byteforce.seedj.lock",
             List.of("LockErrorCode", "LockException", "LockLease", "LockProvider")
@@ -99,7 +102,7 @@ class SpiSurfaceTest {
 
             "cn.byteforce.seedj.outbox.spi",
             List.of("ClaimRequest", "ClaimToken", "ClaimedRecord", "OutboxFailure",
-                    "OutboxSink", "OutboxStore"),
+                    "OutboxSink", "OutboxStore", "InboxRecord", "InboxStatus", "InboxStore"),
 
             "cn.byteforce.seedj.id",
             List.of("IdErrorCode", "IdException", "IdGenerator"),

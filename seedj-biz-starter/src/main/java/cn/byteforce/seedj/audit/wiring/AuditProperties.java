@@ -22,6 +22,8 @@ public class AuditProperties {
      */
     private String provider;
 
+    private Anchor anchor = new Anchor();
+
     public boolean isEnabled() {
         return enabled;
     }
@@ -36,5 +38,58 @@ public class AuditProperties {
 
     public void setProvider(String provider) {
         this.provider = provider;
+    }
+
+    public Anchor getAnchor() {
+        return anchor;
+    }
+
+    public void setAnchor(Anchor anchor) {
+        this.anchor = anchor;
+    }
+
+    /**
+     * 定时锚定配置（默认关闭）。
+     */
+    public static class Anchor {
+
+        /**
+         * 是否注册定时锚定任务，默认 false。
+         */
+        private boolean enabled;
+
+        /**
+         * 两轮锚定之间的固定延迟（毫秒），默认 1 小时。
+         */
+        private long intervalMillis = 3_600_000L;
+
+        /**
+         * 首次锚定前的延迟（毫秒），默认立即执行。
+         */
+        private long initialDelayMillis;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public long getIntervalMillis() {
+            return intervalMillis;
+        }
+
+        public void setIntervalMillis(long intervalMillis) {
+            this.intervalMillis = intervalMillis;
+        }
+
+        public long getInitialDelayMillis() {
+            return initialDelayMillis;
+        }
+
+        public void setInitialDelayMillis(long initialDelayMillis) {
+            this.initialDelayMillis = initialDelayMillis;
+        }
     }
 }

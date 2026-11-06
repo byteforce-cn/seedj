@@ -6,6 +6,8 @@ import cn.byteforce.seedj.core.utils.HashesHelper;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
@@ -13,11 +15,13 @@ import java.util.UUID;
 /**
  * 审计链规范化与哈希：{@code 05-audit-contract/hash-chain.spec.md §2} 的逐字实现。
  *
- * <p>九元规范化（LF 连接、UTF-8、不转义非 ASCII）：</p>
+ * <p>v1.0 为九元规范化（LF 连接、UTF-8、不转义非 ASCII）；v1.1 在
+ * {@code payload_digest} 存在时追加为第 11 行，否则保持 v1.0 逐字节不变。</p>
  * <pre>
  * id / sequence(十进制) / timestamp(UTC 微秒, YYYY-MM-DDTHH:MM:SS.ffffffZ)
  * / actor / action / resource.type / resource.id(NULL → 空串)
  * / payload(规范 JSON：键排序、无空白) / prev_hash(小写 hex)
+ * / payload_digest(小写 hex；可选)
  * </pre>
  *
  * <p><b>标识文本</b>：{@code UUID} 使用标准小写形式；其他 {@code ID} 类型使用
@@ -51,23 +55,28 @@ public final class CanonicalHasher {
     }
 
     /**
-     * 生成九元规范化字符串（LF 连接）。
+     * 生成规范化字符串（LF 连接）。
      *
      * @param entry 审计条目
      * @return 规范化字符串
      */
     public static String canonicalString(AuditEntry<?> entry) {
         Objects.requireNonNull(entry, "entry");
-        return String.join("\n",
-                normalizeId(entry.getId()),
-                Long.toString(entry.getSequence()),
-                normalizeTimestamp(entry.getTimestamp()),
-                normalizeId(entry.getActor()),
-                nullToEmpty(entry.getAction()),
-                nullToEmpty(entry.getResourceType()),
-                normalizeId(entry.getResourceId()),
-                CanonicalJsonHelper.canonicalizePayload(payloadText(entry.getPayload())),
-                lower(nullToEmpty(entry.getPrevHash())));
+        List<String> lines = new ArrayList<>(11);
+        lines.add(normalizeId(entry.getId()));
+        lines.add(Long.toString(entry.getSequence()));
+        lines.add(normalizeTimestamp(entry.getTimestamp()));
+        lines.add(normalizeId(entry.getActor()));
+        lines.add(nullToEmpty(entry.getAction()));
+        lines.add(nullToEmpty(entry.getResourceType()));
+        lines.add(normalizeId(entry.getResourceId()));
+        lines.add(CanonicalJsonHelper.canonicalizePayload(payloadText(entry.getPayload())));
+        lines.add(lower(nullToEmpty(entry.getPrevHash())));
+        String digest = entry.getPayloadDigest();
+        if (digest != null && !digest.isBlank()) {
+            lines.add(lower(digest));
+        }
+        return String.join("\n", lines);
     }
 
     /**

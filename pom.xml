@@ -559,5 +559,44 @@
                 </plugins>
             </build>
         </profile>
+        <!--
+            契约兼容性门禁（规范 compatibility-checker，opt-in）：
+            - `mvn -Pconformance -DskipTests verify`；
+            - 规范仓库由脚本按仓库相对位置解析，可用 -Dspec.root=<path> 覆盖；
+            - 工具或工件缺席时显式失败，不静默跳过。
+        -->
+        <profile>
+            <id>conformance</id>
+            <properties>
+                <spec.root></spec.root>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-antrun-plugin</artifactId>
+                        <version>${maven-antrun-plugin.version}</version>
+                        <inherited>false</inherited>
+                        <executions>
+                            <execution>
+                                <id>compatibility-gate</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <target>
+                                        <exec executable="bash" failonerror="true">
+                                            <arg value="${project.basedir}/config/conformance/check-compatibility.sh"/>
+                                            <arg value="${spec.root}"/>
+                                        </exec>
+                                    </target>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
     </profiles>
 </project>

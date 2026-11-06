@@ -20,14 +20,14 @@ import java.util.List;
 public final class JdbcAuditStore implements AuditStore<String> {
 
     private static final String INSERT = """
-            INSERT INTO audit_entry (id, sequence, occurred_at, actor, action, resource_type,
-                                     resource_id, payload, hash, prev_hash, signature)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?)
+            INSERT INTO audit_entry (id, sequence, timestamp, actor, action, resource_type,
+                                     resource_id, payload, payload_digest, hash, prev_hash, signature)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?)
             """;
 
     private static final String SELECT_ENTRY = """
-            SELECT id, sequence, occurred_at, actor, action, resource_type, resource_id,
-                   payload, hash, prev_hash, signature
+            SELECT id, sequence, timestamp, actor, action, resource_type, resource_id,
+                   payload, payload_digest, hash, prev_hash, signature
             FROM audit_entry
             """;
 
@@ -35,12 +35,13 @@ public final class JdbcAuditStore implements AuditStore<String> {
             new AuditEntry<>(
                     rs.getString("id"),
                     rs.getLong("sequence"),
-                    rs.getTimestamp("occurred_at").toInstant(),
+                    rs.getTimestamp("timestamp").toInstant(),
                     rs.getString("actor"),
                     rs.getString("action"),
                     rs.getString("resource_type"),
                     rs.getString("resource_id"),
                     CanonicalJsonHelper.parse(rs.getString("payload")),
+                    rs.getString("payload_digest"),
                     rs.getString("hash"),
                     rs.getString("prev_hash"),
                     rs.getString("signature"));
@@ -75,6 +76,7 @@ public final class JdbcAuditStore implements AuditStore<String> {
                 entry.getResourceType(),
                 entry.getResourceId(),
                 CanonicalJsonHelper.canonicalize(entry.getPayload()),
+                entry.getPayloadDigest(),
                 entry.getHash(),
                 entry.getPrevHash(),
                 entry.getSignature());

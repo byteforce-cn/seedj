@@ -33,6 +33,20 @@ class MigrationChecksumsTest {
     }
 
     @Test
+    @DisplayName("checksum 覆盖回滚脚本；null 回滚保持旧值")
+    void checksumCoversRollback() {
+        Migration noRollback = new Migration(1, "d", "SELECT 1");
+        Migration withRollback = new Migration(1, "d", "SELECT 1", "SELECT 2");
+        Migration otherRollback = new Migration(1, "d", "SELECT 1", "SELECT 3");
+
+        assertThat(MigrationChecksums.checksum(noRollback))
+                .isEqualTo(MigrationChecksums.checksum("SELECT 1"));
+        assertThat(MigrationChecksums.checksum(withRollback))
+                .isNotEqualTo(MigrationChecksums.checksum(noRollback))
+                .isNotEqualTo(MigrationChecksums.checksum(otherRollback));
+    }
+
+    @Test
     @DisplayName("迁移条目拒绝非法版本与空内容")
     void migrationValidation() {
         assertThatThrownBy(() -> new Migration(0, "v0", "SELECT 1"))

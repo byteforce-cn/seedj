@@ -114,7 +114,7 @@ public class JdbcMigrationRunner {
                             migrationScope,
                             migration.version(),
                             migration.description(),
-                            MigrationChecksums.checksum(migration.content()),
+                            MigrationChecksums.checksum(migration),
                             elapsedMs);
                 }
             });
@@ -182,7 +182,7 @@ public class JdbcMigrationRunner {
             for (Migration migration : ordered) {
                 String checksum = applied.get(migration.version());
                 if (checksum == null
-                        || !checksum.equals(MigrationChecksums.checksum(migration.content()))) {
+                        || !checksum.equals(MigrationChecksums.checksum(migration))) {
                     return false;
                 }
             }
@@ -204,7 +204,7 @@ public class JdbcMigrationRunner {
                         "database has migration V" + entry.getKey()
                                 + " which is not present in this application");
             }
-            String expected = MigrationChecksums.checksum(migration.content());
+            String expected = MigrationChecksums.checksum(migration);
             if (!expected.equals(entry.getValue())) {
                 throw new InfrastructureException(
                         InfrastructureErrorCode.MIGRATION_CHECKSUM_MISMATCH,
@@ -232,17 +232,66 @@ public class JdbcMigrationRunner {
         return scope;
     }
 
+    /**
+     * 回滚到指定版本（不含）：逆序执行 {@code version > targetVersion} 的回滚脚本，
+     * 并删除对应历史行。整个过程在同一事务与 advisory lock 内完成。
+     *
+     * @param scope         迁移 scope
+     * @param migrations    本地迁移列表
+     * @param targetVersion 目标版本；{@code 0} 表示全部回滚
+     */
+    public void rollback(String scope, List<Migration> migrations, int targetVersion) {
+        if (targetVersion < 0) {
+            throw new IllegalArgumentException("targetVersion must be >= 0");
+        }
+        String migrationScope = requireScope(scope);
+        List<Migration> ordered = ordered(migrations);
+        try {
+            transactionTemplate.executeWithoutResult(status -> {
+                jdbcTemplate.execute("SELECT pg_advisory_xact_lock(" + ADVISORY_LOCK_KEY + ")");
+                jdbcTemplate.execute(CREATE_HISTORY);
+                Map<Integer, String> applied = appliedChecksums(migrationScope);
+                verifyApplied(ordered, applied);
+                for (int i = ordered.size() - 1; i >= 0; i--) {
+                    Migration migration = ordered.get(i);
+                    if (migration.version() <= targetVersion
+                            || !applied.containsKey(migration.version())) {
+                        continue;
+                    }
+                    if (migration.rollback() == null) {
+                        throw new InfrastructureException(InfrastructureErrorCode.MIGRATION_FAILED,
+                                "migration V" + migration.version()
+                                        + " has no rollback script");
+                    }
+                    executeScript(migration, migration.rollback(), "rollback");
+                    jdbcTemplate.update("""
+                            DELETE FROM seedj_schema_history WHERE scope = ? AND version = ?
+                            """, migrationScope, migration.version());
+                }
+            });
+        } catch (InfrastructureException e) {
+            throw e;
+        } catch (RuntimeException e) {
+            throw new InfrastructureException(InfrastructureErrorCode.MIGRATION_FAILED,
+                    "database rollback failed: " + e.getMessage(), e);
+        }
+    }
+
     private void executeScript(Migration migration) {
+        executeScript(migration, migration.content(), "migration");
+    }
+
+    private void executeScript(Migration migration, String script, String kind) {
         Connection connection = DataSourceUtils.getConnection(dataSource);
         try {
             EncodedResource resource = new EncodedResource(
-                    new ByteArrayResource(migration.content().getBytes(StandardCharsets.UTF_8)),
+                    new ByteArrayResource(script.getBytes(StandardCharsets.UTF_8)),
                     StandardCharsets.UTF_8);
             ScriptUtils.executeSqlScript(connection, resource);
         } catch (ScriptException e) {
             throw new InfrastructureException(InfrastructureErrorCode.MIGRATION_FAILED,
-                    "migration V" + migration.version() + " (" + migration.description() + ") failed",
-                    e);
+                    "migration V" + migration.version() + " (" + migration.description()
+                            + ") " + kind + " failed", e);
         } finally {
             DataSourceUtils.releaseConnection(connection, dataSource);
         }

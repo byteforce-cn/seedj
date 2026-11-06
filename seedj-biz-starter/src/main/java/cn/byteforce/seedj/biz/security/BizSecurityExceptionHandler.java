@@ -1,6 +1,7 @@
 package cn.byteforce.seedj.biz.security;
 
-import cn.byteforce.seedj.core.security.SecurityErrorCode;
+import cn.byteforce.seedj.core.exception.ApiError;
+import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.ResponseEntity;
@@ -17,7 +18,7 @@ import java.util.Map;
  * <p>过滤器层的 401/403 由 {@link JsonAuthenticationEntryPoint} /
  * {@link JsonAccessDeniedHandler} 处理；这里覆盖的是方法级安全
  * （{@code @PreAuthorize}）在控制器调用链里抛出的情况——否则会落到
- * 全局异常处理，变成 500。</p>
+ * 全局异常处理，变成 500。响应体与过滤器层同形：契约错误信封。</p>
  *
  * @author ByteForce
  * @since 1.0.0
@@ -27,18 +28,17 @@ import java.util.Map;
 public class BizSecurityExceptionHandler {
 
     @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<Map<String, Object>> handleAccessDenied(AccessDeniedException exception) {
-        SecurityErrorCode code = SecurityErrorCode.ACCESS_DENIED;
-        return ResponseEntity.status(code.httpStatus()).body(body(code, "access denied"));
+    public ResponseEntity<ApiError> handleAccessDenied(AccessDeniedException exception) {
+        ContractErrorCode code = ContractErrorCode.FORBIDDEN;
+        return ResponseEntity.status(code.httpStatus())
+                .body(new ApiError(code.getCode(), "access denied",
+                        Map.of("reason", "access denied")));
     }
 
     @ExceptionHandler(AuthenticationException.class)
-    public ResponseEntity<Map<String, Object>> handleAuthentication(AuthenticationException exception) {
-        SecurityErrorCode code = SecurityErrorCode.AUTHENTICATION_FAILED;
-        return ResponseEntity.status(code.httpStatus()).body(body(code, "invalid credentials"));
-    }
-
-    private static Map<String, Object> body(SecurityErrorCode code, String message) {
-        return Map.of("error", code.name(), "message", message);
+    public ResponseEntity<ApiError> handleAuthentication(AuthenticationException exception) {
+        ContractErrorCode code = ContractErrorCode.UNAUTHENTICATED;
+        return ResponseEntity.status(code.httpStatus())
+                .body(new ApiError(code.getCode(), "invalid credentials", Map.of()));
     }
 }

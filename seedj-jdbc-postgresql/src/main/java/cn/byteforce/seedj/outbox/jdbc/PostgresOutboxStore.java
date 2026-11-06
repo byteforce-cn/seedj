@@ -37,11 +37,12 @@ public class PostgresOutboxStore implements OutboxStore {
 
     private static final String INSERT = """
             INSERT INTO outbox (id, message_id, destination, partition_key, sequence, content_type,
-                                content_version, payload, headers, occurred_at, status, attempts)
+                                content_version, payload, headers, occurred_at, aggregate_type,
+                                status, attempts)
             VALUES (?, ?, ?, ?,
                     COALESCE((SELECT MAX(sequence) FROM outbox
                               WHERE partition_key IS NOT DISTINCT FROM ?), 0) + 1,
-                    ?, ?, ?, ?::jsonb, ?, 'PENDING', 0)
+                    ?, ?, ?, ?::jsonb, ?, ?, 'PENDING', 0)
             ON CONFLICT (message_id) DO NOTHING
             """;
 
@@ -63,7 +64,7 @@ public class PostgresOutboxStore implements OutboxStore {
                   AND NOT EXISTS (SELECT 1 FROM outbox p
                                   WHERE p.partition_key = o2.partition_key
                                     AND p.sequence < o2.sequence
-                                    AND p.status IN ('PENDING', 'PROCESSING', 'FAILED'))
+                                    AND p.status IN ('PENDING', 'PROCESSING', 'DEAD'))
                 ORDER BY o2.partition_key, o2.sequence
                 LIMIT ?
                 FOR UPDATE SKIP LOCKED
@@ -107,7 +108,8 @@ public class PostgresOutboxStore implements OutboxStore {
                         record.contentVersion(),
                         record.payload(),
                         headers,
-                        java.sql.Timestamp.from(record.occurredAt()));
+                        java.sql.Timestamp.from(record.occurredAt()),
+                        record.aggregateType());
                 return;
             } catch (DuplicateKeyException e) {
                 // (partition_key, sequence) 撞车：并发写同一分区，重试取下一个序号
@@ -153,9 +155,10 @@ public class PostgresOutboxStore implements OutboxStore {
         } else {
             updated = jdbcTemplate.update("""
                     UPDATE outbox
-                    SET status = 'FAILED', lease_id = NULL, lease_until = NULL
+                    SET status = 'DEAD', dead_at = now(), last_error = ?,
+                        lease_id = NULL, lease_until = NULL
                     WHERE id = ? AND lease_id = ? AND status = 'PROCESSING'
-                    """, token.recordId(), token.leaseId());
+                    """, failure.errorMessage(), token.recordId(), token.leaseId());
         }
         if (updated == 0) {
             throw new OutboxException(OutboxErrorCode.LEASE_LOST,
@@ -181,8 +184,8 @@ public class PostgresOutboxStore implements OutboxStore {
         int updated = jdbcTemplate.update("""
                 UPDATE outbox
                 SET status = 'PENDING', next_retry_at = NULL, attempts = 0,
-                    lease_id = NULL, lease_until = NULL
-                WHERE id = ? AND status = 'FAILED'
+                    lease_id = NULL, lease_until = NULL, dead_at = NULL, last_error = NULL
+                WHERE id = ? AND status IN ('FAILED', 'DEAD')
                 """, recordId);
         auditOrFail(updated, recordId, "RETRY", operator);
     }
@@ -190,8 +193,9 @@ public class PostgresOutboxStore implements OutboxStore {
     @Override
     public void discard(String recordId, String operator) {
         int updated = jdbcTemplate.update("""
-                UPDATE outbox SET status = 'SENT', lease_id = NULL, lease_until = NULL
-                WHERE id = ? AND status = 'FAILED'
+                UPDATE outbox SET status = 'SENT', lease_id = NULL, lease_until = NULL,
+                    dead_at = NULL, last_error = NULL
+                WHERE id = ? AND status IN ('FAILED', 'DEAD')
                 """, recordId);
         auditOrFail(updated, recordId, "DISCARD", operator);
     }
@@ -199,7 +203,7 @@ public class PostgresOutboxStore implements OutboxStore {
     private void auditOrFail(int updated, String recordId, String action, String operator) {
         if (updated == 0) {
             throw new OutboxException(OutboxErrorCode.RECORD_NOT_FOUND,
-                    "record not found or not in FAILED status: " + recordId);
+                    "record not found or not in dead status: " + recordId);
         }
         jdbcTemplate.update("""
                 INSERT INTO outbox_audit (id, record_id, action, operated_by, occurred_at)

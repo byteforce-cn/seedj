@@ -63,6 +63,26 @@ final class PostgresOutboxMigrations {
                         ALTER TABLE outbox RENAME COLUMN topic TO destination;
                         ALTER TABLE outbox RENAME COLUMN event_type TO content_type;
                         ALTER TABLE outbox RENAME COLUMN event_version TO content_version;
+                        """),
+                new Migration(3, "outbox dead letters and inbox", """
+                        ALTER TABLE outbox ADD COLUMN IF NOT EXISTS aggregate_type VARCHAR(128);
+                        ALTER TABLE outbox ADD COLUMN IF NOT EXISTS dead_at TIMESTAMPTZ;
+                        ALTER TABLE outbox ADD COLUMN IF NOT EXISTS last_error VARCHAR(1024);
+
+                        CREATE TABLE IF NOT EXISTS inbox_message (
+                            consumer_group  TEXT        NOT NULL,
+                            event_id        UUID        NOT NULL,
+                            status          TEXT        NOT NULL DEFAULT 'processing',
+                            attempts        INTEGER     NOT NULL DEFAULT 0,
+                            last_error      TEXT,
+                            received_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+                            done_at         TIMESTAMPTZ,
+                            dead_at         TIMESTAMPTZ,
+                            PRIMARY KEY (consumer_group, event_id)
+                        );
+
+                        CREATE INDEX IF NOT EXISTS idx_inbox_due
+                            ON inbox_message (status);
                         """));
     }
 }

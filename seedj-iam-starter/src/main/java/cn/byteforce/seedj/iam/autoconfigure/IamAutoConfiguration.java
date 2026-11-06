@@ -2,6 +2,7 @@ package cn.byteforce.seedj.iam.autoconfigure;
 
 import cn.byteforce.seedj.iam.config.IamProperties;
 import cn.byteforce.seedj.iam.config.IamServerAutoConfiguration;
+import cn.byteforce.seedj.iam.authz.IamAuthzConfiguration;
 import cn.byteforce.seedj.iam.security.PkiIamSigningKeyStore;
 import cn.byteforce.seedj.iam.spi.IamSigningKeyStore;
 import cn.byteforce.seedj.core.InfrastructureCapability;
@@ -28,7 +29,7 @@ import org.springframework.context.annotation.Import;
 @Import({IamStoreConfiguration.class, IamJdbcStoreConfiguration.class,
         IamServerAutoConfiguration.class, IamNativeAuthConfiguration.class,
         IamRbacConfiguration.class, IamScimConfiguration.class, IamAbacConfiguration.class,
-        IamWebConfiguration.class})
+        IamAuthzConfiguration.class, IamWebConfiguration.class})
 public class IamAutoConfiguration {
 
     /**

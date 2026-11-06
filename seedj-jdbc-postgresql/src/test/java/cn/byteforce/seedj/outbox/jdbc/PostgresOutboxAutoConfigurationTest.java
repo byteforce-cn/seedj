@@ -107,7 +107,7 @@ class PostgresOutboxAutoConfigurationTest {
 
             Integer history = new JdbcTemplate(dataSource).queryForObject(
                     "SELECT count(*) FROM seedj_schema_history", Integer.class);
-            assertThat(history).isEqualTo(2);
+            assertThat(history).isEqualTo(3);
         });
     }
 
