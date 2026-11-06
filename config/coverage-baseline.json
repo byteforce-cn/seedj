@@ -16,8 +16,8 @@
     "line": 0.67
   },
   "seedj-infra-local": {
-    "branch": 0.48,
-    "line": 0.67
+    "branch": 0.69,
+    "line": 0.84
   },
   "seedj-jdbc-postgresql": {
     "branch": 0.55,
