@@ -98,7 +98,8 @@ class TemporalCommandAuditTest {
                 .payloadType(ProbeCommand.class)
                 .permission("probe.write")
                 .build();
-        return new CommandRegistration(descriptor, new ProbeHandler(), SCHEMA);
+        return new CommandRegistration(descriptor, new ProbeHandler(), SCHEMA,
+                java.util.Set.of("target", "reject"));
     }
 
     @BeforeEach

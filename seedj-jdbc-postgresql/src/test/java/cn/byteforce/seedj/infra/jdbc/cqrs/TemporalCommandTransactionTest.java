@@ -116,7 +116,8 @@ class TemporalCommandTransactionTest {
                 .objectType("probe")
                 .payloadType(ProbeCommand.class)
                 .build();
-        registration = new CommandRegistration(descriptor, new ProbeHandler(), schema);
+        registration = new CommandRegistration(descriptor, new ProbeHandler(), schema,
+                java.util.Set.of("target", "fail"));
     }
 
     @BeforeEach

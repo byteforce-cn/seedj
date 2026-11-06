@@ -91,6 +91,7 @@ public final class CommandRuntime {
             return replayOrConflict(existing.get(), fingerprint);
         }
 
+        requireKnownPayloadFields(submission.payload(), schema, registration.commandFields());
         Object command = decode(submission.payload(), descriptor);
         validate(descriptor, command);
         UUID targetId = requireTargetId(registration.handler(), command);
@@ -126,6 +127,7 @@ public final class CommandRuntime {
                             throw new IllegalStateException(
                                     "command handler returned a null append request");
                         }
+                        requireSchemaFields(request, schema);
                         requireResultScope(request, writeScope, schema, appendNow,
                                 submission.issuer());
                         AppendResult result = options.temporalStore().append(request);
@@ -185,6 +187,33 @@ public final class CommandRuntime {
                     "invalid payload for " + descriptor.type(),
                     Map.of("command_type", descriptor.type()), null);
         }
+    }
+
+    /**
+     * 拒绝 schema 与命令专用字段之外的载荷键。
+     *
+     * <p>Jackson 默认丢弃未知属性，PostgreSQL 也只写 {@code table.columns()} 里的列：
+     * 两者叠加会让拼错的字段静默消失。这里在解码前显式失败（400）。</p>
+     */
+    private static void requireKnownPayloadFields(Map<String, Object> payload,
+                                                  ObjectSchema schema,
+                                                  Set<String> commandFields) {
+        Set<String> unknown = new java.util.TreeSet<>(payload.keySet());
+        unknown.removeAll(schema.fieldNames());
+        unknown.removeAll(commandFields);
+        if (!unknown.isEmpty()) {
+            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
+                    "unknown fields for " + schema.objectType() + ": " + unknown);
+        }
+    }
+
+    /**
+     * 处理器产出的持久化字段必须完全落在 schema 内，并满足必填与类型约束。
+     *
+     * <p>此前未知字段会被 JDBC 层静默丢弃，导致“命令成功、数据缺失”；现在失败关闭。</p>
+     */
+    private static void requireSchemaFields(AppendRequest request, ObjectSchema schema) {
+        schema.validate(request.fields());
     }
 
     private static void validate(CommandDescriptor descriptor, Object command) {

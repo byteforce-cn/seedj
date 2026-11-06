@@ -104,7 +104,8 @@ class CommandRuntimeRedactionTest {
                 .payloadType(Probe.class)
                 .redactor(redactor)
                 .build();
-        return new CommandRegistration(descriptor, new ProbeHandler(), SCHEMA);
+        return new CommandRegistration(descriptor, new ProbeHandler(), SCHEMA,
+                java.util.Set.of("target"));
     }
 
     private static CommandSubmission submission(String type, String key, String secret, UUID target) {

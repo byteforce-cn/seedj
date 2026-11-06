@@ -26,6 +26,7 @@ final class ModuleClassPath {
             List.of(
                     "core",
                     "seedj-infra-local",
+                    "seedj-workflow-local",
                     "seedj-jdbc-postgresql",
                     "seedj-biz-starter",
                     "seedj-iam-starter",

@@ -92,7 +92,8 @@ class CommandControllerTest {
                 .payloadType(ProbeCommand.class)
                 .permission("probe.write")
                 .build();
-        return new CommandRegistration(descriptor, handler, SCHEMA);
+        return new CommandRegistration(descriptor, handler, SCHEMA,
+                java.util.Set.of("target", "reject"));
     }
 
     private MockMvc mvc;

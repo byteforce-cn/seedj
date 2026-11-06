@@ -1,9 +1,6 @@
 package cn.byteforce.seedj.server.hr.employee;
 
 import cn.byteforce.seedj.cqrs.CommandPayloadRedactor;
-import cn.byteforce.seedj.domain.FieldType;
-import cn.byteforce.seedj.domain.Maskers;
-import cn.byteforce.seedj.domain.Privacy;
 import cn.byteforce.seedj.module.ObjectModuleConfigurer;
 import cn.byteforce.seedj.module.ObjectModules;
 import org.springframework.context.annotation.Configuration;
@@ -39,19 +36,10 @@ public class HrEmployeeModule implements ObjectModuleConfigurer {
 
     @Override
     public void configure(ObjectModules modules) {
-        modules.object("employee", "hr_employee")
+        // 字段声明只有一个来源：代码生成器从业务 record 产出的 schema。
+        modules.object(HrEmployeeFieldsSchema.schema())
                 .readPermission("hr.employee.read")
                 .contextKey(HrScopeKeys.ORG_UNITS)
-                .field("employee_no", FieldType.TEXT).required().filterable().sortable().indexed()
-                .field("name", FieldType.TEXT).required()
-                .field("status", FieldType.TEXT).required().filterable()
-                .field("hire_date", FieldType.DATE)
-                .field("employment_type", FieldType.TEXT)
-                .field("work_location", FieldType.TEXT)
-                .field("phone", FieldType.TEXT).privacy(Privacy.SENSITIVE)
-                        .mask(Maskers.last4())
-                .field("id_number_hash", FieldType.TEXT).writeOnly()
-                .field("org_unit_id", FieldType.TEXT).filterable().indexed()
                 .command("hr.employee.create", HrEmployeeCreate.class)
                     .permission("hr.employee.write")
                     .creates()

@@ -57,7 +57,23 @@ public final class ObjectModules {
      * @return 对象声明
      */
     public ObjectSpec object(String objectType, String tableName) {
-        ObjectSpec spec = new ObjectSpec(objectType, tableName);
+        ObjectSpec spec = new ObjectSpec(objectType, tableName, null);
+        objects.add(spec);
+        return spec;
+    }
+
+    /**
+     * 用已生成的 schema 声明一个对象。
+     *
+     * <p>字段唯一来源是 {@code @SeedjObject} record 生成的 {@link ObjectSchema}；
+     * 再调用 {@link ObjectSpec#field(String, FieldType)} 会直接失败，避免两处声明。</p>
+     *
+     * @param schema 生成的 schema
+     * @return 对象声明
+     */
+    public ObjectSpec object(ObjectSchema schema) {
+        Objects.requireNonNull(schema, "schema");
+        ObjectSpec spec = new ObjectSpec(schema.objectType(), schema.tableName(), schema);
         objects.add(spec);
         return spec;
     }
@@ -84,7 +100,7 @@ public final class ObjectModules {
                 throw new IllegalArgumentException(
                         "object " + object.objectType + " must declare readPermission");
             }
-            if (object.fields.isEmpty()) {
+            if (object.schema().fields().isEmpty()) {
                 throw new IllegalArgumentException(
                         "object " + object.objectType + " must declare at least one field");
             }
@@ -117,7 +133,8 @@ public final class ObjectModules {
                 declarations.add(new CommandDeclaration(object.objectType, command.type,
                         command.payloadType, command.permission, command.handler,
                         command.creates, command.emits, command.commandFields));
-                registrations.add(new CommandRegistration(descriptor, command.handler, schema));
+                registrations.add(new CommandRegistration(descriptor, command.handler, schema,
+                        command.commandFields));
             }
             for (QuerySpec query : object.queries) {
                 ObjectSchema fieldSchema = schema;
@@ -198,9 +215,12 @@ public final class ObjectModules {
 
         private final List<CommandSpec> commands = new ArrayList<>();
 
-        private ObjectSpec(String objectType, String tableName) {
+        private final ObjectSchema fixedSchema;
+
+        private ObjectSpec(String objectType, String tableName, ObjectSchema fixedSchema) {
             this.objectType = objectType;
             this.tableName = tableName;
+            this.fixedSchema = fixedSchema;
         }
 
         /**
@@ -233,6 +253,11 @@ public final class ObjectModules {
          * @return 字段声明
          */
         public FieldSpec field(String name, FieldType type) {
+            if (fixedSchema != null) {
+                throw new IllegalStateException(
+                        "object " + objectType + " uses a generated schema; declare fields on"
+                                + " the @SeedjObject record instead of ObjectModules.field()");
+            }
             FieldSpec field = new FieldSpec(this, name, type);
             fields.add(field);
             return field;
@@ -264,6 +289,9 @@ public final class ObjectModules {
         }
 
         private ObjectSchema schema() {
+            if (fixedSchema != null) {
+                return fixedSchema;
+            }
             ObjectSchema.Builder builder = ObjectSchema.builder(objectType, tableName);
             for (FieldSpec field : fields) {
                 builder.field(field.definition());

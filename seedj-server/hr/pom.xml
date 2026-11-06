@@ -34,6 +34,17 @@
             <artifactId>seedj-jdbc-postgresql</artifactId>
         </dependency>
 
+        <!--
+            构建期处理器：provided 只为让 Maven reactor 把 seedj-codegen 纳入 -am 构建图，
+            保证 annotationProcessorPaths 可解析；运行时 classpath 与打包产物都不包含它。
+        -->
+        <dependency>
+            <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>seedj-codegen</artifactId>
+            <version>${revision}</version>
+            <scope>provided</scope>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
@@ -64,4 +75,34 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <configuration>
+                    <!-- 生成代码不计覆盖率：审查看生成器与 record，不看生成结果 -->
+                    <excludes>
+                        <exclude>**/*Schema</exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <!-- JDK 23+ 默认关闭隐式注解处理；显式声明生成器与处理轮次 -->
+                    <proc>full</proc>
+                    <annotationProcessorPaths combine.children="append">
+                        <path>
+                            <groupId>cn.byteforce.seedj</groupId>
+                            <artifactId>seedj-codegen</artifactId>
+                            <version>${revision}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>

@@ -12,6 +12,9 @@ core|cn.byteforce.seedj.audit|AuditPayloadDigest
 core|cn.byteforce.seedj.audit|AuditVerifier
 core|cn.byteforce.seedj.audit|Audited
 core|cn.byteforce.seedj.audit|CanonicalHasher
+core|cn.byteforce.seedj.codegen|MaskerName
+core|cn.byteforce.seedj.codegen|SeedjField
+core|cn.byteforce.seedj.codegen|SeedjObject
 core|cn.byteforce.seedj.core.clock.spi|ClockConfig
 core|cn.byteforce.seedj.core.clock.spi|ClockProvider
 core|cn.byteforce.seedj.core.clock.spi|GlobalSequencer
@@ -239,12 +242,15 @@ core|cn.byteforce.seedj.read|DataScopeResolver
 core|cn.byteforce.seedj.read|FieldAccess
 core|cn.byteforce.seedj.read|FieldPolicy
 core|cn.byteforce.seedj.read|FieldPolicyResolver
+core|cn.byteforce.seedj.read|QueryExecutor
+core|cn.byteforce.seedj.read|QuerySpec
 core|cn.byteforce.seedj.read|ReadAccessEvent
 core|cn.byteforce.seedj.read|ReadAuditSink
 core|cn.byteforce.seedj.read|ReadGateway
 core|cn.byteforce.seedj.read|ReadModel
 core|cn.byteforce.seedj.read|ReadModelRegistry
 core|cn.byteforce.seedj.read|ScopeResolvers
+core|cn.byteforce.seedj.read|TemporalQueryRepository
 core|cn.byteforce.seedj.transit|BatchDecryptRequest
 core|cn.byteforce.seedj.transit|BatchEncryptRequest
 core|cn.byteforce.seedj.transit|BatchItem
@@ -507,9 +513,6 @@ seedj-infra-local|cn.byteforce.seedj.infra.local.security|InMemorySecurityAuditS
 seedj-infra-local|cn.byteforce.seedj.infra.local.transit|BcTransitProvider
 seedj-infra-local|cn.byteforce.seedj.infra.local.transit|TransitAutoConfiguration
 seedj-infra-local|cn.byteforce.seedj.infra.local.transit|TransitProperties
-seedj-infra-local|cn.byteforce.seedj.infra.local.workflow|InMemoryWorkflowProvider
-seedj-infra-local|cn.byteforce.seedj.infra.local.workflow|WorkflowAutoConfiguration
-seedj-infra-local|cn.byteforce.seedj.infra.local.workflow|WorkflowProperties
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.audit|AuditSchemaCapability
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.audit|JdbcAuditStore
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.audit|PostgresAuditAutoConfiguration
@@ -554,10 +557,12 @@ seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.outbox|PostgresOutboxAutoCon
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.outbox|PostgresOutboxProperties
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.outbox|PostgresOutboxSchemaCapability
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.outbox|PostgresOutboxStore
+seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.read|PostgresQueryExecutor
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc|JdbcMigrationRunner
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeConfiguration
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeCreate
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeCreateHandler
+seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeFields
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeModule
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeePostgresConfiguration
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeSchemaCapability
@@ -573,3 +578,6 @@ seedj-server/hr|cn.byteforce.seedj.server.hr.employee|OrgUnitDirectory
 seedj-server/hr|cn.byteforce.seedj.server.hr|HrServer
 seedj-server/iam|cn.byteforce.seedj.server.iam|IamServer
 seedj-server/im|cn.byteforce.seedj.server.im|ImServer
+seedj-workflow-local|cn.byteforce.seedj.infra.local.workflow|InMemoryWorkflowProvider
+seedj-workflow-local|cn.byteforce.seedj.infra.local.workflow|WorkflowAutoConfiguration
+seedj-workflow-local|cn.byteforce.seedj.infra.local.workflow|WorkflowProperties
