@@ -3,7 +3,6 @@ package cn.byteforce.seedj.cqrs.wiring;
 import cn.byteforce.seedj.cqrs.Command;
 import cn.byteforce.seedj.cqrs.CommandInterceptor;
 import cn.byteforce.seedj.cqrs.CommandInvocation;
-import cn.byteforce.seedj.cqrs.CqrsErrorCode;
 import cn.byteforce.seedj.cqrs.CqrsException;
 import cn.byteforce.seedj.domain.exception.AggregateNotFoundException;
 

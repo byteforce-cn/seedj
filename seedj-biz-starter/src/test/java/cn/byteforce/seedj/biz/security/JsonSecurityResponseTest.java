@@ -3,7 +3,6 @@ package cn.byteforce.seedj.biz.security;
 import cn.byteforce.seedj.core.security.Caller;
 import cn.byteforce.seedj.core.security.CallerProvider;
 import cn.byteforce.seedj.core.security.SecurityAuditEvent;
-import cn.byteforce.seedj.core.security.SecurityAuditSink;
 import cn.byteforce.seedj.core.security.SecurityErrorCode;
 import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.security.memory.InMemorySecurityAuditSink;

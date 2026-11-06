@@ -3,7 +3,6 @@ package cn.byteforce.seedj.outbox.wiring;
 import cn.byteforce.seedj.outbox.OutboxErrorCode;
 import cn.byteforce.seedj.outbox.OutboxException;
 import cn.byteforce.seedj.outbox.OutboxRecord;
-import cn.byteforce.seedj.outbox.spi.OutboxStore;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

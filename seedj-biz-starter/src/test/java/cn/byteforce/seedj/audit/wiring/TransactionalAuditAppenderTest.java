@@ -1,7 +1,6 @@
 package cn.byteforce.seedj.audit.wiring;
 
 import cn.byteforce.seedj.audit.AuditAppendRequest;
-import cn.byteforce.seedj.audit.AuditAppender;
 import cn.byteforce.seedj.audit.AuditErrorCode;
 import cn.byteforce.seedj.audit.AuditException;
 import org.junit.jupiter.api.DisplayName;

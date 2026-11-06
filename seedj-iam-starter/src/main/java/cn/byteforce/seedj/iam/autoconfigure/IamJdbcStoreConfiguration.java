@@ -1,7 +1,5 @@
 package cn.byteforce.seedj.iam.autoconfigure;
 
-import cn.byteforce.seedj.iam.config.IamProperties;
-import cn.byteforce.seedj.iam.identity.IamIdentityService;
 import cn.byteforce.seedj.iam.jdbc.IamSchemaCapability;
 import cn.byteforce.seedj.iam.jdbc.JdbcIamAuditSink;
 import cn.byteforce.seedj.iam.jdbc.JdbcIamAuthorizationRepository;
@@ -29,7 +27,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import cn.byteforce.seedj.id.IdGenerator;
 import org.springframework.jdbc.core.JdbcTemplate;
 

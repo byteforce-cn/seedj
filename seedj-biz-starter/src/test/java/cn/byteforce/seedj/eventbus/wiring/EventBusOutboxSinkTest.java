@@ -1,7 +1,6 @@
 package cn.byteforce.seedj.eventbus.wiring;
 
 import cn.byteforce.seedj.eventbus.EventMessage;
-import cn.byteforce.seedj.eventbus.spi.EventBusTransport;
 import cn.byteforce.seedj.outbox.OutboxErrorCode;
 import cn.byteforce.seedj.outbox.OutboxException;
 import cn.byteforce.seedj.outbox.OutboxRecord;

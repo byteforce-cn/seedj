@@ -1,6 +1,5 @@
 package cn.byteforce.seedj.iam.autoconfigure;
 
-import cn.byteforce.seedj.iam.IamSigningKey;
 import cn.byteforce.seedj.iam.config.IamProperties;
 import cn.byteforce.seedj.iam.identity.IamBootstrapRunner;
 import cn.byteforce.seedj.iam.identity.IamIdentityService;
@@ -26,12 +25,10 @@ import cn.byteforce.seedj.iam.spi.IamSigningKeyStore;
 import cn.byteforce.seedj.iam.spi.IamTokenRevoker;
 import cn.byteforce.seedj.iam.spi.IamTotpRepository;
 import cn.byteforce.seedj.iam.spi.IamUserRepository;
-import cn.byteforce.seedj.iam.totp.TotpGenerator;
 import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.transit.TransitProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;

@@ -78,6 +78,8 @@
         <japicmp-maven-plugin.version>0.26.3</japicmp-maven-plugin.version>
         <cyclonedx-maven-plugin.version>2.9.3</cyclonedx-maven-plugin.version>
         <spotbugs-maven-plugin.version>4.10.4.1</spotbugs-maven-plugin.version>
+        <spotless-maven-plugin.version>3.11.0</spotless-maven-plugin.version>
+        <google-java-format.version>1.22.0</google-java-format.version>
         <lombok.version>1.18.38</lombok.version>
 
         <!-- 兼容门禁：测试套件模块（seedj-it）在自身 POM 覆盖为 true -->
@@ -373,6 +375,47 @@
                                 </resource>
                             </resources>
                         </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <!--
+                格式化门禁：google-java-format AOSP（4 空格、100 列）是唯一格式权威。
+                - `check` 绑定 verify，任何未格式化代码阻断构建；
+                - `apply` 不绑定生命周期，由开发者/迁移任务显式执行后提交基线；
+                - 排除构建产物与本地工作目录，只管仓库内受版本控制的 Java 源。
+            -->
+            <plugin>
+                <groupId>com.diffplug.spotless</groupId>
+                <artifactId>spotless-maven-plugin</artifactId>
+                <version>${spotless-maven-plugin.version}</version>
+                <configuration>
+                    <lintSuppressions>
+                        <lintSuppression>
+                            <step>google-java-format</step>
+                            <shortCode>jvm-version</shortCode>
+                        </lintSuppression>
+                    </lintSuppressions>
+                    <java>
+                        <excludes>
+                            <exclude>target/**/*.java</exclude>
+                            <exclude>.superpowers/**/*.java</exclude>
+                        </excludes>
+                        <removeUnusedImports />
+                        <googleJavaFormat>
+                            <version>${google-java-format.version}</version>
+                            <style>AOSP</style>
+                        </googleJavaFormat>
+                        <trimTrailingWhitespace />
+                        <endWithNewline />
+                    </java>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>spotless-check</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
                     </execution>
                 </executions>
             </plugin>

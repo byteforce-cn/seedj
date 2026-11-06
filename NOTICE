@@ -1,0 +1,10 @@
+Byteforce Seedj
+Copyright 2026 ByteForce
+
+This product is developed by ByteForce (https://github.com/byteforce-cn)
+and is licensed under the Apache License, Version 2.0. See LICENSE for the
+full license text.
+
+This product includes software developed by third parties. Their license
+terms are declared in the dependency metadata of each module and, for
+release artifacts, in the generated SBOM (root POM, -Psbom profile).

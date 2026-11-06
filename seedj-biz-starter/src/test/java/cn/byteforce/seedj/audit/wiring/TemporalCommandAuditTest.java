@@ -1,6 +1,5 @@
 package cn.byteforce.seedj.audit.wiring;
 
-import cn.byteforce.seedj.audit.AuditAppendRequest;
 import cn.byteforce.seedj.audit.AuditAppender;
 import cn.byteforce.seedj.audit.AuditChain;
 import cn.byteforce.seedj.audit.AuditEntry;
@@ -12,7 +11,6 @@ import cn.byteforce.seedj.core.clock.Clock;
 import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;
 import cn.byteforce.seedj.cqrs.CommandReceipt;
-import cn.byteforce.seedj.cqrs.CommandRecord;
 import cn.byteforce.seedj.cqrs.CommandRuntime;
 import cn.byteforce.seedj.cqrs.CommandStatus;
 import cn.byteforce.seedj.cqrs.CommandSubmission;

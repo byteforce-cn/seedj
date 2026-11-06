@@ -5,7 +5,6 @@ import cn.byteforce.seedj.iam.IamUser;
 import cn.byteforce.seedj.iam.config.IamProperties;
 import cn.byteforce.seedj.iam.memory.AesGcmIamSecretProtector;
 import cn.byteforce.seedj.iam.memory.InMemoryIamAuditSink;
-import cn.byteforce.seedj.iam.memory.InMemoryIamTokenRevoker;
 import cn.byteforce.seedj.iam.memory.InMemoryIamTotpRepository;
 import cn.byteforce.seedj.iam.memory.InMemoryIamUserRepository;
 import cn.byteforce.seedj.iam.spi.IamPasswordHasher;

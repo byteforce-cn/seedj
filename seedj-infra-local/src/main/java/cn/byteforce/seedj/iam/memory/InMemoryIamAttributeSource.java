@@ -2,7 +2,6 @@ package cn.byteforce.seedj.iam.memory;
 
 import cn.byteforce.seedj.iam.authz.AttributeLookup;
 import cn.byteforce.seedj.iam.authz.AttributeSnapshot;
-import cn.byteforce.seedj.iam.authz.AttributeState;
 import cn.byteforce.seedj.iam.authz.IamAttributeSource;
 
 import java.time.Instant;

@@ -5,7 +5,6 @@ import cn.byteforce.seedj.iam.IamException;
 import cn.byteforce.seedj.iam.IamGroup;
 import cn.byteforce.seedj.iam.IamGroupQuery;
 import cn.byteforce.seedj.iam.IamPage;
-import cn.byteforce.seedj.iam.IamUser;
 import cn.byteforce.seedj.iam.config.IamProperties;
 import cn.byteforce.seedj.iam.spi.IamAuthorizationRepository;
 import cn.byteforce.seedj.iam.spi.IamGroupRepository;

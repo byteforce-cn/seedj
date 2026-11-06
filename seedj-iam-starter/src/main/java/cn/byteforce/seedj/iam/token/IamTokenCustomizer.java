@@ -1,6 +1,5 @@
 package cn.byteforce.seedj.iam.token;
 
-import cn.byteforce.seedj.iam.IamSubject;
 import cn.byteforce.seedj.iam.IamSubjectAuthorization;
 import cn.byteforce.seedj.iam.IamUser;
 import cn.byteforce.seedj.iam.config.IamProperties;
@@ -14,7 +13,6 @@ import org.springframework.security.oauth2.server.authorization.token.JwtEncodin
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenCustomizer;
 
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;

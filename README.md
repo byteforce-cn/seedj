@@ -45,7 +45,11 @@ mvn -o -B -Pconformance -DskipTests verify   # 规范兼容性门禁（需规范
 
 ## 文档
 
-- 设计：`docs/superpowers/specs/2026-11-05-contract-conformance-design.md`
-- 差距评估：`docs/assessment/2026-11-05-eis-conformance-gap.md`
-- 分期验收：`docs/conformance/runs/`
-- 兼容规则/门禁：`config/conformance/`
+- 索引：[docs/README.md](docs/README.md)
+- 设计：[契约一致性设计](docs/superpowers/specs/2026-11-05-contract-conformance-design.md)
+- 决策：[ADR-0008 模块拓扑](docs/adr/ADR-0008-module-topology.md)
+- 差距评估：[EIS 一致性差距](docs/assessment/2026-11-05-eis-conformance-gap.md)
+- 分期验收：[conformance/runs](docs/conformance/runs/)
+- 兼容规则/门禁：[config/conformance](config/conformance/README.md)
+- 发布流程：[docs/releasing.md](docs/releasing.md)
+- API 兼容性：[docs/api-compatibility.md](docs/api-compatibility.md)

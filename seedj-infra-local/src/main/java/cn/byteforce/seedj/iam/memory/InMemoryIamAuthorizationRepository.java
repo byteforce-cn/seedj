@@ -8,7 +8,6 @@ import cn.byteforce.seedj.iam.spi.IamAuthorizationRepository;
 
 import java.time.Instant;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Deque;
 import java.util.LinkedHashSet;
 import java.util.List;
