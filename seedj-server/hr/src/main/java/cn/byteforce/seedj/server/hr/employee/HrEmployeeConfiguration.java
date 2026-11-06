@@ -77,8 +77,9 @@ public class HrEmployeeConfiguration {
      */
     @Bean
     public HrEmployeeCreateAgent hrEmployeeCreateAgent(CommandRuntime runtime,
-                                                       DerivedField derived) {
-        return new HrEmployeeCreateAgent(runtime, derived, new AtomicLong());
+                                                       DerivedField derived,
+                                                       CommandPayloadRedactor redactor) {
+        return new HrEmployeeCreateAgent(runtime, derived, new AtomicLong(), redactor);
     }
 
     /**
@@ -90,7 +91,8 @@ public class HrEmployeeConfiguration {
      */
     @Bean
     public HrEmployeeUpdateAgent hrEmployeeUpdateAgent(CommandRuntime runtime,
-                                                       DerivedField derived) {
-        return new HrEmployeeUpdateAgent(runtime, derived);
+                                                       DerivedField derived,
+                                                       CommandPayloadRedactor redactor) {
+        return new HrEmployeeUpdateAgent(runtime, derived, redactor);
     }
 }

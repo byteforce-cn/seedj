@@ -8,7 +8,6 @@ import cn.byteforce.seedj.cqrs.CommandPayloadRedactor;
 import cn.byteforce.seedj.cqrs.CommandReceipt;
 import cn.byteforce.seedj.cqrs.CommandRuntime;
 import cn.byteforce.seedj.cqrs.CommandSubmission;
-import cn.byteforce.seedj.cqrs.TemporalCommandAudit;
 import cn.byteforce.seedj.cqrs.memory.InMemoryCommandStore;
 import cn.byteforce.seedj.cqrs.spi.TransactionRunner;
 import cn.byteforce.seedj.domain.TemporalQuery;
@@ -60,11 +59,10 @@ class HrEmployeeSampleTest {
     };
     private final CommandRuntime runtime = new CommandRuntime(new CommandRuntime.Options(
             TransactionRunner.direct(), LockProvider.disabled(), Duration.ofSeconds(30), clock,
-            new Uuid7IdGenerator(clock), commands, objects, null, TemporalCommandAudit.noop(),
-            redactor));
+            new Uuid7IdGenerator(clock), commands, objects, null));
     private final HrEmployeeCreateAgent create = new HrEmployeeCreateAgent(runtime, derived,
-            new AtomicLong());
-    private final HrEmployeeUpdateAgent update = new HrEmployeeUpdateAgent(runtime, derived);
+            new AtomicLong(), redactor);
+    private final HrEmployeeUpdateAgent update = new HrEmployeeUpdateAgent(runtime, derived, redactor);
     private final TemporalTables tables = new TemporalTables(List.of(new TemporalTable(
             "employee", "hr_employee",
             Map.of("employee_no", "TEXT", "name", "TEXT", "status", "TEXT",

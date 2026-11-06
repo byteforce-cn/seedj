@@ -32,26 +32,36 @@ public abstract class TemporalCommandAgent<C> {
 
     private final CommandRuntime runtime;
 
-    private final String commandType;
-
-    private final String objectType;
-
-    private final Class<C> payloadType;
+    private final CommandDescriptor descriptor;
 
     /**
      * 构造代理。
+     *
+     * @param runtime    命令运行时
+     * @param descriptor 命令描述（类型、对象、载荷、权限、校验、脱敏的唯一来源）
+     */
+    protected TemporalCommandAgent(CommandRuntime runtime, CommandDescriptor descriptor) {
+        this.runtime = Objects.requireNonNull(runtime, "runtime");
+        this.descriptor = Objects.requireNonNull(descriptor, "descriptor");
+    }
+
+    /**
+     * 兼容旧子类的装配；新代码应通过 {@link CommandDescriptor} 声明命令元数据。
      *
      * @param runtime     命令运行时
      * @param commandType 命令类型（线格式）
      * @param objectType  对象类型（对象表注册名）
      * @param payloadType 载荷类型
+     * @deprecated 使用 {@link #TemporalCommandAgent(CommandRuntime, CommandDescriptor)}
      */
+    @Deprecated
     protected TemporalCommandAgent(CommandRuntime runtime, String commandType, String objectType,
                                    Class<C> payloadType) {
-        this.runtime = Objects.requireNonNull(runtime, "runtime");
-        this.commandType = requireText(commandType, "commandType");
-        this.objectType = requireText(objectType, "objectType");
-        this.payloadType = Objects.requireNonNull(payloadType, "payloadType");
+        this(runtime, CommandDescriptor.builder()
+                .type(commandType)
+                .objectType(objectType)
+                .payloadType(payloadType)
+                .build());
     }
 
     /**
@@ -62,21 +72,22 @@ public abstract class TemporalCommandAgent<C> {
      */
     public final CommandReceipt execute(CommandSubmission submission) {
         Objects.requireNonNull(submission, "submission");
-        if (!commandType.equals(submission.type())) {
+        if (!commandType().equals(submission.type())) {
             throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
-                    "command type mismatch: expected " + commandType
+                    "command type mismatch: expected " + commandType()
                             + ", got " + submission.type());
         }
         C command = decode(submission.payload());
+        UUID targetId = targetId(command);
         return runtime.execute(submission, new CommandRuntime.Work() {
             @Override
             public String objectType() {
-                return objectType;
+                return TemporalCommandAgent.this.objectType();
             }
 
             @Override
             public UUID targetId() {
-                return TemporalCommandAgent.this.targetId(command);
+                return targetId;
             }
 
             @Override
@@ -85,8 +96,13 @@ public abstract class TemporalCommandAgent<C> {
             }
 
             @Override
+            public Map<String, Object> redact(Map<String, Object> payload) {
+                return TemporalCommandAgent.this.redact(payload);
+            }
+
+            @Override
             public AppendRequest append(Optional<TemporalRow> current, Instant now, UUID actor) {
-                return TemporalCommandAgent.this.append(command, current, now, actor);
+                return TemporalCommandAgent.this.append(command, targetId, current, now, actor);
             }
 
             @Override
@@ -102,7 +118,7 @@ public abstract class TemporalCommandAgent<C> {
      * @return 线格式命令类型
      */
     public final String commandType() {
-        return commandType;
+        return descriptor.type();
     }
 
     /**
@@ -111,7 +127,26 @@ public abstract class TemporalCommandAgent<C> {
      * @return 对象表注册名
      */
     public final String objectType() {
-        return objectType;
+        return descriptor.objectType();
+    }
+
+    /**
+     * 命令描述。
+     *
+     * @return 不可变描述
+     */
+    public final CommandDescriptor descriptor() {
+        return descriptor;
+    }
+
+    /**
+     * 命令记录载荷脱敏；只影响落库载荷，不改变幂等指纹。
+     *
+     * @param payload 原始载荷
+     * @return 脱敏后的载荷
+     */
+    public final Map<String, Object> redact(Map<String, Object> payload) {
+        return descriptor.redactor().redact(payload);
     }
 
     /**
@@ -120,6 +155,7 @@ public abstract class TemporalCommandAgent<C> {
      * @param command 类型化命令
      */
     protected void validate(C command) {
+        descriptor.validator().validate(command);
     }
 
     /**
@@ -141,6 +177,23 @@ public abstract class TemporalCommandAgent<C> {
      */
     protected abstract AppendRequest append(C command, Optional<TemporalRow> current,
                                             Instant now, UUID actor);
+
+    /**
+     * 生成追加请求，带已解析的目标 ID。
+     *
+     * <p>默认委托旧重载，保证已有子类无需立即迁移；新代码应覆盖本方法，避免重复解析目标。</p>
+     *
+     * @param command  类型化命令
+     * @param targetId 已解析的目标对象 ID
+     * @param current  当前行；创建时为空
+     * @param now      系统时间
+     * @param actor    操作者
+     * @return 追加请求
+     */
+    protected AppendRequest append(C command, UUID targetId, Optional<TemporalRow> current,
+                                   Instant now, UUID actor) {
+        return append(command, current, now, actor);
+    }
 
     /**
      * 产生事件；默认无事件。
@@ -175,18 +228,14 @@ public abstract class TemporalCommandAgent<C> {
 
     private C decode(Map<String, Object> payload) {
         try {
-            return JSON.convertValue(payload, payloadType);
+            Object decoded = JSON.convertValue(payload, descriptor.payloadType());
+            @SuppressWarnings("unchecked")
+            C typed = (C) decoded;
+            return typed;
         } catch (RuntimeException error) {
             throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
-                    "invalid payload for " + commandType,
-                    Map.of("command_type", commandType), null);
+                    "invalid payload for " + commandType(),
+                    Map.of("command_type", commandType()), null);
         }
-    }
-
-    private static String requireText(String value, String role) {
-        if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException(role + " must not be blank");
-        }
-        return value;
     }
 }

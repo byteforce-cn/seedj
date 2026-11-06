@@ -3,6 +3,7 @@ package cn.byteforce.seedj.cqrs.jdbc;
 import cn.byteforce.seedj.core.clock.TestClock;
 import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;
+import cn.byteforce.seedj.cqrs.CommandDescriptor;
 import cn.byteforce.seedj.cqrs.CommandReceipt;
 import cn.byteforce.seedj.cqrs.CommandRecord;
 import cn.byteforce.seedj.cqrs.CommandRuntime;
@@ -10,6 +11,7 @@ import cn.byteforce.seedj.cqrs.CommandStatus;
 import cn.byteforce.seedj.cqrs.CommandSubmission;
 import cn.byteforce.seedj.cqrs.TemporalCommandAgent;
 import cn.byteforce.seedj.cqrs.spi.TransactionRunner;
+import cn.byteforce.seedj.outbox.OutboxWriter;
 import cn.byteforce.seedj.domain.AppendRequest;
 import cn.byteforce.seedj.domain.AppendResult;
 import cn.byteforce.seedj.domain.TemporalRow;
@@ -137,7 +139,8 @@ class TemporalCommandTransactionTest {
                 new SpringRunner(new TransactionTemplate(
                         new DataSourceTransactionManager(jdbc.getDataSource()))),
                 LockProvider.disabled(), Duration.ofSeconds(30), clock,
-                (IdGenerator<UUID>) UUID::randomUUID, commands, objects, null,
+                (IdGenerator<UUID>) UUID::randomUUID, commands, objects,
+                OutboxWriter.discard(),
                 (record, events) -> {
                     throw new IllegalStateException("audit down");
                 }));
@@ -167,7 +170,11 @@ class TemporalCommandTransactionTest {
     static final class ProbeAgent extends TemporalCommandAgent<ProbeCommand> {
 
         ProbeAgent(CommandRuntime runtime) {
-            super(runtime, "probe.update", "probe", ProbeCommand.class);
+            super(runtime, CommandDescriptor.builder()
+                    .type("probe.update")
+                    .objectType("probe")
+                    .payloadType(ProbeCommand.class)
+                    .build());
         }
 
         @Override

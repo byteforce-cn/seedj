@@ -6,6 +6,7 @@ import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;
 import cn.byteforce.seedj.core.security.Caller;
 import cn.byteforce.seedj.core.security.CallerProvider;
+import cn.byteforce.seedj.cqrs.CommandDescriptor;
 import cn.byteforce.seedj.cqrs.CommandCatalog;
 import cn.byteforce.seedj.cqrs.CommandRuntime;
 import cn.byteforce.seedj.cqrs.TemporalCommandAgent;
@@ -249,7 +250,11 @@ class CommandControllerTest {
     static final class ProbeAgent extends TemporalCommandAgent<ProbeCommand> {
 
         ProbeAgent(CommandRuntime runtime) {
-            super(runtime, "probe.update", "probe", ProbeCommand.class);
+            super(runtime, CommandDescriptor.builder()
+                    .type("probe.update")
+                    .objectType("probe")
+                    .payloadType(ProbeCommand.class)
+                    .build());
         }
 
         @Override

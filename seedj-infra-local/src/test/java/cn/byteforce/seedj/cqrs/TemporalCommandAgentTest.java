@@ -118,6 +118,35 @@ class TemporalCommandAgentTest {
     }
 
     @Test
+    @DisplayName("descriptor 的 validator 在锁与事务之前拒绝，对象不落库")
+    void descriptorValidatorRejectsBeforeAppend() {
+        assertThatThrownBy(() -> agent.execute(submission("k-invalid", " ", false)))
+                .isInstanceOfSatisfying(ContractException.class, error ->
+                        assertThat(error.code()).isEqualTo(ContractErrorCode.INVALID_PAYLOAD));
+
+        assertThat(objects.history("probe", ID)).isEmpty();
+        assertThat(commands.findByIdempotencyKey("k-invalid")).get()
+                .satisfies(record -> assertThat(record.status())
+                        .isEqualTo(CommandStatus.REJECTED));
+    }
+
+    @Test
+    @DisplayName("descriptor 驱动命令类型、对象类型与载荷类型")
+    void descriptorDrivesCommandMetadata() {
+        assertThat(agent.commandType()).isEqualTo("probe.update");
+        assertThat(agent.objectType()).isEqualTo("probe");
+        assertThat(agent.descriptor().payloadType()).isEqualTo(ProbeCommand.class);
+    }
+
+    @Test
+    @DisplayName("append 拿到的 targetId 与 targetId(command) 一致")
+    void appendReceivesResolvedTargetId() {
+        agent.execute(submission("k-target", "Alice", false));
+
+        assertThat(agent.resolvedTargetId).isEqualTo(ID);
+    }
+
+    @Test
     @DisplayName("拒绝命令：对象不落库，命令记录是 rejected；重放仍返回拒绝")
     void rejectedCommandPersistsRejection() {
         assertThatThrownBy(() -> agent.execute(submission("k-4", "Alice", true)))
@@ -238,8 +267,21 @@ class TemporalCommandAgentTest {
 
         private boolean failTechnically;
 
+        private UUID resolvedTargetId;
+
         ProbeAgent(CommandRuntime runtime) {
-            super(runtime, "probe.update", "probe", ProbeCommand.class);
+            super(runtime, CommandDescriptor.builder()
+                    .type("probe.update")
+                    .objectType("probe")
+                    .payloadType(ProbeCommand.class)
+                    .permission("probe.write")
+                    .validator(command -> {
+                        if (command instanceof ProbeCommand probe && probe.name().isBlank()) {
+                            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
+                                    "name must not be blank");
+                        }
+                    })
+                    .build());
         }
 
         @Override
@@ -250,6 +292,13 @@ class TemporalCommandAgentTest {
         @Override
         protected AppendRequest append(ProbeCommand command, Optional<TemporalRow> current,
                                        Instant now, UUID actor) {
+            return append(command, command.target(), current, now, actor);
+        }
+
+        @Override
+        protected AppendRequest append(ProbeCommand command, UUID targetId,
+                                       Optional<TemporalRow> current, Instant now, UUID actor) {
+            resolvedTargetId = targetId;
             if (failTechnically) {
                 throw new InfrastructureException(InfrastructureErrorCode.NOT_READY,
                         "temporal store down");

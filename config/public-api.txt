@@ -59,14 +59,17 @@ core|cn.byteforce.seedj.cqrs|Command
 core|cn.byteforce.seedj.cqrs|CommandAgent
 core|cn.byteforce.seedj.cqrs|CommandAudit
 core|cn.byteforce.seedj.cqrs|CommandCatalog
+core|cn.byteforce.seedj.cqrs|CommandDescriptor
 core|cn.byteforce.seedj.cqrs|CommandInterceptor
 core|cn.byteforce.seedj.cqrs|CommandInvocation
 core|cn.byteforce.seedj.cqrs|CommandPayloadRedactor
+core|cn.byteforce.seedj.cqrs|CommandPolicy
 core|cn.byteforce.seedj.cqrs|CommandReceipt
 core|cn.byteforce.seedj.cqrs|CommandRecord
 core|cn.byteforce.seedj.cqrs|CommandRuntime
 core|cn.byteforce.seedj.cqrs|CommandStatus
 core|cn.byteforce.seedj.cqrs|CommandSubmission
+core|cn.byteforce.seedj.cqrs|CommandValidator
 core|cn.byteforce.seedj.cqrs|CqrsErrorCode
 core|cn.byteforce.seedj.cqrs|CqrsException
 core|cn.byteforce.seedj.cqrs|EventSourcedRepository

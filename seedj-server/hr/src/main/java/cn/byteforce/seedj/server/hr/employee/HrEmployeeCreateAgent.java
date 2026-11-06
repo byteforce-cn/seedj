@@ -3,6 +3,8 @@ package cn.byteforce.seedj.server.hr.employee;
 import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;
 import cn.byteforce.seedj.core.security.DerivedField;
+import cn.byteforce.seedj.cqrs.CommandDescriptor;
+import cn.byteforce.seedj.cqrs.CommandPayloadRedactor;
 import cn.byteforce.seedj.cqrs.CommandRuntime;
 import cn.byteforce.seedj.cqrs.TemporalCommandAgent;
 import cn.byteforce.seedj.domain.AppendRequest;
@@ -41,7 +43,26 @@ public final class HrEmployeeCreateAgent extends TemporalCommandAgent<HrEmployee
      */
     public HrEmployeeCreateAgent(CommandRuntime runtime, DerivedField derived,
                                  AtomicLong sequence) {
-        super(runtime, "hr.employee.create", "employee", HrEmployeeCreate.class);
+        this(runtime, derived, sequence, CommandPayloadRedactor.noop());
+    }
+
+    /**
+     * 构造代理（带命令记录脱敏）。
+     *
+     * @param runtime  命令运行时
+     * @param derived  证件散列派生
+     * @param sequence 工号序列
+     * @param redactor 命令记录脱敏
+     */
+    public HrEmployeeCreateAgent(CommandRuntime runtime, DerivedField derived, AtomicLong sequence,
+                                 CommandPayloadRedactor redactor) {
+        super(runtime, CommandDescriptor.builder()
+                .type("hr.employee.create")
+                .objectType("employee")
+                .payloadType(HrEmployeeCreate.class)
+                .permission("hr.employee.write")
+                .redactor(redactor)
+                .build());
         this.derived = derived;
         this.sequence = sequence;
     }

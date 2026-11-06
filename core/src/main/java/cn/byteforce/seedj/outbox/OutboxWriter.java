@@ -24,4 +24,16 @@ public interface OutboxWriter {
      * 写入一条待投递记录。按 {@link OutboxRecord#messageId()} 幂等。
      */
     void append(OutboxRecord record);
+
+    /**
+     * 显式丢弃 outbox 写入。
+     *
+     * <p>只允许测试与显式降级的本地装配使用；名字必须让调用方看见“事件不会投递”。
+     * 生产装配缺 outbox 时应在启动期失败，而不是拿到本实现。</p>
+     *
+     * @return 丢弃实现
+     */
+    static OutboxWriter discard() {
+        return record -> {};
+    }
 }

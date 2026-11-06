@@ -17,6 +17,7 @@ import cn.byteforce.seedj.cqrs.CommandSubmission;
 import cn.byteforce.seedj.cqrs.TemporalCommandAgent;
 import cn.byteforce.seedj.cqrs.memory.InMemoryCommandStore;
 import cn.byteforce.seedj.cqrs.spi.TransactionRunner;
+import cn.byteforce.seedj.outbox.OutboxWriter;
 import cn.byteforce.seedj.domain.AppendRequest;
 import cn.byteforce.seedj.domain.AppendResult;
 import cn.byteforce.seedj.domain.TemporalRow;
@@ -75,7 +76,7 @@ class TemporalCommandAuditTest {
 
     private final CommandRuntime runtime = new CommandRuntime(new CommandRuntime.Options(
             TransactionRunner.direct(), LockProvider.disabled(), Duration.ofSeconds(30), clock,
-            new Uuid7IdGenerator(clock), commands, objects, null, audit));
+            new Uuid7IdGenerator(clock), commands, objects, OutboxWriter.discard(), audit));
 
     private final ProbeAgent agent = new ProbeAgent(runtime);
 
@@ -136,7 +137,8 @@ class TemporalCommandAuditTest {
         };
         CommandRuntime failingRuntime = new CommandRuntime(new CommandRuntime.Options(
                 TransactionRunner.direct(), LockProvider.disabled(), Duration.ofSeconds(30),
-                clock, new Uuid7IdGenerator(clock), commands, objects, null,
+                clock, new Uuid7IdGenerator(clock), commands, objects,
+                OutboxWriter.discard(),
                 new TemporalCommandAuditAdapter(failing, () -> "tester")));
         ProbeAgent failingAgent = new ProbeAgent(failingRuntime);
 

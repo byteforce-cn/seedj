@@ -7,7 +7,6 @@ import cn.byteforce.seedj.core.clock.Clocks;
 import cn.byteforce.seedj.core.security.CallerProvider;
 import cn.byteforce.seedj.cqrs.CommandCatalog;
 import cn.byteforce.seedj.cqrs.CommandRuntime;
-import cn.byteforce.seedj.cqrs.CommandPayloadRedactor;
 import cn.byteforce.seedj.cqrs.TemporalCommandAgent;
 import cn.byteforce.seedj.cqrs.TemporalCommandAudit;
 import cn.byteforce.seedj.cqrs.jdbc.CommandSchemaCapability;
@@ -202,14 +201,14 @@ public class TemporalCommandAutoConfiguration {
                                          Clock clock,
                                          @Qualifier("commandIdGenerator")
                                          IdGenerator<UUID> ids,
-                                         ObjectProvider<TemporalCommandAudit> audit,
-                                         ObjectProvider<CommandPayloadRedactor> redactor) {
+                                         ObjectProvider<TemporalCommandAudit> audit) {
+        // T1.6 起改为 fail-fast/degraded-mode；此前的显式默认值让装配仍可启动。
         return new CommandRuntime(new CommandRuntime.Options(
                 tx.getIfAvailable(TransactionRunner::direct),
                 locks.getIfAvailable(LockProvider::disabled),
                 Duration.ofSeconds(30), clock, ids, commands, objects,
-                outbox.getIfAvailable(), audit.getIfAvailable(TemporalCommandAudit::noop),
-                redactor.getIfAvailable(CommandPayloadRedactor::noop)));
+                outbox.getIfAvailable(OutboxWriter::discard),
+                audit.getIfAvailable(TemporalCommandAudit::noop)));
     }
 
     /**
