@@ -17,7 +17,7 @@ workflowProvider.start(request)                  // 审批实例
 Caller caller = callers.find().orElseThrow()     // 当前调用方（未认证时为空）
 ```
 
-业务代码**不得** import 任何实现模块（`domain-*` / `workflow-*`）的类；只需要 `core` 里的契约类型。
+业务代码**不得** import 任何实现模块（`cn.byteforce.seedj.infra.*` / starter 实现）的类；只需要 `core` 里的契约类型。
 
 ## 1. 九条规则
 

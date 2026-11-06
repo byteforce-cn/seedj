@@ -33,7 +33,8 @@ executor.submit(RequestContext.wrap(() -> doWork()));
 
 - 零第三方依赖（仅 JDK）；
 - 上下文写入/清理责任在过滤器（starter-web）；后台任务需自行 `RequestContext.setTenantId(...)`；
-- 异常 `message` 面向调用方，禁止携带堆栈/内部细节。
+- 异常 `message` 面向调用方，禁止携带堆栈/内部细节；
+- Jackson 3 是唯一允许的第三方线格式依赖，且必须 `provided`（见 [ADR-0010](../docs/adr/ADR-0010-core-provided-jackson.md)）。
 
 ## 测试
 

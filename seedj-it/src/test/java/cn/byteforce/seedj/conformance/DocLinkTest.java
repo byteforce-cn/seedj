@@ -95,6 +95,29 @@ class DocLinkTest {
                 prefix + "missing.md", prefix + "also-missing.md");
     }
 
+    @Test
+    @DisplayName("README 不再引用已退役的模块名")
+    void readmeDoesNotUseRetiredModuleNames() throws IOException {
+        String readme = Files.readString(ROOT.resolve("README.md"));
+        assertThat(readme)
+                .as("README 只能出现当前模块名；旧名会让人按错误坐标找代码")
+                .doesNotContain("domain-jdbc-postgresql")
+                .doesNotContain("seedj-outbox-starter")
+                .doesNotContain("common/core");
+    }
+
+    @Test
+    @DisplayName("docs/biz 的 403 示例使用契约错误与统一信封")
+    void securityExamplesUseContractEnvelope() throws IOException {
+        String doc = Files.readString(ROOT.resolve("docs/biz/README.md"));
+        assertThat(doc)
+                .contains("ContractException")
+                .contains("FORBIDDEN")
+                .contains("\"code\"")
+                .contains("\"message\"")
+                .contains("\"details\"");
+    }
+
     /** 文档集合：根 README、docs 下全部 Markdown、以及各模块 README。 */
     private static boolean isDocumentation(Path path) {
         Path absolute = path.toAbsolutePath().normalize();

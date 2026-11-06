@@ -1,52 +1,35 @@
-# domain-infra-memory
+# seedj-infra-local
 
 本地基础设施实现：不依赖外部中间件，供开发、测试与单机部署使用。
 
-## 提供的能力
-
-| 能力 | 类型 | 说明 |
-| --- | --- | --- |
-| PKI | `BcPkiProvider` | BouncyCastle + 状态文件（签发、吊销、签名身份） |
-| Transit | `BcTransitProvider` | JCE + 状态文件（密钥与版本历史） |
-| EventBus 队列 | `FileEventBusTransport` | 磁盘队列，同机多服务共享目录；支持消费者组 |
-| EventBus 队列 | `MemoryEventBusTransport` | 进程内队列，单进程测试/演示；支持消费者组 |
-| ID | `SnowflakeIdGenerator` | 雪花（内部 long）+ `StringIdGenerator`；节点编号从共享文件领取 |
-
-## EventBus 消费者组（file）
+## 包结构
 
 ```text
-<base-dir>/<topic>/<epoch>-<eventId>.payload
-<base-dir>/<topic>/<epoch>-<eventId>.meta
-<base-dir>/<topic>/.groups/<group>/acks/<base>.ack
-<base-dir>/<topic>/.groups/<group>/claims/<base>.<deliveryId>.<untilMillis>.<attempts>
-<base-dir>/<topic>/.groups/<group>/dlq/<base>.<deliveryId>.meta
+cn.byteforce.seedj.infra.local.pki        BouncyCastle PKI（签发/吊销/状态文件）
+cn.byteforce.seedj.infra.local.transit    JCE Transit（密钥/版本/状态文件）
+cn.byteforce.seedj.infra.local.id         UUIDv7 / 雪花 / 字符串 ID
+cn.byteforce.seedj.infra.local.eventbus   文件队列与进程内队列（消费者组）
+cn.byteforce.seedj.infra.local.lock       进程内锁（默认关闭，需显式开启）
+cn.byteforce.seedj.infra.local.audit      审计哈希链内存实现
+cn.byteforce.seedj.infra.local.cqrs       命令记录 / 事件存储
+cn.byteforce.seedj.infra.local.domain     双时间轴对象存储
+cn.byteforce.seedj.infra.local.iam        IAM 存储与密钥保护
+cn.byteforce.seedj.infra.local.workflow   工作流参照实现
+cn.byteforce.seedj.infra.local.security   安全审计 sink
 ```
 
-- 同一 group 内用 `CREATE_NEW` 原子创建 claim 文件，**跨进程/同 JVM 多实例只有一个能抢到**；
-- 租约到期后其他实例可接管，`attempts` 递增；
-- 不同 group 的 ack/claim/dlq 完全隔离，各收到一份；
-- ack 删除 claim 并写 ack 标记；retry 先写延迟 claim 再删旧 claim；dead-letter 复制到 group 的 `dlq/`；
-- 消息文件不自动清理（本地开发/测试用途）。生产多实例/长期保留请使用真正的 MQ 适配器。
+## 边界
 
-`MemoryEventBusTransport` 的 group 状态在进程内，不能跨进程；它的价值是单进程测试与演示。
-
-## 配置
-
-```yaml
-seedj:
-  eventbus:
-    transport: file          # file | memory
-    file:
-      base-dir: ${java.io.tmpdir}/seedj-eventbus
-    memory:
-      capacity: 10000
-```
+- 只依赖 `core` 契约与 JDK；禁止依赖 JDBC、starter 与宿主模块。
+- 进程内锁默认关闭：多实例部署下的“进程内互斥”会静默失效，必须显式
+  `seedj.lock.memory.enabled=true`；生产请使用 PostgreSQL 锁或其它分布式实现。
+- 文件队列适合本地多服务联调；长期保留与多机部署请使用真正的 MQ 适配器。
 
 ## 测试
 
 ```bash
-mvn -o -pl domain-infra-memory -am test
+./mvnw -o -B -pl seedj-infra-local -am test
 ```
 
-契约测试：`EventBusTransportContractTest`、`EventConsumerStoreContractTest`；
-同机多实例：`FileEventConsumerGroupTest`。
+契约测试复用 `core` test-jar：`PkiProviderContractTest`、`TransitProviderContractTest`、
+`LockProviderContractTest`、`WorkflowProviderContractTest`、`EventBusTransportContractTest`。
