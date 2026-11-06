@@ -12,8 +12,6 @@ core|cn.byteforce.seedj.audit|AuditPayloadDigest
 core|cn.byteforce.seedj.audit|AuditVerifier
 core|cn.byteforce.seedj.audit|Audited
 core|cn.byteforce.seedj.audit|CanonicalHasher
-core|cn.byteforce.seedj.core.clock.spi.pg|PgGlobalSequencer
-core|cn.byteforce.seedj.core.clock.spi.pg|PgHybridStateStore
 core|cn.byteforce.seedj.core.clock.spi|ClockConfig
 core|cn.byteforce.seedj.core.clock.spi|ClockProvider
 core|cn.byteforce.seedj.core.clock.spi|GlobalSequencer
@@ -496,6 +494,9 @@ seedj-jdbc-postgresql|cn.byteforce.seedj.iam.jdbc|JdbcIamUserRepository
 seedj-jdbc-postgresql|cn.byteforce.seedj.iam.jdbc|OAuth2Migrations
 seedj-jdbc-postgresql|cn.byteforce.seedj.iam.jdbc|OAuth2SchemaCapability
 seedj-jdbc-postgresql|cn.byteforce.seedj.iam.jdbc|PolicyConditionCodec
+seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.clock|ClockMigrations
+seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.clock|PgGlobalSequencer
+seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.clock|PgHybridStateStore
 seedj-jdbc-postgresql|cn.byteforce.seedj.jdbc|JdbcMigrationRunner
 seedj-jdbc-postgresql|cn.byteforce.seedj.lock.jdbc|PostgresLockAutoConfiguration
 seedj-jdbc-postgresql|cn.byteforce.seedj.lock.jdbc|PostgresLockMigrations

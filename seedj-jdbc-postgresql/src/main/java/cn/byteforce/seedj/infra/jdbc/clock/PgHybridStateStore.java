@@ -1,4 +1,4 @@
-package cn.byteforce.seedj.core.clock.spi.pg;
+package cn.byteforce.seedj.infra.jdbc.clock;
 
 import cn.byteforce.seedj.core.clock.HybridTimestamp;
 import cn.byteforce.seedj.core.clock.spi.HybridStateStore;
