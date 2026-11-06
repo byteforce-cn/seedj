@@ -49,6 +49,9 @@ public class JwtCallerProvider implements CallerProvider {
                 || authentication instanceof AnonymousAuthenticationToken) {
             return Optional.empty();
         }
+        if (authentication.getPrincipal() instanceof Caller caller) {
+            return Optional.of(caller);
+        }
         if (authentication.getPrincipal() instanceof Jwt jwt) {
             return Optional.of(AccessTokenRules.toCaller(mapper.map(jwt), tenantId));
         }

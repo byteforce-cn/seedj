@@ -49,6 +49,17 @@ public interface TemporalStore {
     AppendResult append(AppendRequest request);
 
     /**
+     * 列表查询：等值过滤、时点、排序与分页。
+     *
+     * <p>未知过滤/排序字段、未知对象类型、非法过滤值都抛无效载荷，不得落到 SQL 注入
+     * 或 500。{@code total} 是过滤后的总数，不受分页影响。</p>
+     *
+     * @param search 查询条件
+     * @return 一页结果
+     */
+    Page<TemporalRow> search(TemporalSearch search);
+
+    /**
      * 查询某对象的全部版本，按 {@code recordedAt} 升序。
      *
      * @param objectType 对象类型

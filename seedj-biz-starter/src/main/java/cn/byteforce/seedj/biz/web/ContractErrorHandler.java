@@ -4,6 +4,7 @@ import cn.byteforce.seedj.core.InfrastructureException;
 import cn.byteforce.seedj.core.exception.ApiError;
 import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;
+import cn.byteforce.seedj.cqrs.CqrsException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.Ordered;
@@ -63,6 +64,34 @@ public class ContractErrorHandler {
         }
         return new ResponseEntity<>(new ApiError(error.code().getCode(), error.reason(), details),
                 headers, HttpStatus.valueOf(error.code().httpStatus()));
+    }
+
+    /**
+     * CQRS 业务/并发错误 → 契约状态码。
+     *
+     * <p>业务拒绝是 400、乐观并发是 409、存储缺失是 503，其余是 500；不得统一压成 503。</p>
+     *
+     * @param error CQRS 异常
+     * @return 契约信封
+     */
+    @ExceptionHandler(CqrsException.class)
+    public ResponseEntity<ApiError> handleCqrs(CqrsException error) {
+        ContractErrorCode code = switch (error.getErrorCode()) {
+            case COMMAND_REJECTED -> ContractErrorCode.COMMAND_REJECTED;
+            case CONCURRENCY_CONFLICT -> ContractErrorCode.VERSION_CONFLICT;
+            case INVALID_STREAM_ID, INVALID_ID -> ContractErrorCode.INVALID_PAYLOAD;
+            case STORE_UNAVAILABLE -> ContractErrorCode.UNAVAILABLE;
+            default -> ContractErrorCode.INTERNAL_ERROR;
+        };
+        if (code == ContractErrorCode.INTERNAL_ERROR) {
+            String traceId = UUID.randomUUID().toString();
+            log.error("seedj: cqrs internal error traceId={} code={}", traceId,
+                    error.getErrorCode(), error);
+            return response(code, "internal error", Map.of("traceId", traceId));
+        }
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("reason_code", "CQRS-" + error.getErrorCode().name());
+        return response(code, error.getMessage(), details);
     }
 
     /**

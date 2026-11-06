@@ -57,7 +57,7 @@ class SpiSurfaceTest {
             "cn.byteforce.seedj.core.security",
             List.of("AccessTokenRules", "Caller", "CallerProvider", "SecurityAuditEvent",
                     "SecurityAuditSink", "SecurityErrorCode", "TokenClaims", "DerivedField",
-                    "DerivedFieldKeyRing"),
+                    "DerivedFieldKeyRing", "CallerIdCodec", "DerivedFieldRegistry"),
 
             "cn.byteforce.seedj.cqrs",
             List.of("AbstractProjection", "Command", "CommandAgent", "CommandAudit",
@@ -66,7 +66,8 @@ class SpiSurfaceTest {
                     "CqrsErrorCode", "CqrsException", "EventSourcedRepository", "EventStream",
                     "IdCodec", "IdCodecs", "IdempotencyFingerprint", "Query", "QueryAgent",
                     "QueryInterceptor", "QueryInvocation", "StreamId",
-                    "TemporalCommandAgent", "TemporalCommandAudit", "CommandPayloadRedactor"),
+                    "TemporalCommandAgent", "TemporalCommandAudit", "CommandPayloadRedactor",
+                    "CommandDescriptor", "CommandPolicy", "CommandValidator"),
 
             "cn.byteforce.seedj.cqrs.spi",
             List.of("CommandStore", "EventStore", "TransactionRunner"),

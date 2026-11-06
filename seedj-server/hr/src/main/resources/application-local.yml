@@ -1,0 +1,32 @@
+# 本地开发：零外部依赖。
+# 数据源自动配置被显式排除；命令/对象使用内存实现；锁用内存实现；审计/outbox/eventbus 关闭。
+# 这不是生产配置：dev auth 与降级开关只允许在 local/test 使用。
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
+      - org.springframework.boot.jdbc.autoconfigure.JdbcTemplateAutoConfiguration
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceTransactionManagerAutoConfiguration
+
+seedj:
+  command:
+    provider: memory
+    degraded-mode: true
+  object:
+    provider: memory
+  audit:
+    enabled: false
+  lock:
+    memory:
+      enabled: true
+  eventbus:
+    enabled: false
+  outbox:
+    enabled: false
+  biz:
+    dev-auth:
+      enabled: true
+    cors:
+      allowed-origins: http://localhost:3000
+  security:
+    derived-field-keys: local-dev-key

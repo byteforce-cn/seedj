@@ -17,6 +17,7 @@ import java.util.List;
  * @param publicPaths 免认证路径，默认健康检查、错误页
  * @param tenantId    多租户标识，默认 {@code default}
  * @param auditDenials 是否为 401/403 写安全审计，默认 true
+ * @param cors 允许的 CORS 来源；默认空（不放开），生产必须显式配置
  * @author ByteForce
  * @since 1.0.0
  */
@@ -27,7 +28,8 @@ public record BizSecurityProperties(
         String audience,
         List<String> publicPaths,
         String tenantId,
-        Boolean auditDenials) {
+        Boolean auditDenials,
+        Cors cors) {
 
     /**
      * 默认公开路径：探针、错误页与 {@code /api/public/**} 约定。
@@ -46,11 +48,34 @@ public record BizSecurityProperties(
                 ? DEFAULT_PUBLIC_PATHS : List.copyOf(publicPaths);
         tenantId = tenantId == null || tenantId.isBlank() ? "default" : tenantId.trim();
         auditDenials = auditDenials == null ? Boolean.TRUE : auditDenials;
+        cors = cors == null ? new Cors(null) : cors;
+    }
+
+    /**
+     * CORS 配置。
+     *
+     * @param allowedOrigins 允许的来源；空表示不放开
+     */
+    public record Cors(List<String> allowedOrigins) {
+
+        public Cors {
+            allowedOrigins = allowedOrigins == null ? List.of() : List.copyOf(allowedOrigins);
+        }
     }
 
     /** 是否对 401/403 写安全审计。 */
     public boolean auditDenialsEnabled() {
         return Boolean.TRUE.equals(auditDenials);
+    }
+
+    /** 允许的 CORS 来源。 */
+    public List<String> corsAllowedOrigins() {
+        return cors.allowedOrigins();
+    }
+
+    /** 是否允许任意来源（仅用于显式本地配置）。 */
+    public boolean allowsAnyOrigin() {
+        return cors.allowedOrigins().contains("*");
     }
 
     /** 是否配置了 audience 白名单。 */

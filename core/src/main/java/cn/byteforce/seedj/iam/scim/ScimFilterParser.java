@@ -1,5 +1,9 @@
 package cn.byteforce.seedj.iam.scim;
 
+import cn.byteforce.seedj.iam.ScimComparisonOperator;
+
+import cn.byteforce.seedj.iam.ScimFilter;
+
 import cn.byteforce.seedj.iam.IamErrorCode;
 import cn.byteforce.seedj.iam.IamException;
 

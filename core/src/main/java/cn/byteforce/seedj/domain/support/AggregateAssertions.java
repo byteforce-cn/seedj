@@ -19,7 +19,7 @@ public final class AggregateAssertions {
      *
      * <p>
      * 这是唯一能在 CI 抓住下面这类静默错误的断言：
-     * 
+     *
      * <pre>{@code
      * public void freeze() {
      *     this.frozen = true; // 改了状态，但没有 raise 事件
@@ -28,7 +28,7 @@ public final class AggregateAssertions {
      *
      * <p>
      * 典型用法（保存并重新加载之后）：
-     * 
+     *
      * <pre>{@code
      * Account live = accounts.loadOrThrow(id);
      * live.freeze();

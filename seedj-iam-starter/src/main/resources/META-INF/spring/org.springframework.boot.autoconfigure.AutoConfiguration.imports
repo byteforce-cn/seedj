@@ -1,2 +1,2 @@
-cn.byteforce.seedj.iam.autoconfigure.IamAutoConfiguration
-cn.byteforce.seedj.iam.autoconfigure.IamUserDetailsAutoConfiguration
+cn.byteforce.seedj.starter.iam.autoconfigure.IamAutoConfiguration
+cn.byteforce.seedj.starter.iam.autoconfigure.IamUserDetailsAutoConfiguration

@@ -1,6 +1,5 @@
 package cn.byteforce.seedj.core;
 
-import java.util.Objects;
 
 /**
  * 基础设施能力初始化契约。

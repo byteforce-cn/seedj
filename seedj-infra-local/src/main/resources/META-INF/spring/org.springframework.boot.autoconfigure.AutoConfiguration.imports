@@ -1,6 +1,6 @@
-cn.byteforce.seedj.pki.PkiAutoConfiguration
-cn.byteforce.seedj.transit.TransitAutoConfiguration
-cn.byteforce.seedj.eventbus.transport.EventTransportAutoConfiguration
-cn.byteforce.seedj.id.IdAutoConfiguration
-cn.byteforce.seedj.lock.memory.InMemoryLockAutoConfiguration
-cn.byteforce.seedj.audit.memory.InMemoryAuditAutoConfiguration
+cn.byteforce.seedj.infra.local.pki.PkiAutoConfiguration
+cn.byteforce.seedj.infra.local.transit.TransitAutoConfiguration
+cn.byteforce.seedj.infra.local.eventbus.EventTransportAutoConfiguration
+cn.byteforce.seedj.infra.local.id.IdAutoConfiguration
+cn.byteforce.seedj.infra.local.lock.InMemoryLockAutoConfiguration
+cn.byteforce.seedj.infra.local.audit.InMemoryAuditAutoConfiguration

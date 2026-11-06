@@ -1,13 +1,13 @@
 package cn.byteforce.seedj.demo.hr.config;
 
 import cn.byteforce.seedj.cqrs.IdCodec;
-import cn.byteforce.seedj.cqrs.wiring.CommandAgents;
+import cn.byteforce.seedj.starter.cqrs.wiring.CommandAgents;
 import cn.byteforce.seedj.cqrs.QueryAgent;
-import cn.byteforce.seedj.cqrs.memory.InMemoryEventStore;
+import cn.byteforce.seedj.infra.local.cqrs.InMemoryEventStore;
 import cn.byteforce.seedj.cqrs.spi.EventStore;
 import cn.byteforce.seedj.cqrs.spi.TransactionRunner;
 import cn.byteforce.seedj.lock.LockProvider;
-import cn.byteforce.seedj.lock.memory.InMemoryLockProvider;
+import cn.byteforce.seedj.infra.local.lock.InMemoryLockProvider;
 import cn.byteforce.seedj.demo.hr.app.HrCommandService;
 import cn.byteforce.seedj.demo.hr.app.OnboardingAgent;
 import cn.byteforce.seedj.demo.hr.domain.EmployeeId;

@@ -15,6 +15,11 @@
     <name>Byteforce Seedj :: JDBC :: PostgreSQL</name>
     <description>PostgreSQL 实现：Outbox 存储与投递、Audit 存储、IAM 存储、版本化迁移</description>
 
+    <properties>
+        <seedj.coverage.line>0.73</seedj.coverage.line>
+        <seedj.coverage.branch>0.55</seedj.coverage.branch>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>cn.byteforce.seedj</groupId>
@@ -105,4 +110,41 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>check-coverage</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <rule>
+                                    <element>BUNDLE</element>
+                                    <limits>
+                                        <limit>
+                                            <counter>LINE</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>${seedj.coverage.line}</minimum>
+                                        </limit>
+                                        <limit>
+                                            <counter>BRANCH</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>${seedj.coverage.branch}</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>

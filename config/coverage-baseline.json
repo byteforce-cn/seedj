@@ -1,0 +1,22 @@
+{
+  "core": {
+    "line": 0.52,
+    "branch": 0.42
+  },
+  "seedj-biz-starter": {
+    "line": 0.6,
+    "branch": 0.51
+  },
+  "seedj-infra-local": {
+    "line": 0.72,
+    "branch": 0.52
+  },
+  "seedj-jdbc-postgresql": {
+    "line": 0.73,
+    "branch": 0.55
+  },
+  "seedj-iam-starter": {
+    "line": 0.53,
+    "branch": 0.34
+  }
+}

@@ -15,6 +15,11 @@
     <name>Byteforce Seedj :: Infrastructure :: Local</name>
     <description>本地实现：内存/文件承载的 PKI、Transit、EventBus、ID、Lock、Audit、IAM memory 与 Workflow</description>
 
+    <properties>
+        <seedj.coverage.line>0.72</seedj.coverage.line>
+        <seedj.coverage.branch>0.52</seedj.coverage.branch>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>cn.byteforce.seedj</groupId>
@@ -71,4 +76,41 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>check-coverage</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <rule>
+                                    <element>BUNDLE</element>
+                                    <limits>
+                                        <limit>
+                                            <counter>LINE</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>${seedj.coverage.line}</minimum>
+                                        </limit>
+                                        <limit>
+                                            <counter>BRANCH</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>${seedj.coverage.branch}</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>

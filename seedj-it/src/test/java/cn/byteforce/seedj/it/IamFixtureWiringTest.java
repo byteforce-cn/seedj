@@ -30,7 +30,8 @@ class IamFixtureWiringTest {
                         "seedj.eventbus.enabled=false",
                     "spring.autoconfigure.exclude=org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration,org.springframework.boot.jdbc.autoconfigure.JdbcTemplateAutoConfiguration",
                         "seedj.id.enabled=false",
-                        "seedj.audit.enabled=false")
+                        "seedj.audit.enabled=false",
+                        "seedj.command.degraded-mode=true")
                 .run(context -> {
                     assertThat(context).hasNotFailed();
                     UserDetailsService service = context.getBean(UserDetailsService.class);

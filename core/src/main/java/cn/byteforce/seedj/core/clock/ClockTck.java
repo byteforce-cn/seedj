@@ -58,7 +58,9 @@ public final class ClockTck {
             });
         }
         start.countDown();
-        done.await(30, TimeUnit.SECONDS);
+        if (!done.await(30, TimeUnit.SECONDS)) {
+            throw new IllegalStateException("concurrent clock verification timed out");
+        }
         pool.shutdownNow();
         List<Instant> sorted = new ArrayList<>(results);
         sorted.sort(Instant::compareTo);

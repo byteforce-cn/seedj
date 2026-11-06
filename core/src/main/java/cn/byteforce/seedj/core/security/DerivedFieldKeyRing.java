@@ -37,19 +37,31 @@ public final class DerivedFieldKeyRing {
     }
 
     /**
-     * 从环境变量读取；未注入时回退到测试密钥。
+     * 从环境变量读取；未注入时启动失败（生产不得回退到测试密钥）。
      *
      * @return 密钥环
+     * @throws IllegalStateException 环境变量缺失或为空
      */
     public static DerivedFieldKeyRing fromEnvironment() {
         String raw = System.getenv(ENVIRONMENT_KEY);
         if (raw == null || raw.isBlank()) {
-            return new DerivedFieldKeyRing("test-only-key");
+            throw new IllegalStateException("seedj: " + ENVIRONMENT_KEY
+                    + " is required for derived fields; refusing to fall back to a test key");
         }
         return new DerivedFieldKeyRing(Arrays.stream(raw.split(","))
                 .map(String::trim)
                 .filter(value -> !value.isEmpty())
                 .toArray(String[]::new));
+    }
+
+    /**
+     * 显式测试密钥环。
+     *
+     * @param keys 测试密钥
+     * @return 密钥环
+     */
+    public static DerivedFieldKeyRing forTests(String... keys) {
+        return new DerivedFieldKeyRing(keys);
     }
 
     /**

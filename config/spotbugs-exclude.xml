@@ -1,14 +1,95 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   SpotBugs 排除规则。新增排除项必须在本文件内注释原因（根 pom 的 -Panalysis 引用本路径）。
+  T4.3 收口：Medium 及以上发现必须为零；以下两类是仓库既有约定，其余为逐类复核后的误报。
 -->
 <FindBugsFilter>
+    <!--
+      不可变值对象与依赖注入的常规形状：
+      - record / 值对象在构造器里做 Map.copyOf / List.copyOf / 防御性拷贝，SpotBugs 看不到；
+      - singleton 协作者（DataSource、Mapper、Store）按构造注入并保存在字段里，不提供可变 getter。
+      这类“暴露内部表示”不是可变状态泄漏；新增同类类型无需逐条登记。
+    -->
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+
+    <!--
+      编译期校验构造器：compact constructor / 参数校验在非法输入时抛 ContractException /
+      IllegalArgumentException 是 fail-fast 契约的一部分。仓库没有 finalizer，也没有可被
+      子类化的异常类型，Finalizer 攻击面不成立。
+    -->
+    <Match>
+        <Bug pattern="CT_CONSTRUCTOR_THROW"/>
+    </Match>
+
+    <!--
+      SQL 与多行消息使用 '\n' 而不是 '%n'：输出必须与平台无关，且部分字符串会写入
+      SQL / 审计哈希输入，不能依赖 Formatter 的平台换行。
+    -->
+    <Match>
+        <Bug pattern="VA_FORMAT_STRING_USES_NEWLINE"/>
+    </Match>
+
+    <!-- Spring 的 Path / Authentication / Jwt API 在契约上非空；路径均由内部 base-dir 拼出。 -->
+    <Match>
+        <Class name="cn.byteforce.seedj.infra.local.eventbus.FileEventBusTransport"/>
+        <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
+    </Match>
+    <Match>
+        <Class name="cn.byteforce.seedj.starter.iam.abac.IamAuthorizationFacade"/>
+        <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
+    </Match>
+    <Match>
+        <Class name="cn.byteforce.seedj.starter.iam.authz.IamCallerProvider"/>
+        <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
+    </Match>
+    <Match>
+        <Class name="cn.byteforce.seedj.starter.iam.token.IamTokenCustomizer"/>
+        <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
+    </Match>
+    <Match>
+        <Class name="cn.byteforce.seedj.biz.security.JwtCallerProvider"/>
+        <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
+    </Match>
+
+    <!-- 列表查询禁止 min_version：构造器里的空值分支是契约校验，不是空指针解引用。 -->
+    <Match>
+        <Class name="cn.byteforce.seedj.domain.TemporalSearch"/>
+        <Bug pattern="NP_LOAD_OF_KNOWN_NULL_VALUE"/>
+    </Match>
+
+    <!-- itemsPerPage 是派生值（items.size()）；保留参数只为与 SCIM 响应字段同形。 -->
+    <Match>
+        <Class name="cn.byteforce.seedj.iam.IamPage"/>
+        <Bug pattern="IP_PARAMETER_IS_DEAD_BUT_OVERWRITTEN"/>
+    </Match>
+
+    <!-- JdbcTemplate 的 PreparedStatementCreator 契约由 Spring 负责关闭 statement。 -->
+    <Match>
+        <Class name="cn.byteforce.seedj.infra.jdbc.iam.JdbcIamAuthorizationRepository"/>
+        <Bug pattern="OBL_UNSATISFIED_OBLIGATION_EXCEPTION_EDGE"/>
+    </Match>
+
+    <!-- 可空 Boolean 的规范化：三元表达式返回 Boolean，不做 unbox/rebox。 -->
+    <Match>
+        <Class name="cn.byteforce.seedj.starter.iam.IamProperties$Totp"/>
+        <Bug pattern="BX_UNBOXING_IMMEDIATELY_REBOXED"/>
+    </Match>
+    <Match>
+        <Class name="cn.byteforce.seedj.starter.iam.IamProperties$NativeAuth"/>
+        <Bug pattern="BX_UNBOXING_IMMEDIATELY_REBOXED"/>
+    </Match>
+
     <!--
       DI 协作者按构造注入并保存在字段里是装配层的正常形状，不是对外暴露可变状态；
       本类没有 getter 把 appender 交出去。
     -->
     <Match>
-        <Class name="cn.byteforce.seedj.audit.wiring.AnnotationCommandAudit"/>
+        <Class name="cn.byteforce.seedj.starter.audit.AnnotationCommandAudit"/>
         <Bug pattern="EI_EXPOSE_REP2"/>
     </Match>
 </FindBugsFilter>

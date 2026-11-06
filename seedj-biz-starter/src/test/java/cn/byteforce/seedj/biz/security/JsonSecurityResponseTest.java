@@ -3,10 +3,9 @@ package cn.byteforce.seedj.biz.security;
 import cn.byteforce.seedj.core.security.Caller;
 import cn.byteforce.seedj.core.security.CallerProvider;
 import cn.byteforce.seedj.core.security.SecurityAuditEvent;
-import cn.byteforce.seedj.core.security.SecurityAuditSink;
 import cn.byteforce.seedj.core.security.SecurityErrorCode;
 import cn.byteforce.seedj.id.IdGenerator;
-import cn.byteforce.seedj.security.memory.InMemorySecurityAuditSink;
+import cn.byteforce.seedj.infra.local.security.InMemorySecurityAuditSink;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
@@ -35,7 +34,7 @@ class JsonSecurityResponseTest {
     private final AtomicInteger sequence = new AtomicInteger();
 
     private final BizSecurityProperties properties = new BizSecurityProperties(
-            true, null, null, null, "t-1", true);
+            true, null, null, null, "t-1", true, null);
 
     private final CallerProvider caller = () -> Optional.of(new Caller("u-1", "alice", "t-1",
             java.util.Set.of("ADMIN"), java.util.Set.of(), java.util.Set.of(), java.util.Set.of(),
@@ -130,7 +129,7 @@ class JsonSecurityResponseTest {
     @DisplayName("关闭审计时不写事件")
     void auditCanBeDisabled() throws Exception {
         BizSecurityProperties noAudit = new BizSecurityProperties(
-                true, null, null, null, "t-1", false);
+                true, null, null, null, "t-1", false, null);
         SecurityDenialAudit denialAudit = new SecurityDenialAudit(
                 provider(sink), provider((IdGenerator<String>) () -> "x"), caller, noAudit);
 

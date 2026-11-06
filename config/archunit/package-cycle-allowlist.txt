@@ -1,0 +1,5 @@
+# 包级环已知违规：T3.3 拆 IAM 环；parent↔spi 之外应为空。
+# 格式：环内包名（排序后逗号分隔）
+cn.byteforce.seedj.audit,cn.byteforce.seedj.audit.spi
+cn.byteforce.seedj.core.clock,cn.byteforce.seedj.core.clock.spi
+cn.byteforce.seedj.cqrs,cn.byteforce.seedj.cqrs.spi

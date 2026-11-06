@@ -86,10 +86,39 @@ class BizSecurityAutoConfigurationTest {
                 });
 
         BizSecurityProperties defaults = new BizSecurityProperties(
-                null, null, null, null, null, null);
+                null, null, null, null, null, null, null);
         assertThat(defaults.publicPaths()).isEqualTo(BizSecurityProperties.DEFAULT_PUBLIC_PATHS);
         assertThat(defaults.hasAudience()).isFalse();
         assertThat(defaults.publicPaths()).containsExactlyElementsOf(
                 List.of("/actuator/health", "/actuator/info", "/error", "/api/public/**"));
+    }
+
+    @Test
+    @DisplayName("CORS 默认不放开；prod 下空配置启动失败")
+    void corsFailsClosed() {
+        runner.run(context -> assertThat(context.getBean(BizSecurityProperties.class)
+                .corsAllowedOrigins()).isEmpty());
+
+        runner.withPropertyValues("spring.profiles.active=prod").run(context ->
+                assertThat(context.getStartupFailure())
+                        .hasMessageContaining("cors.allowed-origins"));
+    }
+
+    @Test
+    @DisplayName("prod + 显式 CORS：启动成功")
+    void prodWithCorsStarts() {
+        runner.withPropertyValues("spring.profiles.active=prod",
+                        "seedj.biz.cors.allowed-origins=https://app.example.com")
+                .run(context -> assertThat(context).hasNotFailed());
+    }
+
+    @Test
+    @DisplayName("prod + dev-auth：启动失败")
+    void devAuthInProdFails() {
+        runner.withPropertyValues("spring.profiles.active=prod",
+                        "seedj.biz.cors.allowed-origins=https://app.example.com",
+                        "seedj.biz.dev-auth.enabled=true")
+                .run(context -> assertThat(context.getStartupFailure())
+                        .hasMessageContaining("dev-auth"));
     }
 }

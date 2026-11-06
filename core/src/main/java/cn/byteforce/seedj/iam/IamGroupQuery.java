@@ -1,6 +1,5 @@
 package cn.byteforce.seedj.iam;
 
-import cn.byteforce.seedj.iam.scim.ScimFilter;
 
 /** Paged group query. {@code startIndex} is 1-based, matching SCIM. */
 public record IamGroupQuery(

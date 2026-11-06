@@ -1,6 +1,6 @@
 package cn.byteforce.seedj.it.extension;
 
-import cn.byteforce.seedj.pki.BcPkiProvider;
+import cn.byteforce.seedj.infra.local.pki.BcPkiProvider;
 import cn.byteforce.seedj.pki.PkiProvider;
 import cn.byteforce.seedj.pki.PkiProvider.IssuedCertificate;
 import org.bouncycastle.asn1.x500.X500Name;
@@ -26,7 +26,6 @@ import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtClaimValidator;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.test.web.servlet.client.RestTestClient;
 import org.springframework.web.client.RestTemplate;
@@ -362,6 +361,15 @@ public class ClusterExtension implements BeforeAllCallback, AfterAllCallback, Pa
         props.put("seedj.eventbus.consumer.lease", "10s");
         props.put("seedj.eventbus.consumer.max-attempts", "5");
 
+        // HR 派生字段：测试密钥显式注入，生产仍要求 SEEDJ_FIELD_HASH_KEYS
+        props.put("seedj.security.derived-field-keys", "test-only-key");
+
+        // 对象存储：集群 IT 不注册业务时间表，用内存实现避免 postgres 推断无表可建
+        props.put("seedj.object.provider", "memory");
+
+        // 锁：集群 IT 在同一 JVM 内启动多个上下文，用内存锁满足命令运行时的必需依赖
+        props.put("seedj.lock.memory.enabled", true);
+
         // ID：多服务从共享文件领取不同节点编号
         props.put("seedj.id.enabled", true);
         props.put("seedj.id.node-state-file", tempDir.resolve("id-nodes.properties").toString());
@@ -495,7 +503,7 @@ public class ClusterExtension implements BeforeAllCallback, AfterAllCallback, Pa
                     .build();
 
             OAuth2TokenValidator<Jwt> atJwtValidator =
-                    cn.byteforce.seedj.iam.security.IamJwtValidators.accessToken(issuer);
+                    cn.byteforce.seedj.starter.iam.security.IamJwtValidators.accessToken(issuer);
             OAuth2TokenValidator<Jwt> scopeValidator =
                     new JwtClaimValidator<>("scope", Objects::nonNull);
             decoder.setJwtValidator(

@@ -83,7 +83,7 @@ public final class CommandRuntime {
         }
 
         Instant now = options.clock().now();
-        Map<String, Object> storedPayload = options.payloadRedactor().redact(submission.payload());
+        Map<String, Object> storedPayload = work.redact(submission.payload());
         CommandRecord pending = CommandRecord.pending(options.idGenerator().id(), submission.type(),
                 now, submission.issuer(), storedPayload, submission.idempotencyKey(),
                 fingerprint, now);
@@ -325,6 +325,16 @@ public final class CommandRuntime {
         default List<CommandEvent> events(AppendResult result, Instant now, UUID actor) {
             return List.of();
         }
+
+        /**
+         * 命令记录载荷脱敏；只影响落库载荷，不改变幂等指纹。
+         *
+         * @param payload 原始载荷
+         * @return 脱敏后的载荷
+         */
+        default Map<String, Object> redact(Map<String, Object> payload) {
+            return payload;
+        }
     }
 
     /**
@@ -337,37 +347,30 @@ public final class CommandRuntime {
      * @param idGenerator       命令/事件标识生成器
      * @param commandStore      命令记录存储
      * @param temporalStore     对象存储
-     * @param outboxWriter      outbox 写入器，可为 {@code null}（不投递事件）
-     * @param temporalAudit     临时命令审计 seam，空则 noop
-     * @param payloadRedactor   命令记录载荷脱敏，空则 noop
+     * @param outboxWriter      outbox 写入器；不得为空（没有 outbox 时显式使用
+     *                          {@link OutboxWriter#discard()}）
+     * @param temporalAudit     临时命令审计 seam；不得为空（无审计时显式使用
+     *                          {@link TemporalCommandAudit#noop()}）
      */
     public record Options(TransactionRunner transactionRunner, LockProvider lockProvider,
                           Duration lockTtl, Clock clock, IdGenerator<UUID> idGenerator,
                           CommandStore commandStore, TemporalStore temporalStore,
-                          OutboxWriter outboxWriter, TemporalCommandAudit temporalAudit,
-                          CommandPayloadRedactor payloadRedactor) {
+                          OutboxWriter outboxWriter, TemporalCommandAudit temporalAudit) {
 
         /**
-         * 兼容旧装配：不写临时命令审计、不脱敏。
+         * 测试装配：直通事务、禁用锁、丢弃 outbox、无审计。
+         *
+         * @param clock     取时入口
+         * @param ids       标识生成器
+         * @param commands  命令记录存储
+         * @param objects   对象存储
+         * @return 测试运行时依赖
          */
-        public Options(TransactionRunner transactionRunner, LockProvider lockProvider,
-                       Duration lockTtl, Clock clock, IdGenerator<UUID> idGenerator,
-                       CommandStore commandStore, TemporalStore temporalStore,
-                       OutboxWriter outboxWriter) {
-            this(transactionRunner, lockProvider, lockTtl, clock, idGenerator, commandStore,
-                    temporalStore, outboxWriter, TemporalCommandAudit.noop(),
-                    CommandPayloadRedactor.noop());
-        }
-
-        /**
-         * 兼容审计 seam 的装配：不脱敏。
-         */
-        public Options(TransactionRunner transactionRunner, LockProvider lockProvider,
-                       Duration lockTtl, Clock clock, IdGenerator<UUID> idGenerator,
-                       CommandStore commandStore, TemporalStore temporalStore,
-                       OutboxWriter outboxWriter, TemporalCommandAudit temporalAudit) {
-            this(transactionRunner, lockProvider, lockTtl, clock, idGenerator, commandStore,
-                    temporalStore, outboxWriter, temporalAudit, CommandPayloadRedactor.noop());
+        public static Options forTests(Clock clock, IdGenerator<UUID> ids,
+                                       CommandStore commands, TemporalStore objects) {
+            return new Options(TransactionRunner.direct(), LockProvider.disabled(),
+                    Duration.ofSeconds(30), clock, ids, commands, objects,
+                    OutboxWriter.discard(), TemporalCommandAudit.noop());
         }
 
         public Options {
@@ -379,9 +382,8 @@ public final class CommandRuntime {
             Objects.requireNonNull(idGenerator, "idGenerator");
             Objects.requireNonNull(commandStore, "commandStore");
             Objects.requireNonNull(temporalStore, "temporalStore");
-            temporalAudit = temporalAudit == null ? TemporalCommandAudit.noop() : temporalAudit;
-            payloadRedactor = payloadRedactor == null
-                    ? CommandPayloadRedactor.noop() : payloadRedactor;
+            Objects.requireNonNull(outboxWriter, "outboxWriter");
+            Objects.requireNonNull(temporalAudit, "temporalAudit");
             if (lockTtl.isZero() || lockTtl.isNegative()) {
                 throw new IllegalArgumentException("lockTtl must be positive");
             }

@@ -17,16 +17,16 @@ public enum TransitErrorCode implements ErrorDescriptor {
     DECRYPTION_FAILED(ErrorCategory.CLIENT_ERROR, false),
     KEY_ALREADY_EXISTS(ErrorCategory.CLIENT_ERROR, false),
     UNSUPPORTED_ALGORITHM(ErrorCategory.CLIENT_ERROR, false),
-    
+
     UNSUPPORTED_OPERATION(ErrorCategory.CONFIG_ERROR, false),
     INVALID_CONFIGURATION(ErrorCategory.CONFIG_ERROR, false),
     DELETION_NOT_ALLOWED(ErrorCategory.CONFIG_ERROR, false),
     NOT_EXPORTABLE(ErrorCategory.CONFIG_ERROR, false),
     PROVIDER_CLOSED(ErrorCategory.CONFIG_ERROR, false),
-    
+
     RETRYABLE_NETWORK_ERROR(ErrorCategory.BACKEND_ERROR, true),
     BACKEND_UNAVAILABLE(ErrorCategory.BACKEND_ERROR, true),
-    
+
     BATCH_SIZE_EXCEEDED(ErrorCategory.LIMIT_EXCEEDED, false);
 
     private final ErrorCategory category;

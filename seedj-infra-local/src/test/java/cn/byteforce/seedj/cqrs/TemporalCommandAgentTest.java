@@ -5,14 +5,14 @@ import cn.byteforce.seedj.core.InfrastructureException;
 import cn.byteforce.seedj.core.clock.TestClock;
 import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;
-import cn.byteforce.seedj.cqrs.memory.InMemoryCommandStore;
+import cn.byteforce.seedj.infra.local.cqrs.InMemoryCommandStore;
 import cn.byteforce.seedj.cqrs.spi.TransactionRunner;
 import cn.byteforce.seedj.domain.AppendRequest;
 import cn.byteforce.seedj.domain.AppendResult;
 import cn.byteforce.seedj.domain.TemporalRow;
 import cn.byteforce.seedj.domain.event.CommandEvent;
-import cn.byteforce.seedj.domain.memory.InMemoryTemporalStore;
-import cn.byteforce.seedj.id.Uuid7IdGenerator;
+import cn.byteforce.seedj.infra.local.domain.InMemoryTemporalStore;
+import cn.byteforce.seedj.infra.local.id.Uuid7IdGenerator;
 import cn.byteforce.seedj.lock.LockLease;
 import cn.byteforce.seedj.lock.LockProvider;
 import cn.byteforce.seedj.outbox.OutboxRecord;
@@ -61,7 +61,8 @@ class TemporalCommandAgentTest {
 
     private final CommandRuntime runtime = new CommandRuntime(new CommandRuntime.Options(
             TransactionRunner.direct(), lock, Duration.ofSeconds(30), clock,
-            new Uuid7IdGenerator(clock), commands, objects, outbox));
+            new Uuid7IdGenerator(clock), commands, objects, outbox,
+            TemporalCommandAudit.noop()));
 
     private final ProbeAgent agent = new ProbeAgent(runtime);
 
@@ -115,6 +116,35 @@ class TemporalCommandAgentTest {
                             .containsEntry("idempotency_key", "k-3");
                 });
         assertThat(objects.history("probe", ID)).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("descriptor 的 validator 在锁与事务之前拒绝，对象不落库")
+    void descriptorValidatorRejectsBeforeAppend() {
+        assertThatThrownBy(() -> agent.execute(submission("k-invalid", " ", false)))
+                .isInstanceOfSatisfying(ContractException.class, error ->
+                        assertThat(error.code()).isEqualTo(ContractErrorCode.INVALID_PAYLOAD));
+
+        assertThat(objects.history("probe", ID)).isEmpty();
+        assertThat(commands.findByIdempotencyKey("k-invalid")).get()
+                .satisfies(record -> assertThat(record.status())
+                        .isEqualTo(CommandStatus.REJECTED));
+    }
+
+    @Test
+    @DisplayName("descriptor 驱动命令类型、对象类型与载荷类型")
+    void descriptorDrivesCommandMetadata() {
+        assertThat(agent.commandType()).isEqualTo("probe.update");
+        assertThat(agent.objectType()).isEqualTo("probe");
+        assertThat(agent.descriptor().payloadType()).isEqualTo(ProbeCommand.class);
+    }
+
+    @Test
+    @DisplayName("append 拿到的 targetId 与 targetId(command) 一致")
+    void appendReceivesResolvedTargetId() {
+        agent.execute(submission("k-target", "Alice", false));
+
+        assertThat(agent.resolvedTargetId).isEqualTo(ID);
     }
 
     @Test
@@ -238,8 +268,21 @@ class TemporalCommandAgentTest {
 
         private boolean failTechnically;
 
+        private UUID resolvedTargetId;
+
         ProbeAgent(CommandRuntime runtime) {
-            super(runtime, "probe.update", "probe", ProbeCommand.class);
+            super(runtime, CommandDescriptor.builder()
+                    .type("probe.update")
+                    .objectType("probe")
+                    .payloadType(ProbeCommand.class)
+                    .permission("probe.write")
+                    .validator(command -> {
+                        if (command instanceof ProbeCommand probe && probe.name().isBlank()) {
+                            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
+                                    "name must not be blank");
+                        }
+                    })
+                    .build());
         }
 
         @Override
@@ -250,6 +293,13 @@ class TemporalCommandAgentTest {
         @Override
         protected AppendRequest append(ProbeCommand command, Optional<TemporalRow> current,
                                        Instant now, UUID actor) {
+            return append(command, command.target(), current, now, actor);
+        }
+
+        @Override
+        protected AppendRequest append(ProbeCommand command, UUID targetId,
+                                       Optional<TemporalRow> current, Instant now, UUID actor) {
+            resolvedTargetId = targetId;
             if (failTechnically) {
                 throw new InfrastructureException(InfrastructureErrorCode.NOT_READY,
                         "temporal store down");

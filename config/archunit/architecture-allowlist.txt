@@ -1,0 +1,2 @@
+# 架构规则已知违规：T3 逐个偿还，清空即门禁全绿。
+# 格式：rule|origin -> target（与 ArchitectureTest 的违规 key 一致）

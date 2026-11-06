@@ -13,6 +13,9 @@ info:
     - 写入专用派生字段（writeOnly）：载荷携带原始值，由域属主服务在写路径派生后落库；
       原始值与派生值不得进入命令记录/读投影/日志（见
       01-data-contract/write-only-fields.rules.yaml）
+    - 每个命令的 type / permission / payloadSchema / objectType 必须同时登记在
+      config/conformance/commands.yaml；CommandApiConformanceTest 保证登记表与
+      CommandCatalog 的 CommandDescriptor 一一对应。
 
 paths:
   /commands/{commandType}:

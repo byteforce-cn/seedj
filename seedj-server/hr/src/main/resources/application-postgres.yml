@@ -1,0 +1,24 @@
+# PostgreSQL 运行模式：真实迁移 + 真实表；单实例阶段先用内存锁（T2.5 切数据库锁）。
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/seedj}
+    username: ${SPRING_DATASOURCE_USERNAME:seedj}
+    password: ${SPRING_DATASOURCE_PASSWORD:seedj}
+
+seedj:
+  command:
+    provider: postgres
+  object:
+    provider: postgres
+  audit:
+    enabled: true
+  outbox:
+    enabled: true
+  lock:
+    memory:
+      enabled: false
+    postgres:
+      enabled: true
+  biz:
+    dev-auth:
+      enabled: false

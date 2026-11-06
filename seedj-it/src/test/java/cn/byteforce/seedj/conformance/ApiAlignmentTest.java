@@ -1,11 +1,11 @@
 package cn.byteforce.seedj.conformance;
 
-import cn.byteforce.seedj.cqrs.web.CommandController;
-import cn.byteforce.seedj.cqrs.web.CommandRequest;
+import cn.byteforce.seedj.starter.cqrs.web.CommandController;
+import cn.byteforce.seedj.starter.cqrs.web.CommandRequest;
 import cn.byteforce.seedj.domain.ObjectVersion;
 import cn.byteforce.seedj.domain.TemporalRow;
-import cn.byteforce.seedj.domain.web.ObjectQueryController;
-import cn.byteforce.seedj.domain.web.ObjectQueryResponse;
+import cn.byteforce.seedj.starter.domain.web.ObjectQueryController;
+import cn.byteforce.seedj.starter.domain.web.ObjectQueryResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -59,10 +59,26 @@ class ApiAlignmentTest {
         String spec = read("docs/conformance/api/query.openapi.yaml");
 
         assertThat(spec).contains("/objects/{objectType}/{id}");
+        assertThat(spec).contains("/objects/{objectType}:");
+        assertThat(spec).contains("ObjectPage");
         assertThat(spec).contains("as_of");
         assertThat(spec).contains("recorded_as_of");
         assertThat(spec).contains("min_version");
         assertThat(spec).contains("Retry-After");
+    }
+
+    @Test
+    @DisplayName("列表控制器路径与分页/排序参数同工件一致")
+    void listControllerMatchesSpec() throws Exception {
+        String spec = read("docs/conformance/api/query.openapi.yaml");
+        Method list = ObjectQueryController.class.getMethod("list", String.class, Map.class);
+        GetMapping mapping = list.getAnnotation(GetMapping.class);
+        assertThat(mapping).isNotNull();
+        assertThat(mapping.value()).containsExactly("/objects/{objectType}");
+        for (String parameter : List.of("page", "size", "sort", "direction", "as_of",
+                "recorded_as_of")) {
+            assertThat(spec).contains("name: " + parameter);
+        }
     }
 
     @Test

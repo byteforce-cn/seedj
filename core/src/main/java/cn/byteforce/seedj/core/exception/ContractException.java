@@ -6,9 +6,8 @@ import java.util.Objects;
 /**
  * 契约错误：携带冻结错误码、面向调用方的原因与可选细节。
  *
- * <p>与既有 {@link BaseException} 体系并列而不是替换：本类只用于契约面
- * （命令/查询/授权），由 Web 边界转换成 {@link ApiError} 信封。
- * 既有基础设施异常仍走 {@code InfrastructureException} / {@code BizException}。</p>
+ * <p>本类只用于契约面（命令/查询/授权），由 Web 边界转换成 {@link ApiError}
+ * 信封；技术错误仍走 {@code InfrastructureException}。</p>
  *
  * <p>{@code details} 不得包含内部堆栈或敏感字段全文；{@code reasonCode}
  * 用于授权等场景的细分原因（如 SoD 规则号），可为空。</p>
@@ -16,7 +15,7 @@ import java.util.Objects;
  * @author ByteForce
  * @since 1.0.0
  */
-public final class ContractException extends RuntimeException {
+public class ContractException extends RuntimeException {
 
     private static final long serialVersionUID = 1L;
 

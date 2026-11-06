@@ -1,0 +1,14 @@
+# 命令登记表：与运行期 CommandCatalog 一一对应。
+# 每项至少包含 type / permission / payloadSchema / objectType；eventTypes 供评审与文档使用。
+# 新增命令必须同时改 seedj-server/* 的 CommandDescriptor 与这里，否则 CommandApiConformanceTest 失败。
+commands:
+  - type: hr.employee.create
+    permission: hr.employee.write
+    payloadSchema: HrEmployeeCreate
+    objectType: employee
+    eventTypes: [hr.employee.created]
+  - type: hr.employee.update
+    permission: hr.employee.write
+    payloadSchema: HrEmployeeUpdate
+    objectType: employee
+    eventTypes: [hr.employee.updated]
