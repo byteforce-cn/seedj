@@ -63,8 +63,9 @@ class SpiSurfaceTest {
                     "SecurityErrorCode", "TokenClaims"),
 
             "cn.byteforce.seedj.cqrs",
-            List.of("AbstractProjection", "Command", "CommandAgent", "CommandAudit",
-                    "CommandCatalog", "CommandInterceptor", "CommandReceipt", "CommandRecord",
+            List.of("AbstractCommandHandler", "AbstractProjection", "Command", "CommandAgent",
+                    "CommandAudit", "CommandCatalog", "CommandContext", "CommandHandler",
+                    "CommandInterceptor", "CommandReceipt", "CommandRecord",
                     "CommandInvocation", "CommandRuntime", "CommandStatus", "CommandSubmission",
                     "CqrsErrorCode", "CqrsException", "EventSourcedRepository", "EventStream",
                     "IdCodec", "IdCodecs", "IdempotencyFingerprint", "Query", "QueryAgent",
