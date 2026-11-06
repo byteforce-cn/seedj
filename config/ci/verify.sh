@@ -11,7 +11,7 @@ cd "$(dirname "$0")/../.." || {
     exit 1
 }
 
-MAVEN_FLAGS="${MAVEN_FLAGS:--o}"
+MAVEN_FLAGS="${MAVEN_FLAGS--o}"
 SPOTBUGS_FAIL_ON_ERROR="${SPOTBUGS_FAIL_ON_ERROR:-true}"
 
 if [[ "$SPOTBUGS_FAIL_ON_ERROR" != "true" ]]; then

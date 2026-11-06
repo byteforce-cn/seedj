@@ -29,7 +29,7 @@
 ./mvnw -o -B -pl seedj-biz-starter -am test         # 装配 + Web 切片
 ./mvnw -o -B -pl seedj-iam-starter -am test         # IAM
 ./mvnw -o -B -pl seedj-it -am test                  # 架构/文档门禁与端到端
-./mvnw -o -B -Panalysis verify                      # 全量 + SpotBugs（advisory）
+./mvnw -o -B -Panalysis verify                      # 全量 + SpotBugs（Medium 阻断）
 bash config/ci/verify.sh                            # 主门禁：测试 + 覆盖率 + 架构 + 链接 + 格式
 ```
 

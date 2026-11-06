@@ -10,7 +10,7 @@ cd "$(dirname "$0")/../.." || {
     exit 1
 }
 
-MAVEN_FLAGS="${MAVEN_FLAGS:--o}"
+MAVEN_FLAGS="${MAVEN_FLAGS--o}"
 FAIL_ON_CVSS="${FAIL_ON_CVSS:-7}"
 
 if [[ "$MAVEN_FLAGS" == *-o* ]]; then

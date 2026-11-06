@@ -13,7 +13,7 @@ cd "$(dirname "$0")/../.." || {
     exit 1
 }
 
-MAVEN_FLAGS="${MAVEN_FLAGS:--o}"
+MAVEN_FLAGS="${MAVEN_FLAGS--o}"
 BASELINE="${SEEDJ_COMPAT_BASELINE:-1.0.0}"
 
 if [[ "${SEEDJ_FIRST_RELEASE:-false}" == "true" ]]; then

@@ -8,5 +8,5 @@ cd "$(dirname "$0")/../.." || {
     exit 1
 }
 
-MAVEN_FLAGS="${MAVEN_FLAGS:--o}"
+MAVEN_FLAGS="${MAVEN_FLAGS--o}"
 ./mvnw $MAVEN_FLAGS -B -Pconformance -DskipTests verify "$@"
