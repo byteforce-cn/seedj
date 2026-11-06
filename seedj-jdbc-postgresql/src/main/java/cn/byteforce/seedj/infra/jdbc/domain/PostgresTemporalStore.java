@@ -9,6 +9,7 @@ import cn.byteforce.seedj.domain.ObjectVersion;
 import cn.byteforce.seedj.domain.Sealing;
 import cn.byteforce.seedj.domain.TemporalQuery;
 import cn.byteforce.seedj.domain.Page;
+import cn.byteforce.seedj.domain.ScopePredicate;
 import cn.byteforce.seedj.domain.TemporalRow;
 import cn.byteforce.seedj.domain.TemporalSearch;
 import cn.byteforce.seedj.domain.TemporalStore;
@@ -61,8 +62,10 @@ public final class PostgresTemporalStore implements TemporalStore {
     }
 
     @Override
-    public Optional<TemporalRow> find(String objectType, UUID id, TemporalQuery query) {
+    public Optional<TemporalRow> find(String objectType, UUID id, TemporalQuery query,
+                                      ScopePredicate scope) {
         Objects.requireNonNull(query, "query");
+        Objects.requireNonNull(scope, "scope");
         TemporalTable table = tables.require(objectType);
         StringBuilder sql = new StringBuilder(SELECT_ALL).append(table.tableName())
                 .append(" WHERE id = ?");
@@ -83,6 +86,9 @@ public final class PostgresTemporalStore implements TemporalStore {
                 args.add(timestamp(query.recordedAsOf()));
             }
         }
+        ScopeSql.Clause scoped = ScopeSql.compile(scope, table);
+        sql.append(" AND (").append(scoped.sql()).append(")");
+        args.addAll(scoped.args());
         sql.append(" ORDER BY version DESC LIMIT 1");
 
         List<Map<String, Object>> rows = jdbc.queryForList(sql.toString(), args.toArray());
@@ -114,8 +120,9 @@ public final class PostgresTemporalStore implements TemporalStore {
     }
 
     @Override
-    public Page<TemporalRow> search(TemporalSearch search) {
+    public Page<TemporalRow> search(TemporalSearch search, ScopePredicate scope) {
         Objects.requireNonNull(search, "search");
+        Objects.requireNonNull(scope, "scope");
         TemporalTable table = tables.require(search.objectType());
         List<Object> args = new ArrayList<>();
         StringBuilder where = new StringBuilder(" WHERE 1 = 1");
@@ -147,6 +154,10 @@ public final class PostgresTemporalStore implements TemporalStore {
             args.add(timestamp(search.recordedAsOf()));
         }
 
+        ScopeSql.Clause scoped = ScopeSql.compile(scope, table);
+        where.append(" AND (").append(scoped.sql()).append(")");
+        args.addAll(scoped.args());
+
         Long total = jdbc.queryForObject("SELECT COUNT(DISTINCT id) FROM "
                 + table.tableName() + where, Long.class, args.toArray());
         String sort = search.sortField() == null ? "t.id" : "t." + search.sortField();
@@ -165,10 +176,16 @@ public final class PostgresTemporalStore implements TemporalStore {
     }
 
     @Override
-    public List<TemporalRow> history(String objectType, UUID id) {
+    public List<TemporalRow> history(String objectType, UUID id, ScopePredicate scope) {
+        Objects.requireNonNull(scope, "scope");
         TemporalTable table = tables.require(objectType);
+        ScopeSql.Clause scoped = ScopeSql.compile(scope, table);
+        List<Object> args = new ArrayList<>();
+        args.add(id);
+        args.addAll(scoped.args());
         return jdbc.queryForList(SELECT_ALL + table.tableName()
-                        + " WHERE id = ? ORDER BY recorded_at ASC", id)
+                        + " WHERE id = ? AND (" + scoped.sql()
+                        + ") ORDER BY recorded_at ASC", args.toArray())
                 .stream()
                 .map(row -> toRow(table, row))
                 .toList();

@@ -5,6 +5,7 @@ import cn.byteforce.seedj.domain.AppendRequest;
 import cn.byteforce.seedj.domain.AppendResult;
 import cn.byteforce.seedj.domain.FieldType;
 import cn.byteforce.seedj.domain.ObjectSchema;
+import cn.byteforce.seedj.domain.ScopePredicate;
 import cn.byteforce.seedj.domain.TemporalQuery;
 import cn.byteforce.seedj.domain.TemporalRow;
 import cn.byteforce.seedj.domain.TemporalStore;
@@ -100,7 +101,7 @@ class PostgresTemporalStoreContractTest extends TemporalStoreContractTest {
 
         AppendResult result = store.append(AppendRequest.create("probe_typed", ID, T0, null,
                 ACTOR, Map.of("name", "Alice", "hire_date", hireDate, "ref_id", refId)));
-        TemporalRow row = store.find("probe_typed", ID, TemporalQuery.current()).orElseThrow();
+        TemporalRow row = store.find("probe_typed", ID, TemporalQuery.current(), ScopePredicate.all()).orElseThrow();
 
         assertThat(result.appended().version().version()).isEqualTo(1L);
         assertThat(row.fields())
@@ -112,7 +113,7 @@ class PostgresTemporalStoreContractTest extends TemporalStoreContractTest {
 
     @Test
     void unknownObjectTypeIsRejectedClearly() {
-        assertThatThrownBy(() -> store.find("missing", ID, TemporalQuery.current()))
+        assertThatThrownBy(() -> store.find("missing", ID, TemporalQuery.current(), ScopePredicate.all()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("missing");
     }
