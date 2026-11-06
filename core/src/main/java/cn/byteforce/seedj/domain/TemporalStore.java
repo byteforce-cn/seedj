@@ -20,24 +20,30 @@ import java.util.UUID;
 public interface TemporalStore {
 
     /**
-     * 按时点查询单个对象。
+     * 按时点与行范围查询单个对象。
+     *
+     * <p>行范围在存储层应用；命中范围内无行时返回空，不退化为“全部可见”。</p>
      *
      * @param objectType 对象类型
      * @param id         对象 ID
      * @param query      时点与版本约束
-     * @return 命中行；无命中返回 {@link Optional#empty()}
+     * @param scope      行范围谓词（不可为空）
+     * @return 命中行；无命中或不在范围内返回 {@link Optional#empty()}
      */
-    Optional<TemporalRow> find(String objectType, UUID id, TemporalQuery query);
+    Optional<TemporalRow> find(String objectType, UUID id, TemporalQuery query,
+                               ScopePredicate scope);
 
     /**
-     * 查询当前版本。
+     * 查询当前版本（写者视角，不应用读范围）。
+     *
+     * <p>仅供写路径与 handler 使用；读路径必须走 {@code ReadGateway}。</p>
      *
      * @param objectType 对象类型
      * @param id         对象 ID
      * @return 命中行；无命中返回 {@link Optional#empty()}
      */
     default Optional<TemporalRow> current(String objectType, UUID id) {
-        return find(objectType, id, TemporalQuery.current());
+        return find(objectType, id, TemporalQuery.current(), ScopePredicate.all());
     }
 
     /**
@@ -55,16 +61,18 @@ public interface TemporalStore {
      * 或 500。{@code total} 是过滤后的总数，不受分页影响。</p>
      *
      * @param search 查询条件
+     * @param scope  行范围谓词（不可为空）
      * @return 一页结果
      */
-    Page<TemporalRow> search(TemporalSearch search);
+    Page<TemporalRow> search(TemporalSearch search, ScopePredicate scope);
 
     /**
      * 查询某对象的全部版本，按 {@code recordedAt} 升序。
      *
      * @param objectType 对象类型
      * @param id         对象 ID
+     * @param scope      行范围谓词（不可为空）
      * @return 全部版本
      */
-    List<TemporalRow> history(String objectType, UUID id);
+    List<TemporalRow> history(String objectType, UUID id, ScopePredicate scope);
 }

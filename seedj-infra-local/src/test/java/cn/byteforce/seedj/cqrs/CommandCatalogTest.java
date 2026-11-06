@@ -10,6 +10,7 @@ import cn.byteforce.seedj.core.exception.ContractException;
 import cn.byteforce.seedj.core.security.Caller;
 import cn.byteforce.seedj.infra.local.cqrs.InMemoryCommandStore;
 import cn.byteforce.seedj.domain.AppendRequest;
+import cn.byteforce.seedj.domain.ScopePredicate;
 import cn.byteforce.seedj.domain.TemporalRow;
 import cn.byteforce.seedj.infra.local.domain.InMemoryTemporalStore;
 import cn.byteforce.seedj.infra.local.id.Uuid7IdGenerator;
@@ -74,7 +75,7 @@ class CommandCatalogTest {
                 .isInstanceOfSatisfying(ContractException.class, error ->
                         assertThat(error.code()).isEqualTo(ContractErrorCode.FORBIDDEN));
 
-        assertThat(objects.history("probe", ID)).isEmpty();
+        assertThat(objects.history("probe", ID, ScopePredicate.all())).isEmpty();
         assertThat(commands.findByIdempotencyKey("k-2")).isEmpty();
     }
 

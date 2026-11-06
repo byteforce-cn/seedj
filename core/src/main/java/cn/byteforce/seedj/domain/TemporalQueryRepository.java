@@ -42,7 +42,7 @@ public abstract class TemporalQueryRepository<T> {
      * @return 视图
      */
     public Optional<T> find(UUID id, TemporalQuery query) {
-        return store.find(schema.objectType(), id, query).map(this::map);
+        return store.find(schema.objectType(), id, query, ScopePredicate.all()).map(this::map);
     }
 
     /**
@@ -67,7 +67,7 @@ public abstract class TemporalQueryRepository<T> {
             throw new IllegalArgumentException("repository is bound to "
                     + schema.objectType() + ", got " + search.objectType());
         }
-        Page<TemporalRow> page = store.search(search);
+        Page<TemporalRow> page = store.search(search, ScopePredicate.all());
         List<T> items = page.items().stream().map(this::map).toList();
         return new Page<>(items, page.total(), page.page(), page.size());
     }

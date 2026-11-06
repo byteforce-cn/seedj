@@ -36,6 +36,8 @@ public abstract class TemporalStoreContractTest {
 
     protected static final UUID ACTOR = UUID.fromString("018f2e3a-0000-7000-8000-000000000001");
 
+    protected static final ScopePredicate ALL = ScopePredicate.all();
+
     protected static final Instant T0 = Instant.parse("2026-10-08T09:00:00Z");
 
     /**
@@ -116,10 +118,10 @@ public abstract class TemporalStoreContractTest {
         store().append(AppendRequest.correction(TYPE, ID, T0.plusSeconds(60), null, ACTOR,
                 Map.of("name", "v2")));
 
-        assertThat(store().find(TYPE, ID, new TemporalQuery(T0.plusSeconds(59), null, null))
-                .orElseThrow().fields()).containsEntry("name", "v1");
-        assertThat(store().find(TYPE, ID, new TemporalQuery(T0.plusSeconds(60), null, null))
-                .orElseThrow().fields()).containsEntry("name", "v2");
+        assertThat(store().find(TYPE, ID, new TemporalQuery(T0.plusSeconds(59), null, null),
+                ALL).orElseThrow().fields()).containsEntry("name", "v1");
+        assertThat(store().find(TYPE, ID, new TemporalQuery(T0.plusSeconds(60), null, null),
+                ALL).orElseThrow().fields()).containsEntry("name", "v2");
     }
 
     @Test
@@ -129,16 +131,16 @@ public abstract class TemporalStoreContractTest {
         store().append(AppendRequest.correction(TYPE, ID, T0, null, ACTOR,
                 Map.of("name", "v2")));
 
-        assertThat(store().find(TYPE, ID, new TemporalQuery(null, T0.plusSeconds(30), null))
-                .orElseThrow().fields()).containsEntry("name", "v1");
-        assertThat(store().find(TYPE, ID, new TemporalQuery(null, T0.plusSeconds(90), null))
-                .orElseThrow().fields()).containsEntry("name", "v2");
+        assertThat(store().find(TYPE, ID, new TemporalQuery(null, T0.plusSeconds(30), null),
+                ALL).orElseThrow().fields()).containsEntry("name", "v1");
+        assertThat(store().find(TYPE, ID, new TemporalQuery(null, T0.plusSeconds(90), null),
+                ALL).orElseThrow().fields()).containsEntry("name", "v2");
     }
 
     @Test
     void minVersionAboveReadableIsRejected() {
         seed("v1", T0);
-        assertThatThrownBy(() -> store().find(TYPE, ID, new TemporalQuery(null, null, 2L)))
+        assertThatThrownBy(() -> store().find(TYPE, ID, new TemporalQuery(null, null, 2L), ALL))
                 .isInstanceOf(ContractException.class)
                 .extracting(e -> ((ContractException) e).code())
                 .isEqualTo(ContractErrorCode.READ_MODEL_NOT_READY);
@@ -152,7 +154,7 @@ public abstract class TemporalStoreContractTest {
                 Map.of("name", "v2")));
 
         assertThatThrownBy(() -> store().find(TYPE, ID,
-                new TemporalQuery(null, T0.plusSeconds(30), 2L)))
+                new TemporalQuery(null, T0.plusSeconds(30), 2L), ALL))
                 .isInstanceOf(ContractException.class)
                 .extracting(e -> ((ContractException) e).code())
                 .isEqualTo(ContractErrorCode.READ_MODEL_NOT_READY);
@@ -165,9 +167,9 @@ public abstract class TemporalStoreContractTest {
         store().append(AppendRequest.lateFact(TYPE, ID, T0.minusSeconds(3600), null, ACTOR,
                 Map.of("name", "late")));
 
-        assertThat(store().history(TYPE, ID)).hasSize(2);
-        assertThat(store().find(TYPE, ID, new TemporalQuery(T0.minusSeconds(1800), null, null))
-                .orElseThrow().fields()).containsEntry("name", "late");
+        assertThat(store().history(TYPE, ID, ALL)).hasSize(2);
+        assertThat(store().find(TYPE, ID, new TemporalQuery(T0.minusSeconds(1800), null, null),
+                ALL).orElseThrow().fields()).containsEntry("name", "late");
     }
 
     @Test
@@ -180,14 +182,14 @@ public abstract class TemporalStoreContractTest {
         store().append(AppendRequest.correction(TYPE, ID, T0, null, ACTOR,
                 Map.of("name", "v3")));
 
-        assertThat(store().history(TYPE, ID))
+        assertThat(store().history(TYPE, ID, ALL))
                 .extracting(row -> row.version().version())
                 .containsExactly(1L, 2L, 3L);
     }
 
     @Test
     void correctionOnMissingObjectIsNotFound() {
-        assertThat(store().find(TYPE, ID, TemporalQuery.current())).isEmpty();
+        assertThat(store().find(TYPE, ID, TemporalQuery.current(), ALL)).isEmpty();
         assertThatThrownBy(() -> store().append(AppendRequest.correction(TYPE, ID, T0, null,
                 ACTOR, Map.of())))
                 .isInstanceOf(ContractException.class)
@@ -207,7 +209,7 @@ public abstract class TemporalStoreContractTest {
 
         Page<TemporalRow> page = store().search(new TemporalSearch(TYPE,
                 Map.of("status", "active"), null, null, null, "name", SortDirection.ASC,
-                new PageRequest(1, 1)));
+                new PageRequest(1, 1)), ALL);
 
         assertThat(page.total()).isEqualTo(2);
         assertThat(page.items()).hasSize(1);
@@ -225,10 +227,10 @@ public abstract class TemporalStoreContractTest {
                 Map.of("name", "a"), T0);
 
         List<String> ascending = store().search(new TemporalSearch(TYPE, Map.of(), null, null,
-                        null, "name", SortDirection.ASC, new PageRequest(1, 20)))
+                        null, "name", SortDirection.ASC, new PageRequest(1, 20)), ALL)
                 .items().stream().map(row -> (String) row.fields().get("name")).toList();
         List<String> descending = store().search(new TemporalSearch(TYPE, Map.of(), null, null,
-                        null, "name", SortDirection.DESC, new PageRequest(1, 20)))
+                        null, "name", SortDirection.DESC, new PageRequest(1, 20)), ALL)
                 .items().stream().map(row -> (String) row.fields().get("name")).toList();
 
         assertThat(ascending).containsExactly("a", "b");
@@ -245,7 +247,7 @@ public abstract class TemporalStoreContractTest {
 
         Page<TemporalRow> page = store().search(new TemporalSearch(TYPE, Map.of(),
                 T0.plusSeconds(30), null, null, null, SortDirection.ASC,
-                new PageRequest(1, 20)));
+                new PageRequest(1, 20)), ALL);
 
         assertThat(page.total()).isEqualTo(1);
         assertThat(page.items().get(0).fields()).containsEntry("name", "v1");
@@ -258,14 +260,14 @@ public abstract class TemporalStoreContractTest {
 
         assertThatThrownBy(() -> store().search(new TemporalSearch(TYPE,
                 Map.of("missing", "x"), null, null, null, null, SortDirection.ASC,
-                new PageRequest(1, 20))))
+                new PageRequest(1, 20)), ALL))
                 .isInstanceOf(ContractException.class);
         assertThatThrownBy(() -> store().search(new TemporalSearch(TYPE, Map.of(), null, null,
-                        null, "missing", SortDirection.ASC, new PageRequest(1, 20))))
+                        null, "missing", SortDirection.ASC, new PageRequest(1, 20)), ALL))
                 .isInstanceOf(ContractException.class);
         assertThatThrownBy(() -> store().search(new TemporalSearch(TYPE,
                 Map.of("secret", "x"), null, null, null, null, SortDirection.ASC,
-                new PageRequest(1, 20))))
+                new PageRequest(1, 20)), ALL))
                 .isInstanceOf(ContractException.class);
     }
 
@@ -284,8 +286,81 @@ public abstract class TemporalStoreContractTest {
 
         Page<TemporalRow> page = store().search(new TemporalSearch(TYPE,
                 Map.of("hire_date", "2026-10-01"), null, null, null, null, SortDirection.ASC,
-                new PageRequest(1, 20)));
+                new PageRequest(1, 20)), ALL);
 
         assertThat(page.total()).isEqualTo(1);
+    }
+
+    @Test
+    void findReturnsEmptyWhenRowIsOutOfScope() {
+        seedWith(ID, Map.of("name", "a", "status", "active"), T0);
+
+        assertThat(store().find(TYPE, ID, TemporalQuery.current(),
+                ScopePredicate.eq("status", "inactive"))).isEmpty();
+        assertThat(store().find(TYPE, ID, TemporalQuery.current(),
+                ScopePredicate.eq("status", "active"))).isPresent();
+    }
+
+    @Test
+    void searchAppliesScopeBeforePaging() {
+        seedWith(UUID.fromString("018f2e3a-1234-7000-8000-000000000201"),
+                Map.of("name", "a", "status", "active"), T0);
+        seedWith(UUID.fromString("018f2e3a-1234-7000-8000-000000000202"),
+                Map.of("name", "b", "status", "active"), T0);
+        seedWith(UUID.fromString("018f2e3a-1234-7000-8000-000000000203"),
+                Map.of("name", "c", "status", "inactive"), T0);
+
+        Page<TemporalRow> page = store().search(new TemporalSearch(TYPE, Map.of(), null, null,
+                        null, "name", SortDirection.ASC, new PageRequest(1, 1)),
+                ScopePredicate.eq("status", "active"));
+
+        assertThat(page.items()).hasSize(1);
+        assertThat(page.total()).isEqualTo(2);
+        assertThat(page.items().get(0).fields()).containsEntry("name", "a");
+    }
+
+    @Test
+    void searchTotalReflectsScope() {
+        seedWith(UUID.fromString("018f2e3a-1234-7000-8000-000000000211"),
+                Map.of("name", "a", "status", "active"), T0);
+        seedWith(UUID.fromString("018f2e3a-1234-7000-8000-000000000212"),
+                Map.of("name", "b", "status", "active"), T0);
+        seedWith(UUID.fromString("018f2e3a-1234-7000-8000-000000000213"),
+                Map.of("name", "c", "status", "inactive"), T0);
+
+        Page<TemporalRow> page = store().search(new TemporalSearch(TYPE, Map.of(), null, null,
+                        null, null, SortDirection.ASC, new PageRequest(1, 20)),
+                ScopePredicate.in("status", List.of("active")));
+
+        assertThat(page.total()).isEqualTo(2);
+        assertThat(page.items()).hasSize(2);
+    }
+
+    @Test
+    void historyAppliesScope() {
+        seed("v1", T0);
+        clock().advance(Duration.ofSeconds(60));
+        store().append(AppendRequest.correction(TYPE, ID, T0, null, ACTOR,
+                Map.of("name", "v2")));
+
+        assertThat(store().history(TYPE, ID, ALL)).hasSize(2);
+        assertThat(store().history(TYPE, ID, ScopePredicate.eq("name", "v2")))
+                .extracting(row -> row.version().version())
+                .containsExactly(2L);
+    }
+
+    @Test
+    void notNullScopeMatchesRowsWithValue() {
+        seedWith(UUID.fromString("018f2e3a-1234-7000-8000-000000000221"),
+                Map.of("name", "a"), T0);
+        seedWith(UUID.fromString("018f2e3a-1234-7000-8000-000000000222"),
+                Map.of("name", "b", "status", "active"), T0);
+
+        Page<TemporalRow> page = store().search(new TemporalSearch(TYPE, Map.of(), null, null,
+                        null, null, SortDirection.ASC, new PageRequest(1, 20)),
+                ScopePredicate.notNull("status"));
+
+        assertThat(page.total()).isEqualTo(1);
+        assertThat(page.items().get(0).fields()).containsEntry("name", "b");
     }
 }

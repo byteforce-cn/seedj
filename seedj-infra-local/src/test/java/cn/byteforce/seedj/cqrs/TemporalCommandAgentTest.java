@@ -9,6 +9,7 @@ import cn.byteforce.seedj.infra.local.cqrs.InMemoryCommandStore;
 import cn.byteforce.seedj.cqrs.spi.TransactionRunner;
 import cn.byteforce.seedj.domain.AppendRequest;
 import cn.byteforce.seedj.domain.AppendResult;
+import cn.byteforce.seedj.domain.ScopePredicate;
 import cn.byteforce.seedj.domain.TemporalRow;
 import cn.byteforce.seedj.domain.event.CommandEvent;
 import cn.byteforce.seedj.infra.local.domain.InMemoryTemporalStore;
@@ -99,7 +100,7 @@ class TemporalCommandAgentTest {
 
         assertThat(second.commandId()).isEqualTo(first.commandId());
         assertThat(second.status()).isEqualTo(CommandStatus.ACCEPTED);
-        assertThat(objects.history("probe", ID)).hasSize(1);
+        assertThat(objects.history("probe", ID, ScopePredicate.all())).hasSize(1);
         assertThat(outbox.records).hasSize(1);
     }
 
@@ -115,7 +116,7 @@ class TemporalCommandAgentTest {
                             .containsEntry("original_command_id", first.commandId().toString())
                             .containsEntry("idempotency_key", "k-3");
                 });
-        assertThat(objects.history("probe", ID)).hasSize(1);
+        assertThat(objects.history("probe", ID, ScopePredicate.all())).hasSize(1);
     }
 
     @Test
@@ -125,7 +126,7 @@ class TemporalCommandAgentTest {
                 .isInstanceOfSatisfying(ContractException.class, error ->
                         assertThat(error.code()).isEqualTo(ContractErrorCode.INVALID_PAYLOAD));
 
-        assertThat(objects.history("probe", ID)).isEmpty();
+        assertThat(objects.history("probe", ID, ScopePredicate.all())).isEmpty();
         assertThat(commands.findByIdempotencyKey("k-invalid")).get()
                 .satisfies(record -> assertThat(record.status())
                         .isEqualTo(CommandStatus.REJECTED));
@@ -154,7 +155,7 @@ class TemporalCommandAgentTest {
                 .isInstanceOfSatisfying(ContractException.class, error ->
                         assertThat(error.code()).isEqualTo(ContractErrorCode.TEMPORAL_VIOLATION));
 
-        assertThat(objects.history("probe", ID)).isEmpty();
+        assertThat(objects.history("probe", ID, ScopePredicate.all())).isEmpty();
         assertThat(commands.findByIdempotencyKey("k-4")).get().satisfies(record -> {
             assertThat(record.status()).isEqualTo(CommandStatus.REJECTED);
             assertThat(record.rejectionCode()).isEqualTo("EIS-400-003");
@@ -163,7 +164,7 @@ class TemporalCommandAgentTest {
         CommandReceipt replay = agent.execute(submission("k-4", "Alice", true));
         assertThat(replay.status()).isEqualTo(CommandStatus.REJECTED);
         assertThat(replay.code()).isEqualTo("EIS-400-003");
-        assertThat(objects.history("probe", ID)).isEmpty();
+        assertThat(objects.history("probe", ID, ScopePredicate.all())).isEmpty();
     }
 
     @Test
@@ -179,7 +180,7 @@ class TemporalCommandAgentTest {
 
         assertThat(receipt.commandId()).isEqualTo(pending.id());
         assertThat(receipt.status()).isEqualTo(CommandStatus.PENDING);
-        assertThat(objects.history("probe", ID)).isEmpty();
+        assertThat(objects.history("probe", ID, ScopePredicate.all())).isEmpty();
         assertThat(outbox.records).isEmpty();
     }
 
@@ -223,7 +224,7 @@ class TemporalCommandAgentTest {
         CommandReceipt receipt = agent.execute(submission("k-tech", "Alice", false));
 
         assertThat(receipt.status()).isEqualTo(CommandStatus.ACCEPTED);
-        assertThat(objects.history("probe", ID)).hasSize(1);
+        assertThat(objects.history("probe", ID, ScopePredicate.all())).hasSize(1);
     }
 
     @Test
@@ -246,7 +247,7 @@ class TemporalCommandAgentTest {
             CommandReceipt secondReceipt = second.get(5, java.util.concurrent.TimeUnit.SECONDS);
 
             assertThat(firstReceipt.commandId()).isEqualTo(secondReceipt.commandId());
-            assertThat(objects.history("probe", ID)).hasSize(1);
+            assertThat(objects.history("probe", ID, ScopePredicate.all())).hasSize(1);
             assertThat(outbox.records).hasSize(1);
         } finally {
             pool.shutdownNow();
