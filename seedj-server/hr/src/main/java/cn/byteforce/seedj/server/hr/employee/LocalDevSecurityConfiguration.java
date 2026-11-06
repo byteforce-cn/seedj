@@ -1,5 +1,8 @@
 package cn.byteforce.seedj.server.hr.employee;
 
+import cn.byteforce.seedj.biz.security.JsonAccessDeniedHandler;
+import cn.byteforce.seedj.biz.security.JsonAuthenticationEntryPoint;
+
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -32,12 +35,17 @@ public class LocalDevSecurityConfiguration {
      */
     @Bean
     @Order(5)
-    public SecurityFilterChain localDevSecurityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain localDevSecurityFilterChain(
+            HttpSecurity http, JsonAuthenticationEntryPoint authenticationEntryPoint,
+            JsonAccessDeniedHandler accessDeniedHandler) throws Exception {
         http
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(authorize -> authorize.anyRequest().permitAll())
+                .exceptionHandling(handling -> handling
+                        .authenticationEntryPoint(authenticationEntryPoint)
+                        .accessDeniedHandler(accessDeniedHandler))
                 .addFilterBefore(new LocalDevAuthenticationFilter(
                                 LocalDevAuthenticationFilter.localAdmin()),
                         AnonymousAuthenticationFilter.class);

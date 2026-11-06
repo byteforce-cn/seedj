@@ -110,6 +110,7 @@ core|cn.byteforce.seedj.domain|Repository
 core|cn.byteforce.seedj.domain|Sealing
 core|cn.byteforce.seedj.domain|SortDirection
 core|cn.byteforce.seedj.domain|TemporalQuery
+core|cn.byteforce.seedj.domain|TemporalQueryRepository
 core|cn.byteforce.seedj.domain|TemporalRow
 core|cn.byteforce.seedj.domain|TemporalRules
 core|cn.byteforce.seedj.domain|TemporalSearch
@@ -511,10 +512,13 @@ seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeConfiguration
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeCreate
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeCreateAgent
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeePostgresConfiguration
+seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeQueryController
+seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeQueryService
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeSchema
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeSchemaCapability
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeUpdate
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeUpdateAgent
+seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeView
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|LocalDevAuthenticationFilter
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|LocalDevJwtConfiguration
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|LocalDevSecurityConfiguration

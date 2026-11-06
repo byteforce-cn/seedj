@@ -9,6 +9,7 @@ import cn.byteforce.seedj.cqrs.CommandPayloadRedactor;
 import cn.byteforce.seedj.cqrs.CommandRuntime;
 import cn.byteforce.seedj.cqrs.CommandValidator;
 import cn.byteforce.seedj.domain.ObjectSchema;
+import cn.byteforce.seedj.domain.TemporalStore;
 import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.id.Uuid7IdGenerator;
 import org.springframework.beans.factory.ObjectProvider;
@@ -130,6 +131,19 @@ public class HrEmployeeConfiguration {
     public IdGenerator<String> hrEmployeeNoGenerator(Clock clock) {
         IdGenerator<UUID> uuid7 = new Uuid7IdGenerator(clock);
         return () -> uuid7.id().toString();
+    }
+
+    /**
+     * 员工读模型查询服务。
+     *
+     * @param store  对象存储
+     * @param schema 员工 schema
+     * @return 查询服务
+     */
+    @Bean
+    public HrEmployeeQueryService hrEmployeeQueryService(TemporalStore store,
+                                                        ObjectSchema schema) {
+        return new HrEmployeeQueryService(store, schema);
     }
 
     /**

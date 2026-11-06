@@ -5,7 +5,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import cn.byteforce.seedj.core.security.Caller;
 import com.jayway.jsonpath.JsonPath;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -13,6 +17,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -57,6 +64,50 @@ class HrEmployeeHttpTest {
                 .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.version").value(2))
                 .andExpect(jsonPath("$.locator").value(id));
+    }
+
+    @Test
+    @DisplayName("HR 读面：list 与 typed get 返回视图，不含证件散列")
+    void typedListAndGet() throws Exception {
+        String created = mvc.perform(post("/commands/hr.employee.create")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"type":"hr.employee.create",
+                                 "payload":{"name":"张三","hire_date":"2026-10-01",
+                                            "id_number":"110101199001011234"},
+                                 "idempotency_key":"http-typed-1"}
+                                """))
+                .andExpect(status().isAccepted())
+                .andReturn().getResponse().getContentAsString();
+        String id = JsonPath.read(created, "$.locator");
+
+        mvc.perform(get("/api/hr/employees").queryParam("page", "1").queryParam("size", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(
+                        org.hamcrest.Matchers.greaterThanOrEqualTo(1)))
+                .andExpect(jsonPath("$.items[0].employee_no").isNotEmpty())
+                .andExpect(jsonPath("$.items[0].id_number_hash").doesNotExist());
+
+        mvc.perform(get("/api/hr/employees/" + id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("张三"))
+                .andExpect(jsonPath("$.hire_date").value("2026-10-01"))
+                .andExpect(jsonPath("$.id_number_hash").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("缺少 hr.employee.read：403 EIS-403-001")
+    void missingReadPermissionIs403() throws Exception {
+        Caller writeOnly = new Caller("018f2e3a-0000-7000-8000-00000000cafe", "writer",
+                "default", Set.of(), Set.of("hr.employee.write"), Set.of(),
+                Set.of(Caller.DEFAULT_AMR), Caller.DEFAULT_ACR, Map.of());
+        var authentication = new UsernamePasswordAuthenticationToken(writeOnly, null,
+                List.of(new SimpleGrantedAuthority("PERM_hr.employee.write")));
+
+        mvc.perform(get("/api/hr/employees")
+                        .with(SecurityMockMvcRequestPostProcessors.authentication(authentication)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("EIS-403-001"));
     }
 
     @Test
