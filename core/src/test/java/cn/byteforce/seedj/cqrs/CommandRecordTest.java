@@ -59,7 +59,7 @@ class CommandRecordTest {
 
         assertThatThrownBy(() -> new CommandRecord(ID, "hr.employee.onboard", NOW, ISSUER,
                 Map.of(), "key-1", FINGERPRINT, CommandStatus.ACCEPTED, null, null,
-                List.of(), null, null, NOW))
+                List.of(), null, null, NOW, NOW))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("locator");
     }
@@ -77,7 +77,7 @@ class CommandRecordTest {
 
         assertThatThrownBy(() -> new CommandRecord(ID, "hr.employee.onboard", NOW, ISSUER,
                 Map.of(), "key-1", FINGERPRINT, CommandStatus.REJECTED, "EIS-400-003", null,
-                List.of(), null, null, NOW))
+                List.of(), null, null, NOW, NOW))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("reason");
     }

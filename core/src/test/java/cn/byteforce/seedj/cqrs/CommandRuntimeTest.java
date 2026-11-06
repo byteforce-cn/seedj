@@ -307,6 +307,14 @@ class CommandRuntimeTest {
         public void abandon(UUID id) {
             records.removeIf(record -> record.id().equals(id));
         }
+
+        @Override
+        public long expirePending(java.time.Instant now) {
+            int before = records.size();
+            records.removeIf(record -> record.status() == CommandStatus.PENDING
+                    && record.leaseUntil() != null && record.leaseUntil().isBefore(now));
+            return before - records.size();
+        }
     }
 
     static final class FakeObjects implements TemporalStore {

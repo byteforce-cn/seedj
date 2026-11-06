@@ -4,6 +4,7 @@ import cn.byteforce.seedj.cqrs.CommandRecord;
 import cn.byteforce.seedj.cqrs.CommandStatus;
 import cn.byteforce.seedj.cqrs.spi.CommandStore;
 
+import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -80,6 +81,25 @@ public final class InMemoryCommandStore implements CommandStore {
 
     private static String key(UUID issuer, String idempotencyKey) {
         return issuer + "\u0000" + idempotencyKey;
+    }
+
+    @Override
+    public synchronized long expirePending(Instant now) {
+        java.util.List<UUID> expired = new java.util.ArrayList<>();
+        byId.forEach((id, record) -> {
+            if (record.status() == CommandStatus.PENDING
+                    && record.leaseUntil() != null
+                    && record.leaseUntil().isBefore(now)) {
+                expired.add(id);
+            }
+        });
+        for (UUID id : expired) {
+            CommandRecord record = byId.remove(id);
+            if (record != null) {
+                byKey.remove(key(record.issuer(), record.idempotencyKey()), id);
+            }
+        }
+        return expired.size();
     }
 
     /**

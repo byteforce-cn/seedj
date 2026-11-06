@@ -99,7 +99,7 @@ public final class CommandRuntime {
         Map<String, Object> storedPayload = descriptor.redactor().redact(submission.payload());
         CommandRecord pending = CommandRecord.pending(options.idGenerator().id(), submission.type(),
                 now, submission.issuer(), storedPayload, submission.idempotencyKey(),
-                fingerprint, now);
+                fingerprint, now, now.plus(options.pendingLease()));
         if (!options.commandStore().insert(pending)) {
             CommandRecord winner = options.commandStore()
                     .findByIdempotencyKey(submission.issuer(), submission.idempotencyKey())
@@ -346,22 +346,37 @@ public final class CommandRuntime {
      * @param temporalAudit     临时命令审计 seam；不得为空（无审计时显式使用
      *                          {@link TemporalCommandAudit#noop()}）
      * @param jsonMapper        命令解码/outbox 序列化
+     * @param pendingLease      PENDING 租约时长
      */
     public record Options(TransactionRunner transactionRunner, LockProvider lockProvider,
                           Duration lockTtl, Clock clock, IdGenerator<UUID> idGenerator,
                           CommandStore commandStore, TemporalStore temporalStore,
                           OutboxWriter outboxWriter, TemporalCommandAudit temporalAudit,
-                          JsonMapper jsonMapper) {
+                          JsonMapper jsonMapper, Duration pendingLease) {
 
         /**
-         * 兼容既有装配：默认 JsonMapper。
+         * 兼容既有装配：默认 JsonMapper 与 60 秒租约。
          */
         public Options(TransactionRunner transactionRunner, LockProvider lockProvider,
                        Duration lockTtl, Clock clock, IdGenerator<UUID> idGenerator,
                        CommandStore commandStore, TemporalStore temporalStore,
                        OutboxWriter outboxWriter, TemporalCommandAudit temporalAudit) {
             this(transactionRunner, lockProvider, lockTtl, clock, idGenerator, commandStore,
-                    temporalStore, outboxWriter, temporalAudit, JsonMapper.builder().build());
+                    temporalStore, outboxWriter, temporalAudit, JsonMapper.builder().build(),
+                    Duration.ofSeconds(60));
+        }
+
+        /**
+         * 兼容既有装配：默认 60 秒租约。
+         */
+        public Options(TransactionRunner transactionRunner, LockProvider lockProvider,
+                       Duration lockTtl, Clock clock, IdGenerator<UUID> idGenerator,
+                       CommandStore commandStore, TemporalStore temporalStore,
+                       OutboxWriter outboxWriter, TemporalCommandAudit temporalAudit,
+                       JsonMapper jsonMapper) {
+            this(transactionRunner, lockProvider, lockTtl, clock, idGenerator, commandStore,
+                    temporalStore, outboxWriter, temporalAudit, jsonMapper,
+                    Duration.ofSeconds(60));
         }
 
         /**
@@ -392,8 +407,12 @@ public final class CommandRuntime {
             Objects.requireNonNull(outboxWriter, "outboxWriter");
             Objects.requireNonNull(temporalAudit, "temporalAudit");
             jsonMapper = jsonMapper == null ? JsonMapper.builder().build() : jsonMapper;
+            pendingLease = pendingLease == null ? Duration.ofSeconds(60) : pendingLease;
             if (lockTtl.isZero() || lockTtl.isNegative()) {
                 throw new IllegalArgumentException("lockTtl must be positive");
+            }
+            if (pendingLease.isZero() || pendingLease.isNegative()) {
+                throw new IllegalArgumentException("pendingLease must be positive");
             }
         }
     }

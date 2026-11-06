@@ -62,8 +62,13 @@ public abstract class CommandStoreContractTest {
 
     protected CommandRecord pending(UUID id, UUID issuer, String idempotencyKey,
                                     Map<String, Object> payload) {
+        return pending(id, issuer, idempotencyKey, payload, NOW.plusSeconds(60));
+    }
+
+    protected CommandRecord pending(UUID id, UUID issuer, String idempotencyKey,
+                                    Map<String, Object> payload, Instant leaseUntil) {
         return CommandRecord.pending(id, TYPE, NOW, issuer, payload, idempotencyKey,
-                FINGERPRINT, NOW);
+                FINGERPRINT, NOW, leaseUntil);
     }
 
     @Test
@@ -218,6 +223,26 @@ public abstract class CommandStoreContractTest {
         assertThat(store().find(pending.id())).get()
                 .extracting(CommandRecord::status)
                 .isEqualTo(CommandStatus.ACCEPTED);
+    }
+
+    @Test
+    @DisplayName("expirePending 只删除租约过期的 PENDING，并释放幂等键")
+    void expirePendingDeletesOnlyExpiredPending() {
+        CommandRecord expired = pending(UUID.randomUUID(), ISSUER, "k-expired", Map.of(),
+                NOW.minusSeconds(1));
+        CommandRecord active = pending(UUID.randomUUID(), ISSUER, "k-active", Map.of(),
+                NOW.plusSeconds(60));
+        CommandRecord terminal = pending(UUID.randomUUID(), ISSUER, "k-terminal", Map.of(),
+                NOW.minusSeconds(1)).accepted(UUID.randomUUID(), 1L, List.of());
+        store().insert(expired);
+        store().insert(active);
+        store().insert(terminal);
+
+        assertThat(store().expirePending(NOW)).isEqualTo(1);
+        assertThat(store().findByIdempotencyKey(ISSUER, "k-expired")).isEmpty();
+        assertThat(store().findByIdempotencyKey(ISSUER, "k-active")).contains(active);
+        assertThat(store().findByIdempotencyKey(ISSUER, "k-terminal")).contains(terminal);
+        assertThat(store().insert(pending("k-expired"))).isTrue();
     }
 
     @Test

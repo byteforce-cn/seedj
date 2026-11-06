@@ -2,6 +2,7 @@ package cn.byteforce.seedj.cqrs.spi;
 
 import cn.byteforce.seedj.cqrs.CommandRecord;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -66,4 +67,12 @@ public interface CommandStore {
      * @param id 命令 ID
      */
     void abandon(UUID id);
+
+    /**
+     * 删除租约已过期的 {@code PENDING} 记录，释放幂等键。
+     *
+     * @param now 当前时间
+     * @return 删除条数
+     */
+    long expirePending(Instant now);
 }

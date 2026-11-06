@@ -264,7 +264,9 @@ public class TemporalCommandAutoConfiguration {
         }
         return new CommandRuntime(new CommandRuntime.Options(
                 transactionRunner, lockProvider, Duration.ofSeconds(30), clock, ids, commands,
-                objects, outboxWriter, audit.getIfAvailable(TemporalCommandAudit::noop)));
+                objects, outboxWriter, audit.getIfAvailable(TemporalCommandAudit::noop),
+                tools.jackson.databind.json.JsonMapper.builder().build(),
+                properties.getPendingLease()));
     }
 
     private static void requireDependency(Object dependency, String name) {

@@ -32,6 +32,7 @@ final class CommandMigrations {
                     locator             UUID,
                     version             BIGINT,
                     created_at          TIMESTAMPTZ(6) NOT NULL,
+                    lease_until         TIMESTAMPTZ(6) NOT NULL,
                     CONSTRAINT uq_command_record_idempotency UNIQUE (issuer, idempotency_key),
                     CONSTRAINT ck_command_record_status
                         CHECK (status IN ('pending', 'accepted', 'rejected')),
@@ -47,6 +48,8 @@ final class CommandMigrations {
 
                 CREATE INDEX IF NOT EXISTS idx_command_record_status
                     ON command_record (status, created_at);
+                CREATE INDEX IF NOT EXISTS idx_command_record_lease
+                    ON command_record (status, lease_until);
                 """));
     }
 }

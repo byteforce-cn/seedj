@@ -8,3 +8,4 @@ cn.byteforce.seedj.starter.cqrs.wiring.TemporalCommandAutoConfiguration
 cn.byteforce.seedj.starter.read.ObjectModuleAutoConfiguration
 cn.byteforce.seedj.starter.read.ReadAutoConfiguration
 cn.byteforce.seedj.starter.read.QueryEndpointAutoConfiguration
+cn.byteforce.seedj.starter.cqrs.wiring.CommandReaperAutoConfiguration

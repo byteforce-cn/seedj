@@ -71,8 +71,8 @@ public final class PostgresCommandStore implements CommandStore {
                 INSERT INTO command_record
                     (id, type, issued_at, issuer, payload, idempotency_key,
                      payload_fingerprint, status, rejection_code, rejection_reason,
-                     event_ids, locator, version, created_at)
-                VALUES (?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?)
+                     event_ids, locator, version, created_at, lease_until)
+                VALUES (?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?)
                 ON CONFLICT DO NOTHING
                 """,
                 record.id(),
@@ -88,7 +88,8 @@ public final class PostgresCommandStore implements CommandStore {
                 JSON.writeValueAsString(record.eventIds().stream().map(UUID::toString).toList()),
                 record.locator(),
                 record.version(),
-                Timestamp.from(record.createdAt()));
+                Timestamp.from(record.createdAt()),
+                Timestamp.from(record.leaseUntil()));
         return inserted == 1;
     }
 
@@ -125,6 +126,12 @@ public final class PostgresCommandStore implements CommandStore {
         jdbc.update("DELETE FROM command_record WHERE id = ? AND status = 'pending'", id);
     }
 
+    @Override
+    public long expirePending(java.time.Instant now) {
+        return jdbc.update("DELETE FROM command_record WHERE status = 'pending'"
+                + " AND lease_until < ?", Timestamp.from(now));
+    }
+
     private static CommandRecord map(ResultSet rs, int rowNum) throws SQLException {
         UUID locator = rs.getObject("locator", UUID.class);
         long version = rs.getLong("version");
@@ -143,7 +150,8 @@ public final class PostgresCommandStore implements CommandStore {
                 eventIds(rs.getString("event_ids")),
                 locator,
                 nullableVersion,
-                instant(rs, "created_at"));
+                instant(rs, "created_at"),
+                instant(rs, "lease_until"));
     }
 
     private static Map<String, Object> payload(String json) {
