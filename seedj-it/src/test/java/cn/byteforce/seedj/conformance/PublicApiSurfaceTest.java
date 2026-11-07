@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test;
  * 公共 API 门禁：每个 public 顶层类型都必须显式登记在 {@code config/public-api.txt}。
  *
  * <p>清单是 allowlist，不是文档：新增类型必须改清单并在评审中可见，删除类型要按
- * API 兼容性规则走（由独立文档仓维护）。格式 {@code module|package|SimpleName}，
+ * API 兼容性规则走。格式 {@code module|package|SimpleName}，
  * 按行排序。开发者确认变更后运行 {@code -Dseedj.api.update=true} 写回并提交。</p>
  */
 class PublicApiSurfaceTest {

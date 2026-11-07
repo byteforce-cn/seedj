@@ -15,7 +15,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /**
  * PKI 契约测试套件。新 provider 只需 {@code extends} 本类并实现 {@link #newProvider()}。
  *
- * <p>覆盖 ADR-0001 承诺的语义：signingIdentity 幂等、吊销不复活、rotate 换钥。
+ * <p>覆盖 SPI 承诺的语义：signingIdentity 幂等、吊销不复活、rotate 换钥。
  */
 public abstract class PkiProviderContractTest {
 

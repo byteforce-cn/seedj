@@ -15,7 +15,7 @@ import java.util.Arrays;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * 链路顺序门禁（ADR-0007）。
+ * 链路顺序门禁。
  *
  * <p>Spring Security 按 {@code @Order} 依次匹配，第一条匹配的链生效。历史上
  * IAM 的 {@code defaultSecurityFilterChain} 是无 matcher 的 catch-all 且

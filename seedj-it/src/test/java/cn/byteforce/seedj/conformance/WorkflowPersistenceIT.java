@@ -24,7 +24,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * 工作流持久化基础：重启后实例/任务仍在，定时器到期后任务进入 TIMEOUT。
  *
- * <p>完整 JDBC 状态机（定义注册、动作推进）按 ADR-0002 作为 M5 后续工作；本测试固定
+ * <p>完整 JDBC 状态机（定义注册、动作推进）作为 M5 后续工作；本测试固定
  * 存储 schema、跨连接可读与 timer 扫描三个 1.0 之后不能再退回的语义。</p>
  */
 @Testcontainers

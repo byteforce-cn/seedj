@@ -17,7 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * 产品代码命名门禁：规范名只能以三种线格式出现（错误码、Schema URI、DDL 域类型）。
  *
  * <p>扫描所有模块的 {@code src/main/java}、{@code src/main/resources} 与 {@code pom.xml}，
- * 去掉三条例外后不得再出现规范名。独立文档仓与构建产物不参与扫描。</p>
+ * 去掉三条例外后不得再出现规范名。构建产物不参与扫描。</p>
  */
 class NamingGuardTest {
 

@@ -14,7 +14,7 @@ import java.time.Clock;
 /**
  * 工作流内存实现装配。
  *
- * <p>按 ADR-0002，不使用 {@code ProviderFactory}/{@code reflective provider lookup} 反射；
+ * <p>不使用 {@code ProviderFactory}/{@code reflective provider lookup} 反射；
  * bean 名为 {@code memory}，业务覆盖时用 {@code @ConditionalOnMissingBean} 让位。
  */
 @AutoConfiguration

@@ -18,7 +18,7 @@
  *       {@code @ConditionalOnMissingBean}；</li>
  *   <li>用 {@code seedj.outbox.provider} 选择实现；</li>
  *   <li>把 {@code core} 的 {@code OutboxStoreContractTest} {@code extends} 一行并跑通；</li>
- *   <li>在 SPI 适配器登记表里加一行（表由独立文档仓维护）。</li>
+ *   <li>在 SPI 适配器登记表里加一行（见 docs/guide/spi.md）。</li>
  * </ol>
  */
 package cn.byteforce.seedj.outbox;

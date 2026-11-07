@@ -426,7 +426,7 @@ public class IamServerAutoConfiguration {
     public SecurityFilterChain defaultSecurityFilterChain(
             HttpSecurity http, IamMfaAuthenticationSuccessHandler successHandler)
             throws Exception {
-        // 浏览器登录链只负责登录/MFA 页面，必须排在所有能力链之后（见 ADR-0007）。
+        // 浏览器登录链只负责登录/MFA 页面，必须排在所有能力链之后（见 docs/guide/iam-starter.md）。
         // 之前是无 matcher 的 catch-all 且 order=5：聚合了 biz 的宿主里会把业务链整条吃掉。
         http.securityMatcher("/login", "/logout", "/mfa", "/error")
                 .authorizeHttpRequests(auth -> auth

@@ -5,6 +5,6 @@
  *
  * <p><b>依赖方向</b>：只允许 JDK、provided 的 Jackson 3 与 SLF4J；禁止依赖 Spring、
  * {@code java.sql}/{@code javax.sql} 与任何实现模块。规则由 {@code ArchitectureTest}
- * 与 {@code CorePurityTest} 执行，决策见 ADR-0010。</p>
+ * 与 {@code CorePurityTest} 执行；Jackson 3 仅用于线格式，core 不引 Jackson 2。</p>
  */
 package cn.byteforce.seedj.core;

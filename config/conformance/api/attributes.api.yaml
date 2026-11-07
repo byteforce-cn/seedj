@@ -1,4 +1,4 @@
-# attributes.api.yaml — EIS 授权属性快照 API 契约（ADR-0004 加法演进，MINOR）
+# attributes.api.yaml — EIS 授权属性快照 API 契约（EIS ADR-0004 加法演进，MINOR）
 # 依据：00-freeze/adr/0004-authz-attributes-ownership.md、04-authz-contract/attribute.rules.yaml
 # 版本：工件 info.version=1.0.0（本文件为新增加法工件）；核心发布窗口按 version-policy 统一升版
 # 属主：人事域（extensions/hr）；消费方：授权引擎/ABAC 条件求值/审批条件参与。
@@ -13,7 +13,7 @@ info:
     - as_of 为业务时点（必填），recorded_at 语义与 04 授权同一口径（半开区间）；
     - 成功返回快照；无快照返回 409 ATTRIBUTE_MISSING；属主不可达由部署侧以 503 表达；
     - attribute_state：fresh（在有效期内）/ stale（已过期，仍返回快照供审计）。
-    - 调用方边界（ATR-008 / ADR-0006）：仅限受信后端服务（授权引擎、审批条件求值、域服务）
+    - 调用方边界（ATR-008 / EIS ADR-0006）：仅限受信后端服务（授权引擎、审批条件求值、域服务）
       以服务身份（system principal）认证并持有属主为该属性集声明的 service 权限（如
       hr.attributes.read）；不得经 BFF/SPA 暴露给浏览器会话；无权限/身份不符返回 403 且 fail-closed。
 

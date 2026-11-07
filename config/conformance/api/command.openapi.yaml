@@ -113,7 +113,7 @@ components:
     CommandAccepted:
       type: object
       description: |
-        命令执行结果定位（ADR-0014）：
+        命令执行结果定位（EIS ADR-0014）：
         - 命令响应只表达「命令执行结果」，**不得携带读模型投影**（业务字段/关联字段/计算字段一律由读接口返回）；
         - 双时间轴默认路径返回 `locator` + `version`：`locator` = 聚合根 ID（单聚合命令）或流程实例 ID
           （长流程命令）；事件溯源路径返回 `target_ref` + `version`：`target_ref` = 聚合标识的规范文本

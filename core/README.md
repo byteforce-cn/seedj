@@ -43,7 +43,7 @@ try (ScopeContextHolder.Scope ignored = ScopeContextHolder.open(context)) {
 
 ## 边界
 
-- 零 Spring / JDBC 依赖；Jackson 3 仅用于线格式且必须 `provided`（ADR-0010）；
+- 零 Spring / JDBC 依赖；Jackson 3 仅用于线格式且必须 `provided`；
 - 请求事实由 `ContextWriter` 写入、`ScopeContextFilter` 打开；后台任务自行
   `ScopeContextHolder.open(...)`；
 - 业务读只能经 `ReadGateway`；`TemporalStore.current` 只供写路径使用；
