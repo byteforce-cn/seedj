@@ -1,0 +1,12 @@
+* text=auto eol=lf
+*.java text
+*.xml text
+*.yml text
+*.yaml text
+*.md text
+*.json text
+mvnw text eol=lf
+mvnw.cmd text eol=crlf
+*.json -diff
+.flattened-pom.xml linguist-generated
+docs/** linguist-documentation

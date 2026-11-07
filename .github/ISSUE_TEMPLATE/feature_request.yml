@@ -1,0 +1,30 @@
+name: 功能建议
+description: 提出新能力或改进
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 要解决的问题
+      description: 现在的做法哪里不够好？谁受影响？
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 建议方案
+      description: 接口形状、配置项或使用方式；有替代方案也写出来。
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 替代方案
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: 影响面
+      options:
+        - label: 改变公共 API（需要 decision issue）
+        - label: 改变线格式或错误码
+        - label: 只影响文档

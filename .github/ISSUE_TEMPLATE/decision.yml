@@ -1,0 +1,35 @@
+name: 架构决策
+description: 提出需要记录的架构决策
+labels: ["decision"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        决策提案先在这里讨论；结论合并后，PR 里用 `Decision: #<issue>` 引用。
+  - type: textarea
+    id: context
+    attributes:
+      label: 背景
+      description: 现状、约束，以及为什么现在必须决定。
+    validations:
+      required: true
+  - type: textarea
+    id: options
+    attributes:
+      label: 选项
+      description: 至少两个真实可选项，各自代价。
+    validations:
+      required: true
+  - type: textarea
+    id: decision
+    attributes:
+      label: 建议结论
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: 影响与迁移
+      description: 影响哪些模块/使用方？破坏性变更如何迁移？
+    validations:
+      required: true

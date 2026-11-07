@@ -1,0 +1,55 @@
+name: 缺陷报告
+description: 报告可复现的问题
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈。请先搜索已有 issue；安全问题请不要在这里报告，见 SECURITY.md。
+  - type: textarea
+    id: what
+    attributes:
+      label: 现象
+      description: 发生了什么？期望是什么？
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: 复现步骤
+      description: 命令、请求体或测试代码；越短越好。
+      placeholder: |
+        1. ./mvnw -pl seedj-server/hr -am spring-boot:run -Dspring-boot.run.profiles=local
+        2. curl -X POST ...
+        3. 观察 ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: 版本或 commit
+      placeholder: v1.0.0 / 541d20e
+    validations:
+      required: true
+  - type: dropdown
+    id: module
+    attributes:
+      label: 相关模块
+      multiple: true
+      options:
+        - core
+        - seedj-codegen
+        - seedj-infra-local
+        - seedj-workflow-local
+        - seedj-jdbc-postgresql
+        - seedj-biz-starter
+        - seedj-iam-starter
+        - seedj-server
+        - docs
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志或堆栈
+      render: text

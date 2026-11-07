@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 安全漏洞
+    url: https://github.com/byteforce-cn/seedj/security/advisories/new
+    about: 请走私密报告，不要开公开 issue。
+  - name: 使用文档
+    url: https://byteforce-cn.github.io/seedj/
+    about: 快速开始、业务开发手册与已知限制。
