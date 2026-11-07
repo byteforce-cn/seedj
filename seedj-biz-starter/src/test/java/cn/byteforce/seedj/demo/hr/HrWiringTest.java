@@ -16,6 +16,7 @@ import cn.byteforce.seedj.demo.hr.domain.EmployeeRepository;
 import cn.byteforce.seedj.demo.hr.query.EmployeeDirectoryProjection;
 import cn.byteforce.seedj.demo.hr.query.EmployeeView;
 import cn.byteforce.seedj.demo.hr.query.HrQueryService;
+import cn.byteforce.seedj.demo.hr.web.HrEmployeeController;
 import cn.byteforce.seedj.domain.event.DomainEvent;
 import cn.byteforce.seedj.eventbus.EventMessage;
 import cn.byteforce.seedj.eventbus.EventPublisher;
@@ -25,7 +26,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.bind.annotation.PostMapping;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
@@ -76,6 +79,15 @@ class HrWiringTest {
             assertThat(context.getBeanNamesForType(org.springframework.core.ResolvableType
                     .forClassWithGenerics(QueryAgent.class, listView))).hasSize(1);
         });
+    }
+
+    @Test
+    @DisplayName("demo 不再自写命令端点")
+    void demoHasNoBespokeCommandEndpoint() {
+        assertThat(Arrays.stream(HrEmployeeController.class.getMethods())
+                .noneMatch(method -> method.isAnnotationPresent(PostMapping.class)))
+                .as("事件溯源命令必须走 /commands，不再自写命令 Controller")
+                .isTrue();
     }
 
     @Test
