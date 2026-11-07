@@ -2,15 +2,20 @@ import { defineConfig } from "vitepress";
 
 // 开发者文档站：只构建 docs/ 下的产品文档，过程文档不在构建输入里。
 // https://vitepress.dev/reference/site-config
+// 站点挂在 GitHub Pages 的项目路径下，base 必须同时用于 sitemap 与 head 里的静态资源，
+// 否则线上产出会指到域名根路径（sitemap 全 404、favicon 404）。
+const base = "/seedj/";
+
 export default defineConfig({
   lang: "zh-CN",
   title: "Seedj",
   description: "Java 21 / Spring Boot 业务基础设施：命令、双时间轴、权限与工作流",
-  base: "/seedj/",
+  base,
   cleanUrls: true,
   lastUpdated: true,
+  head: [["link", { rel: "icon", type: "image/svg+xml", href: `${base}favicon.svg` }]],
   sitemap: {
-    hostname: "https://byteforce-cn.github.io",
+    hostname: "https://byteforce-cn.github.io/seedj/",
   },
   themeConfig: {
     nav: [
@@ -35,8 +40,7 @@ export default defineConfig({
           text: "业务开发",
           items: [
             { text: "业务开发手册", link: "/guide/cookbook" },
-            { text: "模块", link: "/guide/modules" },
-      { text: "命令契约", link: "/guide/command-contract" },
+            { text: "命令契约", link: "/guide/command-contract" },
             { text: "读模型", link: "/guide/read-model" },
             { text: "错误目录", link: "/guide/errors" },
             { text: "测试", link: "/guide/testing" },
