@@ -1,9 +1,7 @@
 package cn.byteforce.seedj.id;
 
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -11,13 +9,12 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
-/**
- * IdGenerator 契约测试套件。
- */
+/** IdGenerator 契约测试套件。 */
 public abstract class IdGeneratorContractTest {
 
     protected IdGenerator<Long> generator;
@@ -49,7 +46,6 @@ public abstract class IdGeneratorContractTest {
         }
     }
 
-
     @Test
     @DisplayName("并发调用不产生重复 ID")
     void concurrentUniqueness() throws Exception {
@@ -61,18 +57,19 @@ public abstract class IdGeneratorContractTest {
         CountDownLatch done = new CountDownLatch(threads);
 
         for (int t = 0; t < threads; t++) {
-            pool.submit(() -> {
-                try {
-                    start.await();
-                    for (int i = 0; i < perThread; i++) {
-                        ids.add(generator.id());
-                    }
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                } finally {
-                    done.countDown();
-                }
-            });
+            pool.submit(
+                    () -> {
+                        try {
+                            start.await();
+                            for (int i = 0; i < perThread; i++) {
+                                ids.add(generator.id());
+                            }
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                        } finally {
+                            done.countDown();
+                        }
+                    });
         }
         start.countDown();
         assertThat(done.await(30, TimeUnit.SECONDS)).isTrue();

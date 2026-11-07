@@ -36,16 +36,17 @@ public final class DefaultContextResolver implements ContextResolver {
     public ScopeContext resolve(Caller caller) {
         Objects.requireNonNull(caller, "caller");
         Map<String, Object> facts = new LinkedHashMap<>();
-        ContextSink sink = new ContextSink() {
-            @Override
-            public <T> void put(ScopeKey<T> key, T value) {
-                Objects.requireNonNull(key, "key");
-                if (facts.containsKey(key.name())) {
-                    throw new IllegalStateException("duplicate scope fact: " + key.name());
-                }
-                facts.put(key.name(), key.type().validate(key.name(), value));
-            }
-        };
+        ContextSink sink =
+                new ContextSink() {
+                    @Override
+                    public <T> void put(ScopeKey<T> key, T value) {
+                        Objects.requireNonNull(key, "key");
+                        if (facts.containsKey(key.name())) {
+                            throw new IllegalStateException("duplicate scope fact: " + key.name());
+                        }
+                        facts.put(key.name(), key.type().validate(key.name(), value));
+                    }
+                };
         for (ContextWriter writer : writers) {
             writer.write(sink, caller);
         }

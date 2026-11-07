@@ -1,25 +1,24 @@
 package cn.byteforce.seedj.iam.spi;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import cn.byteforce.seedj.iam.IamErrorCode;
 import cn.byteforce.seedj.iam.IamException;
 import cn.byteforce.seedj.iam.IamUser;
 import cn.byteforce.seedj.iam.IamUserQuery;
 import cn.byteforce.seedj.iam.ScimComparisonOperator;
 import cn.byteforce.seedj.iam.ScimFilter;
-import org.junit.jupiter.api.Test;
-
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import org.junit.jupiter.api.Test;
 
 /**
  * {@link IamUserRepository} 契约测试套件。
  *
- * <p>实现方提供 {@link #repository()}；每个用例拿到独立存储（JUnit 每个用例新建测试实例），
- * 内存实现与 PostgreSQL 实现必须跑同一套断言。用户名在同一租户内大小写不敏感唯一。</p>
+ * <p>实现方提供 {@link #repository()}；每个用例拿到独立存储（JUnit 每个用例新建测试实例）， 内存实现与 PostgreSQL
+ * 实现必须跑同一套断言。用户名在同一租户内大小写不敏感唯一。
  */
 public abstract class IamUserRepositoryContractTest {
 
@@ -56,9 +55,15 @@ public abstract class IamUserRepositoryContractTest {
     void rejectsDuplicateId() {
         repository().create(IamUser.create("u1", "default", "alice", "Alice", null, true), "h1");
 
-        assertThatThrownBy(() -> repository().create(
-                IamUser.create("u1", "default", "bob", "Bob", null, true), "h2"))
-                .isInstanceOfSatisfying(IamException.class,
+        assertThatThrownBy(
+                        () ->
+                                repository()
+                                        .create(
+                                                IamUser.create(
+                                                        "u1", "default", "bob", "Bob", null, true),
+                                                "h2"))
+                .isInstanceOfSatisfying(
+                        IamException.class,
                         e -> assertThat(e.getCode()).isEqualTo(IamErrorCode.USER_CONFLICT));
     }
 
@@ -66,33 +71,50 @@ public abstract class IamUserRepositoryContractTest {
     void rejectsDuplicateUserNameCaseInsensitively() {
         repository().create(IamUser.create("u1", "default", "Alice", "Alice", null, true), "h1");
 
-        assertThatThrownBy(() -> repository().create(
-                IamUser.create("u2", "default", "ALICE", "Alice", null, true), "h2"))
-                .isInstanceOfSatisfying(IamException.class,
+        assertThatThrownBy(
+                        () ->
+                                repository()
+                                        .create(
+                                                IamUser.create(
+                                                        "u2", "default", "ALICE", "Alice", null,
+                                                        true),
+                                                "h2"))
+                .isInstanceOfSatisfying(
+                        IamException.class,
                         e -> assertThat(e.getCode()).isEqualTo(IamErrorCode.USER_CONFLICT));
     }
 
     @Test
     void updateIncrementsVersionAndKeepsPassword() {
-        IamUser stored = repository().create(
-                IamUser.create("u1", "default", "alice", "Alice", null, true), "h1");
+        IamUser stored =
+                repository()
+                        .create(
+                                IamUser.create("u1", "default", "alice", "Alice", null, true),
+                                "h1");
 
-        IamUser updated = repository().update(stored.withProfile("Alicia", "a@example.com", Map.of()));
+        IamUser updated =
+                repository().update(stored.withProfile("Alicia", "a@example.com", Map.of()));
 
         assertThat(updated.version()).isEqualTo(stored.version() + 1);
-        assertThat(repository().findById("u1")).get()
-                .extracting(IamUser::displayName).isEqualTo("Alicia");
+        assertThat(repository().findById("u1"))
+                .get()
+                .extracting(IamUser::displayName)
+                .isEqualTo("Alicia");
         assertThat(repository().findPasswordHash("u1")).contains("h1");
     }
 
     @Test
     void updateRejectsStaleVersion() {
-        IamUser stored = repository().create(
-                IamUser.create("u1", "default", "alice", "Alice", null, true), "h1");
+        IamUser stored =
+                repository()
+                        .create(
+                                IamUser.create("u1", "default", "alice", "Alice", null, true),
+                                "h1");
         repository().update(stored.withActive(false));
 
         assertThatThrownBy(() -> repository().update(stored.withActive(true)))
-                .isInstanceOfSatisfying(IamException.class,
+                .isInstanceOfSatisfying(
+                        IamException.class,
                         e -> assertThat(e.getCode()).isEqualTo(IamErrorCode.CONFLICT));
     }
 
@@ -101,33 +123,59 @@ public abstract class IamUserRepositoryContractTest {
         IamUser ghost = IamUser.create("missing", "default", "ghost", "Ghost", null, true);
 
         assertThatThrownBy(() -> repository().update(ghost))
-                .isInstanceOfSatisfying(IamException.class,
+                .isInstanceOfSatisfying(
+                        IamException.class,
                         e -> assertThat(e.getCode()).isEqualTo(IamErrorCode.USER_NOT_FOUND));
     }
 
     @Test
     void updateRejectsUserNameTakenByAnotherUser() {
         repository().create(IamUser.create("u1", "default", "alice", "Alice", null, true), "h1");
-        IamUser bob = repository().create(
-                IamUser.create("u2", "default", "bob", "Bob", null, true), "h2");
+        IamUser bob =
+                repository()
+                        .create(IamUser.create("u2", "default", "bob", "Bob", null, true), "h2");
 
-        IamUser renamed = new IamUser(bob.id(), bob.tenantId(), "alice", bob.externalId(),
-                bob.displayName(), bob.email(), bob.active(), bob.attributes(), bob.version(),
-                bob.createdAt(), bob.updatedAt());
+        IamUser renamed =
+                new IamUser(
+                        bob.id(),
+                        bob.tenantId(),
+                        "alice",
+                        bob.externalId(),
+                        bob.displayName(),
+                        bob.email(),
+                        bob.active(),
+                        bob.attributes(),
+                        bob.version(),
+                        bob.createdAt(),
+                        bob.updatedAt());
 
         assertThatThrownBy(() -> repository().update(renamed))
-                .isInstanceOfSatisfying(IamException.class,
+                .isInstanceOfSatisfying(
+                        IamException.class,
                         e -> assertThat(e.getCode()).isEqualTo(IamErrorCode.USER_CONFLICT));
     }
 
     @Test
     void renameFreesPreviousLogin() {
-        IamUser stored = repository().create(
-                IamUser.create("u1", "default", "alice", "Alice", null, true), "h1");
+        IamUser stored =
+                repository()
+                        .create(
+                                IamUser.create("u1", "default", "alice", "Alice", null, true),
+                                "h1");
 
-        IamUser renamed = new IamUser(stored.id(), stored.tenantId(), "alicia", stored.externalId(),
-                stored.displayName(), stored.email(), stored.active(), stored.attributes(),
-                stored.version(), stored.createdAt(), stored.updatedAt());
+        IamUser renamed =
+                new IamUser(
+                        stored.id(),
+                        stored.tenantId(),
+                        "alicia",
+                        stored.externalId(),
+                        stored.displayName(),
+                        stored.email(),
+                        stored.active(),
+                        stored.attributes(),
+                        stored.version(),
+                        stored.createdAt(),
+                        stored.updatedAt());
         repository().update(renamed);
 
         assertThat(repository().findByUserName("default", "alice")).isEmpty();
@@ -166,7 +214,8 @@ public abstract class IamUserRepositoryContractTest {
     @Test
     void rejectingPasswordUpdateForUnknownUser() {
         assertThatThrownBy(() -> repository().updatePassword("missing", "h2", Instant.now()))
-                .isInstanceOfSatisfying(IamException.class,
+                .isInstanceOfSatisfying(
+                        IamException.class,
                         e -> assertThat(e.getCode()).isEqualTo(IamErrorCode.USER_NOT_FOUND));
     }
 

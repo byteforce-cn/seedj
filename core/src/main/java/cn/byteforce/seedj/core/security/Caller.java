@@ -10,8 +10,7 @@ import java.util.Set;
 /**
  * 调用方身份快照：业务代码唯一需要认识的安全类型。
  *
- * <p>刻意设计成 {@code record}：测试直接 {@code new}，不需要 mock，也不需要
- * 启动 Spring Security 上下文。</p>
+ * <p>刻意设计成 {@code record}：测试直接 {@code new}，不需要 mock，也不需要 启动 Spring Security 上下文。
  *
  * <pre>{@code
  * Caller alice = new Caller("u-1", "alice", "default",
@@ -20,17 +19,17 @@ import java.util.Set;
  * assertThat(alice.hasRole("ADMIN")).isTrue();
  * }</pre>
  *
- * <p>字段来源与 {@code IamSubject} 保持一致，但两者职责不同：{@code IamSubject}
- * 是策略决策点的输入快照，{@code Caller} 是业务服务的只读调用方视图。</p>
+ * <p>字段来源与 {@code IamSubject} 保持一致，但两者职责不同：{@code IamSubject} 是策略决策点的输入快照，{@code Caller}
+ * 是业务服务的只读调用方视图。
  *
- * @param id       稳定主体标识（JWT {@code user_id}，缺失时回落 {@code sub}）
+ * @param id 稳定主体标识（JWT {@code user_id}，缺失时回落 {@code sub}）
  * @param username 登录名（JWT {@code sub}）
  * @param tenantId 租户；空白回落 {@link #DEFAULT_TENANT}
- * @param roles    角色名，不带 {@code ROLE_} 前缀
+ * @param roles 角色名，不带 {@code ROLE_} 前缀
  * @param permissions 权限名，不带 {@code PERM_} 前缀
- * @param groups   组名，不带 {@code GROUP_} 前缀
- * @param amr      认证方法引用（RFC 8176），至少包含 {@link #DEFAULT_AMR}
- * @param acr      认证上下文类引用；空白回落 {@link #DEFAULT_ACR}
+ * @param groups 组名，不带 {@code GROUP_} 前缀
+ * @param amr 认证方法引用（RFC 8176），至少包含 {@link #DEFAULT_AMR}
+ * @param acr 认证上下文类引用；空白回落 {@link #DEFAULT_ACR}
  * @param attributes 其余令牌声明，供 ABAC 使用；不得包含密码、OTP、密钥材料
  * @author ByteForce
  * @since 1.0.0
@@ -90,8 +89,7 @@ public record Caller(
     /**
      * 把集合型属性读成字符串列表；缺失或非集合返回空列表。
      *
-     * <p>业务代码不需要直接 {@code attributes().get(...)} 再判断类型。只做展示/事实提取，
-     * 不做强制类型转换；需要结构化属性时在 core 增加明确类型。</p>
+     * <p>业务代码不需要直接 {@code attributes().get(...)} 再判断类型。只做展示/事实提取， 不做强制类型转换；需要结构化属性时在 core 增加明确类型。
      *
      * @param name 属性名
      * @return 字符串列表

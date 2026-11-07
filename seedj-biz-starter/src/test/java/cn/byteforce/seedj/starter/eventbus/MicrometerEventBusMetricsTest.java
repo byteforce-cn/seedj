@@ -1,15 +1,13 @@
 package cn.byteforce.seedj.starter.eventbus;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-/**
- * micrometer 指标名与标签：看板与告警按这些名字采集，改名即破坏契约。
- */
+/** micrometer 指标名与标签：看板与告警按这些名字采集，改名即破坏契约。 */
 class MicrometerEventBusMetricsTest {
 
     private final SimpleMeterRegistry registry = new SimpleMeterRegistry();
@@ -47,12 +45,30 @@ class MicrometerEventBusMetricsTest {
         metrics.published("OrderPaid", false);
         metrics.published("OrderShipped", false);
 
-        assertThat(count("seedj.eventbus.publish.count", "eventType", "OrderPaid",
-                "mode", "outbox")).isEqualTo(2.0);
-        assertThat(count("seedj.eventbus.publish.count", "eventType", "OrderPaid",
-                "mode", "transport")).isEqualTo(1.0);
-        assertThat(count("seedj.eventbus.publish.count", "eventType", "OrderShipped",
-                "mode", "transport")).isEqualTo(1.0);
+        assertThat(
+                        count(
+                                "seedj.eventbus.publish.count",
+                                "eventType",
+                                "OrderPaid",
+                                "mode",
+                                "outbox"))
+                .isEqualTo(2.0);
+        assertThat(
+                        count(
+                                "seedj.eventbus.publish.count",
+                                "eventType",
+                                "OrderPaid",
+                                "mode",
+                                "transport"))
+                .isEqualTo(1.0);
+        assertThat(
+                        count(
+                                "seedj.eventbus.publish.count",
+                                "eventType",
+                                "OrderShipped",
+                                "mode",
+                                "transport"))
+                .isEqualTo(1.0);
     }
 
     @Test
@@ -61,8 +77,7 @@ class MicrometerEventBusMetricsTest {
         metrics.publishFailed("OrderPaid");
         metrics.publishFailed("OrderPaid");
 
-        assertThat(count("seedj.eventbus.publish.failed", "eventType", "OrderPaid"))
-                .isEqualTo(2.0);
+        assertThat(count("seedj.eventbus.publish.failed", "eventType", "OrderPaid")).isEqualTo(2.0);
     }
 
     private double count(String name, String... tags) {

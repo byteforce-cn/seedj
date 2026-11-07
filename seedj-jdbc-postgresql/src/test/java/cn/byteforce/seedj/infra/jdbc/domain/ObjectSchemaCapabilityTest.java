@@ -1,13 +1,5 @@
 package cn.byteforce.seedj.infra.jdbc.domain;
 
-import cn.byteforce.seedj.core.Migration;
-import cn.byteforce.seedj.domain.FieldType;
-import cn.byteforce.seedj.domain.ObjectSchema;
-import cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner;
-import org.junit.jupiter.api.Test;
-
-import java.util.List;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
@@ -16,14 +8,20 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import cn.byteforce.seedj.core.Migration;
+import cn.byteforce.seedj.domain.FieldType;
+import cn.byteforce.seedj.domain.ObjectSchema;
+import cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner;
+import java.util.List;
+import org.junit.jupiter.api.Test;
+
 class ObjectSchemaCapabilityTest {
 
-    private static final ObjectSchema SCHEMA = ObjectSchema.builder("order", "order_object")
-            .field("status", FieldType.TEXT)
-            .build();
+    private static final ObjectSchema SCHEMA =
+            ObjectSchema.builder("order", "order_object").field("status", FieldType.TEXT).build();
 
-    private static final List<Migration> MIGRATIONS = List.of(
-            new Migration(1, "create order_object", "CREATE TABLE order_object (id TEXT)"));
+    private static final List<Migration> MIGRATIONS =
+            List.of(new Migration(1, "create order_object", "CREATE TABLE order_object (id TEXT)"));
 
     private final JdbcMigrationRunner runner = mock(JdbcMigrationRunner.class);
 
@@ -82,10 +80,12 @@ class ObjectSchemaCapabilityTest {
 
     @Test
     void constructorRejectsMissingCollaborators() {
-        assertThatThrownBy(() -> new ObjectSchemaCapability("order-schema", null, SCHEMA, MIGRATIONS))
+        assertThatThrownBy(
+                        () -> new ObjectSchemaCapability("order-schema", null, SCHEMA, MIGRATIONS))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessageContaining("runner");
-        assertThatThrownBy(() -> new ObjectSchemaCapability("order-schema", runner, null, MIGRATIONS))
+        assertThatThrownBy(
+                        () -> new ObjectSchemaCapability("order-schema", runner, null, MIGRATIONS))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessageContaining("schema");
         assertThatThrownBy(() -> new ObjectSchemaCapability("order-schema", runner, SCHEMA, null))

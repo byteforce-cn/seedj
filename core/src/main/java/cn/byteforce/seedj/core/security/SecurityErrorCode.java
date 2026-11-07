@@ -6,11 +6,10 @@ import cn.byteforce.seedj.core.ErrorDescriptor;
 /**
  * 安全契约的稳定错误码。
  *
- * <p>错误项名称（{@link #name()}）进入响应体与日志，<b>不得</b>随重构变化；
- * 与 {@code IamErrorCode} 的分工：这里是"资源服务器侧"的通用失败，
- * IAM 侧的 {@code INVALID_CREDENTIALS}/{@code FORBIDDEN} 等仍然属于认证服务器语义。</p>
+ * <p>错误项名称（{@link #name()}）进入响应体与日志，<b>不得</b>随重构变化； 与 {@code IamErrorCode} 的分工：这里是"资源服务器侧"的通用失败，
+ * IAM 侧的 {@code INVALID_CREDENTIALS}/{@code FORBIDDEN} 等仍然属于认证服务器语义。
  *
- * <p>四类失败都不可重试：原样重放不会改变结果，调用方应重新认证或放弃。</p>
+ * <p>四类失败都不可重试：原样重放不会改变结果，调用方应重新认证或放弃。
  *
  * @author ByteForce
  * @since 1.0.0

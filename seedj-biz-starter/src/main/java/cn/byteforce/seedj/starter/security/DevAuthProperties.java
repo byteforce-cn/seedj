@@ -1,22 +1,20 @@
 package cn.byteforce.seedj.starter.security;
 
-import org.springframework.boot.context.properties.ConfigurationProperties;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
  * 本地开发认证配置（{@code seedj.biz.dev-auth.*}）。
  *
- * <p>宿主只声明本地调用方是谁，不再复制一份安全过滤器链；开关仍由
- * {@code DegradedModeGuard} 限制在 local/test。</p>
+ * <p>宿主只声明本地调用方是谁，不再复制一份安全过滤器链；开关仍由 {@code DegradedModeGuard} 限制在 local/test。
  *
- * @param enabled     是否启用本地开发认证
- * @param callerId    固定调用方 ID
- * @param name        调用方名称
+ * @param enabled 是否启用本地开发认证
+ * @param callerId 固定调用方 ID
+ * @param name 调用方名称
  * @param permissions 授予的权限（不含 {@code PERM_} 前缀）
- * @param attributes  其余调用方属性（多值，例如 {@code org_units}）
+ * @param attributes 其余调用方属性（多值，例如 {@code org_units}）
  * @author ByteForce
  * @since 1.0.0
  */
@@ -29,8 +27,7 @@ public record DevAuthProperties(
         Map<String, List<String>> attributes) {
 
     /** quickstart 固定调用方 ID。 */
-    public static final String DEFAULT_CALLER_ID =
-            "018f2e3a-0000-7000-8000-00000000ad11";
+    public static final String DEFAULT_CALLER_ID = "018f2e3a-0000-7000-8000-00000000ad11";
 
     /** 默认调用方名称。 */
     public static final String DEFAULT_NAME = "local-admin";

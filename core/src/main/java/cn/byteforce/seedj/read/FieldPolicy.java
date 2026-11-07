@@ -3,7 +3,6 @@ package cn.byteforce.seedj.read;
 import cn.byteforce.seedj.domain.FieldDefinition;
 import cn.byteforce.seedj.domain.ObjectSchema;
 import cn.byteforce.seedj.domain.Privacy;
-
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -21,13 +20,14 @@ public record FieldPolicy(Map<String, FieldAccess> fields) {
     public FieldPolicy {
         Objects.requireNonNull(fields, "fields");
         Map<String, FieldAccess> copy = new LinkedHashMap<>();
-        fields.forEach((field, access) -> copy.put(field, Objects.requireNonNull(access, "access")));
+        fields.forEach(
+                (field, access) -> copy.put(field, Objects.requireNonNull(access, "access")));
         fields = Collections.unmodifiableMap(copy);
     }
 
     /**
-     * 按 schema 生成默认策略：{@code PUBLIC/INTERNAL → FULL}，
-     * {@code SENSITIVE/RESTRICTED → HIDDEN}，{@code writeOnly → HIDDEN}。
+     * 按 schema 生成默认策略：{@code PUBLIC/INTERNAL → FULL}， {@code SENSITIVE/RESTRICTED → HIDDEN}，{@code
+     * writeOnly → HIDDEN}。
      *
      * @param schema 对象 schema
      * @return 默认策略
@@ -58,8 +58,9 @@ public record FieldPolicy(Map<String, FieldAccess> fields) {
     public FieldPolicy narrow(FieldPolicy other) {
         Objects.requireNonNull(other, "other");
         Map<String, FieldAccess> merged = new LinkedHashMap<>(fields);
-        other.fields.forEach((field, access) -> merged.merge(field, access,
-                (left, right) -> narrower(left, right)));
+        other.fields.forEach(
+                (field, access) ->
+                        merged.merge(field, access, (left, right) -> narrower(left, right)));
         return new FieldPolicy(merged);
     }
 

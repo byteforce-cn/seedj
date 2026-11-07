@@ -17,6 +17,7 @@ import cn.byteforce.seedj.read.ReadGateway;
 import cn.byteforce.seedj.security.AuthorizationDecisionPoint;
 import cn.byteforce.seedj.starter.cqrs.wiring.TemporalCommandAutoConfiguration;
 import io.micrometer.core.instrument.MeterRegistry;
+import java.util.UUID;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -25,16 +26,15 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.jdbc.core.JdbcTemplate;
 
-import java.util.UUID;
-
 /**
  * 读路径装配：网关、审计、请求事实过滤器与通用查询面开关。
  *
  * @author ByteForce
  * @since 1.0.0
  */
-@AutoConfiguration(after = TemporalCommandAutoConfiguration.class, afterName =
-        "cn.byteforce.seedj.starter.read.ObjectModuleAutoConfiguration")
+@AutoConfiguration(
+        after = TemporalCommandAutoConfiguration.class,
+        afterName = "cn.byteforce.seedj.starter.read.ObjectModuleAutoConfiguration")
 @ConditionalOnBean({TemporalStore.class, ObjectModuleRegistry.class})
 public class ReadAutoConfiguration {
 
@@ -66,28 +66,36 @@ public class ReadAutoConfiguration {
      * 唯一读入口。
      *
      * @param registry 模块注册表
-     * @param store    对象存储
-     * @param scopes   行范围贡献者
-     * @param fields   字段策略贡献者
-     * @param audit    审计出口
-     * @param clock    取时入口
-     * @param ids      事件 id 生成器
+     * @param store 对象存储
+     * @param scopes 行范围贡献者
+     * @param fields 字段策略贡献者
+     * @param audit 审计出口
+     * @param clock 取时入口
+     * @param ids 事件 id 生成器
      * @return 网关
      */
     @Bean
     @ConditionalOnMissingBean
-    public ReadGateway readGateway(ObjectModuleRegistry registry, TemporalStore store,
-                                   ObjectProvider<DataScopeResolver> scopes,
-                                   ObjectProvider<FieldPolicyResolver> fields,
-                                   ReadAuditSink audit, ObjectProvider<Clock> clock,
-                                   ObjectProvider<IdGenerator<UUID>> ids,
-                                   ObjectProvider<QueryExecutor> executor,
-                                   AuthorizationDecisionPoint decisions) {
-        return new ReadGateway(registry, store, scopes.orderedStream().toList(),
-                fields.orderedStream().toList(), audit,
+    public ReadGateway readGateway(
+            ObjectModuleRegistry registry,
+            TemporalStore store,
+            ObjectProvider<DataScopeResolver> scopes,
+            ObjectProvider<FieldPolicyResolver> fields,
+            ReadAuditSink audit,
+            ObjectProvider<Clock> clock,
+            ObjectProvider<IdGenerator<UUID>> ids,
+            ObjectProvider<QueryExecutor> executor,
+            AuthorizationDecisionPoint decisions) {
+        return new ReadGateway(
+                registry,
+                store,
+                scopes.orderedStream().toList(),
+                fields.orderedStream().toList(),
+                audit,
                 clock.getIfAvailable(Clocks::system),
                 ids.getIfAvailable(() -> UUID::randomUUID),
-                executor.getIfAvailable(), decisions);
+                executor.getIfAvailable(),
+                decisions);
     }
 
     /**
@@ -107,20 +115,18 @@ public class ReadAutoConfiguration {
      * 请求事实过滤器：认证之后打开、finally 关闭。
      *
      * @param resolver 事实解析器
-     * @param callers  当前调用方
+     * @param callers 当前调用方
      * @return 过滤器
      */
     @Bean
     @ConditionalOnBean(CallerProvider.class)
     @ConditionalOnMissingBean
-    public ScopeContextFilter scopeContextFilter(ContextResolver resolver,
-                                                 CallerProvider callers) {
+    public ScopeContextFilter scopeContextFilter(ContextResolver resolver, CallerProvider callers) {
         return new ScopeContextFilter(resolver, callers);
     }
 
     /**
-     * 通用 {@code /objects/**} 面：默认关闭，显式 {@code seedj.read.generic-surface=enabled}
-     * 才注册。
+     * 通用 {@code /objects/**} 面：默认关闭，显式 {@code seedj.read.generic-surface=enabled} 才注册。
      *
      * @param gateway 网关
      * @param callers 当前调用方
@@ -129,8 +135,7 @@ public class ReadAutoConfiguration {
     @Bean
     @ConditionalOnBean(CallerProvider.class)
     @ConditionalOnMissingBean
-    @ConditionalOnProperty(prefix = "seedj.read", name = "generic-surface",
-            havingValue = "enabled")
+    @ConditionalOnProperty(prefix = "seedj.read", name = "generic-surface", havingValue = "enabled")
     public cn.byteforce.seedj.starter.domain.web.ObjectQueryController objectQueryController(
             ReadGateway gateway, CallerProvider callers) {
         return new cn.byteforce.seedj.starter.domain.web.ObjectQueryController(gateway, callers);

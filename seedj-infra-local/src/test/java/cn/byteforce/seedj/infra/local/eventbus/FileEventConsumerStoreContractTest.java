@@ -4,14 +4,12 @@ import cn.byteforce.seedj.eventbus.EventMessage;
 import cn.byteforce.seedj.eventbus.spi.EventBusTransport;
 import cn.byteforce.seedj.eventbus.spi.EventConsumerStore;
 import cn.byteforce.seedj.eventbus.spi.EventConsumerStoreContractTest;
-import org.junit.jupiter.api.io.TempDir;
-
 import java.nio.file.Path;
+import org.junit.jupiter.api.io.TempDir;
 
 class FileEventConsumerStoreContractTest extends EventConsumerStoreContractTest {
 
-    @TempDir
-    Path tempDir;
+    @TempDir Path tempDir;
 
     private FileEventBusTransport transport;
 

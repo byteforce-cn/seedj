@@ -3,8 +3,7 @@ package cn.byteforce.seedj.domain;
 /**
  * 时间轴视图：当前、业务时点、完整历史。
  *
- * <p>当前视图必须命中 {@code superseded_at IS NULL} 的部分唯一索引，不得退化为
- * 全表 {@code DISTINCT ON}；历史/时点视图才扫描版本。</p>
+ * <p>当前视图必须命中 {@code superseded_at IS NULL} 的部分唯一索引，不得退化为 全表 {@code DISTINCT ON}；历史/时点视图才扫描版本。
  *
  * @author ByteForce
  * @since 1.0.0

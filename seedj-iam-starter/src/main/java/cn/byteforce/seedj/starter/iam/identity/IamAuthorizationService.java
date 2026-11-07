@@ -6,7 +6,6 @@ import cn.byteforce.seedj.iam.IamSubjectAuthorization;
 import cn.byteforce.seedj.iam.IamUser;
 import cn.byteforce.seedj.iam.spi.IamAuthorizationRepository;
 import cn.byteforce.seedj.iam.spi.IamGroupRepository;
-
 import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashSet;
@@ -15,21 +14,20 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Computes effective authorization for a user and caches it for a short TTL,
- * keyed by the cross-instance {@code iam_authz_epoch} value.
+ * Computes effective authorization for a user and caches it for a short TTL, keyed by the
+ * cross-instance {@code iam_authz_epoch} value.
  */
 public class IamAuthorizationService {
 
-    private record Cached(IamSubjectAuthorization authorization, long epoch, Instant expiresAt) {
-    }
+    private record Cached(IamSubjectAuthorization authorization, long epoch, Instant expiresAt) {}
 
     private final IamAuthorizationRepository repository;
     private final IamGroupRepository groups;
     private final Duration ttl;
     private final Map<String, Cached> cache = new ConcurrentHashMap<>();
 
-    public IamAuthorizationService(IamAuthorizationRepository repository,
-                                   IamGroupRepository groups, Duration ttl) {
+    public IamAuthorizationService(
+            IamAuthorizationRepository repository, IamGroupRepository groups, Duration ttl) {
         this.repository = repository;
         this.groups = groups;
         this.ttl = ttl == null || ttl.isZero() || ttl.isNegative() ? Duration.ofSeconds(30) : ttl;
@@ -60,8 +58,8 @@ public class IamAuthorizationService {
         for (String groupId : groupIds) {
             groups.findById(groupId).ifPresent(group -> groupNames.add(group.displayName()));
         }
-        IamSubjectAuthorization authorization = new IamSubjectAuthorization(
-                roleCodes, permissions, groupNames);
+        IamSubjectAuthorization authorization =
+                new IamSubjectAuthorization(roleCodes, permissions, groupNames);
         if (cache.size() > 10_000) {
             cache.clear();
         }
@@ -71,9 +69,16 @@ public class IamAuthorizationService {
 
     public IamSubject subject(IamUser user) {
         IamSubjectAuthorization authorization = effective(user.tenantId(), user.id());
-        return new IamSubject(user.id(), user.userName(), user.tenantId(),
-                authorization.roles(), authorization.permissions(), authorization.groups(),
-                Set.of("pwd"), "urn:seedj:acr:pwd", user.attributes());
+        return new IamSubject(
+                user.id(),
+                user.userName(),
+                user.tenantId(),
+                authorization.roles(),
+                authorization.permissions(),
+                authorization.groups(),
+                Set.of("pwd"),
+                "urn:seedj:acr:pwd",
+                user.attributes());
     }
 
     public long epoch(String tenantId) {

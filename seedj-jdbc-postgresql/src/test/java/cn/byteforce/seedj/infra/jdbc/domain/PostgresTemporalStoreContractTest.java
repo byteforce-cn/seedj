@@ -1,5 +1,8 @@
 package cn.byteforce.seedj.infra.jdbc.domain;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import cn.byteforce.seedj.core.clock.TestClock;
 import cn.byteforce.seedj.domain.AppendRequest;
 import cn.byteforce.seedj.domain.AppendResult;
@@ -11,6 +14,12 @@ import cn.byteforce.seedj.domain.TemporalRow;
 import cn.byteforce.seedj.domain.TemporalStore;
 import cn.byteforce.seedj.domain.TemporalStoreContractTest;
 import cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner;
+import java.time.LocalDate;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -19,19 +28,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import java.time.LocalDate;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
-/**
- * PostgreSQL 实现跑公共契约套件（真实数据库 + 真实约束）。
- */
+/** PostgreSQL 实现跑公共契约套件（真实数据库 + 真实约束）。 */
 @Testcontainers
 class PostgresTemporalStoreContractTest extends TemporalStoreContractTest {
 
@@ -52,8 +49,9 @@ class PostgresTemporalStoreContractTest extends TemporalStoreContractTest {
 
     @BeforeAll
     static void initialize() {
-        DriverManagerDataSource dataSource = new DriverManagerDataSource(
-                POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
+        DriverManagerDataSource dataSource =
+                new DriverManagerDataSource(
+                        POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
         jdbc = new JdbcTemplate(dataSource);
         new TemporalSchemaCapability(new JdbcMigrationRunner(dataSource)).initialize();
         Map<String, String> columns = new LinkedHashMap<>();
@@ -61,22 +59,37 @@ class PostgresTemporalStoreContractTest extends TemporalStoreContractTest {
         columns.put("status", "TEXT");
         columns.put("secret", "TEXT");
         columns.put("hire_date", "DATE");
-        TemporalTable table = new TemporalTable("probe", "probe_object", columns, Set.of(),
-                Set.of("name", "status", "hire_date"),
-                Map.of("name", FieldType.TEXT, "status", FieldType.TEXT,
-                        "secret", FieldType.TEXT, "hire_date", FieldType.DATE),
-                Set.of("name"), Set.of());
-        ObjectSchema typedSchema = ObjectSchema.builder("probe_typed", "probe_typed_object")
-                .field("name", FieldType.TEXT)
-                .field("hire_date", FieldType.DATE)
-                .field("ref_id", FieldType.UUID)
-                .build();
+        TemporalTable table =
+                new TemporalTable(
+                        "probe",
+                        "probe_object",
+                        columns,
+                        Set.of(),
+                        Set.of("name", "status", "hire_date"),
+                        Map.of(
+                                "name",
+                                FieldType.TEXT,
+                                "status",
+                                FieldType.TEXT,
+                                "secret",
+                                FieldType.TEXT,
+                                "hire_date",
+                                FieldType.DATE),
+                        Set.of("name"),
+                        Set.of());
+        ObjectSchema typedSchema =
+                ObjectSchema.builder("probe_typed", "probe_typed_object")
+                        .field("name", FieldType.TEXT)
+                        .field("hire_date", FieldType.DATE)
+                        .field("ref_id", FieldType.UUID)
+                        .build();
         typedTable = TemporalTable.from(typedSchema);
         jdbc.execute(TemporalDdl.createTable(table));
         jdbc.execute(TemporalDdl.createTable(typedTable));
         clock = new TestClock(T0);
-        store = new PostgresTemporalStore(jdbc, clock,
-                new TemporalTables(List.of(table, typedTable)));
+        store =
+                new PostgresTemporalStore(
+                        jdbc, clock, new TemporalTables(List.of(table, typedTable)));
     }
 
     @Override
@@ -100,21 +113,35 @@ class PostgresTemporalStoreContractTest extends TemporalStoreContractTest {
         LocalDate hireDate = LocalDate.parse("2026-10-01");
         UUID refId = UUID.fromString("018f2e3a-9999-7000-8000-000000000001");
 
-        AppendResult result = store.append(AppendRequest.create("probe_typed", ID, T0, null,
-                ACTOR, Map.of("name", "Alice", "hire_date", hireDate, "ref_id", refId)));
-        TemporalRow row = store.find("probe_typed", ID, TemporalQuery.current(), ScopePredicate.all()).orElseThrow();
+        AppendResult result =
+                store.append(
+                        AppendRequest.create(
+                                "probe_typed",
+                                ID,
+                                T0,
+                                null,
+                                ACTOR,
+                                Map.of("name", "Alice", "hire_date", hireDate, "ref_id", refId)));
+        TemporalRow row =
+                store.find("probe_typed", ID, TemporalQuery.current(), ScopePredicate.all())
+                        .orElseThrow();
 
         assertThat(result.appended().version().version()).isEqualTo(1L);
         assertThat(row.fields())
                 .containsEntry("hire_date", hireDate)
                 .containsEntry("ref_id", refId);
-        assertThat(row.fields().get("hire_date"))
-                .isInstanceOf(LocalDate.class);
+        assertThat(row.fields().get("hire_date")).isInstanceOf(LocalDate.class);
     }
 
     @Test
     void unknownObjectTypeIsRejectedClearly() {
-        assertThatThrownBy(() -> store.find("missing", ID, TemporalQuery.current(), ScopePredicate.all()))
+        assertThatThrownBy(
+                        () ->
+                                store.find(
+                                        "missing",
+                                        ID,
+                                        TemporalQuery.current(),
+                                        ScopePredicate.all()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("missing");
     }

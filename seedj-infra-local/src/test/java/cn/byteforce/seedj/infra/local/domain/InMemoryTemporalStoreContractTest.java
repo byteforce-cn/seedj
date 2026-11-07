@@ -8,21 +8,25 @@ import cn.byteforce.seedj.domain.TemporalStore;
 import cn.byteforce.seedj.domain.TemporalStoreContractTest;
 import java.util.List;
 
-/**
- * 内存实现跑公共契约套件。
- */
+/** 内存实现跑公共契约套件。 */
 class InMemoryTemporalStoreContractTest extends TemporalStoreContractTest {
 
     private final TestClock clock = new TestClock(T0);
 
-    private final InMemoryTemporalStore store = new InMemoryTemporalStore(clock,
-            new ObjectSchemaRegistry(List.of(ObjectSchema.builder("probe", "probe_object")
-                    .field(cn.byteforce.seedj.domain.FieldDefinition
-                            .filterable("name", FieldType.TEXT).withSortable())
-                    .filterable("status", FieldType.TEXT)
-                    .filterable("hire_date", FieldType.DATE)
-                    .field("secret", FieldType.TEXT)
-                    .build())));
+    private final InMemoryTemporalStore store =
+            new InMemoryTemporalStore(
+                    clock,
+                    new ObjectSchemaRegistry(
+                            List.of(
+                                    ObjectSchema.builder("probe", "probe_object")
+                                            .field(
+                                                    cn.byteforce.seedj.domain.FieldDefinition
+                                                            .filterable("name", FieldType.TEXT)
+                                                            .withSortable())
+                                            .filterable("status", FieldType.TEXT)
+                                            .filterable("hire_date", FieldType.DATE)
+                                            .field("secret", FieldType.TEXT)
+                                            .build())));
 
     @Override
     protected TemporalStore store() {

@@ -3,8 +3,8 @@ package cn.byteforce.seedj.pki;
 import cn.byteforce.seedj.core.InfrastructureException;
 
 /**
- * PKI 操作的异常。继承 {@link InfrastructureException}，因此业务方可以统一按
- * {@code category()} / {@code isRetryable()} 处理。
+ * PKI 操作的异常。继承 {@link InfrastructureException}，因此业务方可以统一按 {@code category()} / {@code
+ * isRetryable()} 处理。
  */
 public class PkiException extends InfrastructureException {
 
@@ -19,16 +19,12 @@ public class PkiException extends InfrastructureException {
         this.errorCode = errorCode;
     }
 
-    /**
-     * 保留的便捷构造：不指定错误码时按内部错误处理。
-     */
+    /** 保留的便捷构造：不指定错误码时按内部错误处理。 */
     public PkiException(String message, Throwable cause) {
         this(PkiErrorCode.INTERNAL_ERROR, message, cause);
     }
 
-    /**
-     * 保留的便捷构造：不指定错误码时按内部错误处理。
-     */
+    /** 保留的便捷构造：不指定错误码时按内部错误处理。 */
     public PkiException(String message) {
         this(PkiErrorCode.INTERNAL_ERROR, message);
     }

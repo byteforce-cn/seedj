@@ -3,6 +3,7 @@ package cn.byteforce.seedj.infra.jdbc.audit;
 import cn.byteforce.seedj.audit.spi.AuditStore;
 import cn.byteforce.seedj.core.InfrastructureCapability;
 import cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner;
+import javax.sql.DataSource;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -14,16 +15,17 @@ import org.springframework.boot.jdbc.autoconfigure.JdbcTemplateAutoConfiguration
 import org.springframework.context.annotation.Bean;
 import org.springframework.jdbc.core.JdbcTemplate;
 
-import javax.sql.DataSource;
-
-/**
- * PostgreSQL 审计存储装配：只在有 DataSource 时生效。
- */
+/** PostgreSQL 审计存储装配：只在有 DataSource 时生效。 */
 @AutoConfiguration(after = {DataSourceAutoConfiguration.class, JdbcTemplateAutoConfiguration.class})
-@ConditionalOnClass(value = {JdbcTemplate.class, DataSource.class}, name = "org.postgresql.Driver")
+@ConditionalOnClass(
+        value = {JdbcTemplate.class, DataSource.class},
+        name = "org.postgresql.Driver")
 @ConditionalOnBean(JdbcTemplate.class)
-@ConditionalOnProperty(prefix = "seedj.audit", name = "provider",
-        havingValue = "postgres", matchIfMissing = true)
+@ConditionalOnProperty(
+        prefix = "seedj.audit",
+        name = "provider",
+        havingValue = "postgres",
+        matchIfMissing = true)
 public class PostgresAuditAutoConfiguration {
 
     @Bean

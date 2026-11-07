@@ -3,16 +3,14 @@ package cn.byteforce.seedj.core.utils;
 /**
  * 业务字段命名转换：命令 record、schema 与视图共用同一份规则。
  *
- * <p>只在 core 暴露一个实现，避免 starter 与 module 各自复制一份
- * {@code snakeCase}，导致同一个 Java 组件在不同层映射出不同字段名。</p>
+ * <p>只在 core 暴露一个实现，避免 starter 与 module 各自复制一份 {@code snakeCase}，导致同一个 Java 组件在不同层映射出不同字段名。
  *
  * @author ByteForce
  * @since 1.0.0
  */
 public final class FieldNames {
 
-    private FieldNames() {
-    }
+    private FieldNames() {}
 
     /**
      * camelCase 转 snake_case；已经是 snake_case 的名称保持不变。

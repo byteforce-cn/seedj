@@ -2,7 +2,6 @@ package cn.byteforce.seedj.domain;
 
 import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;
-
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -12,14 +11,12 @@ import java.util.UUID;
 /**
  * 业务字段类型：对象 schema、HTTP 过滤参数、JDBC 读写共用同一套转换。
  *
- * <p>HTTP 传来的过滤值总是字符串；这里把字符串按声明类型转换，非法值统一抛
- * {@link ContractException}（无效载荷），避免落到 SQL 层变成 500。</p>
+ * <p>HTTP 传来的过滤值总是字符串；这里把字符串按声明类型转换，非法值统一抛 {@link ContractException}（无效载荷），避免落到 SQL 层变成 500。
  *
  * @author ByteForce
  * @since 1.0.0
  */
 public enum FieldType {
-
     TEXT("TEXT"),
     INTEGER("INTEGER"),
     LONG("BIGINT"),
@@ -47,12 +44,11 @@ public enum FieldType {
     /**
      * 按字段声明的精度/标度给出列类型。
      *
-     * <p>DECIMAL 必须显式声明 precision/scale；本方法只做渲染，无法判断声明缺失。
-     * 其他类型忽略精度参数。未声明精度的 DECIMAL 保留历史默认值，便于兼容旧装配；
-     * 代码生成器会在编译期拒绝这种声明。</p>
+     * <p>DECIMAL 必须显式声明 precision/scale；本方法只做渲染，无法判断声明缺失。 其他类型忽略精度参数。未声明精度的 DECIMAL
+     * 保留历史默认值，便于兼容旧装配； 代码生成器会在编译期拒绝这种声明。
      *
      * @param precision 总位数；{@code null} 表示未声明
-     * @param scale     小数位数；{@code null} 表示 0
+     * @param scale 小数位数；{@code null} 表示 0
      * @return SQL 类型
      */
     public String sqlType(Integer precision, Integer scale) {
@@ -64,8 +60,7 @@ public enum FieldType {
         }
         int digits = scale == null ? 0 : scale;
         if (digits < 0 || digits > precision) {
-            throw new IllegalArgumentException(
-                    "decimal scale must be between 0 and " + precision);
+            throw new IllegalArgumentException("decimal scale must be between 0 and " + precision);
         }
         return "NUMERIC(" + precision + "," + digits + ")";
     }
@@ -99,7 +94,8 @@ public enum FieldType {
     }
 
     private ContractException invalid(Object value) {
-        return new ContractException(ContractErrorCode.INVALID_PAYLOAD,
+        return new ContractException(
+                ContractErrorCode.INVALID_PAYLOAD,
                 "invalid " + name().toLowerCase() + " value: " + value);
     }
 

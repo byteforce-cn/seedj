@@ -1,8 +1,18 @@
 package cn.byteforce.seedj.infra.jdbc;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import cn.byteforce.seedj.core.InfrastructureErrorCode;
 import cn.byteforce.seedj.core.InfrastructureException;
 import cn.byteforce.seedj.core.Migration;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -12,20 +22,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import javax.sql.DataSource;
-import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
-/**
- * 真实 PostgreSQL 上的迁移执行器语义：版本、checksum、幂等、并发、回滚。
- */
+/** 真实 PostgreSQL 上的迁移执行器语义：版本、checksum、幂等、并发、回滚。 */
 @Testcontainers
 class JdbcMigrationRunnerTest {
 
@@ -42,10 +39,12 @@ class JdbcMigrationRunnerTest {
 
     @BeforeEach
     void setUp() {
-        dataSource = new DriverManagerDataSource(
-                POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
+        dataSource =
+                new DriverManagerDataSource(
+                        POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
         jdbcTemplate = new JdbcTemplate(dataSource);
-        jdbcTemplate.execute("""
+        jdbcTemplate.execute(
+                """
                 DROP TABLE IF EXISTS seedj_schema_history, mig_test_a, mig_test_b, mig_other
                 """);
         runner = new JdbcMigrationRunner(dataSource);
@@ -58,17 +57,21 @@ class JdbcMigrationRunnerTest {
     @Test
     @DisplayName("按版本执行迁移并记录 checksum")
     void migratesAndRecordsHistory() {
-        runner.migrate(List.of(
-                create("mig_test_a"),
-                new Migration(2, "create mig_test_b",
-                        "CREATE TABLE mig_test_b (id INT);")));
+        runner.migrate(
+                List.of(
+                        create("mig_test_a"),
+                        new Migration(
+                                2, "create mig_test_b", "CREATE TABLE mig_test_b (id INT);")));
 
         assertThat(tableExists("mig_test_a")).isTrue();
         assertThat(tableExists("mig_test_b")).isTrue();
-        assertThat(jdbcTemplate.queryForObject(
-                "SELECT count(*) FROM seedj_schema_history", Integer.class)).isEqualTo(2);
-        assertThat(jdbcTemplate.queryForList(
-                "SELECT version, description FROM seedj_schema_history ORDER BY version"))
+        assertThat(
+                        jdbcTemplate.queryForObject(
+                                "SELECT count(*) FROM seedj_schema_history", Integer.class))
+                .isEqualTo(2);
+        assertThat(
+                        jdbcTemplate.queryForList(
+                                "SELECT version, description FROM seedj_schema_history ORDER BY version"))
                 .extracting(row -> row.get("version"), row -> row.get("description"))
                 .containsExactly(
                         org.assertj.core.groups.Tuple.tuple(1, "create mig_test_a"),
@@ -83,8 +86,10 @@ class JdbcMigrationRunnerTest {
         runner.migrate(migrations);
         runner.migrate(migrations);
 
-        assertThat(jdbcTemplate.queryForObject(
-                "SELECT count(*) FROM seedj_schema_history", Integer.class)).isEqualTo(1);
+        assertThat(
+                        jdbcTemplate.queryForObject(
+                                "SELECT count(*) FROM seedj_schema_history", Integer.class))
+                .isEqualTo(1);
         assertThat(runner.isUpToDate(migrations)).isTrue();
         runner.validate(migrations);
     }
@@ -94,8 +99,10 @@ class JdbcMigrationRunnerTest {
     void checksumMismatchFails() {
         runner.migrate(List.of(create("mig_test_a")));
 
-        List<Migration> changed = List.of(new Migration(1, "create mig_test_a",
-                "CREATE TABLE mig_test_a (id BIGINT);"));
+        List<Migration> changed =
+                List.of(
+                        new Migration(
+                                1, "create mig_test_a", "CREATE TABLE mig_test_a (id BIGINT);"));
 
         assertThatThrownBy(() -> runner.migrate(changed))
                 .isInstanceOf(InfrastructureException.class)
@@ -111,7 +118,8 @@ class JdbcMigrationRunnerTest {
     @DisplayName("数据库中存在本地不认识的版本时拒绝启动")
     void unknownVersionFails() {
         runner.migrate(List.of(create("mig_test_a")));
-        jdbcTemplate.update("""
+        jdbcTemplate.update(
+                """
                 INSERT INTO seedj_schema_history
                     (scope, version, description, checksum, execution_ms)
                 VALUES ('default', 99, 'future', repeat('0', 64), 1)
@@ -127,17 +135,24 @@ class JdbcMigrationRunnerTest {
     @DisplayName("不同 scope 的迁移互不干扰（同版本号可共存）")
     void scopesAreIsolated() {
         JdbcMigrationRunner other = new JdbcMigrationRunner(dataSource, "other");
-        other.migrate(List.of(new Migration(1, "other table",
-                "CREATE TABLE mig_other (id INT);")));
+        other.migrate(List.of(new Migration(1, "other table", "CREATE TABLE mig_other (id INT);")));
 
         runner.migrate(List.of(create("mig_test_a")));
 
-        assertThat(jdbcTemplate.queryForObject("""
+        assertThat(
+                        jdbcTemplate.queryForObject(
+                                """
                 SELECT count(*) FROM seedj_schema_history WHERE scope = 'default'
-                """, Integer.class)).isEqualTo(1);
-        assertThat(jdbcTemplate.queryForObject("""
+                """,
+                                Integer.class))
+                .isEqualTo(1);
+        assertThat(
+                        jdbcTemplate.queryForObject(
+                                """
                 SELECT count(*) FROM seedj_schema_history WHERE scope = 'other'
-                """, Integer.class)).isEqualTo(1);
+                """,
+                                Integer.class))
+                .isEqualTo(1);
         assertThat(tableExists("mig_test_a")).isTrue();
         assertThat(tableExists("mig_other")).isTrue();
     }
@@ -149,14 +164,18 @@ class JdbcMigrationRunnerTest {
         CountDownLatch start = new CountDownLatch(1);
         ExecutorService executor = Executors.newFixedThreadPool(2);
         try {
-            Future<?> first = executor.submit(() -> {
-                await(start);
-                new JdbcMigrationRunner(dataSource).migrate(migrations);
-            });
-            Future<?> second = executor.submit(() -> {
-                await(start);
-                new JdbcMigrationRunner(dataSource).migrate(migrations);
-            });
+            Future<?> first =
+                    executor.submit(
+                            () -> {
+                                await(start);
+                                new JdbcMigrationRunner(dataSource).migrate(migrations);
+                            });
+            Future<?> second =
+                    executor.submit(
+                            () -> {
+                                await(start);
+                                new JdbcMigrationRunner(dataSource).migrate(migrations);
+                            });
             start.countDown();
             first.get(30, TimeUnit.SECONDS);
             second.get(30, TimeUnit.SECONDS);
@@ -164,8 +183,10 @@ class JdbcMigrationRunnerTest {
             executor.shutdownNow();
         }
 
-        assertThat(jdbcTemplate.queryForObject(
-                "SELECT count(*) FROM seedj_schema_history", Integer.class)).isEqualTo(1);
+        assertThat(
+                        jdbcTemplate.queryForObject(
+                                "SELECT count(*) FROM seedj_schema_history", Integer.class))
+                .isEqualTo(1);
         assertThat(tableExists("mig_test_a")).isTrue();
     }
 
@@ -184,7 +205,11 @@ class JdbcMigrationRunnerTest {
     @Test
     @DisplayName("迁移失败时整个事务回滚，不留下半成品表")
     void failureRollsBack() {
-        Migration broken = new Migration(1, "broken", """
+        Migration broken =
+                new Migration(
+                        1,
+                        "broken",
+                        """
                 CREATE TABLE mig_test_a (id INT);
                 CREATE TABLE this_is_not_valid_sql ((;
                 """);
@@ -198,9 +223,13 @@ class JdbcMigrationRunnerTest {
     }
 
     private boolean tableExists(String table) {
-        Integer count = jdbcTemplate.queryForObject("""
+        Integer count =
+                jdbcTemplate.queryForObject(
+                        """
                 SELECT count(*) FROM information_schema.tables WHERE table_name = ?
-                """, Integer.class, table);
+                """,
+                        Integer.class,
+                        table);
         return count != null && count > 0;
     }
 

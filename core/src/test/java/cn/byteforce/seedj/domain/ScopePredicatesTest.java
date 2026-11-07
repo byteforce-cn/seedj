@@ -1,18 +1,15 @@
 package cn.byteforce.seedj.domain;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-/**
- * 谓词合成与内存求值：扁平化、吸收元与嵌套短路。
- */
+/** 谓词合成与内存求值：扁平化、吸收元与嵌套短路。 */
 class ScopePredicatesTest {
 
     private static final UUID ID = UUID.fromString("018f2e3a-1234-7000-8000-000000000001");
@@ -36,16 +33,18 @@ class ScopePredicatesTest {
     @Test
     @DisplayName("嵌套 And 内的 None 立即短路为 None")
     void nestedAndShortCircuitsOnNone() {
-        assertThat(ScopePredicates.and(List.of(A, ScopePredicates.and(List.of(B,
-                ScopePredicate.none())))))
+        assertThat(
+                        ScopePredicates.and(
+                                List.of(A, ScopePredicates.and(List.of(B, ScopePredicate.none())))))
                 .isEqualTo(ScopePredicate.none());
     }
 
     @Test
     @DisplayName("嵌套 Or 内的 All 立即短路为 All")
     void nestedOrShortCircuitsOnAll() {
-        assertThat(ScopePredicates.or(List.of(A, ScopePredicates.or(List.of(B,
-                ScopePredicate.all())))))
+        assertThat(
+                        ScopePredicates.or(
+                                List.of(A, ScopePredicates.or(List.of(B, ScopePredicate.all())))))
                 .isEqualTo(ScopePredicate.all());
     }
 
@@ -69,21 +68,33 @@ class ScopePredicatesTest {
     @Test
     @DisplayName("in 谓词在内存求值时按声明类型转换常量")
     void matchesCoercesInValues() {
-        ObjectSchema schema = ObjectSchema.builder("employee", "hr_employee")
-                .field("employee_no", FieldType.TEXT)
-                .field("org_unit_id", FieldType.TEXT)
-                .build();
+        ObjectSchema schema =
+                ObjectSchema.builder("employee", "hr_employee")
+                        .field("employee_no", FieldType.TEXT)
+                        .field("org_unit_id", FieldType.TEXT)
+                        .build();
         Map<String, Object> fields = Map.of("employee_no", "E-1", "org_unit_id", "D01");
         TemporalRow row = new TemporalRow("employee", version(), fields);
 
-        assertThat(ScopePredicates.matches(row, ScopePredicate.in("org_unit_id",
-                List.of("D01", "D02")), schema)).isTrue();
-        assertThat(ScopePredicates.matches(row, ScopePredicate.in("org_unit_id",
-                List.of("D03")), schema)).isFalse();
+        assertThat(
+                        ScopePredicates.matches(
+                                row,
+                                ScopePredicate.in("org_unit_id", List.of("D01", "D02")),
+                                schema))
+                .isTrue();
+        assertThat(
+                        ScopePredicates.matches(
+                                row, ScopePredicate.in("org_unit_id", List.of("D03")), schema))
+                .isFalse();
         assertThat(ScopePredicates.matches(row, ScopePredicate.notNull("employee_no"), schema))
                 .isTrue();
-        assertThat(ScopePredicates.matches(row, ScopePredicate.not(
-                ScopePredicate.in("org_unit_id", List.of("D03"))), schema)).isTrue();
+        assertThat(
+                        ScopePredicates.matches(
+                                row,
+                                ScopePredicate.not(
+                                        ScopePredicate.in("org_unit_id", List.of("D03"))),
+                                schema))
+                .isTrue();
         assertThat(ScopePredicates.matches(row, ScopePredicate.and(A, C), schema)).isFalse();
         assertThat(ScopePredicates.matches(row, ScopePredicate.or(A, C), schema)).isTrue();
     }
@@ -91,18 +102,27 @@ class ScopePredicatesTest {
     @Test
     @DisplayName("Map 版本与 TemporalRow 版本语义一致")
     void matchesMapVersion() {
-        ObjectSchema schema = ObjectSchema.builder("employee", "hr_employee")
-                .field("org_unit_id", FieldType.TEXT)
-                .field("name", FieldType.TEXT)
-                .build();
+        ObjectSchema schema =
+                ObjectSchema.builder("employee", "hr_employee")
+                        .field("org_unit_id", FieldType.TEXT)
+                        .field("name", FieldType.TEXT)
+                        .build();
         Map<String, Object> fields = Map.of("org_unit_id", "D01", "name", "张三");
 
-        assertThat(ScopePredicates.matches(fields, ScopePredicate.eq("org_unit_id", "D01"),
-                schema)).isTrue();
-        assertThat(ScopePredicates.matches(fields,
-                ScopePredicate.not(ScopePredicate.eq("org_unit_id", "D02")), schema)).isTrue();
-        assertThat(ScopePredicates.matches(Map.of("name", "张三"),
-                ScopePredicate.notNull("org_unit_id"), schema)).isFalse();
+        assertThat(ScopePredicates.matches(fields, ScopePredicate.eq("org_unit_id", "D01"), schema))
+                .isTrue();
+        assertThat(
+                        ScopePredicates.matches(
+                                fields,
+                                ScopePredicate.not(ScopePredicate.eq("org_unit_id", "D02")),
+                                schema))
+                .isTrue();
+        assertThat(
+                        ScopePredicates.matches(
+                                Map.of("name", "张三"),
+                                ScopePredicate.notNull("org_unit_id"),
+                                schema))
+                .isFalse();
     }
 
     private static ObjectVersion version() {

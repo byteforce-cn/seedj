@@ -12,6 +12,13 @@ import cn.byteforce.seedj.domain.TemporalSearch;
 import cn.byteforce.seedj.module.ObjectModuleRegistry;
 import cn.byteforce.seedj.module.QueryDeclaration;
 import cn.byteforce.seedj.read.ReadGateway;
+import java.time.Instant;
+import java.time.format.DateTimeParseException;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -22,14 +29,6 @@ import org.springframework.web.servlet.function.RouterFunction;
 import org.springframework.web.servlet.function.RouterFunctions;
 import org.springframework.web.servlet.function.ServerRequest;
 import org.springframework.web.servlet.function.ServerResponse;
-
-import java.time.Instant;
-import java.time.format.DateTimeParseException;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * 为每个 {@code .query(...)} 声明生成 GET 端点，统一走 {@link ReadGateway}。
@@ -43,32 +42,33 @@ import java.util.Set;
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 public class QueryEndpointAutoConfiguration {
 
-    private static final Set<String> RESERVED = Set.of(
-            "page", "size", "direction", "as_of", "recorded_as_of");
+    private static final Set<String> RESERVED =
+            Set.of("page", "size", "direction", "as_of", "recorded_as_of");
 
     /**
      * 模块查询路由。
      *
-     * @param registry  模块注册表
-     * @param gateway   读网关
-     * @param callers   当前调用方
+     * @param registry 模块注册表
+     * @param gateway 读网关
+     * @param callers 当前调用方
      * @param viewMapper 视图映射
      * @return 路由
      */
     @Bean
     @ConditionalOnMissingBean(name = "moduleQueryRoutes")
-    public RouterFunction<ServerResponse> moduleQueryRoutes(ObjectModuleRegistry registry,
-                                                            ReadGateway gateway,
-                                                            CallerProvider callers,
-                                                            ViewMapper viewMapper) {
+    public RouterFunction<ServerResponse> moduleQueryRoutes(
+            ObjectModuleRegistry registry,
+            ReadGateway gateway,
+            CallerProvider callers,
+            ViewMapper viewMapper) {
         List<QueryDeclaration> queries = registry.queries();
         if (queries.isEmpty()) {
             return request -> java.util.Optional.empty();
         }
         RouterFunctions.Builder builder = RouterFunctions.route();
         for (QueryDeclaration query : queries) {
-            builder.GET(query.path(), request -> handle(query, request, gateway, callers,
-                    viewMapper));
+            builder.GET(
+                    query.path(), request -> handle(query, request, gateway, callers, viewMapper));
         }
         return builder.build();
     }
@@ -84,40 +84,56 @@ public class QueryEndpointAutoConfiguration {
         return new ViewMapper();
     }
 
-    private static ServerResponse handle(QueryDeclaration query, ServerRequest request,
-                                         ReadGateway gateway, CallerProvider callers,
-                                         ViewMapper viewMapper) {
-        Caller caller = callers.find().orElseThrow(() -> new ContractException(
-                ContractErrorCode.UNAUTHENTICATED, "caller is required"));
+    private static ServerResponse handle(
+            QueryDeclaration query,
+            ServerRequest request,
+            ReadGateway gateway,
+            CallerProvider callers,
+            ViewMapper viewMapper) {
+        Caller caller =
+                callers.find()
+                        .orElseThrow(
+                                () ->
+                                        new ContractException(
+                                                ContractErrorCode.UNAUTHENTICATED,
+                                                "caller is required"));
         if (!caller.hasPermission(query.permission())) {
-            throw new ContractException(ContractErrorCode.FORBIDDEN,
-                    "missing query permission: " + query.permission());
+            throw new ContractException(
+                    ContractErrorCode.FORBIDDEN, "missing query permission: " + query.permission());
         }
         Map<String, String> params = params(request);
         Map<String, Object> filters = new LinkedHashMap<>();
-        params.forEach((name, value) -> {
-            if (!RESERVED.contains(name)) {
-                filters.put(name, value);
-            }
-        });
-        PageRequest page = new PageRequest(intParam(params, "page", 1),
-                intParam(params, "size", 20));
-        TemporalSearch search = new TemporalSearch(query.objectType(), filters,
-                instant(params.get("as_of"), "as_of"),
-                instant(params.get("recorded_as_of"), "recorded_as_of"), null,
-                query.sortField(), direction(params.get("direction")), page);
+        params.forEach(
+                (name, value) -> {
+                    if (!RESERVED.contains(name)) {
+                        filters.put(name, value);
+                    }
+                });
+        PageRequest page =
+                new PageRequest(intParam(params, "page", 1), intParam(params, "size", 20));
+        TemporalSearch search =
+                new TemporalSearch(
+                        query.objectType(),
+                        filters,
+                        instant(params.get("as_of"), "as_of"),
+                        instant(params.get("recorded_as_of"), "recorded_as_of"),
+                        null,
+                        query.sortField(),
+                        direction(params.get("direction")),
+                        page);
         Page<TemporalRow> result = gateway.search(query.objectType(), search, caller);
-        List<Object> items = result.items().stream()
-                .map(row -> viewMapper.map(row, query.viewType()))
-                .toList();
-        return ServerResponse.ok().body(new QueryPageResponse(items, result.page(),
-                result.size(), result.total()));
+        List<Object> items =
+                result.items().stream().map(row -> viewMapper.map(row, query.viewType())).toList();
+        return ServerResponse.ok()
+                .body(new QueryPageResponse(items, result.page(), result.size(), result.total()));
     }
 
     private static Map<String, String> params(ServerRequest request) {
         Map<String, String> params = new LinkedHashMap<>();
-        request.params().forEach((name, values) ->
-                params.put(name, values.isEmpty() ? null : values.get(0)));
+        request.params()
+                .forEach(
+                        (name, values) ->
+                                params.put(name, values.isEmpty() ? null : values.get(0)));
         return params;
     }
 
@@ -129,8 +145,8 @@ public class QueryEndpointAutoConfiguration {
         try {
             return Integer.parseInt(raw);
         } catch (NumberFormatException error) {
-            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
-                    "invalid " + name + ": " + raw);
+            throw new ContractException(
+                    ContractErrorCode.INVALID_PAYLOAD, "invalid " + name + ": " + raw);
         }
     }
 
@@ -141,8 +157,8 @@ public class QueryEndpointAutoConfiguration {
         try {
             return SortDirection.valueOf(raw.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException error) {
-            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
-                    "invalid direction: " + raw);
+            throw new ContractException(
+                    ContractErrorCode.INVALID_PAYLOAD, "invalid direction: " + raw);
         }
     }
 
@@ -153,12 +169,10 @@ public class QueryEndpointAutoConfiguration {
         try {
             return Instant.parse(raw);
         } catch (DateTimeParseException error) {
-            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
-                    "invalid " + name);
+            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD, "invalid " + name);
         }
     }
 
     /** 查询响应。 */
-    public record QueryPageResponse(List<Object> items, int page, int size, long total) {
-    }
+    public record QueryPageResponse(List<Object> items, int page, int size, long total) {}
 }

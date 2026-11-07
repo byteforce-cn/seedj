@@ -1,21 +1,18 @@
 package cn.byteforce.seedj.audit;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import cn.byteforce.seedj.audit.spi.AuditStore;
 import cn.byteforce.seedj.core.ErrorCategory;
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 
-import java.time.Instant;
-import java.util.List;
-import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
-/**
- * 审计装配守卫：存储/ID 生成器返回 null 时快速失败，值对象保留全部字段。
- */
+/** 审计装配守卫：存储/ID 生成器返回 null 时快速失败，值对象保留全部字段。 */
 class AuditChainGuardTest {
 
     private static final UUID ACTOR = UUID.fromString("018f2e3a-0000-7000-8000-000000000001");
@@ -24,11 +21,18 @@ class AuditChainGuardTest {
     @Test
     @DisplayName("nextSequenceAndPrevHash 返回 null：append 立即失败")
     void appendRejectsNullHead() {
-        AuditChain<UUID> chain = new AuditChain<>(new NullHeadStore(), () -> NOW, head -> {
-        }, () -> ACTOR);
+        AuditChain<UUID> chain =
+                new AuditChain<>(new NullHeadStore(), () -> NOW, head -> {}, () -> ACTOR);
 
-        assertThatThrownBy(() -> chain.append(new AuditAppendRequest<>("voucher.create", ACTOR,
-                "voucher", null, JsonMapper.builder().build().createObjectNode())))
+        assertThatThrownBy(
+                        () ->
+                                chain.append(
+                                        new AuditAppendRequest<>(
+                                                "voucher.create",
+                                                ACTOR,
+                                                "voucher",
+                                                null,
+                                                JsonMapper.builder().build().createObjectNode())))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("null head");
     }
@@ -36,11 +40,14 @@ class AuditChainGuardTest {
     @Test
     @DisplayName("ID 生成器返回 null：append 立即失败")
     void appendRejectsNullId() {
-        AuditChain<UUID> chain = new AuditChain<>(new InMemoryStore(), () -> NOW, head -> {
-        }, () -> null);
+        AuditChain<UUID> chain =
+                new AuditChain<>(new InMemoryStore(), () -> NOW, head -> {}, () -> null);
 
-        assertThatThrownBy(() -> chain.append(new AuditAppendRequest<>("voucher.create", ACTOR,
-                "voucher", null, null)))
+        assertThatThrownBy(
+                        () ->
+                                chain.append(
+                                        new AuditAppendRequest<>(
+                                                "voucher.create", ACTOR, "voucher", null, null)))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("id generator");
     }
@@ -48,10 +55,11 @@ class AuditChainGuardTest {
     @Test
     @DisplayName("head 为 null：head() 立即失败")
     void headRejectsNullStoreHead() {
-        AuditChain<UUID> chain = new AuditChain<>(new NullHeadStore(), () -> NOW, head -> {
-        }, () -> ACTOR);
+        AuditChain<UUID> chain =
+                new AuditChain<>(new NullHeadStore(), () -> NOW, head -> {}, () -> ACTOR);
 
-        assertThatThrownBy(chain::head).isInstanceOf(IllegalStateException.class)
+        assertThatThrownBy(chain::head)
+                .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("null head");
     }
 
@@ -68,8 +76,21 @@ class AuditChainGuardTest {
     @Test
     @DisplayName("AuditEntry：payload digest 必须是 64 位小写 hex")
     void auditEntryRejectsMalformedDigest() {
-        assertThatThrownBy(() -> new AuditEntry<>(ACTOR, 1, NOW, ACTOR, "a", "t", null,
-                null, "DEADBEEF", null, CanonicalHasher.GENESIS_PREV_HASH, null))
+        assertThatThrownBy(
+                        () ->
+                                new AuditEntry<>(
+                                        ACTOR,
+                                        1,
+                                        NOW,
+                                        ACTOR,
+                                        "a",
+                                        "t",
+                                        null,
+                                        null,
+                                        "DEADBEEF",
+                                        null,
+                                        CanonicalHasher.GENESIS_PREV_HASH,
+                                        null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("64 lowercase hex");
     }
@@ -77,8 +98,20 @@ class AuditChainGuardTest {
     @Test
     @DisplayName("AuditEntry：signature 不参与哈希但可读取")
     void auditEntrySignatureIsReadable() {
-        AuditEntry<UUID> entry = new AuditEntry<>(ACTOR, 1, NOW, ACTOR, "a", "t", null, null,
-                null, "hash", CanonicalHasher.GENESIS_PREV_HASH, "signature-1");
+        AuditEntry<UUID> entry =
+                new AuditEntry<>(
+                        ACTOR,
+                        1,
+                        NOW,
+                        ACTOR,
+                        "a",
+                        "t",
+                        null,
+                        null,
+                        null,
+                        "hash",
+                        CanonicalHasher.GENESIS_PREV_HASH,
+                        "signature-1");
 
         assertThat(entry.getSignature()).isEqualTo("signature-1");
         assertThat(entry.getActor()).isEqualTo(ACTOR);
@@ -118,8 +151,8 @@ class AuditChainGuardTest {
         assertThat(error.getMessage()).isEqualTo("no tx");
 
         IllegalStateException cause = new IllegalStateException("db");
-        AuditException withCause = new AuditException(AuditErrorCode.STORE_UNAVAILABLE, "down",
-                cause);
+        AuditException withCause =
+                new AuditException(AuditErrorCode.STORE_UNAVAILABLE, "down", cause);
         assertThat(withCause.getErrorCode()).isEqualTo(AuditErrorCode.STORE_UNAVAILABLE);
         assertThat(withCause.category()).isEqualTo(ErrorCategory.BACKEND_ERROR);
         assertThat(withCause.isRetryable()).isTrue();
@@ -159,8 +192,7 @@ class AuditChainGuardTest {
                 .isEqualTo(ACTOR);
         assertThat(new AuditAppendRequest<>("a", ACTOR, "t", null, null).getResourceType())
                 .isEqualTo("t");
-        assertThat(new AuditAppendRequest<>("a", ACTOR, "t", null, null).getResourceId())
-                .isNull();
+        assertThat(new AuditAppendRequest<>("a", ACTOR, "t", null, null).getResourceId()).isNull();
         assertThat(new AuditAppendRequest<>("a", ACTOR, "t", null, null).getPayload()).isNull();
     }
 
@@ -172,12 +204,10 @@ class AuditChainGuardTest {
         }
 
         @Override
-        public void insert(AuditEntry<UUID> entry) {
-        }
+        public void insert(AuditEntry<UUID> entry) {}
 
         @Override
-        public void updateHead(String hash) {
-        }
+        public void updateHead(String hash) {}
 
         @Override
         public List<AuditEntry<UUID>> loadAll() {
@@ -198,12 +228,10 @@ class AuditChainGuardTest {
         }
 
         @Override
-        public void insert(AuditEntry<UUID> entry) {
-        }
+        public void insert(AuditEntry<UUID> entry) {}
 
         @Override
-        public void updateHead(String hash) {
-        }
+        public void updateHead(String hash) {}
 
         @Override
         public List<AuditEntry<UUID>> loadAll() {

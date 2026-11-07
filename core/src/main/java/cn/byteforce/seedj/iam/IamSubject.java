@@ -28,10 +28,17 @@ public record IamSubject(
     }
 
     public static IamSubject from(IamUser user, IamSubjectAuthorization authorization) {
-        IamSubjectAuthorization auth = authorization == null
-                ? IamSubjectAuthorization.empty() : authorization;
-        return new IamSubject(user.id(), user.userName(), user.tenantId(), auth.roles(),
-                auth.permissions(), auth.groups(), Set.of("pwd"), "urn:seedj:acr:pwd",
+        IamSubjectAuthorization auth =
+                authorization == null ? IamSubjectAuthorization.empty() : authorization;
+        return new IamSubject(
+                user.id(),
+                user.userName(),
+                user.tenantId(),
+                auth.roles(),
+                auth.permissions(),
+                auth.groups(),
+                Set.of("pwd"),
+                "urn:seedj:acr:pwd",
                 user.attributes());
     }
 }

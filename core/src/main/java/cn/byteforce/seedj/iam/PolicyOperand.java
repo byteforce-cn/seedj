@@ -3,8 +3,8 @@ package cn.byteforce.seedj.iam;
 import java.util.Objects;
 
 /**
- * Operand of a policy comparison. Paths are dotted, e.g. {@code subject.department}
- * is represented as source SUBJECT + path {@code department}.
+ * Operand of a policy comparison. Paths are dotted, e.g. {@code subject.department} is represented
+ * as source SUBJECT + path {@code department}.
  */
 public record PolicyOperand(PolicyOperandSource source, String path, Object literal) {
 

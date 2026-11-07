@@ -2,18 +2,17 @@ package cn.byteforce.seedj.starter.iam.authz;
 
 import cn.byteforce.seedj.core.security.Caller;
 import cn.byteforce.seedj.core.security.CallerProvider;
-import org.springframework.security.authentication.AnonymousAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
-
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 
 /**
  * IAM 宿主的调用方解析：没有 biz-starter 时也能读取 JWT 主体与权限。
@@ -37,7 +36,8 @@ public final class IamCallerProvider implements CallerProvider {
     @Override
     public Optional<Caller> find() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated()
+        if (authentication == null
+                || !authentication.isAuthenticated()
                 || authentication instanceof AnonymousAuthenticationToken) {
             return Optional.empty();
         }
@@ -67,8 +67,17 @@ public final class IamCallerProvider implements CallerProvider {
             addAll(permissions, jwt.getToken().getClaimAsStringList("permissions"));
             addAll(groups, jwt.getToken().getClaimAsStringList("groups"));
         }
-        return Optional.of(new Caller(userId, username, tenantId, roles, permissions, groups,
-                Set.of(Caller.DEFAULT_AMR), Caller.DEFAULT_ACR, attributes));
+        return Optional.of(
+                new Caller(
+                        userId,
+                        username,
+                        tenantId,
+                        roles,
+                        permissions,
+                        groups,
+                        Set.of(Caller.DEFAULT_AMR),
+                        Caller.DEFAULT_ACR,
+                        attributes));
     }
 
     private static void addAll(Set<String> target, List<String> values) {

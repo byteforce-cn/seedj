@@ -2,7 +2,6 @@ package cn.byteforce.seedj.audit;
 
 import cn.byteforce.seedj.core.utils.CanonicalJsonHelper;
 import cn.byteforce.seedj.core.utils.HashesHelper;
-
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
@@ -15,8 +14,9 @@ import java.util.UUID;
 /**
  * 审计链规范化与哈希：{@code 05-audit-contract/hash-chain.spec.md §2} 的逐字实现。
  *
- * <p>v1.0 为九元规范化（LF 连接、UTF-8、不转义非 ASCII）；v1.1 在
- * {@code payload_digest} 存在时追加为第 11 行，否则保持 v1.0 逐字节不变。</p>
+ * <p>v1.0 为九元规范化（LF 连接、UTF-8、不转义非 ASCII）；v1.1 在 {@code payload_digest} 存在时追加为第 11 行，否则保持 v1.0
+ * 逐字节不变。
+ *
  * <pre>
  * id / sequence(十进制) / timestamp(UTC 微秒, YYYY-MM-DDTHH:MM:SS.ffffffZ)
  * / actor / action / resource.type / resource.id(NULL → 空串)
@@ -24,11 +24,11 @@ import java.util.UUID;
  * / payload_digest(小写 hex；可选)
  * </pre>
  *
- * <p><b>标识文本</b>：{@code UUID} 使用标准小写形式；其他 {@code ID} 类型使用
- * {@link Object#toString()}。实现方必须保证同一标识每次得到相同文本。</p>
+ * <p><b>标识文本</b>：{@code UUID} 使用标准小写形式；其他 {@code ID} 类型使用 {@link
+ * Object#toString()}。实现方必须保证同一标识每次得到相同文本。
  *
- * <p><b>冻结向量</b>（规范 §3）：本实现必须对创世向量算出
- * {@code 447c6e299d9adaec35d89e273b15d28752eeaac4674000b5df88d2e53a087410}。</p>
+ * <p><b>冻结向量</b>（规范 §3）：本实现必须对创世向量算出 {@code
+ * 447c6e299d9adaec35d89e273b15d28752eeaac4674000b5df88d2e53a087410}。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -41,8 +41,7 @@ public final class CanonicalHasher {
     private static final DateTimeFormatter TIMESTAMP_FORMAT =
             DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ss.SSSSSS'Z'").withZone(ZoneOffset.UTC);
 
-    private CanonicalHasher() {
-    }
+    private CanonicalHasher() {}
 
     /**
      * 计算条目的链哈希（小写 hex）。

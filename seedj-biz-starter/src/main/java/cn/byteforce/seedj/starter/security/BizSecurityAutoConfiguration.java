@@ -1,13 +1,17 @@
 package cn.byteforce.seedj.starter.security;
 
-import cn.byteforce.seedj.starter.autoconfigure.BizEnabledMarker;
-import cn.byteforce.seedj.starter.web.ContractErrorHandler;
 import cn.byteforce.seedj.core.security.AccessTokenRules;
 import cn.byteforce.seedj.core.security.CallerProvider;
 import cn.byteforce.seedj.core.security.SecurityAuditSink;
 import cn.byteforce.seedj.id.IdGenerator;
-import cn.byteforce.seedj.security.AuthorizationDecisionPoint;
 import cn.byteforce.seedj.security.AuthorizationDecision;
+import cn.byteforce.seedj.security.AuthorizationDecisionPoint;
+import cn.byteforce.seedj.starter.autoconfigure.BizEnabledMarker;
+import cn.byteforce.seedj.starter.web.ContractErrorHandler;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Objects;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -17,11 +21,11 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplicat
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.security.oauth2.server.resource.autoconfigure.OAuth2ResourceServerProperties;
 import org.springframework.context.annotation.Bean;
-import org.springframework.core.env.Environment;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
+import org.springframework.core.env.Environment;
 import org.springframework.core.task.TaskDecorator;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -47,35 +51,32 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import tools.jackson.databind.json.JsonMapper;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Objects;
-
 /**
  * 业务服务资源服务器装配。
  *
- * <p>与 IAM starter 的分工：这里只<b>消费</b>令牌，不签发、不存储用户；因此
- * {@code seedj-biz-starter} 不依赖 {@code seedj-iam-starter}。令牌规则由
- * {@link AccessTokenRules}（core）提供，两侧共用同一份实现。</p>
+ * <p>与 IAM starter 的分工：这里只<b>消费</b>令牌，不签发、不存储用户；因此 {@code seedj-biz-starter} 不依赖 {@code
+ * seedj-iam-starter}。令牌规则由 {@link AccessTokenRules}（core）提供，两侧共用同一份实现。
  *
- * <p>过滤器链顺序见 {@link #BIZ_FILTER_CHAIN_ORDER}：IAM 的浏览器登录链在
- * {@code LOWEST_PRECEDENCE}，所以业务链先命中；单独使用 biz 时它就是唯一一条链。</p>
+ * <p>过滤器链顺序见 {@link #BIZ_FILTER_CHAIN_ORDER}：IAM 的浏览器登录链在 {@code LOWEST_PRECEDENCE}，所以业务链先命中；单独使用
+ * biz 时它就是唯一一条链。
  *
  * @author ByteForce
  * @since 1.0.0
  */
 @AutoConfiguration
 @ConditionalOnBean(BizEnabledMarker.class)
-@ConditionalOnProperty(prefix = "seedj.biz", name = "enabled", havingValue = "true",
+@ConditionalOnProperty(
+        prefix = "seedj.biz",
+        name = "enabled",
+        havingValue = "true",
         matchIfMissing = true)
 @EnableConfigurationProperties(BizSecurityProperties.class)
 @Import(DevAuthConfiguration.class)
 public class BizSecurityAutoConfiguration {
 
     /**
-     * 业务资源服务器链的顺序：1 SAS / 2 SCIM / 3 IAM 管理 / 4 actuator /
-     * 6 biz / LAST IAM 浏览器登录（见 {@code IamServerAutoConfiguration}）。
+     * 业务资源服务器链的顺序：1 SAS / 2 SCIM / 3 IAM 管理 / 4 actuator / 6 biz / LAST IAM 浏览器登录（见 {@code
+     * IamServerAutoConfiguration}）。
      */
     public static final int BIZ_FILTER_CHAIN_ORDER = 6;
 
@@ -93,8 +94,7 @@ public class BizSecurityAutoConfiguration {
     /**
      * local/test 的本地决策点：按调用方权限声明判定，保留“无权限 403”的测试语义。
      *
-     * <p>生产 profile 没有 IAM 决策点时启动失败；本地开发使用 dev-auth 时，调用方
-     * 权限来自配置，因此这里不需要无条件放行。</p>
+     * <p>生产 profile 没有 IAM 决策点时启动失败；本地开发使用 dev-auth 时，调用方 权限来自配置，因此这里不需要无条件放行。
      *
      * @return 决策点
      */
@@ -102,11 +102,13 @@ public class BizSecurityAutoConfiguration {
     @ConditionalOnMissingBean
     @Profile({"local", "test"})
     public AuthorizationDecisionPoint localAuthorizationDecisionPoint() {
-        return request -> request.subject().permissions().contains(request.action())
-                ? AuthorizationDecision.allow("local-caller-permissions")
-                : AuthorizationDecision.deny("NO_PERMISSION",
-                        "missing permission: " + request.action(),
-                        "local-caller-permissions");
+        return request ->
+                request.subject().permissions().contains(request.action())
+                        ? AuthorizationDecision.allow("local-caller-permissions")
+                        : AuthorizationDecision.deny(
+                                "NO_PERMISSION",
+                                "missing permission: " + request.action(),
+                                "local-caller-permissions");
     }
 
     @Bean
@@ -123,14 +125,14 @@ public class BizSecurityAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public CallerProvider callerProvider(CallerPropagation propagation, JwtClaimsMapper mapper,
-                                         BizSecurityProperties properties) {
+    public CallerProvider callerProvider(
+            CallerPropagation propagation,
+            JwtClaimsMapper mapper,
+            BizSecurityProperties properties) {
         return new JwtCallerProvider(propagation, mapper, properties.tenantId());
     }
 
-    /**
-     * 把当前调用方与请求事实带进 {@code @Async} 线程；Boot 自动配置的执行器会应用该装饰器。
-     */
+    /** 把当前调用方与请求事实带进 {@code @Async} 线程；Boot 自动配置的执行器会应用该装饰器。 */
     @Bean
     @ConditionalOnMissingBean(TaskDecorator.class)
     public TaskDecorator requestContextDecorator(CallerPropagation propagation) {
@@ -146,39 +148,56 @@ public class BizSecurityAutoConfiguration {
         @Bean
         @Order(BIZ_FILTER_CHAIN_ORDER)
         @ConditionalOnMissingBean(name = "bizSecurityFilterChain")
-        @ConditionalOnProperty(prefix = "seedj.biz.dev-auth", name = "enabled",
-                havingValue = "false", matchIfMissing = true)
+        @ConditionalOnProperty(
+                prefix = "seedj.biz.dev-auth",
+                name = "enabled",
+                havingValue = "false",
+                matchIfMissing = true)
         public SecurityFilterChain bizSecurityFilterChain(
                 HttpSecurity http,
                 BizSecurityProperties properties,
                 JwtDecoder jwtDecoder,
                 JwtAuthenticationConverter jwtAuthenticationConverter,
                 JsonAuthenticationEntryPoint authenticationEntryPoint,
-                JsonAccessDeniedHandler accessDeniedHandler) throws Exception {
-            http
-                    .sessionManagement(session -> session
-                            .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                JsonAccessDeniedHandler accessDeniedHandler)
+                throws Exception {
+            http.sessionManagement(
+                            session ->
+                                    session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                     .csrf(AbstractHttpConfigurer::disable)
                     .cors(Customizer.withDefaults())
-                    .authorizeHttpRequests(authorize -> authorize
-                            .requestMatchers(properties.publicPaths().toArray(String[]::new))
-                            .permitAll()
-                            .anyRequest().authenticated())
-                    .exceptionHandling(handling -> handling
-                            .authenticationEntryPoint(authenticationEntryPoint)
-                            .accessDeniedHandler(accessDeniedHandler))
-                    .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt
-                            .decoder(jwtDecoder)
-                            .jwtAuthenticationConverter(jwtAuthenticationConverter)));
+                    .authorizeHttpRequests(
+                            authorize ->
+                                    authorize
+                                            .requestMatchers(
+                                                    properties.publicPaths().toArray(String[]::new))
+                                            .permitAll()
+                                            .anyRequest()
+                                            .authenticated())
+                    .exceptionHandling(
+                            handling ->
+                                    handling.authenticationEntryPoint(authenticationEntryPoint)
+                                            .accessDeniedHandler(accessDeniedHandler))
+                    .oauth2ResourceServer(
+                            oauth2 ->
+                                    oauth2.jwt(
+                                            jwt ->
+                                                    jwt.decoder(jwtDecoder)
+                                                            .jwtAuthenticationConverter(
+                                                                    jwtAuthenticationConverter)));
             return http.build();
         }
 
         @Bean
         @ConditionalOnMissingBean
-        @ConditionalOnProperty(prefix = "seedj.biz.dev-auth", name = "enabled",
-                havingValue = "false", matchIfMissing = true)
-        public JwtDecoder jwtDecoder(BizSecurityProperties properties,
-                                     ObjectProvider<OAuth2ResourceServerProperties> bootProperties) {
+        @ConditionalOnProperty(
+                prefix = "seedj.biz.dev-auth",
+                name = "enabled",
+                havingValue = "false",
+                matchIfMissing = true)
+        public JwtDecoder jwtDecoder(
+                BizSecurityProperties properties,
+                ObjectProvider<OAuth2ResourceServerProperties> bootProperties) {
             String issuer = resolveIssuer(properties, bootProperties.getIfAvailable());
             NimbusJwtDecoder decoder = NimbusJwtDecoder.withIssuerLocation(issuer).build();
 
@@ -191,9 +210,13 @@ public class BizSecurityAutoConfiguration {
             validators.add(new JwtClaimValidator<>("aud", AccessTokenRules::hasAudience));
             if (properties.hasAudience()) {
                 String audience = properties.audience();
-                validators.add(new JwtClaimValidator<>("aud",
-                        value -> value instanceof Collection<?> collection
-                                ? collection.contains(audience) : audience.equals(value)));
+                validators.add(
+                        new JwtClaimValidator<>(
+                                "aud",
+                                value ->
+                                        value instanceof Collection<?> collection
+                                                ? collection.contains(audience)
+                                                : audience.equals(value)));
             }
             decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(validators));
             return decoder;
@@ -203,13 +226,14 @@ public class BizSecurityAutoConfiguration {
         @ConditionalOnMissingBean
         public JwtAuthenticationConverter jwtAuthenticationConverter(JwtClaimsMapper mapper) {
             JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
-            converter.setJwtGrantedAuthoritiesConverter(jwt -> {
-                List<GrantedAuthority> authorities = new ArrayList<>();
-                for (String authority : AccessTokenRules.authorities(mapper.map(jwt))) {
-                    authorities.add(new SimpleGrantedAuthority(authority));
-                }
-                return authorities;
-            });
+            converter.setJwtGrantedAuthoritiesConverter(
+                    jwt -> {
+                        List<GrantedAuthority> authorities = new ArrayList<>();
+                        for (String authority : AccessTokenRules.authorities(mapper.map(jwt))) {
+                            authorities.add(new SimpleGrantedAuthority(authority));
+                        }
+                        return authorities;
+                    });
             return converter;
         }
 
@@ -244,8 +268,8 @@ public class BizSecurityAutoConfiguration {
         }
 
         /**
-         * CORS：默认不放开任何来源；必须显式配置 {@code seedj.biz.cors.allowed-origins}。
-         * 生产 profile 下空配置启动失败，避免默认 {@code *} 泄漏到生产。
+         * CORS：默认不放开任何来源；必须显式配置 {@code seedj.biz.cors.allowed-origins}。 生产 profile 下空配置启动失败，避免默认
+         * {@code *} 泄漏到生产。
          *
          * @param properties 安全配置
          * @param environment Spring 环境
@@ -253,11 +277,12 @@ public class BizSecurityAutoConfiguration {
          */
         @Bean
         @ConditionalOnMissingBean
-        public CorsConfigurationSource corsConfigurationSource(BizSecurityProperties properties,
-                                                               Environment environment) {
+        public CorsConfigurationSource corsConfigurationSource(
+                BizSecurityProperties properties, Environment environment) {
             if (environment.matchesProfiles("prod") && properties.corsAllowedOrigins().isEmpty()) {
-                throw new IllegalStateException("seedj.biz.cors.allowed-origins is required"
-                        + " in the prod profile; refusing to run with default CORS");
+                throw new IllegalStateException(
+                        "seedj.biz.cors.allowed-origins is required"
+                                + " in the prod profile; refusing to run with default CORS");
             }
             CorsConfiguration config = new CorsConfiguration();
             config.setAllowedOriginPatterns(properties.corsAllowedOrigins());
@@ -284,24 +309,25 @@ public class BizSecurityAutoConfiguration {
         }
 
         private static JsonMapper jsonMapper(ObjectProvider<JsonMapper> provider) {
-            return Objects.requireNonNullElseGet(provider.getIfAvailable(),
-                    () -> JsonMapper.builder().build());
+            return Objects.requireNonNullElseGet(
+                    provider.getIfAvailable(), () -> JsonMapper.builder().build());
         }
 
-        private static String resolveIssuer(BizSecurityProperties properties,
-                                            OAuth2ResourceServerProperties bootProperties) {
+        private static String resolveIssuer(
+                BizSecurityProperties properties, OAuth2ResourceServerProperties bootProperties) {
             String configured = properties.issuerUri();
             if (configured != null) {
                 return configured;
             }
-            String standard = bootProperties == null ? null
-                    : bootProperties.getJwt().getIssuerUri();
+            String standard =
+                    bootProperties == null ? null : bootProperties.getJwt().getIssuerUri();
             if (standard != null && !standard.isBlank()) {
                 return standard;
             }
-            throw new IllegalStateException("seedj.biz requires a token issuer: configure "
-                    + "spring.security.oauth2.resourceserver.jwt.issuer-uri "
-                    + "or seedj.biz.issuer-uri");
+            throw new IllegalStateException(
+                    "seedj.biz requires a token issuer: configure "
+                            + "spring.security.oauth2.resourceserver.jwt.issuer-uri "
+                            + "or seedj.biz.issuer-uri");
         }
     }
 }

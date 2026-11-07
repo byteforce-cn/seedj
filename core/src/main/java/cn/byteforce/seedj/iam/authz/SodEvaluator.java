@@ -12,30 +12,30 @@ import java.util.Map;
  */
 public final class SodEvaluator {
 
-    private SodEvaluator() {
-    }
+    private SodEvaluator() {}
 
     /**
      * 计算冲突。
      *
-     * @param rules            规则
+     * @param rules 规则
      * @param permissionScopes 权限 → 授予范围列表
      * @return 每条规则至多一条 finding
      */
-    public static List<SodFinding> findings(List<SodRule> rules,
-                                            Map<String, List<Map<String, String>>> permissionScopes) {
+    public static List<SodFinding> findings(
+            List<SodRule> rules, Map<String, List<Map<String, String>>> permissionScopes) {
         List<SodFinding> findings = new ArrayList<>();
         for (SodRule rule : rules) {
             if (conflicts(rule, permissionScopes)) {
-                findings.add(new SodFinding(rule.id(), rule.enforcement(),
-                        rule.conflictingPermissions()));
+                findings.add(
+                        new SodFinding(
+                                rule.id(), rule.enforcement(), rule.conflictingPermissions()));
             }
         }
         return findings;
     }
 
-    private static boolean conflicts(SodRule rule,
-                                     Map<String, List<Map<String, String>>> permissionScopes) {
+    private static boolean conflicts(
+            SodRule rule, Map<String, List<Map<String, String>>> permissionScopes) {
         List<List<Map<String, String>>> grants = new ArrayList<>();
         for (String permission : rule.conflictingPermissions()) {
             List<Map<String, String>> scopes = permissionScopes.get(permission);
@@ -55,8 +55,8 @@ public final class SodEvaluator {
         return false;
     }
 
-    private static boolean sharesScope(List<Map<String, String>> left,
-                                       List<Map<String, String>> right, String key) {
+    private static boolean sharesScope(
+            List<Map<String, String>> left, List<Map<String, String>> right, String key) {
         for (Map<String, String> first : left) {
             String value = first.get(key);
             if (value == null || value.isBlank()) {

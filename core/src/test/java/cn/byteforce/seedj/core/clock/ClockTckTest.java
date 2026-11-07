@@ -1,16 +1,13 @@
 package cn.byteforce.seedj.core.clock;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
-import java.time.Instant;
-
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/**
- * 时钟一致性测试套件自身：通过路径与失败信息。
- */
+import java.time.Instant;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+/** 时钟一致性测试套件自身：通过路径与失败信息。 */
 class ClockTckTest {
 
     private static final Instant T0 = Instant.parse("2026-11-06T09:00:00Z");
@@ -61,8 +58,10 @@ class ClockTckTest {
         TestClock physical = new TestClock(T0);
         Clock clock = Clocks.monotonic(physical);
 
-        assertThatCode(() -> ClockTck.verifyClockRollback(clock,
-                first -> physical.set(first.minusSeconds(3600))))
+        assertThatCode(
+                        () ->
+                                ClockTck.verifyClockRollback(
+                                        clock, first -> physical.set(first.minusSeconds(3600))))
                 .doesNotThrowAnyException();
     }
 
@@ -71,8 +70,10 @@ class ClockTckTest {
     void plainFixedClockFailsRollback() {
         TestClock physical = new TestClock(T0);
 
-        assertThatThrownBy(() -> ClockTck.verifyClockRollback(physical,
-                first -> physical.set(first.minusSeconds(3600))))
+        assertThatThrownBy(
+                        () ->
+                                ClockTck.verifyClockRollback(
+                                        physical, first -> physical.set(first.minusSeconds(3600))))
                 .isInstanceOf(AssertionError.class)
                 .hasMessageContaining("must not go backwards");
     }
@@ -82,8 +83,7 @@ class ClockTckTest {
     void concurrentCallsStayUnique() throws InterruptedException {
         Clock clock = Clocks.monotonic(Clocks.fixed(T0));
 
-        assertThatCode(() -> ClockTck.verifyConcurrent(clock, 4, 25))
-                .doesNotThrowAnyException();
+        assertThatCode(() -> ClockTck.verifyConcurrent(clock, 4, 25)).doesNotThrowAnyException();
     }
 
     @Test

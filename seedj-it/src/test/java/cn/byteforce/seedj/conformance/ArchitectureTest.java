@@ -13,9 +13,8 @@ import org.junit.jupiter.api.Test;
 /**
  * 架构边界门禁：把 spec D7 的依赖方向变成可执行断言。
  *
- * <p>违规先记录在 {@code config/archunit/architecture-allowlist.txt}，每行
- * {@code rule|origin -> target}；T3 逐个任务清空对应条目。allowlist 有内容不是“通过”，
- * 而是“已知债务可见”。</p>
+ * <p>违规先记录在 {@code config/archunit/architecture-allowlist.txt}，每行 {@code rule|origin -> target}；T3
+ * 逐个任务清空对应条目。allowlist 有内容不是“通过”， 而是“已知债务可见”。
  */
 class ArchitectureTest {
 
@@ -41,8 +40,11 @@ class ArchitectureTest {
                 "biz-does-not-depend-on-iam",
                 ModuleClassPath.classesOf("seedj-biz-starter"),
                 clazz -> clazz.getPackageName().startsWith("cn.byteforce.seedj.starter"),
-                dependency -> dependency.getPackageName().startsWith("cn.byteforce.seedj.iam")
-                                || dependency.getPackageName().startsWith("cn.byteforce.seedj.starter.iam"));
+                dependency ->
+                        dependency.getPackageName().startsWith("cn.byteforce.seedj.iam")
+                                || dependency
+                                        .getPackageName()
+                                        .startsWith("cn.byteforce.seedj.starter.iam"));
     }
 
     @Test
@@ -73,10 +75,11 @@ class ArchitectureTest {
         assertNoDependencies(
                 "business-code-uses-read-gateway",
                 ModuleClassPath.allClasses(),
-                clazz -> clazz.getPackageName().startsWith("cn.byteforce.seedj.server")
-                        || clazz.getPackageName().startsWith("cn.byteforce.seedj.demo"),
-                dependency -> dependency.getName()
-                        .equals("cn.byteforce.seedj.domain.TemporalStore"));
+                clazz ->
+                        clazz.getPackageName().startsWith("cn.byteforce.seedj.server")
+                                || clazz.getPackageName().startsWith("cn.byteforce.seedj.demo"),
+                dependency ->
+                        dependency.getName().equals("cn.byteforce.seedj.domain.TemporalStore"));
     }
 
     private static void assertNoDependencies(
@@ -105,11 +108,8 @@ class ArchitectureTest {
 
         assertThat(violations)
                 .as(
-                        "规则 %s 存在未登记违规；修掉依赖，或在 %s 记录 "
-                                + "`%s|<origin> -> <target>`",
-                        rule,
-                        ALLOWLIST,
-                        rule)
+                        "规则 %s 存在未登记违规；修掉依赖，或在 %s 记录 " + "`%s|<origin> -> <target>`",
+                        rule, ALLOWLIST, rule)
                 .isEmpty();
     }
 }

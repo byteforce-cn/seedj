@@ -4,7 +4,6 @@ import cn.byteforce.seedj.core.security.Caller;
 import cn.byteforce.seedj.core.security.ScopeContext;
 import cn.byteforce.seedj.domain.ScopePredicate;
 import cn.byteforce.seedj.read.DataScopeResolver;
-
 import java.util.List;
 
 /**
@@ -23,7 +22,6 @@ public final class HrOrgUnitScopeResolver implements DataScopeResolver {
     @Override
     public ScopePredicate resolve(String objectType, Caller caller, ScopeContext context) {
         List<String> units = context.get(HrScopeKeys.ORG_UNITS).orElse(List.of());
-        return units.isEmpty() ? ScopePredicate.none()
-                : ScopePredicate.in("org_unit_id", units);
+        return units.isEmpty() ? ScopePredicate.none() : ScopePredicate.in("org_unit_id", units);
     }
 }

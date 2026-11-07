@@ -1,13 +1,11 @@
 package cn.byteforce.seedj.eventbus.spi;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import cn.byteforce.seedj.eventbus.EventBusErrorCode;
 import cn.byteforce.seedj.eventbus.EventBusException;
 import cn.byteforce.seedj.eventbus.EventMessage;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
@@ -15,9 +13,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
 /**
  * EventConsumerStore 契约测试套件：消费者组、ack、租约、重试、死信。
@@ -45,8 +44,14 @@ public abstract class EventConsumerStoreContractTest {
     }
 
     protected static EventMessage message(String eventId, String payload) {
-        return new EventMessage(eventId, "test.topic", "agg-1", "test.event", 1,
-                payload.getBytes(StandardCharsets.UTF_8), Map.of("traceId", "t-1"),
+        return new EventMessage(
+                eventId,
+                "test.topic",
+                "agg-1",
+                "test.event",
+                1,
+                payload.getBytes(StandardCharsets.UTF_8),
+                Map.of("traceId", "t-1"),
                 Instant.parse("2026-01-01T00:00:00Z"));
     }
 
@@ -105,8 +110,8 @@ public abstract class EventConsumerStoreContractTest {
     @DisplayName("租约到期后消息可被重新领取，attempts 递增")
     void expiredLeaseRedelivers() throws Exception {
         send(message("evt-1", "payload"));
-        PollRequest shortLease = new PollRequest("g1", Set.of("test.topic"), 10,
-                Duration.ofMillis(150));
+        PollRequest shortLease =
+                new PollRequest("g1", Set.of("test.topic"), 10, Duration.ofMillis(150));
         List<ReceivedEvent> first = store().poll(shortLease);
         assertThat(first).hasSize(1);
 
@@ -123,8 +128,10 @@ public abstract class EventConsumerStoreContractTest {
         send(message("evt-1", "payload"));
         ReceivedEvent received = pollOne("g1");
 
-        store().retry(received, Duration.ofMillis(300),
-                new DeliveryFailure("java.io.IOException", "boom", true));
+        store().retry(
+                        received,
+                        Duration.ofMillis(300),
+                        new DeliveryFailure("java.io.IOException", "boom", true));
 
         assertThat(store().poll(request("g1"))).isEmpty();
 
@@ -141,14 +148,14 @@ public abstract class EventConsumerStoreContractTest {
         send(message("evt-1", "payload"));
         ReceivedEvent received = pollOne("g1");
 
-        store().deadLetter(received, new DeliveryFailure("java.lang.IllegalArgument", "bad", false));
+        store().deadLetter(
+                        received, new DeliveryFailure("java.lang.IllegalArgument", "bad", false));
 
         assertThat(store().poll(request("g1"))).isEmpty();
         List<DeadLetter> deadLetters = store().deadLetters("test.topic", "g1", 10);
         assertThat(deadLetters).hasSize(1);
         assertThat(deadLetters.get(0).message().eventId()).isEqualTo("evt-1");
-        assertThat(deadLetters.get(0).failure().errorType())
-                .isEqualTo("java.lang.IllegalArgument");
+        assertThat(deadLetters.get(0).failure().errorType()).isEqualTo("java.lang.IllegalArgument");
     }
 
     @Test
@@ -156,12 +163,15 @@ public abstract class EventConsumerStoreContractTest {
     void pollHonoursLimitAndTopics() {
         send(message("evt-1", "a"));
         send(message("evt-2", "b"));
-        EventMessage otherTopic = EventMessage.of("other-evt", "other.topic", "k",
-                "c".getBytes(StandardCharsets.UTF_8));
+        EventMessage otherTopic =
+                EventMessage.of(
+                        "other-evt", "other.topic", "k", "c".getBytes(StandardCharsets.UTF_8));
         send(otherTopic);
 
-        List<ReceivedEvent> events = store().poll(new PollRequest(
-                "g1", Set.of("test.topic"), 1, Duration.ofSeconds(30)));
+        List<ReceivedEvent> events =
+                store().poll(
+                                new PollRequest(
+                                        "g1", Set.of("test.topic"), 1, Duration.ofSeconds(30)));
 
         assertThat(events).hasSize(1);
         assertThat(events.get(0).message().topic()).isEqualTo("test.topic");
@@ -172,8 +182,13 @@ public abstract class EventConsumerStoreContractTest {
     void staleDeliveryCannotAck() {
         send(message("evt-1", "payload"));
         ReceivedEvent received = pollOne("g1");
-        ReceivedEvent stale = new ReceivedEvent(UUID.randomUUID().toString(), "g1",
-                received.message(), received.attempts(), received.leaseUntil());
+        ReceivedEvent stale =
+                new ReceivedEvent(
+                        UUID.randomUUID().toString(),
+                        "g1",
+                        received.message(),
+                        received.attempts(),
+                        received.leaseUntil());
 
         assertThatThrownBy(() -> store().ack(stale))
                 .isInstanceOf(EventBusException.class)

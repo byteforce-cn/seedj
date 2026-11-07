@@ -6,13 +6,12 @@ import java.time.temporal.ChronoUnit;
 /**
  * 时点查询参数。
  *
- * <p>{@code asOf} 指定业务时点，{@code recordedAsOf} 指定系统记录时点；
- * 两者都为 {@code null} 表示查询当前版本。{@code minVersion} 是写后读一致性约束：
- * 返回版本低于该值时由存储层拒绝（{@code EIS-409-003}）。</p>
+ * <p>{@code asOf} 指定业务时点，{@code recordedAsOf} 指定系统记录时点； 两者都为 {@code null} 表示查询当前版本。{@code
+ * minVersion} 是写后读一致性约束： 返回版本低于该值时由存储层拒绝（{@code EIS-409-003}）。
  *
- * @param asOf         业务时点，可为 {@code null}
+ * @param asOf 业务时点，可为 {@code null}
  * @param recordedAsOf 系统时点，可为 {@code null}
- * @param minVersion   最小对象版本，可为 {@code null}
+ * @param minVersion 最小对象版本，可为 {@code null}
  * @author ByteForce
  * @since 1.0.0
  */

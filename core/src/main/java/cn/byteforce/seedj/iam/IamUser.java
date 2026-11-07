@@ -7,8 +7,8 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * IAM user aggregate. {@code userName} is unique per tenant and is the SCIM
- * {@code userName}; {@code id} is the stable subject identifier.
+ * IAM user aggregate. {@code userName} is unique per tenant and is the SCIM {@code userName};
+ * {@code id} is the stable subject identifier.
  */
 public record IamUser(
         String id,
@@ -35,11 +35,16 @@ public record IamUser(
         updatedAt = updatedAt == null ? createdAt : updatedAt;
     }
 
-    public static IamUser create(String id, String tenantId, String userName, String displayName,
-                                 String email, boolean active) {
+    public static IamUser create(
+            String id,
+            String tenantId,
+            String userName,
+            String displayName,
+            String email,
+            boolean active) {
         Instant now = Instant.now();
-        return new IamUser(id, tenantId, userName, null,
-                displayName, email, active, Map.of(), 0, now, now);
+        return new IamUser(
+                id, tenantId, userName, null, displayName, email, active, Map.of(), 0, now, now);
     }
 
     public String normalizedUserName() {
@@ -47,23 +52,63 @@ public record IamUser(
     }
 
     public IamUser withProfile(String displayName, String email, Map<String, Object> attributes) {
-        return new IamUser(id, tenantId, userName, externalId, displayName, email, active,
-                attributes, version, createdAt, updatedAt);
+        return new IamUser(
+                id,
+                tenantId,
+                userName,
+                externalId,
+                displayName,
+                email,
+                active,
+                attributes,
+                version,
+                createdAt,
+                updatedAt);
     }
 
     public IamUser withActive(boolean active) {
-        return new IamUser(id, tenantId, userName, externalId, displayName, email, active,
-                attributes, version, createdAt, updatedAt);
+        return new IamUser(
+                id,
+                tenantId,
+                userName,
+                externalId,
+                displayName,
+                email,
+                active,
+                attributes,
+                version,
+                createdAt,
+                updatedAt);
     }
 
     public IamUser withExternalId(String externalId) {
-        return new IamUser(id, tenantId, userName, externalId, displayName, email, active,
-                attributes, version, createdAt, updatedAt);
+        return new IamUser(
+                id,
+                tenantId,
+                userName,
+                externalId,
+                displayName,
+                email,
+                active,
+                attributes,
+                version,
+                createdAt,
+                updatedAt);
     }
 
     public IamUser withVersion(long version, Instant updatedAt) {
-        return new IamUser(id, tenantId, userName, externalId, displayName, email, active,
-                attributes, version, createdAt, updatedAt);
+        return new IamUser(
+                id,
+                tenantId,
+                userName,
+                externalId,
+                displayName,
+                email,
+                active,
+                attributes,
+                version,
+                createdAt,
+                updatedAt);
     }
 
     public Map<String, Object> mutableAttributes() {

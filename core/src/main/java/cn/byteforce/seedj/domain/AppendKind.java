@@ -3,9 +3,8 @@ package cn.byteforce.seedj.domain;
 /**
  * 追加类型。
  *
- * <p>{@link #CORRECTION} 是常规更正：业务时点通常落在当前或未来；
- * {@link #LATE_FACT} 是迟到事实：业务时点早于当前系统时间，允许其有效区间
- * 覆盖历史区间，但只封口系统时间轴。</p>
+ * <p>{@link #CORRECTION} 是常规更正：业务时点通常落在当前或未来； {@link #LATE_FACT} 是迟到事实：业务时点早于当前系统时间，允许其有效区间
+ * 覆盖历史区间，但只封口系统时间轴。
  *
  * @author ByteForce
  * @since 1.0.0

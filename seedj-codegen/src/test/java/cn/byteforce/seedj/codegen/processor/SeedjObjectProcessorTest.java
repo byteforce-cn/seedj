@@ -24,7 +24,8 @@ import org.junit.jupiter.api.io.TempDir;
 /** 处理器端到端：javac 真正跑一轮，生成源码与 META-INF 资源。 */
 class SeedjObjectProcessorTest {
 
-    private static final String SOURCE = """
+    private static final String SOURCE =
+            """
             package fixture;
 
             import cn.byteforce.seedj.codegen.MaskerName;
@@ -83,7 +84,8 @@ class SeedjObjectProcessorTest {
     @Test
     @DisplayName("非 record 或不可映射类型在编译期报错")
     void failsOnUnsupportedDeclaration(@TempDir Path temp) throws IOException {
-        String classSource = """
+        String classSource =
+                """
                 package fixture;
 
                 import cn.byteforce.seedj.codegen.SeedjObject;
@@ -91,14 +93,22 @@ class SeedjObjectProcessorTest {
                 @SeedjObject(objectType = "employee", table = "hr_employee")
                 public class NotARecord {}
                 """;
-        Result notRecord = compile(temp, Files.createDirectories(temp.resolve("c1")),
-                Files.createDirectories(temp.resolve("g1")), classSource, "fixture.NotARecord");
+        Result notRecord =
+                compile(
+                        temp,
+                        Files.createDirectories(temp.resolve("c1")),
+                        Files.createDirectories(temp.resolve("g1")),
+                        classSource,
+                        "fixture.NotARecord");
         assertThat(notRecord.success()).isFalse();
         assertThat(notRecord.diagnostics())
-                .anySatisfy(message -> assertThat(message)
-                        .contains("@SeedjObject can only annotate a record"));
+                .anySatisfy(
+                        message ->
+                                assertThat(message)
+                                        .contains("@SeedjObject can only annotate a record"));
 
-        String listSource = """
+        String listSource =
+                """
                 package fixture;
 
                 import cn.byteforce.seedj.codegen.SeedjObject;
@@ -107,8 +117,13 @@ class SeedjObjectProcessorTest {
                 @SeedjObject(objectType = "employee", table = "hr_employee")
                 public record BadFields(List<String> tags) {}
                 """;
-        Result unsupported = compile(temp, Files.createDirectories(temp.resolve("c2")),
-                Files.createDirectories(temp.resolve("g2")), listSource, "fixture.BadFields");
+        Result unsupported =
+                compile(
+                        temp,
+                        Files.createDirectories(temp.resolve("c2")),
+                        Files.createDirectories(temp.resolve("g2")),
+                        listSource,
+                        "fixture.BadFields");
         assertThat(unsupported.success()).isFalse();
         assertThat(unsupported.diagnostics())
                 .anySatisfy(message -> assertThat(message).contains("unsupported field type"));
@@ -117,7 +132,8 @@ class SeedjObjectProcessorTest {
     @Test
     @DisplayName("注解中的值域约束透传到生成的 schema")
     void carriesFieldConstraints(@TempDir Path temp) throws IOException {
-        String source = """
+        String source =
+                """
                 package fixture;
 
                 import cn.byteforce.seedj.codegen.SeedjField;
@@ -154,7 +170,8 @@ class SeedjObjectProcessorTest {
     @Test
     @DisplayName("DECIMAL 未声明 precision 在编译期报错")
     void rejectsDecimalWithoutPrecision(@TempDir Path temp) throws IOException {
-        String source = """
+        String source =
+                """
                 package fixture;
 
                 import cn.byteforce.seedj.codegen.SeedjObject;
@@ -163,48 +180,58 @@ class SeedjObjectProcessorTest {
                 @SeedjObject(objectType = "invoice", table = "fin_invoice")
                 public record BadAmount(BigDecimal amount) {}
                 """;
-        Result result = compile(temp, Files.createDirectories(temp.resolve("classes")),
-                Files.createDirectories(temp.resolve("generated")), source,
-                "fixture.BadAmount");
+        Result result =
+                compile(
+                        temp,
+                        Files.createDirectories(temp.resolve("classes")),
+                        Files.createDirectories(temp.resolve("generated")),
+                        source,
+                        "fixture.BadAmount");
 
         assertThat(result.success()).isFalse();
         assertThat(result.diagnostics())
                 .anySatisfy(message -> assertThat(message).contains("must declare precision"));
     }
 
-    private static Result compile(Path temp, Path classes, Path generated, String source,
-                                  String className) {
+    private static Result compile(
+            Path temp, Path classes, Path generated, String source, String className) {
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
         DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<>();
-        try (StandardJavaFileManager files = compiler.getStandardFileManager(
-                diagnostics, Locale.ROOT, StandardCharsets.UTF_8)) {
+        try (StandardJavaFileManager files =
+                compiler.getStandardFileManager(diagnostics, Locale.ROOT, StandardCharsets.UTF_8)) {
             files.setLocation(StandardLocation.CLASS_OUTPUT, List.of(classes.toFile()));
             files.setLocation(StandardLocation.SOURCE_OUTPUT, List.of(generated.toFile()));
-            JavaFileObject unit = new SimpleJavaFileObject(
-                    URI.create("string:///" + className.replace('.', '/') + ".java"),
-                    JavaFileObject.Kind.SOURCE) {
-                @Override
-                public CharSequence getCharContent(boolean ignoreEncodingErrors) {
-                    return source;
-                }
-            };
-            List<String> options = List.of(
-                    "-proc:full",
-                    "-classpath", System.getProperty("java.class.path"),
-                    "-d", classes.toString(),
-                    "-s", generated.toString());
+            JavaFileObject unit =
+                    new SimpleJavaFileObject(
+                            URI.create("string:///" + className.replace('.', '/') + ".java"),
+                            JavaFileObject.Kind.SOURCE) {
+                        @Override
+                        public CharSequence getCharContent(boolean ignoreEncodingErrors) {
+                            return source;
+                        }
+                    };
+            List<String> options =
+                    List.of(
+                            "-proc:full",
+                            "-classpath",
+                            System.getProperty("java.class.path"),
+                            "-d",
+                            classes.toString(),
+                            "-s",
+                            generated.toString());
             var task = compiler.getTask(null, files, diagnostics, options, null, List.of(unit));
             task.setProcessors(List.of(new SeedjObjectProcessor()));
             boolean success = task.call();
-            return new Result(success, diagnostics.getDiagnostics().stream()
-                    .filter(diagnostic -> diagnostic.getKind() == Diagnostic.Kind.ERROR)
-                    .map(diagnostic -> diagnostic.getMessage(Locale.ROOT))
-                    .toList());
+            return new Result(
+                    success,
+                    diagnostics.getDiagnostics().stream()
+                            .filter(diagnostic -> diagnostic.getKind() == Diagnostic.Kind.ERROR)
+                            .map(diagnostic -> diagnostic.getMessage(Locale.ROOT))
+                            .toList());
         } catch (IOException error) {
             return new Result(false, List.of(error.getMessage()));
         }
     }
 
-    private record Result(boolean success, List<String> diagnostics) {
-    }
+    private record Result(boolean success, List<String> diagnostics) {}
 }

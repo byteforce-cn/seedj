@@ -1,7 +1,7 @@
 package cn.byteforce.seedj.infra.local.numbering;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -9,9 +9,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
 /** 编号 SPI 语义：并发不重复、scope 隔离、年度重置。 */
 class NumberingTest {
@@ -23,12 +22,14 @@ class NumberingTest {
         Set<Long> values = ConcurrentHashMap.newKeySet();
         ExecutorService pool = Executors.newFixedThreadPool(8);
         try {
-            var task = (java.util.concurrent.Callable<Void>) () -> {
-                for (int i = 0; i < 100; i++) {
-                    values.add(numbering.next("order"));
-                }
-                return null;
-            };
+            var task =
+                    (java.util.concurrent.Callable<Void>)
+                            () -> {
+                                for (int i = 0; i < 100; i++) {
+                                    values.add(numbering.next("order"));
+                                }
+                                return null;
+                            };
             Future<?>[] futures = new Future<?>[8];
             for (int i = 0; i < futures.length; i++) {
                 futures[i] = pool.submit(task);

@@ -2,7 +2,6 @@ package cn.byteforce.seedj.demo.hr.query;
 
 import cn.byteforce.seedj.cqrs.QueryAgent;
 import cn.byteforce.seedj.demo.hr.domain.EmployeeId;
-
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -23,9 +22,10 @@ public final class HrQueryService {
 
     private final QueryAgent<List<EmployeeView>> listAgent;
 
-    public HrQueryService(EmployeeDirectory directory,
-                          QueryAgent<Optional<EmployeeView>> byIdAgent,
-                          QueryAgent<List<EmployeeView>> listAgent) {
+    public HrQueryService(
+            EmployeeDirectory directory,
+            QueryAgent<Optional<EmployeeView>> byIdAgent,
+            QueryAgent<List<EmployeeView>> listAgent) {
         this.directory = Objects.requireNonNull(directory, "directory");
         this.byIdAgent = Objects.requireNonNull(byIdAgent, "byIdAgent");
         this.listAgent = Objects.requireNonNull(listAgent, "listAgent");

@@ -15,7 +15,6 @@ import cn.byteforce.seedj.infra.local.domain.InMemoryTemporalStore;
 import cn.byteforce.seedj.module.ObjectModuleRegistry;
 import cn.byteforce.seedj.module.ObjectModules;
 import cn.byteforce.seedj.read.ReadModel;
-
 import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -30,9 +29,8 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * 业务规则测试工具：内存存储 + 固定时钟 + 调用方 + 写范围，10 行内测一条规则。
  *
- * <p>这是测试侧工件（{@code seedj-infra-local} 的 test-jar），不进入运行时 classpath。
- * 业务规则测试不需要 {@code @SpringBootTest}：装配只保留业务依赖（工号、派生字段、
- * 组织目录等），运行时的幂等、锁、事务、schema 校验与写范围由本类提供。</p>
+ * <p>这是测试侧工件（{@code seedj-infra-local} 的 test-jar），不进入运行时 classpath。 业务规则测试不需要
+ * {@code @SpringBootTest}：装配只保留业务依赖（工号、派生字段、 组织目录等），运行时的幂等、锁、事务、schema 校验与写范围由本类提供。
  *
  * <pre>{@code
  * CommandHarness harness = CommandHarness.of(moduleRegistry(), caller)
@@ -72,22 +70,28 @@ public final class CommandHarness {
         Objects.requireNonNull(registry, "registry");
         this.caller = Objects.requireNonNull(caller, "caller");
         this.actor = UUID.fromString(caller.id());
-        registry.commands().forEach(registration ->
-                registrations.put(registration.descriptor().type(), registration));
+        registry.commands()
+                .forEach(
+                        registration ->
+                                registrations.put(registration.descriptor().type(), registration));
         Clock clock = now::get;
-        ObjectSchemaRegistry schemas = new ObjectSchemaRegistry(registry.all().stream()
-                .map(ReadModel::schema)
-                .toList());
+        ObjectSchemaRegistry schemas =
+                new ObjectSchemaRegistry(registry.all().stream().map(ReadModel::schema).toList());
         this.objects = new InMemoryTemporalStore(clock, schemas);
-        this.runtime = new CommandRuntime(CommandRuntime.Options.forTests(clock,
-                () -> new UUID(0, idSequence.incrementAndGet()), commandStore, objects));
+        this.runtime =
+                new CommandRuntime(
+                        CommandRuntime.Options.forTests(
+                                clock,
+                                () -> new UUID(0, idSequence.incrementAndGet()),
+                                commandStore,
+                                objects));
     }
 
     /**
      * 用冻结的模块注册表创建 harness。
      *
      * @param registry 模块注册表
-     * @param caller   调用方
+     * @param caller 调用方
      * @return harness
      */
     public static CommandHarness of(ObjectModuleRegistry registry, Caller caller) {
@@ -98,7 +102,7 @@ public final class CommandHarness {
      * 用未冻结的模块声明创建 harness。
      *
      * @param modules 模块声明
-     * @param caller  调用方
+     * @param caller 调用方
      * @return harness
      */
     public static CommandHarness of(ObjectModules modules, Caller caller) {
@@ -151,40 +155,48 @@ public final class CommandHarness {
     /**
      * 执行一条命令。
      *
-     * @param type           命令类型
-     * @param payload        载荷（snake_case 字段名）
+     * @param type 命令类型
+     * @param payload 载荷（snake_case 字段名）
      * @param idempotencyKey 幂等键
      * @return 受理结果
      */
-    public CommandReceipt execute(String type, Map<String, Object> payload,
-                                  String idempotencyKey) {
+    public CommandReceipt execute(String type, Map<String, Object> payload, String idempotencyKey) {
         CommandRegistration registration = registrations.get(type);
         if (registration == null) {
-            throw new IllegalArgumentException("command type is not declared: " + type
-                    + " (known: " + registrations.keySet() + ")");
+            throw new IllegalArgumentException(
+                    "command type is not declared: "
+                            + type
+                            + " (known: "
+                            + registrations.keySet()
+                            + ")");
         }
-        return runtime.execute(new CommandSubmission(type, payload, idempotencyKey, List.of(),
-                actor), registration, caller, writeScope);
+        return runtime.execute(
+                new CommandSubmission(type, payload, idempotencyKey, List.of(), actor),
+                registration,
+                caller,
+                writeScope);
     }
 
     /**
      * 读取当前行；不存在即失败。
      *
      * @param objectType 对象类型
-     * @param id         对象 ID
+     * @param id 对象 ID
      * @return 当前行
      */
     public TemporalRow object(String objectType, UUID id) {
-        return objects.current(objectType, id).orElseThrow(
-                () -> new IllegalArgumentException(
-                        "object not found: " + objectType + ":" + id));
+        return objects.current(objectType, id)
+                .orElseThrow(
+                        () ->
+                                new IllegalArgumentException(
+                                        "object not found: " + objectType + ":" + id));
     }
 
     /**
      * 读取当前行。
      *
      * @param objectType 对象类型
-     * @param id         对象 ID
+     * @param id 对象 ID
      * @return 当前行
      */
     public Optional<TemporalRow> findObject(String objectType, UUID id) {
@@ -199,12 +211,13 @@ public final class CommandHarness {
      */
     public ObjectSchema schema(String objectType) {
         return registrations.values().stream()
-                .filter(registration -> registration.descriptor().objectType()
-                        .equals(objectType))
+                .filter(registration -> registration.descriptor().objectType().equals(objectType))
                 .map(CommandRegistration::schema)
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "no command declared for object type: " + objectType));
+                .orElseThrow(
+                        () ->
+                                new IllegalArgumentException(
+                                        "no command declared for object type: " + objectType));
     }
 
     /**

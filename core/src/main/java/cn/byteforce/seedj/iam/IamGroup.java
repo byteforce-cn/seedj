@@ -26,19 +26,24 @@ public record IamGroup(
         updatedAt = updatedAt == null ? createdAt : updatedAt;
     }
 
-    public static IamGroup create(String id, String tenantId, String displayName, String externalId,
-                                  Set<String> memberIds) {
+    public static IamGroup create(
+            String id,
+            String tenantId,
+            String displayName,
+            String externalId,
+            Set<String> memberIds) {
         Instant now = Instant.now();
-        return new IamGroup(id, tenantId, displayName, externalId,
-                memberIds, 0, now, now);
+        return new IamGroup(id, tenantId, displayName, externalId, memberIds, 0, now, now);
     }
 
     public IamGroup withMembers(Set<String> members) {
-        return new IamGroup(id, tenantId, displayName, externalId, members, version, createdAt, updatedAt);
+        return new IamGroup(
+                id, tenantId, displayName, externalId, members, version, createdAt, updatedAt);
     }
 
     public IamGroup withVersion(long version, Instant updatedAt) {
-        return new IamGroup(id, tenantId, displayName, externalId, memberIds, version, createdAt, updatedAt);
+        return new IamGroup(
+                id, tenantId, displayName, externalId, memberIds, version, createdAt, updatedAt);
     }
 
     public Set<String> mutableMembers() {

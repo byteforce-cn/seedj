@@ -4,14 +4,13 @@ import cn.byteforce.seedj.eventbus.EventBusErrorCode;
 import cn.byteforce.seedj.eventbus.EventBusException;
 import cn.byteforce.seedj.eventbus.EventMessage;
 import cn.byteforce.seedj.eventbus.spi.DeadLetter;
+import cn.byteforce.seedj.eventbus.spi.DeliveryFailure;
 import cn.byteforce.seedj.eventbus.spi.EventBusTransport;
 import cn.byteforce.seedj.eventbus.spi.EventConsumerStore;
-import cn.byteforce.seedj.eventbus.spi.DeliveryFailure;
 import cn.byteforce.seedj.eventbus.spi.PollRequest;
 import cn.byteforce.seedj.eventbus.spi.ReceivedEvent;
 import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.infra.local.id.LocalStringIdGenerator;
-
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -27,9 +26,8 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * 进程内队列（有界，发布 + 消费组）。
  *
- * <p>写满后丢弃最旧记录并计数，避免本地开发进程 OOM。消费组状态保存在进程内，
- * 因此只适用于单进程测试/演示；跨进程或同机多实例请使用
- * {@link FileEventBusTransport} 或真正的 MQ。
+ * <p>写满后丢弃最旧记录并计数，避免本地开发进程 OOM。消费组状态保存在进程内， 因此只适用于单进程测试/演示；跨进程或同机多实例请使用 {@link
+ * FileEventBusTransport} 或真正的 MQ。
  */
 public class MemoryEventBusTransport implements EventBusTransport, EventConsumerStore {
 
@@ -56,8 +54,9 @@ public class MemoryEventBusTransport implements EventBusTransport, EventConsumer
     @Override
     public CompletionStage<Void> send(EventMessage message) {
         if (closed) {
-            return CompletableFuture.failedFuture(new EventBusException(
-                    EventBusErrorCode.PROVIDER_CLOSED, "transport is closed"));
+            return CompletableFuture.failedFuture(
+                    new EventBusException(
+                            EventBusErrorCode.PROVIDER_CLOSED, "transport is closed"));
         }
         synchronized (messages) {
             topics.add(message.topic());
@@ -102,8 +101,8 @@ public class MemoryEventBusTransport implements EventBusTransport, EventConsumer
                 if (!request.topics().contains(entry.message.topic())) {
                     continue;
                 }
-                GroupState state = entry.groups.computeIfAbsent(
-                        request.group(), ignored -> new GroupState());
+                GroupState state =
+                        entry.groups.computeIfAbsent(request.group(), ignored -> new GroupState());
                 if (state.acked || state.dead) {
                     continue;
                 }
@@ -113,8 +112,13 @@ public class MemoryEventBusTransport implements EventBusTransport, EventConsumer
                 state.attempts++;
                 state.deliveryId = idGenerator.id();
                 state.leaseUntil = now.plus(request.lease());
-                result.add(new ReceivedEvent(state.deliveryId, request.group(),
-                        entry.message, state.attempts, state.leaseUntil));
+                result.add(
+                        new ReceivedEvent(
+                                state.deliveryId,
+                                request.group(),
+                                entry.message,
+                                state.attempts,
+                                state.leaseUntil));
             }
         }
         return result;
@@ -151,8 +155,10 @@ public class MemoryEventBusTransport implements EventBusTransport, EventConsumer
                 throw leaseLost("retry", event);
             }
             state.deliveryId = null;
-            state.leaseUntil = delay == null || delay.isZero() || delay.isNegative()
-                    ? null : Instant.now().plus(delay);
+            state.leaseUntil =
+                    delay == null || delay.isZero() || delay.isNegative()
+                            ? null
+                            : Instant.now().plus(delay);
         }
     }
 
@@ -168,8 +174,14 @@ public class MemoryEventBusTransport implements EventBusTransport, EventConsumer
             state.dead = true;
             state.deliveryId = null;
             state.leaseUntil = null;
-            deadLetters.add(new DeadLetter(idGenerator.id(),
-                    entry.message.topic(), event.group(), entry.message, failure, Instant.now()));
+            deadLetters.add(
+                    new DeadLetter(
+                            idGenerator.id(),
+                            entry.message.topic(),
+                            event.group(),
+                            entry.message,
+                            failure,
+                            Instant.now()));
         }
     }
 
@@ -177,8 +189,10 @@ public class MemoryEventBusTransport implements EventBusTransport, EventConsumer
     public List<DeadLetter> deadLetters(String topic, String group, int limit) {
         synchronized (messages) {
             return deadLetters.stream()
-                    .filter(deadLetter -> deadLetter.topic().equals(topic)
-                            && deadLetter.group().equals(group))
+                    .filter(
+                            deadLetter ->
+                                    deadLetter.topic().equals(topic)
+                                            && deadLetter.group().equals(group))
                     .limit(Math.max(0, limit))
                     .toList();
         }
@@ -222,7 +236,8 @@ public class MemoryEventBusTransport implements EventBusTransport, EventConsumer
     }
 
     private static EventBusException leaseLost(String action, ReceivedEvent event) {
-        return new EventBusException(EventBusErrorCode.LEASE_LOST,
+        return new EventBusException(
+                EventBusErrorCode.LEASE_LOST,
                 "lease lost, cannot " + action + ": " + event.message().eventId());
     }
 

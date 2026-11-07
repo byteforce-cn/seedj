@@ -1,8 +1,12 @@
 package cn.byteforce.seedj.test;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import cn.byteforce.seedj.it.extension.ClusterExtension;
 import cn.byteforce.seedj.it.extension.ClusterService;
 import cn.byteforce.seedj.it.extension.EnableClusterServices;
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -10,14 +14,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.test.web.servlet.client.RestTestClient;
 import tools.jackson.databind.json.JsonMapper;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
-/**
- * Transit 端到端：注入真实 bean（不是 {@code new BcTransitProvider()}），验证版本与错误码。
- */
+/** Transit 端到端：注入真实 bean（不是 {@code new BcTransitProvider()}），验证版本与错误码。 */
 @ExtendWith(ClusterExtension.class)
 @EnableClusterServices({"im"})
 class TransitIT {

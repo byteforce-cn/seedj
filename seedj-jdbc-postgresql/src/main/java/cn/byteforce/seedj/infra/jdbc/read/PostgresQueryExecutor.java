@@ -1,17 +1,15 @@
 package cn.byteforce.seedj.infra.jdbc.read;
 
 import cn.byteforce.seedj.read.QueryExecutor;
-
-import org.springframework.jdbc.core.JdbcTemplate;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
  * PostgreSQL 的自定义查询执行器：只执行网关生成的 SQL 与位置参数。
  *
- * <p>不做任何条件拼接或改写；行范围、脱敏与审计已经在 {@code ReadGateway} 完成。</p>
+ * <p>不做任何条件拼接或改写；行范围、脱敏与审计已经在 {@code ReadGateway} 完成。
  *
  * @author ByteForce
  * @since 1.0.0

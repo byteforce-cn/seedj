@@ -1,5 +1,9 @@
 package cn.byteforce.seedj.infra.jdbc.outbox.wiring;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import cn.byteforce.seedj.core.InfrastructureErrorCode;
 import cn.byteforce.seedj.core.InfrastructureException;
 import cn.byteforce.seedj.outbox.OutboxRecord;
@@ -9,10 +13,6 @@ import cn.byteforce.seedj.outbox.spi.ClaimedRecord;
 import cn.byteforce.seedj.outbox.spi.OutboxFailure;
 import cn.byteforce.seedj.outbox.spi.OutboxSink;
 import cn.byteforce.seedj.outbox.spi.OutboxStore;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.ObjectProvider;
-
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
@@ -25,14 +25,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.ObjectProvider;
 
 /**
- * Covers the relay's failure paths: claim errors, saturated concurrency, store
- * write-back errors, retry backoff and heartbeat renewal.
+ * Covers the relay's failure paths: claim errors, saturated concurrency, store write-back errors,
+ * retry backoff and heartbeat renewal.
  */
 class OutboxRelayResilienceTest {
 
@@ -47,8 +46,11 @@ class OutboxRelayResilienceTest {
     @Test
     void disabledRelayNeverClaims() {
         ScriptedStore store = new ScriptedStore();
-        OutboxRelay relay = relay(store, record -> CompletableFuture.completedFuture(null),
-                properties -> properties.setEnabled(false));
+        OutboxRelay relay =
+                relay(
+                        store,
+                        record -> CompletableFuture.completedFuture(null),
+                        properties -> properties.setEnabled(false));
 
         relay.relay();
 
@@ -58,12 +60,12 @@ class OutboxRelayResilienceTest {
     @Test
     void claimFailureIsCountedAndDoesNotEscape() {
         ScriptedStore store = new ScriptedStore();
-        store.claimBehavior = request -> {
-            throw new IllegalStateException("database down");
-        };
-        OutboxRelay relay = relay(store, record -> CompletableFuture.completedFuture(null),
-                properties -> {
-                });
+        store.claimBehavior =
+                request -> {
+                    throw new IllegalStateException("database down");
+                };
+        OutboxRelay relay =
+                relay(store, record -> CompletableFuture.completedFuture(null), properties -> {});
 
         relay.relay();
 
@@ -75,9 +77,8 @@ class OutboxRelayResilienceTest {
     @Test
     void emptyClaimIsANoOp() {
         ScriptedStore store = new ScriptedStore();
-        OutboxRelay relay = relay(store, record -> CompletableFuture.completedFuture(null),
-                properties -> {
-                });
+        OutboxRelay relay =
+                relay(store, record -> CompletableFuture.completedFuture(null), properties -> {});
 
         relay.relay();
 
@@ -91,14 +92,14 @@ class OutboxRelayResilienceTest {
         ScriptedStore store = new ScriptedStore();
         CountDownLatch claimStarted = new CountDownLatch(1);
         CountDownLatch releaseClaim = new CountDownLatch(1);
-        store.claimBehavior = request -> {
-            claimStarted.countDown();
-            await(releaseClaim);
-            return List.of();
-        };
-        OutboxRelay relay = relay(store, record -> CompletableFuture.completedFuture(null),
-                properties -> {
-                });
+        store.claimBehavior =
+                request -> {
+                    claimStarted.countDown();
+                    await(releaseClaim);
+                    return List.of();
+                };
+        OutboxRelay relay =
+                relay(store, record -> CompletableFuture.completedFuture(null), properties -> {});
 
         Thread round = new Thread(relay::relay, "relay-round");
         round.start();
@@ -117,10 +118,14 @@ class OutboxRelayResilienceTest {
         CompletableFuture<Void> pending = new CompletableFuture<>();
         CountDownLatch delivered = new CountDownLatch(1);
         store.claimBehavior = request -> List.of(store.claimedRecord(1));
-        OutboxRelay relay = relay(store, record -> {
-            delivered.countDown();
-            return pending;
-        }, properties -> properties.setMaxConcurrency(1));
+        OutboxRelay relay =
+                relay(
+                        store,
+                        record -> {
+                            delivered.countDown();
+                            return pending;
+                        },
+                        properties -> properties.setMaxConcurrency(1));
 
         relay.relay();
         assertThat(delivered.await(2, TimeUnit.SECONDS)).isTrue();
@@ -138,10 +143,14 @@ class OutboxRelayResilienceTest {
         store.claimBehavior = request -> List.of(store.claimedRecord(1), store.claimedRecord(1));
         List<OutboxRecord> delivered = new CopyOnWriteArrayList<>();
         CompletableFuture<Void> pending = new CompletableFuture<>();
-        OutboxRelay relay = relay(store, record -> {
-            delivered.add(record);
-            return pending;
-        }, properties -> properties.setMaxConcurrency(1));
+        OutboxRelay relay =
+                relay(
+                        store,
+                        record -> {
+                            delivered.add(record);
+                            return pending;
+                        },
+                        properties -> properties.setMaxConcurrency(1));
 
         relay.relay();
 
@@ -155,10 +164,13 @@ class OutboxRelayResilienceTest {
     void synchronousSinkFailureIsMarkedRetryableWithBackoff() throws Exception {
         ScriptedStore store = new ScriptedStore();
         store.claimBehavior = request -> List.of(store.claimedRecord(1));
-        OutboxRelay relay = relay(store, record -> {
-            throw new IllegalStateException("sink exploded");
-        }, properties -> {
-        });
+        OutboxRelay relay =
+                relay(
+                        store,
+                        record -> {
+                            throw new IllegalStateException("sink exploded");
+                        },
+                        properties -> {});
 
         relay.relay();
 
@@ -175,10 +187,14 @@ class OutboxRelayResilienceTest {
     void nonRetryableInfrastructureFailureHasNoBackoff() throws Exception {
         ScriptedStore store = new ScriptedStore();
         store.claimBehavior = request -> List.of(store.claimedRecord(3));
-        OutboxRelay relay = relay(store, record -> {
-            throw new InfrastructureException(InfrastructureErrorCode.MIGRATION_FAILED, "bad");
-        }, properties -> {
-        });
+        OutboxRelay relay =
+                relay(
+                        store,
+                        record -> {
+                            throw new InfrastructureException(
+                                    InfrastructureErrorCode.MIGRATION_FAILED, "bad");
+                        },
+                        properties -> {});
 
         relay.relay();
 
@@ -193,10 +209,14 @@ class OutboxRelayResilienceTest {
     void retryableInfrastructureFailureKeepsItsBackoff() throws Exception {
         ScriptedStore store = new ScriptedStore();
         store.claimBehavior = request -> List.of(store.claimedRecord(2));
-        OutboxRelay relay = relay(store, record -> {
-            throw new InfrastructureException(InfrastructureErrorCode.NOT_READY, "not yet");
-        }, properties -> {
-        });
+        OutboxRelay relay =
+                relay(
+                        store,
+                        record -> {
+                            throw new InfrastructureException(
+                                    InfrastructureErrorCode.NOT_READY, "not yet");
+                        },
+                        properties -> {});
 
         relay.relay();
 
@@ -210,11 +230,16 @@ class OutboxRelayResilienceTest {
     void retryDelayUsesBaseWhenNoAttemptWasRecorded() throws Exception {
         ScriptedStore store = new ScriptedStore();
         store.claimBehavior = request -> List.of(store.claimedRecord(0));
-        OutboxRelay relay = relay(store, record -> CompletableFuture.failedFuture(
-                new IllegalStateException("transient")), properties -> {
-            properties.setRetryBase(Duration.ofSeconds(2));
-            properties.setRetryMax(Duration.ofSeconds(60));
-        });
+        OutboxRelay relay =
+                relay(
+                        store,
+                        record ->
+                                CompletableFuture.failedFuture(
+                                        new IllegalStateException("transient")),
+                        properties -> {
+                            properties.setRetryBase(Duration.ofSeconds(2));
+                            properties.setRetryMax(Duration.ofSeconds(60));
+                        });
 
         relay.relay();
 
@@ -226,11 +251,16 @@ class OutboxRelayResilienceTest {
     void retryDelayIsCappedAtTheMaximum() throws Exception {
         ScriptedStore store = new ScriptedStore();
         store.claimBehavior = request -> List.of(store.claimedRecord(3));
-        OutboxRelay relay = relay(store, record -> CompletableFuture.failedFuture(
-                new IllegalStateException("transient")), properties -> {
-            properties.setRetryBase(Duration.ofSeconds(1));
-            properties.setRetryMax(Duration.ofSeconds(3));
-        });
+        OutboxRelay relay =
+                relay(
+                        store,
+                        record ->
+                                CompletableFuture.failedFuture(
+                                        new IllegalStateException("transient")),
+                        properties -> {
+                            properties.setRetryBase(Duration.ofSeconds(1));
+                            properties.setRetryMax(Duration.ofSeconds(3));
+                        });
 
         relay.relay();
 
@@ -242,11 +272,16 @@ class OutboxRelayResilienceTest {
     void retryDelaySaturatesWhenMultiplicationOverflows() throws Exception {
         ScriptedStore store = new ScriptedStore();
         store.claimBehavior = request -> List.of(store.claimedRecord(2));
-        OutboxRelay relay = relay(store, record -> CompletableFuture.failedFuture(
-                new IllegalStateException("transient")), properties -> {
-            properties.setRetryBase(Duration.ofMillis(Long.MAX_VALUE));
-            properties.setRetryMax(Duration.ofSeconds(9));
-        });
+        OutboxRelay relay =
+                relay(
+                        store,
+                        record ->
+                                CompletableFuture.failedFuture(
+                                        new IllegalStateException("transient")),
+                        properties -> {
+                            properties.setRetryBase(Duration.ofMillis(Long.MAX_VALUE));
+                            properties.setRetryMax(Duration.ofSeconds(9));
+                        });
 
         relay.relay();
 
@@ -259,9 +294,8 @@ class OutboxRelayResilienceTest {
         ScriptedStore store = new ScriptedStore();
         store.markSentFails = true;
         store.claimBehavior = request -> List.of(store.claimedRecord(1));
-        OutboxRelay relay = relay(store, record -> CompletableFuture.completedFuture(null),
-                properties -> {
-                });
+        OutboxRelay relay =
+                relay(store, record -> CompletableFuture.completedFuture(null), properties -> {});
 
         relay.relay();
 
@@ -276,9 +310,11 @@ class OutboxRelayResilienceTest {
         ScriptedStore store = new ScriptedStore();
         store.markFailedFails = true;
         store.claimBehavior = request -> List.of(store.claimedRecord(1));
-        OutboxRelay relay = relay(store, record -> CompletableFuture.failedFuture(
-                new IllegalStateException("boom")), properties -> {
-                });
+        OutboxRelay relay =
+                relay(
+                        store,
+                        record -> CompletableFuture.failedFuture(new IllegalStateException("boom")),
+                        properties -> {});
 
         relay.relay();
 
@@ -291,13 +327,14 @@ class OutboxRelayResilienceTest {
     void heartbeatRenewalFailuresMarkTheLeaseLost() throws Exception {
         ScriptedStore store = new ScriptedStore();
         store.renewalSupported = true;
-        store.renewBehavior = token -> {
-            throw new IllegalStateException("renew failed");
-        };
+        store.renewBehavior =
+                token -> {
+                    throw new IllegalStateException("renew failed");
+                };
         CompletableFuture<Void> pending = new CompletableFuture<>();
         store.claimBehavior = request -> List.of(store.claimedRecord(1, Duration.ofMillis(300)));
-        OutboxRelay relay = relay(store, record -> pending,
-                properties -> properties.setLeaseRenewFailures(1));
+        OutboxRelay relay =
+                relay(store, record -> pending, properties -> properties.setLeaseRenewFailures(1));
 
         relay.relay();
 
@@ -313,8 +350,7 @@ class OutboxRelayResilienceTest {
         store.renewalSupported = true;
         CompletableFuture<Void> pending = new CompletableFuture<>();
         store.claimBehavior = request -> List.of(store.claimedRecord(1, Duration.ofMillis(300)));
-        OutboxRelay relay = relay(store, record -> pending, properties -> {
-        });
+        OutboxRelay relay = relay(store, record -> pending, properties -> {});
 
         relay.relay();
         Thread.sleep(1_200);
@@ -326,8 +362,8 @@ class OutboxRelayResilienceTest {
         Thread.sleep(100);
     }
 
-    private OutboxRelay relay(ScriptedStore store, OutboxSink sink,
-                              Consumer<OutboxProperties.Relay> customizer) {
+    private OutboxRelay relay(
+            ScriptedStore store, OutboxSink sink, Consumer<OutboxProperties.Relay> customizer) {
         OutboxProperties.Relay properties = new OutboxProperties.Relay();
         properties.setPollInterval(Duration.ofHours(1));
         properties.setLease(Duration.ofSeconds(30));
@@ -389,10 +425,20 @@ class OutboxRelayResilienceTest {
 
         ClaimedRecord claimedRecord(int attempts, Duration lease) {
             String id = "r-" + recordSequence.incrementAndGet();
-            return new ClaimedRecord(id, new OutboxRecord(id + "-msg", "destination",
-                    "partition-1", "content", 1, "payload".getBytes(StandardCharsets.UTF_8),
-                    null, Instant.now()), attempts,
-                    new ClaimToken(id, "lease-" + id, lease), Instant.now().plus(lease));
+            return new ClaimedRecord(
+                    id,
+                    new OutboxRecord(
+                            id + "-msg",
+                            "destination",
+                            "partition-1",
+                            "content",
+                            1,
+                            "payload".getBytes(StandardCharsets.UTF_8),
+                            null,
+                            Instant.now()),
+                    attempts,
+                    new ClaimToken(id, "lease-" + id, lease),
+                    Instant.now().plus(lease));
         }
 
         @Override
@@ -442,12 +488,10 @@ class OutboxRelayResilienceTest {
         }
 
         @Override
-        public void retry(String recordId, String operator) {
-        }
+        public void retry(String recordId, String operator) {}
 
         @Override
-        public void discard(String recordId, String operator) {
-        }
+        public void discard(String recordId, String operator) {}
 
         static final class FailureCall {
             private final ClaimToken token;

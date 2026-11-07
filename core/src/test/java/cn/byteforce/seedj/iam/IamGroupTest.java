@@ -1,17 +1,14 @@
 package cn.byteforce.seedj.iam;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
-import java.time.Instant;
-import java.util.Set;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/**
- * IAM group aggregate：成员集合不可变、版本与时间戳归一化。
- */
+import java.time.Instant;
+import java.util.Set;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+/** IAM group aggregate：成员集合不可变、版本与时间戳归一化。 */
 class IamGroupTest {
 
     private static final Instant CREATED = Instant.parse("2026-01-05T10:00:00Z");
@@ -45,21 +42,35 @@ class IamGroupTest {
         assertThat(group.createdAt()).isNotNull();
         assertThat(group.updatedAt()).isEqualTo(group.createdAt());
 
-        assertThatThrownBy(() -> new IamGroup(null, null, "Engineering", null, null, 0,
-                CREATED, CREATED)).isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new IamGroup("g-1", null, " ", null, null, 0,
-                CREATED, CREATED)).isInstanceOf(IllegalArgumentException.class)
+        assertThatThrownBy(
+                        () ->
+                                new IamGroup(
+                                        null, null, "Engineering", null, null, 0, CREATED, CREATED))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> new IamGroup("g-1", null, " ", null, null, 0, CREATED, CREATED))
+                .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("displayName");
-        assertThatThrownBy(() -> new IamGroup(" ", null, "Engineering", null, null, 0,
-                CREATED, CREATED)).isInstanceOf(IllegalArgumentException.class)
+        assertThatThrownBy(
+                        () ->
+                                new IamGroup(
+                                        " ", null, "Engineering", null, null, 0, CREATED, CREATED))
+                .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("id");
     }
 
     @Test
     @DisplayName("withMembers / withVersion：保留其它字段")
     void withers() {
-        IamGroup base = new IamGroup("g-1", "tenant-a", "Engineering", "ext-1", Set.of("u-1"), 2,
-                CREATED, CREATED);
+        IamGroup base =
+                new IamGroup(
+                        "g-1",
+                        "tenant-a",
+                        "Engineering",
+                        "ext-1",
+                        Set.of("u-1"),
+                        2,
+                        CREATED,
+                        CREATED);
 
         IamGroup withMembers = base.withMembers(Set.of("u-1", "u-2"));
         assertThat(withMembers.memberIds()).containsExactlyInAnyOrder("u-1", "u-2");

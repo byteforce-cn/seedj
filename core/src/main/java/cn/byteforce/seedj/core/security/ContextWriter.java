@@ -20,7 +20,7 @@ public interface ContextWriter {
     /**
      * 写入事实。
      *
-     * @param sink   写入端（拒绝重复 key）
+     * @param sink 写入端（拒绝重复 key）
      * @param caller 调用方
      */
     void write(ContextSink sink, Caller caller);

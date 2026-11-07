@@ -1,30 +1,38 @@
 package cn.byteforce.seedj.iam.scim;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import cn.byteforce.seedj.iam.IamErrorCode;
 import cn.byteforce.seedj.iam.IamException;
 import cn.byteforce.seedj.iam.ScimComparisonOperator;
 import cn.byteforce.seedj.iam.ScimFilter;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
-import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
-/**
- * SCIM PATCH 模型：请求体包装、操作校验与多值路径解析。
- */
+/** SCIM PATCH 模型：请求体包装、操作校验与多值路径解析。 */
 class ScimPatchModelTest {
 
     @Test
     @DisplayName("PATCH body 支持 {Operations:[...]} 包装与裸数组")
     void parsesWrappedAndBareBodies() {
-        List<ScimPatchOperation> wrapped = ScimPatchParser.parse(Map.of("Operations",
-                List.of(Map.of("op", "add", "path", "displayName", "value", "Alice"))));
-        List<ScimPatchOperation> bare = ScimPatchParser.parse(List.of(
-                Map.of("op", "replace", "path", "active", "value", true)));
+        List<ScimPatchOperation> wrapped =
+                ScimPatchParser.parse(
+                        Map.of(
+                                "Operations",
+                                List.of(
+                                        Map.of(
+                                                "op",
+                                                "add",
+                                                "path",
+                                                "displayName",
+                                                "value",
+                                                "Alice"))));
+        List<ScimPatchOperation> bare =
+                ScimPatchParser.parse(
+                        List.of(Map.of("op", "replace", "path", "active", "value", true)));
 
         assertThat(wrapped).hasSize(1);
         assertThat(wrapped.get(0).op()).isEqualTo("add");
@@ -55,8 +63,10 @@ class ScimPatchModelTest {
         assertThatThrownBy(() -> ScimPatchParser.parse(List.of(Map.of("path", "active"))))
                 .isInstanceOf(IamException.class)
                 .hasMessageContaining("missing op");
-        assertThatThrownBy(() -> ScimPatchParser.parse(List.of(Map.of("op", "delete",
-                "path", "active"))))
+        assertThatThrownBy(
+                        () ->
+                                ScimPatchParser.parse(
+                                        List.of(Map.of("op", "delete", "path", "active"))))
                 .isInstanceOf(IamException.class)
                 .hasMessageContaining("unsupported PATCH op");
     }
@@ -84,8 +94,7 @@ class ScimPatchModelTest {
                 .isInstanceOf(NullPointerException.class)
                 .hasMessageContaining("op");
 
-        assertThat(new ScimPatchOperation("remove", "members", null).path())
-                .isEqualTo("members");
+        assertThat(new ScimPatchOperation("remove", "members", null).path()).isEqualTo("members");
     }
 
     @Test

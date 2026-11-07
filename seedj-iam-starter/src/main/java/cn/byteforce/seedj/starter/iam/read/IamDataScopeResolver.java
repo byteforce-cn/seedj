@@ -5,7 +5,6 @@ import cn.byteforce.seedj.core.security.ScopeContext;
 import cn.byteforce.seedj.domain.ScopePredicate;
 import cn.byteforce.seedj.module.ObjectModuleRegistry;
 import cn.byteforce.seedj.read.DataScopeResolver;
-
 import java.util.Objects;
 
 /**
@@ -24,7 +23,7 @@ public final class IamDataScopeResolver implements DataScopeResolver {
      * 构造解析器。
      *
      * @param compiler 策略编译器
-     * @param modules  模块注册表
+     * @param modules 模块注册表
      */
     public IamDataScopeResolver(PolicyScopeCompiler compiler, ObjectModuleRegistry modules) {
         this.compiler = Objects.requireNonNull(compiler, "compiler");

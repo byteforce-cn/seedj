@@ -1,7 +1,6 @@
 package cn.byteforce.seedj.demo.hr.query;
 
 import cn.byteforce.seedj.demo.hr.domain.EmployeeId;
-
 import java.time.LocalDate;
 
 /**
@@ -18,5 +17,4 @@ public record EmployeeView(
         String name,
         String department,
         String position,
-        LocalDate hireDate) {
-}
+        LocalDate hireDate) {}

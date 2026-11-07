@@ -1,5 +1,6 @@
 package cn.byteforce.seedj.starter.iam.authz;
 
+import cn.byteforce.seedj.iam.IamRole;
 import cn.byteforce.seedj.iam.authz.AttributeLookup;
 import cn.byteforce.seedj.iam.authz.AttributeSnapshot;
 import cn.byteforce.seedj.iam.authz.AttributeState;
@@ -18,13 +19,10 @@ import cn.byteforce.seedj.iam.authz.SodEvaluator;
 import cn.byteforce.seedj.iam.authz.SodFinding;
 import cn.byteforce.seedj.iam.authz.SodRule;
 import cn.byteforce.seedj.iam.authz.SodRuleSet;
-
-import cn.byteforce.seedj.iam.IamRole;
 import cn.byteforce.seedj.iam.spi.IamAuthorizationRepository;
 import cn.byteforce.seedj.security.AuthorizationDecision;
 import cn.byteforce.seedj.security.AuthorizationDecisionPoint;
 import cn.byteforce.seedj.security.AuthorizationRequest;
-
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -37,8 +35,7 @@ import java.util.Set;
 /**
  * 04 授权契约的解析与检查实现：时点绑定、代理展开、SoD、声明条件。
  *
- * <p>绑定只引用既有 {@code iam_role}；角色权限仍由 RBAC 仓储提供。条件只来自
- * 声明的 {@link IamPermissionCondition}，请求不能携带条件。</p>
+ * <p>绑定只引用既有 {@code iam_role}；角色权限仍由 RBAC 仓储提供。条件只来自 声明的 {@link IamPermissionCondition}，请求不能携带条件。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -60,17 +57,18 @@ public final class IamContractAuthorizationService implements AuthorizationDecis
     /**
      * 构造服务。
      *
-     * @param bindings   绑定/代理存储
-     * @param roles      角色权限仓储
+     * @param bindings 绑定/代理存储
+     * @param roles 角色权限仓储
      * @param attributes 属性源
      * @param conditions 权限条件声明
-     * @param ruleSet    SoD 规则
+     * @param ruleSet SoD 规则
      */
-    public IamContractAuthorizationService(IamBindingStore bindings,
-                                           IamAuthorizationRepository roles,
-                                           IamAttributeSource attributes,
-                                           List<IamPermissionCondition> conditions,
-                                           SodRuleSet ruleSet) {
+    public IamContractAuthorizationService(
+            IamBindingStore bindings,
+            IamAuthorizationRepository roles,
+            IamAttributeSource attributes,
+            List<IamPermissionCondition> conditions,
+            SodRuleSet ruleSet) {
         this.bindings = Objects.requireNonNull(bindings, "bindings");
         this.roles = Objects.requireNonNull(roles, "roles");
         this.attributes = Objects.requireNonNull(attributes, "attributes");
@@ -95,92 +93,104 @@ public final class IamContractAuthorizationService implements AuthorizationDecis
      */
     @Override
     public AuthorizationDecision decide(AuthorizationRequest request) {
-        IamCheckResult result = check(request.subject().id(), request.action(),
-                request.asOf(), null, null, null);
+        IamCheckResult result =
+                check(request.subject().id(), request.action(), request.asOf(), null, null, null);
         if (result.allowed()) {
-            return new AuthorizationDecision(true, null, result.reason(),
-                    result.reasonCode());
+            return new AuthorizationDecision(true, null, result.reason(), result.reasonCode());
         }
-        return AuthorizationDecision.deny(result.reasonCode(), result.reason(),
-                result.attributeState().wireName());
+        return AuthorizationDecision.deny(
+                result.reasonCode(), result.reason(), result.attributeState().wireName());
     }
 
     /**
      * 解析主体在指定时点的角色与权限。
      *
-     * @param principal    主体
-     * @param asOf         业务时点
+     * @param principal 主体
+     * @param asOf 业务时点
      * @param recordedAsOf 系统时点；可空
-     * @param scope        作用域过滤；空表示不过滤
+     * @param scope 作用域过滤；空表示不过滤
      * @return 解析结果
      */
-    public IamResolution resolve(String principal, Instant asOf, Instant recordedAsOf,
-                                 Map<String, String> scope) {
+    public IamResolution resolve(
+            String principal, Instant asOf, Instant recordedAsOf, Map<String, String> scope) {
         Access access = load(principal, asOf, recordedAsOf, scope);
-        List<String> warnings = access.findings().stream()
-                .filter(finding -> finding.enforcement() == SodEnforcement.WARN)
-                .map(SodFinding::ruleId)
-                .toList();
-        return new IamResolution(List.copyOf(access.roles()),
-                List.copyOf(access.permissions()), warnings);
+        List<String> warnings =
+                access.findings().stream()
+                        .filter(finding -> finding.enforcement() == SodEnforcement.WARN)
+                        .map(SodFinding::ruleId)
+                        .toList();
+        return new IamResolution(
+                List.copyOf(access.roles()), List.copyOf(access.permissions()), warnings);
     }
 
     /**
      * 检查权限。
      *
-     * @param principal        主体
-     * @param permission       权限
-     * @param asOf             业务时点
-     * @param recordedAsOf     系统时点；可空
+     * @param principal 主体
+     * @param permission 权限
+     * @param asOf 业务时点
+     * @param recordedAsOf 系统时点；可空
      * @param providedSnapshot 调用方已拉取的快照；可空
-     * @param providedState    调用方快照状态；可空（缺省 fresh）
+     * @param providedState 调用方快照状态；可空（缺省 fresh）
      * @return 检查结果
      */
-    public IamCheckResult check(String principal, String permission, Instant asOf,
-                                Instant recordedAsOf, Map<String, Object> providedSnapshot,
-                                AttributeState providedState) {
+    public IamCheckResult check(
+            String principal,
+            String permission,
+            Instant asOf,
+            Instant recordedAsOf,
+            Map<String, Object> providedSnapshot,
+            AttributeState providedState) {
         Access access = load(principal, asOf, recordedAsOf, Map.of());
         if (!access.permissions().contains(permission)) {
-            return new IamCheckResult(false, "permission not granted: " + permission,
-                    "NO_PERMISSION", AttributeState.NOT_REQUIRED);
+            return new IamCheckResult(
+                    false,
+                    "permission not granted: " + permission,
+                    "NO_PERMISSION",
+                    AttributeState.NOT_REQUIRED);
         }
         for (SodFinding finding : access.findings()) {
             if (finding.enforcement() == SodEnforcement.PREVENT
                     && finding.permissions().contains(permission)) {
-                return new IamCheckResult(false, "separation of duties conflict: "
-                        + finding.ruleId(), finding.ruleId(), AttributeState.NOT_REQUIRED);
+                return new IamCheckResult(
+                        false,
+                        "separation of duties conflict: " + finding.ruleId(),
+                        finding.ruleId(),
+                        AttributeState.NOT_REQUIRED);
             }
         }
         IamCondition condition = conditions.get(permission);
         if (condition == null) {
-            return new IamCheckResult(true, "permission granted", "ALLOWED",
-                    AttributeState.NOT_REQUIRED);
+            return new IamCheckResult(
+                    true, "permission granted", "ALLOWED", AttributeState.NOT_REQUIRED);
         }
-        AttributeLookup lookup = providedSnapshot == null
-                ? attributes.lookup(principal, asOf, recordedAsOf)
-                : new AttributeLookup(providedState == null ? AttributeState.FRESH
-                        : providedState, snapshot(principal, asOf, recordedAsOf,
-                        providedSnapshot));
+        AttributeLookup lookup =
+                providedSnapshot == null
+                        ? attributes.lookup(principal, asOf, recordedAsOf)
+                        : new AttributeLookup(
+                                providedState == null ? AttributeState.FRESH : providedState,
+                                snapshot(principal, asOf, recordedAsOf, providedSnapshot));
         if (lookup.state() != AttributeState.FRESH) {
             return failure(lookup.state());
         }
-        Map<String, Object> body = lookup.snapshot() == null
-                ? Map.of() : lookup.snapshot().snapshot();
+        Map<String, Object> body =
+                lookup.snapshot() == null ? Map.of() : lookup.snapshot().snapshot();
         ConditionOutcome outcome = evaluator.evaluate(condition, body);
         if (!outcome.matched()) {
-            return new IamCheckResult(false,
+            return new IamCheckResult(
+                    false,
                     "attribute condition not satisfied: " + outcome.attribute(),
-                    outcome.reasonCode(), AttributeState.FRESH);
+                    outcome.reasonCode(),
+                    AttributeState.FRESH);
         }
-        return new IamCheckResult(true, "condition satisfied", "ALLOWED",
-                AttributeState.FRESH);
+        return new IamCheckResult(true, "condition satisfied", "ALLOWED", AttributeState.FRESH);
     }
 
     /**
      * 拉取主体属性快照。
      *
-     * @param principal    主体
-     * @param asOf         业务时点
+     * @param principal 主体
+     * @param asOf 业务时点
      * @param recordedAsOf 系统时点；可空
      * @return 拉取结果
      */
@@ -188,8 +198,8 @@ public final class IamContractAuthorizationService implements AuthorizationDecis
         return attributes.lookup(principal, asOf, recordedAsOf);
     }
 
-    private Access load(String principal, Instant asOf, Instant recordedAsOf,
-                        Map<String, String> scope) {
+    private Access load(
+            String principal, Instant asOf, Instant recordedAsOf, Map<String, String> scope) {
         Set<String> roleCodes = new LinkedHashSet<>();
         Set<String> permissions = new LinkedHashSet<>();
         List<Grant> grants = new ArrayList<>();
@@ -198,8 +208,7 @@ public final class IamContractAuthorizationService implements AuthorizationDecis
             if (!scopeMatches(proxy.scope(), scope)) {
                 continue;
             }
-            collect(proxy.principal(), asOf, recordedAsOf, scope, roleCodes, permissions,
-                    grants);
+            collect(proxy.principal(), asOf, recordedAsOf, scope, roleCodes, permissions, grants);
         }
         Map<String, List<Map<String, String>>> scopes = new LinkedHashMap<>();
         for (Grant grant : grants) {
@@ -209,9 +218,14 @@ public final class IamContractAuthorizationService implements AuthorizationDecis
         return new Access(roleCodes, permissions, SodEvaluator.findings(sodRules, scopes));
     }
 
-    private void collect(String principal, Instant asOf, Instant recordedAsOf,
-                         Map<String, String> scope, Set<String> roleCodes,
-                         Set<String> permissions, List<Grant> grants) {
+    private void collect(
+            String principal,
+            Instant asOf,
+            Instant recordedAsOf,
+            Map<String, String> scope,
+            Set<String> roleCodes,
+            Set<String> permissions,
+            List<Grant> grants) {
         for (IamBinding binding : bindings.effectiveBindings(principal, asOf, recordedAsOf)) {
             if (!scopeMatches(binding.scope(), scope)) {
                 continue;
@@ -227,8 +241,8 @@ public final class IamContractAuthorizationService implements AuthorizationDecis
         }
     }
 
-    private static boolean scopeMatches(Map<String, String> bindingScope,
-                                        Map<String, String> requestedScope) {
+    private static boolean scopeMatches(
+            Map<String, String> bindingScope, Map<String, String> requestedScope) {
         if (requestedScope == null || requestedScope.isEmpty()) {
             return true;
         }
@@ -242,29 +256,43 @@ public final class IamContractAuthorizationService implements AuthorizationDecis
 
     private static IamCheckResult failure(AttributeState state) {
         return switch (state) {
-            case STALE -> new IamCheckResult(false, "attribute snapshot is stale",
-                    "ATTRIBUTE_STALE", AttributeState.STALE);
-            case MISSING -> new IamCheckResult(false, "attribute snapshot is missing",
-                    "ATTRIBUTE_MISSING", AttributeState.MISSING);
-            case SOURCE_UNAVAILABLE -> new IamCheckResult(false,
-                    "attribute source is unavailable", "ATTRIBUTE_SOURCE_UNAVAILABLE",
-                    AttributeState.SOURCE_UNAVAILABLE);
-            default -> new IamCheckResult(false, "attribute snapshot is not fresh",
-                    "ATTRIBUTE_MISSING", state);
+            case STALE ->
+                    new IamCheckResult(
+                            false,
+                            "attribute snapshot is stale",
+                            "ATTRIBUTE_STALE",
+                            AttributeState.STALE);
+            case MISSING ->
+                    new IamCheckResult(
+                            false,
+                            "attribute snapshot is missing",
+                            "ATTRIBUTE_MISSING",
+                            AttributeState.MISSING);
+            case SOURCE_UNAVAILABLE ->
+                    new IamCheckResult(
+                            false,
+                            "attribute source is unavailable",
+                            "ATTRIBUTE_SOURCE_UNAVAILABLE",
+                            AttributeState.SOURCE_UNAVAILABLE);
+            default ->
+                    new IamCheckResult(
+                            false, "attribute snapshot is not fresh", "ATTRIBUTE_MISSING", state);
         };
     }
 
-    private static AttributeSnapshot snapshot(String principal, Instant asOf,
-                                              Instant recordedAsOf,
-                                              Map<String, Object> body) {
-        return new AttributeSnapshot(principal, asOf,
-                recordedAsOf == null ? asOf : recordedAsOf, null, "caller", null, body);
+    private static AttributeSnapshot snapshot(
+            String principal, Instant asOf, Instant recordedAsOf, Map<String, Object> body) {
+        return new AttributeSnapshot(
+                principal,
+                asOf,
+                recordedAsOf == null ? asOf : recordedAsOf,
+                null,
+                "caller",
+                null,
+                body);
     }
 
-    private record Grant(String permission, Map<String, String> scope) {
-    }
+    private record Grant(String permission, Map<String, String> scope) {}
 
-    private record Access(Set<String> roles, Set<String> permissions,
-                          List<SodFinding> findings) {
-    }
+    private record Access(Set<String> roles, Set<String> permissions, List<SodFinding> findings) {}
 }

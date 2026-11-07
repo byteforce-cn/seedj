@@ -19,8 +19,8 @@ public final class AuditHead {
     /**
      * 构造链头快照。
      *
-     * @param sequence   链头序号（0 = 空链）
-     * @param hash       链头哈希（空链为创世前序哈希）
+     * @param sequence 链头序号（0 = 空链）
+     * @param hash 链头哈希（空链为创世前序哈希）
      * @param anchoredAt 锚定时刻
      */
     public AuditHead(long sequence, String hash, Instant anchoredAt) {

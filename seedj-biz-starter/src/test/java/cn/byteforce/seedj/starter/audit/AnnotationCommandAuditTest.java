@@ -1,21 +1,20 @@
 package cn.byteforce.seedj.starter.audit;
 
-import cn.byteforce.seedj.audit.AuditAppendRequest;
-import cn.byteforce.seedj.audit.AuditAppender;
-import cn.byteforce.seedj.audit.Audited;
-import cn.byteforce.seedj.cqrs.Command;
-import cn.byteforce.seedj.core.security.SecurityAuditEvent;
-import cn.byteforce.seedj.core.security.SecurityAuditSink;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.ObjectProvider;
-
-import java.util.ArrayList;
-import java.util.List;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+
+import cn.byteforce.seedj.audit.AuditAppendRequest;
+import cn.byteforce.seedj.audit.AuditAppender;
+import cn.byteforce.seedj.audit.Audited;
+import cn.byteforce.seedj.core.security.SecurityAuditEvent;
+import cn.byteforce.seedj.core.security.SecurityAuditSink;
+import cn.byteforce.seedj.cqrs.Command;
+import java.util.ArrayList;
+import java.util.List;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.ObjectProvider;
 
 class AnnotationCommandAuditTest {
 
@@ -27,8 +26,8 @@ class AnnotationCommandAuditTest {
 
     private final SecurityAuditSink sink = rejected::add;
 
-    private final AnnotationCommandAudit audit = new AnnotationCommandAudit(
-            appender, provider(sink), () -> "audit-1");
+    private final AnnotationCommandAudit audit =
+            new AnnotationCommandAudit(appender, provider(sink), () -> "audit-1");
 
     @Test
     @DisplayName("已标注命令写入动作、资源类型与聚合 ID；resourceType 缺省由类名推导")
@@ -57,8 +56,8 @@ class AnnotationCommandAuditTest {
     @Test
     @DisplayName("业务拒绝走安全审计通道，不进哈希链")
     void rejectionGoesToSecurityAudit() {
-        audit.rejected(new AnnotatedCommand("e-3"), "e-3",
-                new IllegalStateException("already onboarded"));
+        audit.rejected(
+                new AnnotatedCommand("e-3"), "e-3", new IllegalStateException("already onboarded"));
 
         assertThat(appended).isEmpty();
         assertThat(rejected).hasSize(1);
@@ -70,11 +69,11 @@ class AnnotationCommandAuditTest {
     @Test
     @DisplayName("没有 SecurityAuditSink 时拒绝记录不影响命令结果")
     void rejectionWithoutSinkIsHarmless() {
-        AnnotationCommandAudit withoutSink = new AnnotationCommandAudit(
-                appender, provider(null), () -> "audit-2");
+        AnnotationCommandAudit withoutSink =
+                new AnnotationCommandAudit(appender, provider(null), () -> "audit-2");
 
-        withoutSink.rejected(new AnnotatedCommand("e-4"), "e-4",
-                new IllegalStateException("rejected"));
+        withoutSink.rejected(
+                new AnnotatedCommand("e-4"), "e-4", new IllegalStateException("rejected"));
 
         assertThat(appended).isEmpty();
     }

@@ -6,17 +6,15 @@ import cn.byteforce.seedj.core.exception.ContractException;
 import cn.byteforce.seedj.domain.AppendRequest;
 import cn.byteforce.seedj.domain.AppendResult;
 import cn.byteforce.seedj.domain.ObjectVersion;
-import cn.byteforce.seedj.domain.Sealing;
-import cn.byteforce.seedj.domain.TemporalQuery;
 import cn.byteforce.seedj.domain.Page;
 import cn.byteforce.seedj.domain.PageCursor;
 import cn.byteforce.seedj.domain.ScopePredicate;
+import cn.byteforce.seedj.domain.Sealing;
 import cn.byteforce.seedj.domain.TemporalFilter;
+import cn.byteforce.seedj.domain.TemporalQuery;
 import cn.byteforce.seedj.domain.TemporalRow;
 import cn.byteforce.seedj.domain.TemporalSearch;
 import cn.byteforce.seedj.domain.TemporalStore;
-import org.springframework.jdbc.core.JdbcTemplate;
-
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -26,16 +24,16 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
  * PostgreSQL 双时间轴对象存储。
  *
- * <p>封口/追加语义委托 {@link Sealing}；本类只负责 SQL 与行映射。调用方应在
- * 事务内调用 {@link #append(AppendRequest)}（命令运行时保证），以便对象行、命令记录、
- * 审计与事件一起提交或回滚。</p>
+ * <p>封口/追加语义委托 {@link Sealing}；本类只负责 SQL 与行映射。调用方应在 事务内调用 {@link
+ * #append(AppendRequest)}（命令运行时保证），以便对象行、命令记录、 审计与事件一起提交或回滚。
  *
- * <p>对象类型必须先在 {@link TemporalTables} 注册；未注册类型抛
- * {@link IllegalArgumentException}（消息含类型名），不让底层 SQL 异常穿透。</p>
+ * <p>对象类型必须先在 {@link TemporalTables} 注册；未注册类型抛 {@link IllegalArgumentException}（消息含类型名），不让底层 SQL
+ * 异常穿透。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -53,8 +51,8 @@ public final class PostgresTemporalStore implements TemporalStore {
     /**
      * 构造存储。
      *
-     * @param jdbc   JDBC 模板
-     * @param clock  取时入口
+     * @param jdbc JDBC 模板
+     * @param clock 取时入口
      * @param tables 对象类型注册表
      */
     public PostgresTemporalStore(JdbcTemplate jdbc, Clock clock, TemporalTables tables) {
@@ -64,8 +62,8 @@ public final class PostgresTemporalStore implements TemporalStore {
     }
 
     @Override
-    public Optional<TemporalRow> find(String objectType, UUID id, TemporalQuery query,
-                                      ScopePredicate scope) {
+    public Optional<TemporalRow> find(
+            String objectType, UUID id, TemporalQuery query, ScopePredicate scope) {
         Objects.requireNonNull(query, "query");
         Objects.requireNonNull(scope, "scope");
         TemporalTable table = tables.require(objectType);
@@ -88,8 +86,13 @@ public final class PostgresTemporalStore implements TemporalStore {
             }
         }
         ScopeSql.Clause scoped = ScopeSql.compile(scope, table);
-        String sql = "SELECT * FROM (SELECT * FROM " + table.tableName() + selected
-                + " ORDER BY version DESC LIMIT 1) t WHERE (" + scoped.sql() + ")";
+        String sql =
+                "SELECT * FROM (SELECT * FROM "
+                        + table.tableName()
+                        + selected
+                        + " ORDER BY version DESC LIMIT 1) t WHERE ("
+                        + scoped.sql()
+                        + ")";
         List<Object> args = new ArrayList<>(selectedArgs);
         args.addAll(scoped.args());
 
@@ -100,9 +103,11 @@ public final class PostgresTemporalStore implements TemporalStore {
         TemporalRow row = toRow(table, rows.get(0));
         if (query.minVersion() != null && row.version().version() < query.minVersion()) {
             long readable = row.version().version();
-            throw new ContractException(ContractErrorCode.READ_MODEL_NOT_READY,
+            throw new ContractException(
+                    ContractErrorCode.READ_MODEL_NOT_READY,
                     "readable version " + readable + " is below required " + query.minVersion(),
-                    Map.of("minVersion", query.minVersion(), "readableVersion", readable), null);
+                    Map.of("minVersion", query.minVersion(), "readableVersion", readable),
+                    null);
         }
         return Optional.of(row);
     }
@@ -111,13 +116,17 @@ public final class PostgresTemporalStore implements TemporalStore {
     public AppendResult append(AppendRequest request) {
         Objects.requireNonNull(request, "request");
         TemporalTable table = tables.require(request.objectType());
-        List<Map<String, Object>> rows = jdbc.queryForList(SELECT_ALL + table.tableName()
-                + " WHERE id = ? AND superseded_at IS NULL FOR UPDATE", request.id());
+        List<Map<String, Object>> rows =
+                jdbc.queryForList(
+                        SELECT_ALL
+                                + table.tableName()
+                                + " WHERE id = ? AND superseded_at IS NULL FOR UPDATE",
+                        request.id());
         TemporalRow current = rows.isEmpty() ? null : toRow(table, rows.get(0));
         requireExpectedVersion(request, current);
 
         AppendResult result = Sealing.next(request, current, clock.now());
-        result.superseded().ifPresent(sealed -> seal(table, sealed.version()));
+        result.superseded().ifPresent(previous -> seal(table, previous.version()));
         insert(table, result.appended());
         return result;
     }
@@ -129,9 +138,11 @@ public final class PostgresTemporalStore implements TemporalStore {
         }
         long actual = current == null ? 0 : current.version().version();
         if (expected.longValue() != actual) {
-            throw new ContractException(ContractErrorCode.VERSION_CONFLICT,
+            throw new ContractException(
+                    ContractErrorCode.VERSION_CONFLICT,
                     "expected version " + expected + " but current is " + actual,
-                    Map.of("expected_version", expected, "current_version", actual), null);
+                    Map.of("expected_version", expected, "current_version", actual),
+                    null);
         }
     }
 
@@ -140,9 +151,9 @@ public final class PostgresTemporalStore implements TemporalStore {
         Objects.requireNonNull(search, "search");
         Objects.requireNonNull(scope, "scope");
         TemporalTable table = tables.require(search.objectType());
-        if (search.sortField() != null
-                && !table.sortableColumns().contains(search.sortField())) {
-            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
+        if (search.sortField() != null && !table.sortableColumns().contains(search.sortField())) {
+            throw new ContractException(
+                    ContractErrorCode.INVALID_PAYLOAD,
                     "unknown or non-sortable field: " + search.sortField());
         }
 
@@ -164,8 +175,11 @@ public final class PostgresTemporalStore implements TemporalStore {
                 baseArgs.add(timestamp(search.recordedAsOf()));
                 baseArgs.add(timestamp(search.recordedAsOf()));
             }
-            base = "SELECT DISTINCT ON (id) * FROM " + table.tableName() + selected
-                    + " ORDER BY id, version DESC";
+            base =
+                    "SELECT DISTINCT ON (id) * FROM "
+                            + table.tableName()
+                            + selected
+                            + " ORDER BY id, version DESC";
         }
 
         List<Object> outerArgs = new ArrayList<>();
@@ -173,10 +187,12 @@ public final class PostgresTemporalStore implements TemporalStore {
         ScopeSql.Clause scoped = ScopeSql.compile(scope, table);
         outer.append(" AND (").append(scoped.sql()).append(")");
         outerArgs.addAll(scoped.args());
-        search.equals().forEach((field, value) -> {
-            outer.append(" AND ").append(field).append(" = ?");
-            outerArgs.add(filterValue(table, field, value));
-        });
+        search.equals()
+                .forEach(
+                        (field, value) -> {
+                            outer.append(" AND ").append(field).append(" = ?");
+                            outerArgs.add(filterValue(table, field, value));
+                        });
         for (TemporalFilter filter : search.filters()) {
             outer.append(" AND (").append(filterSql(filter, table, outerArgs)).append(')');
         }
@@ -187,41 +203,60 @@ public final class PostgresTemporalStore implements TemporalStore {
 
         List<Object> args = new ArrayList<>(baseArgs);
         args.addAll(outerArgs);
-        Long total = jdbc.queryForObject("SELECT COUNT(*) FROM (" + base + ") t"
-                + outer, Long.class, args.toArray());
-        String sql = "SELECT * FROM (" + base + ") t" + outer
-                + " ORDER BY " + sort + " " + search.direction()
-                + ", t.id LIMIT ? OFFSET ?";
+        Long total =
+                jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM (" + base + ") t" + outer,
+                        Long.class,
+                        args.toArray());
+        String sql =
+                "SELECT * FROM ("
+                        + base
+                        + ") t"
+                        + outer
+                        + " ORDER BY "
+                        + sort
+                        + " "
+                        + search.direction()
+                        + ", t.id LIMIT ? OFFSET ?";
         List<Object> pageArgs = new ArrayList<>(args);
         pageArgs.add(search.page().size() + 1);
         pageArgs.add(search.page().offset());
 
-        List<TemporalRow> fetched = jdbc.queryForList(sql, pageArgs.toArray()).stream()
-                .map(row -> toRow(table, row))
-                .toList();
+        List<TemporalRow> fetched =
+                jdbc.queryForList(sql, pageArgs.toArray()).stream()
+                        .map(row -> toRow(table, row))
+                        .toList();
         boolean hasMore = fetched.size() > search.page().size();
-        List<TemporalRow> items = hasMore
-                ? List.copyOf(fetched.subList(0, search.page().size())) : fetched;
-        PageCursor next = hasMore && !items.isEmpty()
-                ? cursorOf(items.get(items.size() - 1), search.sortField()) : null;
-        return new Page<>(items, total == null ? 0 : total, search.page().page(),
-                search.page().size(), next);
+        List<TemporalRow> items =
+                hasMore ? List.copyOf(fetched.subList(0, search.page().size())) : fetched;
+        PageCursor next =
+                hasMore && !items.isEmpty()
+                        ? cursorOf(items.get(items.size() - 1), search.sortField())
+                        : null;
+        return new Page<>(
+                items, total == null ? 0 : total, search.page().page(), search.page().size(), next);
     }
 
-    private static void appendCursor(StringBuilder outer, List<Object> args,
-                                     TemporalSearch search, TemporalTable table) {
+    private static void appendCursor(
+            StringBuilder outer, List<Object> args, TemporalSearch search, TemporalTable table) {
         PageCursor cursor = search.cursor();
-        String operator = search.direction() == cn.byteforce.seedj.domain.SortDirection.DESC
-                ? "<" : ">";
+        String operator =
+                search.direction() == cn.byteforce.seedj.domain.SortDirection.DESC ? "<" : ">";
         if (search.sortField() == null) {
             outer.append(" AND t.id ").append(operator).append(" ?");
             args.add(cursor.id());
             return;
         }
         Object value = sortValue(table, search.sortField(), cursor.sortValue());
-        outer.append(" AND (t.").append(search.sortField()).append(' ').append(operator)
-                .append(" ? OR (t.").append(search.sortField()).append(" = ? AND t.id ")
-                .append(operator).append(" ?))");
+        outer.append(" AND (t.")
+                .append(search.sortField())
+                .append(' ')
+                .append(operator)
+                .append(" ? OR (t.")
+                .append(search.sortField())
+                .append(" = ? AND t.id ")
+                .append(operator)
+                .append(" ?))");
         args.add(value);
         args.add(value);
         args.add(cursor.id());
@@ -235,8 +270,7 @@ public final class PostgresTemporalStore implements TemporalStore {
         return value == null ? null : new PageCursor(sortField, value, row.version().id());
     }
 
-    private static String filterSql(TemporalFilter filter, TemporalTable table,
-                                    List<Object> args) {
+    private static String filterSql(TemporalFilter filter, TemporalTable table, List<Object> args) {
         return switch (filter) {
             case TemporalFilter.Eq eq -> {
                 args.add(filterValue(table, eq.field(), eq.value()));
@@ -311,15 +345,14 @@ public final class PostgresTemporalStore implements TemporalStore {
                 }
                 yield sql.append(')').toString();
             }
-            case TemporalFilter.Not not -> "NOT ("
-                    + filterSql(not.part(), table, args) + ")";
+            case TemporalFilter.Not not -> "NOT (" + filterSql(not.part(), table, args) + ")";
         };
     }
 
     private static Object sortValue(TemporalTable table, String field, Object value) {
         if (!table.columns().containsKey(field)) {
-            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
-                    "unknown sort field: " + field);
+            throw new ContractException(
+                    ContractErrorCode.INVALID_PAYLOAD, "unknown sort field: " + field);
         }
         if (!table.fieldTypes().containsKey(field)) {
             return value;
@@ -330,8 +363,8 @@ public final class PostgresTemporalStore implements TemporalStore {
 
     private static Object filterValue(TemporalTable table, String field, Object value) {
         if (!table.filterableColumns().contains(field)) {
-            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
-                    "unknown or non-filterable field: " + field);
+            throw new ContractException(
+                    ContractErrorCode.INVALID_PAYLOAD, "unknown or non-filterable field: " + field);
         }
         if (!table.fieldTypes().containsKey(field)) {
             return value;
@@ -348,30 +381,50 @@ public final class PostgresTemporalStore implements TemporalStore {
         List<Object> args = new ArrayList<>();
         args.add(id);
         args.addAll(scoped.args());
-        return jdbc.queryForList(SELECT_ALL + table.tableName()
-                        + " WHERE id = ? AND (" + scoped.sql()
-                        + ") ORDER BY recorded_at ASC", args.toArray())
+        return jdbc
+                .queryForList(
+                        SELECT_ALL
+                                + table.tableName()
+                                + " WHERE id = ? AND ("
+                                + scoped.sql()
+                                + ") ORDER BY recorded_at ASC",
+                        args.toArray())
                 .stream()
                 .map(row -> toRow(table, row))
                 .toList();
     }
 
     private void seal(TemporalTable table, ObjectVersion sealed) {
-        int updated = jdbc.update("UPDATE " + table.tableName()
-                        + " SET superseded_at = ? WHERE id = ? AND recorded_at = ?"
-                        + " AND superseded_at IS NULL",
-                timestamp(sealed.supersededAt()), sealed.id(), timestamp(sealed.recordedAt()));
+        int updated =
+                jdbc.update(
+                        "UPDATE "
+                                + table.tableName()
+                                + " SET superseded_at = ? WHERE id = ? AND recorded_at = ?"
+                                + " AND superseded_at IS NULL",
+                        timestamp(sealed.supersededAt()),
+                        sealed.id(),
+                        timestamp(sealed.recordedAt()));
         if (updated != 1) {
-            throw new IllegalStateException("failed to seal object version: " + sealed.id()
-                    + "@" + sealed.recordedAt());
+            throw new IllegalStateException(
+                    "failed to seal object version: " + sealed.id() + "@" + sealed.recordedAt());
         }
     }
 
     private void insert(TemporalTable table, TemporalRow row) {
         ObjectVersion version = row.version();
-        List<String> columns = new ArrayList<>(List.of(
-                "id", "version", "valid_from", "valid_to", "recorded_at", "superseded_at",
-                "created_by", "created_at", "updated_by", "updated_at"));
+        List<String> columns =
+                new ArrayList<>(
+                        List.of(
+                                "id",
+                                "version",
+                                "valid_from",
+                                "valid_to",
+                                "recorded_at",
+                                "superseded_at",
+                                "created_by",
+                                "created_at",
+                                "updated_by",
+                                "updated_at"));
         List<Object> args = new ArrayList<>();
         args.add(version.id());
         args.add(version.version());
@@ -385,30 +438,38 @@ public final class PostgresTemporalStore implements TemporalStore {
         args.add(timestamp(version.updatedAt()));
         for (String column : table.columns().keySet()) {
             columns.add(column);
-            args.add(TemporalValues.toJdbc(table.fieldTypes().get(column),
-                    row.fields().get(column)));
+            args.add(
+                    TemporalValues.toJdbc(
+                            table.fieldTypes().get(column), row.fields().get(column)));
         }
         String placeholders = String.join(", ", java.util.Collections.nCopies(columns.size(), "?"));
-        jdbc.update("INSERT INTO " + table.tableName() + " (" + String.join(", ", columns)
-                + ") VALUES (" + placeholders + ")", args.toArray());
+        jdbc.update(
+                "INSERT INTO "
+                        + table.tableName()
+                        + " ("
+                        + String.join(", ", columns)
+                        + ") VALUES ("
+                        + placeholders
+                        + ")",
+                args.toArray());
     }
 
     private static TemporalRow toRow(TemporalTable table, Map<String, Object> row) {
-        ObjectVersion version = new ObjectVersion(
-                (UUID) row.get("id"),
-                ((Number) row.get("version")).longValue(),
-                instant(row.get("valid_from")),
-                instant(row.get("valid_to")),
-                instant(row.get("recorded_at")),
-                instant(row.get("superseded_at")),
-                (UUID) row.get("created_by"),
-                instant(row.get("created_at")),
-                (UUID) row.get("updated_by"),
-                instant(row.get("updated_at")));
+        ObjectVersion version =
+                new ObjectVersion(
+                        (UUID) row.get("id"),
+                        ((Number) row.get("version")).longValue(),
+                        instant(row.get("valid_from")),
+                        instant(row.get("valid_to")),
+                        instant(row.get("recorded_at")),
+                        instant(row.get("superseded_at")),
+                        (UUID) row.get("created_by"),
+                        instant(row.get("created_at")),
+                        (UUID) row.get("updated_by"),
+                        instant(row.get("updated_at")));
         Map<String, Object> fields = new LinkedHashMap<>();
         for (String column : table.columns().keySet()) {
-            Object value = TemporalValues.fromJdbc(table.fieldTypes().get(column),
-                    row.get(column));
+            Object value = TemporalValues.fromJdbc(table.fieldTypes().get(column), row.get(column));
             if (value != null) {
                 fields.put(column, value);
             }

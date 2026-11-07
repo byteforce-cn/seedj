@@ -12,6 +12,7 @@ import java.util.Optional;
 final class InMemoryWorkflowDefinitionStore {
 
     private final InMemoryWorkflowSupport support;
+
     InMemoryWorkflowDefinitionStore(InMemoryWorkflowSupport support) {
         this.support = support;
     }
@@ -21,21 +22,23 @@ final class InMemoryWorkflowDefinitionStore {
         support.definitions.put(definitionKey(definition.id(), definition.version()), definition);
     }
 
-    public Optional<WorkflowDefinition> findDefinition(WorkflowDefinitionId id,
-                                                        WorkflowDefinitionVersion version) {
+    public Optional<WorkflowDefinition> findDefinition(
+            WorkflowDefinitionId id, WorkflowDefinitionVersion version) {
         Objects.requireNonNull(id, "id cannot be null");
         if (version != null) {
             return Optional.ofNullable(support.definitions.get(definitionKey(id, version)));
         }
         return support.definitions.values().stream()
                 .filter(d -> d.id().equals(id))
-                .max(Comparator.comparing(WorkflowDefinition::version,
-                        Comparator.comparingInt(WorkflowDefinitionVersion::major)
-                                .thenComparingInt(WorkflowDefinitionVersion::minor)));
+                .max(
+                        Comparator.comparing(
+                                WorkflowDefinition::version,
+                                Comparator.comparingInt(WorkflowDefinitionVersion::major)
+                                        .thenComparingInt(WorkflowDefinitionVersion::minor)));
     }
 
-    WorkflowDefinition resolveDefinition(WorkflowDefinitionId id,
-                                                 WorkflowDefinitionVersion version) {
+    WorkflowDefinition resolveDefinition(
+            WorkflowDefinitionId id, WorkflowDefinitionVersion version) {
         if (version != null) {
             WorkflowDefinition definition = support.definitions.get(definitionKey(id, version));
             if (definition == null) {
@@ -44,18 +47,24 @@ final class InMemoryWorkflowDefinitionStore {
             }
             return definition;
         }
-        return findDefinition(id, null).orElseThrow(() ->
-                new WorkflowDefinitionNotFoundException("definition " + id + " not found"));
+        return findDefinition(id, null)
+                .orElseThrow(
+                        () ->
+                                new WorkflowDefinitionNotFoundException(
+                                        "definition " + id + " not found"));
     }
 
-    static String definitionKey(WorkflowDefinitionId id,
-                                        WorkflowDefinitionVersion version) {
-        return id.namespace() + '\u0000' + id.name() + '\u0000'
-                + version.major() + '.' + version.minor();
+    static String definitionKey(WorkflowDefinitionId id, WorkflowDefinitionVersion version) {
+        return id.namespace()
+                + '\u0000'
+                + id.name()
+                + '\u0000'
+                + version.major()
+                + '.'
+                + version.minor();
     }
 
     static String versionText(WorkflowDefinitionVersion version) {
         return version.major() + "." + version.minor();
     }
-
 }

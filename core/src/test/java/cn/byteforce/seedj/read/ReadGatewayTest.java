@@ -1,5 +1,10 @@
 package cn.byteforce.seedj.read;
 
+import static cn.byteforce.seedj.read.FieldAccess.Action.FULL;
+import static cn.byteforce.seedj.read.FieldAccess.Action.MASKED;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import cn.byteforce.seedj.core.clock.TestClock;
 import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;
@@ -22,8 +27,6 @@ import cn.byteforce.seedj.domain.TemporalSearch;
 import cn.byteforce.seedj.domain.TemporalStore;
 import cn.byteforce.seedj.module.ObjectModuleRegistry;
 import cn.byteforce.seedj.module.ObjectModules;
-import org.junit.jupiter.api.Test;
-
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -32,11 +35,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-
-import static cn.byteforce.seedj.read.FieldAccess.Action.FULL;
-import static cn.byteforce.seedj.read.FieldAccess.Action.MASKED;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import org.junit.jupiter.api.Test;
 
 class ReadGatewayTest {
 
@@ -52,18 +51,33 @@ class ReadGatewayTest {
         ObjectModules modules = ObjectModules.create();
         modules.object(TYPE, "hr_employee")
                 .readPermission("hr.employee.read")
-                .field("employee_no", FieldType.TEXT).required().filterable().sortable()
-                .field("phone", FieldType.TEXT).privacy(Privacy.SENSITIVE)
-                        .mask(Maskers.last4())
-                .field("id_number_hash", FieldType.TEXT).writeOnly()
-                .field("org_unit_id", FieldType.TEXT).filterable()
-                .field("status", FieldType.TEXT).filterable();
+                .field("employee_no", FieldType.TEXT)
+                .required()
+                .filterable()
+                .sortable()
+                .field("phone", FieldType.TEXT)
+                .privacy(Privacy.SENSITIVE)
+                .mask(Maskers.last4())
+                .field("id_number_hash", FieldType.TEXT)
+                .writeOnly()
+                .field("org_unit_id", FieldType.TEXT)
+                .filterable()
+                .field("status", FieldType.TEXT)
+                .filterable();
         return modules.freeze();
     }
 
     private static Caller caller() {
-        return new Caller("u-1", "alice", "default", Set.of(), Set.of("hr.employee.read"),
-                Set.of(), Set.of("pwd"), "urn:seedj:acr:pwd", Map.of());
+        return new Caller(
+                "u-1",
+                "alice",
+                "default",
+                Set.of(),
+                Set.of("hr.employee.read"),
+                Set.of(),
+                Set.of("pwd"),
+                "urn:seedj:acr:pwd",
+                Map.of());
     }
 
     private static TemporalRow row() {
@@ -73,13 +87,22 @@ class ReadGatewayTest {
         fields.put("id_number_hash", "hash");
         fields.put("org_unit_id", "D01");
         fields.put("status", "ACTIVE");
-        return new TemporalRow(TYPE, new ObjectVersion(ID, 1, NOW, null, NOW, null,
-                ACTOR, NOW, null, null), fields);
+        return new TemporalRow(
+                TYPE,
+                new ObjectVersion(ID, 1, NOW, null, NOW, null, ACTOR, NOW, null, null),
+                fields);
     }
 
     private static TemporalSearch search() {
-        return new TemporalSearch(TYPE, Map.of("status", "ACTIVE"), null, null, null,
-                "employee_no", null, new PageRequest(1, 20));
+        return new TemporalSearch(
+                TYPE,
+                Map.of("status", "ACTIVE"),
+                null,
+                null,
+                null,
+                "employee_no",
+                null,
+                new PageRequest(1, 20));
     }
 
     private static DataScopeResolver scope(String objectType, ScopePredicate predicate) {
@@ -110,10 +133,19 @@ class ReadGatewayTest {
         };
     }
 
-    private static ReadGateway gateway(TemporalStore store, List<DataScopeResolver> scopes,
-                                       List<FieldPolicyResolver> fields, ReadAuditSink audit) {
-        return new ReadGateway(registry(), store, scopes, fields, audit,
-                new TestClock(NOW), () -> UUID.randomUUID());
+    private static ReadGateway gateway(
+            TemporalStore store,
+            List<DataScopeResolver> scopes,
+            List<FieldPolicyResolver> fields,
+            ReadAuditSink audit) {
+        return new ReadGateway(
+                registry(),
+                store,
+                scopes,
+                fields,
+                audit,
+                new TestClock(NOW),
+                () -> UUID.randomUUID());
     }
 
     private static ReadGateway gateway(TemporalStore store, List<DataScopeResolver> scopes) {
@@ -125,33 +157,42 @@ class ReadGatewayTest {
         RecordingStore store = new RecordingStore(row());
 
         assertThatThrownBy(() -> gateway(store, List.of()).search(TYPE, search(), caller()))
-                .isInstanceOfSatisfying(ContractException.class, error ->
-                        assertThat(error.code()).isEqualTo(ContractErrorCode.FORBIDDEN));
+                .isInstanceOfSatisfying(
+                        ContractException.class,
+                        error -> assertThat(error.code()).isEqualTo(ContractErrorCode.FORBIDDEN));
         assertThat(store.calls).isZero();
     }
 
     @Test
     void twoResolversAreAnded() {
         RecordingStore store = new RecordingStore(row());
-        ReadGateway gateway = gateway(store, List.of(
-                scope(TYPE, ScopePredicate.eq("org_unit_id", "D01")),
-                scope(TYPE, ScopePredicate.eq("status", "ACTIVE"))));
+        ReadGateway gateway =
+                gateway(
+                        store,
+                        List.of(
+                                scope(TYPE, ScopePredicate.eq("org_unit_id", "D01")),
+                                scope(TYPE, ScopePredicate.eq("status", "ACTIVE"))));
 
         gateway.search(TYPE, search(), caller());
 
         assertThat(store.lastScope).isInstanceOf(ScopePredicate.And.class);
-        assertThat(ScopePredicates.matches(row(), store.lastScope,
-                registry().require(TYPE).schema())).isTrue();
+        assertThat(
+                        ScopePredicates.matches(
+                                row(), store.lastScope, registry().require(TYPE).schema()))
+                .isTrue();
     }
 
     @Test
     void sensitiveFieldIsHiddenByDefault() {
         RecordingStore store = new RecordingStore(row());
 
-        TemporalRow rendered = gateway(store, List.of(scope(TYPE, ScopePredicate.all())))
-                .find(TYPE, ID, TemporalQuery.current(), caller()).orElseThrow();
+        TemporalRow rendered =
+                gateway(store, List.of(scope(TYPE, ScopePredicate.all())))
+                        .find(TYPE, ID, TemporalQuery.current(), caller())
+                        .orElseThrow();
 
-        assertThat(rendered.fields()).containsKey("employee_no")
+        assertThat(rendered.fields())
+                .containsKey("employee_no")
                 .doesNotContainKey("phone")
                 .doesNotContainKey("id_number_hash");
     }
@@ -159,13 +200,21 @@ class ReadGatewayTest {
     @Test
     void maskedFieldUsesMasker() {
         RecordingStore store = new RecordingStore(row());
-        ReadGateway gateway = gateway(store, List.of(scope(TYPE, ScopePredicate.all())),
-                List.of(fields(new FieldPolicy(Map.of("phone",
-                        new FieldAccess(MASKED, "hr.employee.masked"))))),
-                ReadAuditSink.noop());
+        ReadGateway gateway =
+                gateway(
+                        store,
+                        List.of(scope(TYPE, ScopePredicate.all())),
+                        List.of(
+                                fields(
+                                        new FieldPolicy(
+                                                Map.of(
+                                                        "phone",
+                                                        new FieldAccess(
+                                                                MASKED, "hr.employee.masked"))))),
+                        ReadAuditSink.noop());
 
-        TemporalRow rendered = gateway.find(TYPE, ID, TemporalQuery.current(), caller())
-                .orElseThrow();
+        TemporalRow rendered =
+                gateway.find(TYPE, ID, TemporalQuery.current(), caller()).orElseThrow();
 
         assertThat(rendered.fields()).containsEntry("phone", "****8000");
     }
@@ -173,13 +222,20 @@ class ReadGatewayTest {
     @Test
     void writeOnlyFieldIsAlwaysRemoved() {
         RecordingStore store = new RecordingStore(row());
-        ReadGateway gateway = gateway(store, List.of(scope(TYPE, ScopePredicate.all())),
-                List.of(fields(new FieldPolicy(Map.of("id_number_hash",
-                        new FieldAccess(FULL, "too.wide"))))),
-                ReadAuditSink.noop());
+        ReadGateway gateway =
+                gateway(
+                        store,
+                        List.of(scope(TYPE, ScopePredicate.all())),
+                        List.of(
+                                fields(
+                                        new FieldPolicy(
+                                                Map.of(
+                                                        "id_number_hash",
+                                                        new FieldAccess(FULL, "too.wide"))))),
+                        ReadAuditSink.noop());
 
-        TemporalRow rendered = gateway.find(TYPE, ID, TemporalQuery.current(), caller())
-                .orElseThrow();
+        TemporalRow rendered =
+                gateway.find(TYPE, ID, TemporalQuery.current(), caller()).orElseThrow();
 
         assertThat(rendered.fields()).doesNotContainKey("id_number_hash");
     }
@@ -187,23 +243,27 @@ class ReadGatewayTest {
     @Test
     void resolverFailureBecomes503() {
         RecordingStore store = new RecordingStore(row());
-        DataScopeResolver broken = new DataScopeResolver() {
-            @Override
-            public boolean supports(String objectType) {
-                return true;
-            }
+        DataScopeResolver broken =
+                new DataScopeResolver() {
+                    @Override
+                    public boolean supports(String objectType) {
+                        return true;
+                    }
 
-            @Override
-            public ScopePredicate resolve(String objectType, Caller caller,
-                                          ScopeContext context) {
-                throw new IllegalStateException("db down");
-            }
-        };
+                    @Override
+                    public ScopePredicate resolve(
+                            String objectType, Caller caller, ScopeContext context) {
+                        throw new IllegalStateException("db down");
+                    }
+                };
 
-        assertThatThrownBy(() -> gateway(store, List.of(broken))
-                .find(TYPE, ID, TemporalQuery.current(), caller()))
-                .isInstanceOfSatisfying(ContractException.class, error ->
-                        assertThat(error.code()).isEqualTo(ContractErrorCode.UNAVAILABLE));
+        assertThatThrownBy(
+                        () ->
+                                gateway(store, List.of(broken))
+                                        .find(TYPE, ID, TemporalQuery.current(), caller()))
+                .isInstanceOfSatisfying(
+                        ContractException.class,
+                        error -> assertThat(error.code()).isEqualTo(ContractErrorCode.UNAVAILABLE));
         assertThat(store.calls).isZero();
     }
 
@@ -213,24 +273,42 @@ class ReadGatewayTest {
         ReadGateway gateway = gateway(store, List.of(scope(TYPE, ScopePredicate.all())));
 
         assertThatThrownBy(() -> gateway.find("missing", ID, TemporalQuery.current(), caller()))
-                .isInstanceOfSatisfying(ContractException.class, error ->
-                        assertThat(error.code()).isEqualTo(ContractErrorCode.OBJECT_NOT_FOUND));
+                .isInstanceOfSatisfying(
+                        ContractException.class,
+                        error ->
+                                assertThat(error.code())
+                                        .isEqualTo(ContractErrorCode.OBJECT_NOT_FOUND));
         assertThatThrownBy(() -> gateway.find(TYPE, ID, TemporalQuery.current(), null))
-                .isInstanceOfSatisfying(ContractException.class, error ->
-                        assertThat(error.code()).isEqualTo(ContractErrorCode.UNAUTHENTICATED));
+                .isInstanceOfSatisfying(
+                        ContractException.class,
+                        error ->
+                                assertThat(error.code())
+                                        .isEqualTo(ContractErrorCode.UNAUTHENTICATED));
         assertThat(store.calls).isZero();
     }
 
     @Test
     void callerWithoutReadPermissionIs403() {
         RecordingStore store = new RecordingStore(row());
-        Caller nobody = new Caller("u-2", "bob", "default", Set.of(), Set.of(), Set.of(),
-                Set.of("pwd"), "urn:seedj:acr:pwd", Map.of());
+        Caller nobody =
+                new Caller(
+                        "u-2",
+                        "bob",
+                        "default",
+                        Set.of(),
+                        Set.of(),
+                        Set.of(),
+                        Set.of("pwd"),
+                        "urn:seedj:acr:pwd",
+                        Map.of());
 
-        assertThatThrownBy(() -> gateway(store, List.of(scope(TYPE, ScopePredicate.all())))
-                .search(TYPE, search(), nobody))
-                .isInstanceOfSatisfying(ContractException.class, error ->
-                        assertThat(error.code()).isEqualTo(ContractErrorCode.FORBIDDEN));
+        assertThatThrownBy(
+                        () ->
+                                gateway(store, List.of(scope(TYPE, ScopePredicate.all())))
+                                        .search(TYPE, search(), nobody))
+                .isInstanceOfSatisfying(
+                        ContractException.class,
+                        error -> assertThat(error.code()).isEqualTo(ContractErrorCode.FORBIDDEN));
         assertThat(store.calls).isZero();
     }
 
@@ -238,9 +316,15 @@ class ReadGatewayTest {
     void resolverReturningUnknownFieldIs500() {
         RecordingStore store = new RecordingStore(row());
 
-        assertThatThrownBy(() -> gateway(store, List.of(
-                scope(TYPE, ScopePredicate.eq("missing", "x"))))
-                .search(TYPE, search(), caller()))
+        assertThatThrownBy(
+                        () ->
+                                gateway(
+                                                store,
+                                                List.of(
+                                                        scope(
+                                                                TYPE,
+                                                                ScopePredicate.eq("missing", "x"))))
+                                        .search(TYPE, search(), caller()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("missing");
         assertThat(store.calls).isZero();
@@ -249,9 +333,15 @@ class ReadGatewayTest {
     @Test
     void fieldPolicyWithUnknownFieldIs500() {
         RecordingStore store = new RecordingStore(row());
-        ReadGateway gateway = gateway(store, List.of(scope(TYPE, ScopePredicate.all())),
-                List.of(fields(new FieldPolicy(Map.of("missing", new FieldAccess(FULL, "p"))))),
-                ReadAuditSink.noop());
+        ReadGateway gateway =
+                gateway(
+                        store,
+                        List.of(scope(TYPE, ScopePredicate.all())),
+                        List.of(
+                                fields(
+                                        new FieldPolicy(
+                                                Map.of("missing", new FieldAccess(FULL, "p"))))),
+                        ReadAuditSink.noop());
 
         assertThatThrownBy(() -> gateway.find(TYPE, ID, TemporalQuery.current(), caller()))
                 .isInstanceOf(IllegalStateException.class)
@@ -262,11 +352,18 @@ class ReadGatewayTest {
     void auditRecordsScopeDigestAndPolicyIds() {
         RecordingStore store = new RecordingStore(row());
         RecordingAudit audit = new RecordingAudit();
-        ReadGateway gateway = gateway(store, List.of(scope(TYPE,
-                        ScopePredicate.eq("org_unit_id", "D01"))),
-                List.of(fields(new FieldPolicy(Map.of("phone",
-                        new FieldAccess(MASKED, "hr.employee.masked"))))),
-                audit);
+        ReadGateway gateway =
+                gateway(
+                        store,
+                        List.of(scope(TYPE, ScopePredicate.eq("org_unit_id", "D01"))),
+                        List.of(
+                                fields(
+                                        new FieldPolicy(
+                                                Map.of(
+                                                        "phone",
+                                                        new FieldAccess(
+                                                                MASKED, "hr.employee.masked"))))),
+                        audit);
 
         gateway.search(TYPE, search(), caller());
 
@@ -282,12 +379,19 @@ class ReadGatewayTest {
     @Test
     void auditFailureDoesNotBreakRead() {
         RecordingStore store = new RecordingStore(row());
-        ReadAuditSink broken = event -> {
-            throw new IllegalStateException("audit down");
-        };
+        ReadAuditSink broken =
+                event -> {
+                    throw new IllegalStateException("audit down");
+                };
 
-        assertThat(gateway(store, List.of(scope(TYPE, ScopePredicate.all())), List.of(), broken)
-                .find(TYPE, ID, TemporalQuery.current(), caller())).isPresent();
+        assertThat(
+                        gateway(
+                                        store,
+                                        List.of(scope(TYPE, ScopePredicate.all())),
+                                        List.of(),
+                                        broken)
+                                .find(TYPE, ID, TemporalQuery.current(), caller()))
+                .isPresent();
     }
 
     @Test
@@ -307,27 +411,30 @@ class ReadGatewayTest {
     @Test
     void contextIsAvailableToResolver() {
         RecordingStore store = new RecordingStore(row());
-        DataScopeResolver readsContext = new DataScopeResolver() {
-            @Override
-            public boolean supports(String objectType) {
-                return true;
-            }
+        DataScopeResolver readsContext =
+                new DataScopeResolver() {
+                    @Override
+                    public boolean supports(String objectType) {
+                        return true;
+                    }
 
-            @Override
-            public ScopePredicate resolve(String objectType, Caller caller,
-                                          ScopeContext context) {
-                return ScopePredicate.eq("org_unit_id",
-                        context.get("org.unit").orElseThrow());
-            }
-        };
+                    @Override
+                    public ScopePredicate resolve(
+                            String objectType, Caller caller, ScopeContext context) {
+                        return ScopePredicate.eq(
+                                "org_unit_id", context.get("org.unit").orElseThrow());
+                    }
+                };
 
-        try (ScopeContextHolder.Scope ignored = ScopeContextHolder.open(
-                ScopeContext.of(Map.of("org.unit", "D01")))) {
+        try (ScopeContextHolder.Scope ignored =
+                ScopeContextHolder.open(ScopeContext.of(Map.of("org.unit", "D01")))) {
             gateway(store, List.of(readsContext)).search(TYPE, search(), caller());
         }
 
-        assertThat(ScopePredicates.matches(row(), store.lastScope,
-                registry().require(TYPE).schema())).isTrue();
+        assertThat(
+                        ScopePredicates.matches(
+                                row(), store.lastScope, registry().require(TYPE).schema()))
+                .isTrue();
     }
 
     private static final class RecordingStore implements TemporalStore {
@@ -343,8 +450,8 @@ class ReadGatewayTest {
         }
 
         @Override
-        public Optional<TemporalRow> find(String objectType, UUID id, TemporalQuery query,
-                                          ScopePredicate scope) {
+        public Optional<TemporalRow> find(
+                String objectType, UUID id, TemporalQuery query, ScopePredicate scope) {
             calls++;
             lastScope = scope;
             return Optional.of(row);

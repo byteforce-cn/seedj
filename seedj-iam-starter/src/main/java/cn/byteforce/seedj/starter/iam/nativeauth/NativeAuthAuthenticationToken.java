@@ -1,10 +1,9 @@
 package cn.byteforce.seedj.starter.iam.nativeauth;
 
+import java.util.Set;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
-
-import java.util.Set;
 
 /** Raw/authenticated native-auth grant token. */
 public class NativeAuthAuthenticationToken extends AbstractAuthenticationToken {
@@ -20,11 +19,17 @@ public class NativeAuthAuthenticationToken extends AbstractAuthenticationToken {
     private final String appVersion;
     private final Set<String> scopes;
 
-    public NativeAuthAuthenticationToken(Authentication clientPrincipal,
-                                         RegisteredClient registeredClient,
-                                         String username, String password, String mfaToken,
-                                         String otp, String deviceId, String deviceName,
-                                         String appVersion, Set<String> scopes) {
+    public NativeAuthAuthenticationToken(
+            Authentication clientPrincipal,
+            RegisteredClient registeredClient,
+            String username,
+            String password,
+            String mfaToken,
+            String otp,
+            String deviceId,
+            String deviceName,
+            String appVersion,
+            Set<String> scopes) {
         super(java.util.Collections.emptyList());
         this.clientPrincipal = clientPrincipal;
         this.registeredClient = registeredClient;

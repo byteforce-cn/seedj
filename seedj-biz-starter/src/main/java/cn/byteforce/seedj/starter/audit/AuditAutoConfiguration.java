@@ -8,8 +8,8 @@ import cn.byteforce.seedj.audit.AuditException;
 import cn.byteforce.seedj.audit.spi.AuditStore;
 import cn.byteforce.seedj.core.clock.Clock;
 import cn.byteforce.seedj.core.clock.Clocks;
-import cn.byteforce.seedj.cqrs.CommandAudit;
 import cn.byteforce.seedj.core.security.SecurityAuditSink;
+import cn.byteforce.seedj.cqrs.CommandAudit;
 import cn.byteforce.seedj.cqrs.TemporalCommandAudit;
 import cn.byteforce.seedj.id.IdGenerator;
 import org.springframework.beans.factory.ObjectProvider;
@@ -27,14 +27,16 @@ import org.springframework.transaction.PlatformTransactionManager;
 /**
  * 审计装配。
  *
- * <p>{@code enabled=true}（默认）时必须有 {@code AuditStore} 与
- * {@code PlatformTransactionManager}，否则在这里直接抛
+ * <p>{@code enabled=true}（默认）时必须有 {@code AuditStore} 与 {@code PlatformTransactionManager}，否则在这里直接抛
  * {@link AuditErrorCode#STORE_MISSING} / {@link AuditErrorCode#TX_REQUIRED} 阻断启动：
- * 审计开了就必须落库，不允许静默降级。</p>
+ * 审计开了就必须落库，不允许静默降级。
  */
 @AutoConfiguration
-@ConditionalOnProperty(prefix = "seedj.audit", name = "enabled",
-        havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(
+        prefix = "seedj.audit",
+        name = "enabled",
+        havingValue = "true",
+        matchIfMissing = true)
 @EnableConfigurationProperties(AuditProperties.class)
 public class AuditAutoConfiguration {
 
@@ -47,25 +49,28 @@ public class AuditAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     AuditAnchor auditAnchor() {
-        return head -> {
-        };
+        return head -> {};
     }
 
     @Bean
     @ConditionalOnMissingBean
-    AuditChain<String> auditChain(ObjectProvider<AuditStore<String>> stores,
-                                  ObjectProvider<PlatformTransactionManager> transactions,
-                                  Clock clock, AuditAnchor anchor,
-                                  IdGenerator<String> idGenerator) {
+    AuditChain<String> auditChain(
+            ObjectProvider<AuditStore<String>> stores,
+            ObjectProvider<PlatformTransactionManager> transactions,
+            Clock clock,
+            AuditAnchor anchor,
+            IdGenerator<String> idGenerator) {
         AuditStore<String> store = stores.getIfAvailable();
         if (store == null) {
-            throw new AuditException(AuditErrorCode.STORE_MISSING,
+            throw new AuditException(
+                    AuditErrorCode.STORE_MISSING,
                     "seedj.audit.enabled=true but no AuditStore is available; add the PostgreSQL "
                             + "module (with a DataSource), set seedj.audit.provider=memory for "
                             + "development, or set seedj.audit.enabled=false");
         }
         if (transactions.getIfAvailable() == null) {
-            throw new AuditException(AuditErrorCode.TX_REQUIRED,
+            throw new AuditException(
+                    AuditErrorCode.TX_REQUIRED,
                     "seedj.audit.enabled=true but no PlatformTransactionManager is available; "
                             + "audit must share the command transaction");
         }
@@ -80,12 +85,14 @@ public class AuditAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    CommandAudit commandAudit(ObjectProvider<AuditAppender<String>> appenders,
-                              ObjectProvider<SecurityAuditSink> securityAudit,
-                              IdGenerator<String> idGenerator) {
+    CommandAudit commandAudit(
+            ObjectProvider<AuditAppender<String>> appenders,
+            ObjectProvider<SecurityAuditSink> securityAudit,
+            IdGenerator<String> idGenerator) {
         AuditAppender<String> appender = appenders.getIfAvailable();
         if (appender == null) {
-            throw new AuditException(AuditErrorCode.STORE_MISSING,
+            throw new AuditException(
+                    AuditErrorCode.STORE_MISSING,
                     "seedj.audit.enabled=true but no AuditAppender is available");
         }
         return new AnnotationCommandAudit(appender, securityAudit, idGenerator);
@@ -96,7 +103,8 @@ public class AuditAutoConfiguration {
     TemporalCommandAudit temporalCommandAudit(ObjectProvider<AuditAppender<String>> appenders) {
         AuditAppender<String> appender = appenders.getIfAvailable();
         if (appender == null) {
-            throw new AuditException(AuditErrorCode.STORE_MISSING,
+            throw new AuditException(
+                    AuditErrorCode.STORE_MISSING,
                     "seedj.audit.enabled=true but no AuditAppender is available");
         }
         return new TemporalCommandAuditAdapter(appender, AuditActor::current);
@@ -131,8 +139,7 @@ public class AuditAutoConfiguration {
         AuditMetrics auditMetrics(
                 ObjectProvider<io.micrometer.core.instrument.MeterRegistry> registry) {
             io.micrometer.core.instrument.MeterRegistry resolved = registry.getIfAvailable();
-            return resolved == null ? AuditMetrics.noop()
-                    : new MicrometerAuditMetrics(resolved);
+            return resolved == null ? AuditMetrics.noop() : new MicrometerAuditMetrics(resolved);
         }
     }
 }

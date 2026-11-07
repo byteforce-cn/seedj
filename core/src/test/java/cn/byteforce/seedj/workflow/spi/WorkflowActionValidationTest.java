@@ -1,15 +1,14 @@
 package cn.byteforce.seedj.workflow.spi;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
 /**
  * 动作模型：必填字段、默认位置与空集合约束。
@@ -70,8 +69,9 @@ class WorkflowActionValidationTest {
     @Test
     @DisplayName("AddAssigneeAction：新参与者非空，位置默认 CURRENT")
     void addAssigneeAction() {
-        AddAssigneeAction action = new AddAssigneeAction("a-1", TASK, "u-1",
-                List.of(user("u-2")), null, "need review", NOW);
+        AddAssigneeAction action =
+                new AddAssigneeAction(
+                        "a-1", TASK, "u-1", List.of(user("u-2")), null, "need review", NOW);
 
         assertThat(action.actionId()).isEqualTo("a-1");
         assertThat(action.taskId()).isEqualTo(TASK);
@@ -81,24 +81,38 @@ class WorkflowActionValidationTest {
         assertThat(action.reason()).isEqualTo("need review");
         assertThat(action.occurredAt()).isEqualTo(NOW);
 
-        assertThat(new AddAssigneeAction("a-1", TASK, "u-1", List.of(user("u-2")),
-                AddAssigneePosition.BEFORE, null, NOW).position())
+        assertThat(
+                        new AddAssigneeAction(
+                                        "a-1",
+                                        TASK,
+                                        "u-1",
+                                        List.of(user("u-2")),
+                                        AddAssigneePosition.BEFORE,
+                                        null,
+                                        NOW)
+                                .position())
                 .isEqualTo(AddAssigneePosition.BEFORE);
 
         assertThatThrownBy(() -> new AddAssigneeAction("a-1", TASK, "u-1", null, null, null, NOW))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("newAssignees");
-        assertThatThrownBy(() -> new AddAssigneeAction(null, TASK, "u-1", List.of(user("u-2")),
-                null, null, NOW)).isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new AddAssigneeAction("a-1", null, "u-1", List.of(user("u-2")),
-                null, null, NOW)).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(
+                        () ->
+                                new AddAssigneeAction(
+                                        null, TASK, "u-1", List.of(user("u-2")), null, null, NOW))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(
+                        () ->
+                                new AddAssigneeAction(
+                                        "a-1", null, "u-1", List.of(user("u-2")), null, null, NOW))
+                .isInstanceOf(NullPointerException.class);
     }
 
     @Test
     @DisplayName("RemoveAssigneeAction：待移除列表非空")
     void removeAssigneeAction() {
-        RemoveAssigneeAction action = new RemoveAssigneeAction("a-1", TASK, "u-1",
-                List.of("u-2"), "not needed", NOW);
+        RemoveAssigneeAction action =
+                new RemoveAssigneeAction("a-1", TASK, "u-1", List.of("u-2"), "not needed", NOW);
 
         assertThat(action.actionId()).isEqualTo("a-1");
         assertThat(action.taskId()).isEqualTo(TASK);
@@ -110,17 +124,23 @@ class WorkflowActionValidationTest {
         assertThatThrownBy(() -> new RemoveAssigneeAction("a-1", TASK, "u-1", null, null, NOW))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("removedAssigneeIds");
-        assertThatThrownBy(() -> new RemoveAssigneeAction(null, TASK, "u-1", List.of("u-2"),
-                null, NOW)).isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new RemoveAssigneeAction("a-1", null, "u-1",
-                List.of("u-2"), null, NOW)).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(
+                        () ->
+                                new RemoveAssigneeAction(
+                                        null, TASK, "u-1", List.of("u-2"), null, NOW))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(
+                        () ->
+                                new RemoveAssigneeAction(
+                                        "a-1", null, "u-1", List.of("u-2"), null, NOW))
+                .isInstanceOf(NullPointerException.class);
     }
 
     @Test
     @DisplayName("TransferAction：转办双方必填")
     void transferAction() {
-        TransferAction action = new TransferAction("a-1", TASK, "u-1", user("u-2"),
-                "handover", NOW);
+        TransferAction action =
+                new TransferAction("a-1", TASK, "u-1", user("u-2"), "handover", NOW);
 
         assertThat(action.actionId()).isEqualTo("a-1");
         assertThat(action.taskId()).isEqualTo(TASK);
@@ -142,8 +162,9 @@ class WorkflowActionValidationTest {
     @Test
     @DisplayName("DelegateAction：代理时长必须为正")
     void delegateAction() {
-        DelegateAction action = new DelegateAction("a-1", TASK, "u-1", user("u-2"),
-                Duration.ofHours(4), "vacation", NOW);
+        DelegateAction action =
+                new DelegateAction(
+                        "a-1", TASK, "u-1", user("u-2"), Duration.ofHours(4), "vacation", NOW);
 
         assertThat(action.actionId()).isEqualTo("a-1");
         assertThat(action.delegateFor()).isEqualTo(Duration.ofHours(4));
@@ -151,15 +172,25 @@ class WorkflowActionValidationTest {
         assertThat(action.toAssignee()).isEqualTo(user("u-2"));
         assertThat(action.reason()).isEqualTo("vacation");
 
-        assertThatThrownBy(() -> new DelegateAction("a-1", TASK, "u-1", user("u-2"),
-                Duration.ZERO, null, NOW))
+        assertThatThrownBy(
+                        () ->
+                                new DelegateAction(
+                                        "a-1", TASK, "u-1", user("u-2"), Duration.ZERO, null, NOW))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("delegateFor");
-        assertThatThrownBy(() -> new DelegateAction("a-1", TASK, "u-1", user("u-2"),
-                Duration.ofSeconds(-1), null, NOW))
+        assertThatThrownBy(
+                        () ->
+                                new DelegateAction(
+                                        "a-1",
+                                        TASK,
+                                        "u-1",
+                                        user("u-2"),
+                                        Duration.ofSeconds(-1),
+                                        null,
+                                        NOW))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new DelegateAction("a-1", TASK, "u-1", user("u-2"),
-                null, null, NOW))
+        assertThatThrownBy(
+                        () -> new DelegateAction("a-1", TASK, "u-1", user("u-2"), null, null, NOW))
                 .isInstanceOf(NullPointerException.class);
     }
 
@@ -175,8 +206,8 @@ class WorkflowActionValidationTest {
         assertThat(taskLevel.reason()).isEqualTo("wrong");
         assertThat(taskLevel.occurredAt()).isEqualTo(NOW);
 
-        WithdrawInstanceAction instanceLevel = new WithdrawInstanceAction("a-2", "u-1",
-                "draft", "stop", NOW);
+        WithdrawInstanceAction instanceLevel =
+                new WithdrawInstanceAction("a-2", "u-1", "draft", "stop", NOW);
 
         assertThat(instanceLevel.actionId()).isEqualTo("a-2");
         assertThat(instanceLevel.operator()).isEqualTo("u-1");
@@ -248,8 +279,10 @@ class WorkflowActionValidationTest {
         assertThat(action.reason()).isEqualTo("resume");
         assertThat(action.occurredAt()).isEqualTo(NOW);
 
-        assertThat(new ResumeWorkflowAction("a-1", "u-1", Duration.ofHours(2), null, NOW)
-                .newDueIn()).isEqualTo(Duration.ofHours(2));
+        assertThat(
+                        new ResumeWorkflowAction("a-1", "u-1", Duration.ofHours(2), null, NOW)
+                                .newDueIn())
+                .isEqualTo(Duration.ofHours(2));
 
         assertThatThrownBy(() -> new ResumeWorkflowAction("a-1", "u-1", Duration.ZERO, null, NOW))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -282,14 +315,19 @@ class WorkflowActionValidationTest {
     @Test
     @DisplayName("ActionRequest：实例与动作必填")
     void actionRequest() {
-        ActionRequest request = new ActionRequest(new WorkflowInstanceId("i-1"),
-                new UrgeAction("a-1", TASK, "u-1", null, NOW));
+        ActionRequest request =
+                new ActionRequest(
+                        new WorkflowInstanceId("i-1"),
+                        new UrgeAction("a-1", TASK, "u-1", null, NOW));
 
         assertThat(request.instanceId()).isEqualTo(new WorkflowInstanceId("i-1"));
         assertThat(request.action().actionId()).isEqualTo("a-1");
 
-        assertThatThrownBy(() -> new ActionRequest(null, new UrgeAction("a-1", TASK, "u-1",
-                null, NOW))).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(
+                        () ->
+                                new ActionRequest(
+                                        null, new UrgeAction("a-1", TASK, "u-1", null, NOW)))
+                .isInstanceOf(NullPointerException.class);
         assertThatThrownBy(() -> new ActionRequest(new WorkflowInstanceId("i-1"), null))
                 .isInstanceOf(NullPointerException.class);
     }

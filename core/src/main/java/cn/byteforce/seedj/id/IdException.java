@@ -2,9 +2,7 @@ package cn.byteforce.seedj.id;
 
 import cn.byteforce.seedj.core.InfrastructureException;
 
-/**
- * 标识生成异常。
- */
+/** 标识生成异常。 */
 public class IdException extends InfrastructureException {
 
     private final IdErrorCode errorCode;

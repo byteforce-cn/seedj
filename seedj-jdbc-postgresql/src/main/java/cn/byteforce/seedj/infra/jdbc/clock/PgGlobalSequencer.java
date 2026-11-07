@@ -1,16 +1,13 @@
 package cn.byteforce.seedj.infra.jdbc.clock;
 
 import cn.byteforce.seedj.core.clock.spi.GlobalSequencer;
-
-import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import javax.sql.DataSource;
 
-/**
- * PG 参考实现：全局序列锚点。
- */
+/** PG 参考实现：全局序列锚点。 */
 public final class PgGlobalSequencer implements GlobalSequencer {
 
     private static final String NEXT_SQL = "SELECT nextval('sys_global_seq')";
@@ -24,8 +21,8 @@ public final class PgGlobalSequencer implements GlobalSequencer {
     @Override
     public long next() {
         try (Connection c = dataSource.getConnection();
-             PreparedStatement ps = c.prepareStatement(NEXT_SQL);
-             ResultSet rs = ps.executeQuery()) {
+                PreparedStatement ps = c.prepareStatement(NEXT_SQL);
+                ResultSet rs = ps.executeQuery()) {
             rs.next();
             return rs.getLong(1);
         } catch (SQLException e) {

@@ -5,7 +5,7 @@ import java.util.Objects;
 /**
  * 属性拉取结果：状态 + 可选快照。
  *
- * @param state    状态
+ * @param state 状态
  * @param snapshot 快照；missing / source_unavailable 时为 {@code null}
  * @author ByteForce
  * @since 1.0.0

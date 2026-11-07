@@ -54,53 +54,88 @@ class PostgresQueryExecutorTest {
 
     private static final UUID ACTOR = UUID.fromString("018f2e3a-0000-7000-8000-000000000001");
 
-    private static final Caller CALLER = new Caller(ACTOR.toString(), "alice", "default", null,
-            Set.of("employee.read"), null, null, null, null);
+    private static final Caller CALLER =
+            new Caller(
+                    ACTOR.toString(),
+                    "alice",
+                    "default",
+                    null,
+                    Set.of("employee.read"),
+                    null,
+                    null,
+                    null,
+                    null);
 
-    private static final ObjectSchema SCHEMA = ObjectSchema.builder("employee", "employee")
-            .field(FieldDefinition.required("employee_no", FieldType.TEXT)
-                    .withSortable())
-            .field(new FieldDefinition("phone", FieldType.TEXT, false, false, false, false,
-                    false, false, Privacy.SENSITIVE, Maskers.last4()))
-            .field(FieldDefinition.of("org_unit_id", FieldType.TEXT).withFilterable())
-            .build();
+    private static final ObjectSchema SCHEMA =
+            ObjectSchema.builder("employee", "employee")
+                    .field(FieldDefinition.required("employee_no", FieldType.TEXT).withSortable())
+                    .field(
+                            new FieldDefinition(
+                                    "phone",
+                                    FieldType.TEXT,
+                                    false,
+                                    false,
+                                    false,
+                                    false,
+                                    false,
+                                    false,
+                                    Privacy.SENSITIVE,
+                                    Maskers.last4()))
+                    .field(FieldDefinition.of("org_unit_id", FieldType.TEXT).withFilterable())
+                    .build();
 
     private static JdbcTemplate jdbc;
 
     @BeforeAll
     static void seed() {
-        DriverManagerDataSource dataSource = new DriverManagerDataSource(
-                POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
+        DriverManagerDataSource dataSource =
+                new DriverManagerDataSource(
+                        POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
         jdbc = new JdbcTemplate(dataSource);
         jdbc.execute("CREATE TABLE org_unit (id TEXT PRIMARY KEY, name TEXT NOT NULL)");
-        jdbc.execute("CREATE TABLE employee (employee_no TEXT PRIMARY KEY, phone TEXT,"
-                + " org_unit_id TEXT NOT NULL)");
+        jdbc.execute(
+                "CREATE TABLE employee (employee_no TEXT PRIMARY KEY, phone TEXT,"
+                        + " org_unit_id TEXT NOT NULL)");
         jdbc.update("INSERT INTO org_unit (id, name) VALUES ('D01', 'R&D'), ('D02', 'Sales')");
-        jdbc.update("INSERT INTO employee (employee_no, phone, org_unit_id) VALUES"
-                + " ('E-1', '110101199001010101', 'D01'),"
-                + " ('E-2', '110101199001010202', 'D01'),"
-                + " ('E-3', '110101199001010303', 'D02')");
+        jdbc.update(
+                "INSERT INTO employee (employee_no, phone, org_unit_id) VALUES"
+                        + " ('E-1', '110101199001010101', 'D01'),"
+                        + " ('E-2', '110101199001010202', 'D01'),"
+                        + " ('E-3', '110101199001010303', 'D02')");
     }
 
     @Test
     @DisplayName("join 查询被注入行范围，敏感字段按策略打码，分页与总数正确")
     void joinWithScopeAndMasking() {
-        ReadGateway gateway = new ReadGateway(registry(), new UnusedStore(),
-                List.of(scope()),
-                List.of(maskedPhone()),
-                event -> { },
-                new TestClock(Instant.parse("2026-11-06T09:00:00Z")),
-                UUID::randomUUID,
-                new PostgresQueryExecutor(jdbc));
-        QuerySpec spec = new QuerySpec("employee",
-                "SELECT e.employee_no, e.phone, e.org_unit_id FROM employee e"
-                        + " JOIN org_unit o ON o.id = e.org_unit_id"
-                        + " WHERE o.name = :unit_name",
-                Set.of("employee_no", "phone", "org_unit_id"),
-                Set.of("unit_name"), List.of("employee_no"), "employee_no");
+        ReadGateway gateway =
+                new ReadGateway(
+                        registry(),
+                        new UnusedStore(),
+                        List.of(scope()),
+                        List.of(maskedPhone()),
+                        event -> {},
+                        new TestClock(Instant.parse("2026-11-06T09:00:00Z")),
+                        UUID::randomUUID,
+                        new PostgresQueryExecutor(jdbc));
+        QuerySpec spec =
+                new QuerySpec(
+                        "employee",
+                        "SELECT e.employee_no, e.phone, e.org_unit_id FROM employee e"
+                                + " JOIN org_unit o ON o.id = e.org_unit_id"
+                                + " WHERE o.name = :unit_name",
+                        Set.of("employee_no", "phone", "org_unit_id"),
+                        Set.of("unit_name"),
+                        List.of("employee_no"),
+                        "employee_no");
 
-        Page<Map<String, Object>> page = gateway.query(spec, Map.of("unit_name", "R&D"), null,
-                null, new PageRequest(1, 1), CALLER);
+        Page<Map<String, Object>> page =
+                gateway.query(
+                        spec,
+                        Map.of("unit_name", "R&D"),
+                        null,
+                        null,
+                        new PageRequest(1, 1),
+                        CALLER);
 
         assertThat(page.total()).isEqualTo(2);
         assertThat(page.items()).hasSize(1);
@@ -112,20 +147,28 @@ class PostgresQueryExecutorTest {
     @Test
     @DisplayName("行范围在 SQL 外层收窄，不能通过 join 读到其他组织的数据")
     void scopeCannotBeBypassedByJoin() {
-        ReadGateway gateway = new ReadGateway(registry(), new UnusedStore(),
-                List.of(scope()),
-                List.of(maskedPhone()),
-                event -> { },
-                new TestClock(Instant.parse("2026-11-06T09:00:00Z")),
-                UUID::randomUUID,
-                new PostgresQueryExecutor(jdbc));
-        QuerySpec spec = new QuerySpec("employee",
-                "SELECT employee_no, phone, org_unit_id FROM employee WHERE org_unit_id = :unit",
-                Set.of("employee_no", "phone", "org_unit_id"),
-                Set.of("unit"), List.of("employee_no"), "employee_no");
+        ReadGateway gateway =
+                new ReadGateway(
+                        registry(),
+                        new UnusedStore(),
+                        List.of(scope()),
+                        List.of(maskedPhone()),
+                        event -> {},
+                        new TestClock(Instant.parse("2026-11-06T09:00:00Z")),
+                        UUID::randomUUID,
+                        new PostgresQueryExecutor(jdbc));
+        QuerySpec spec =
+                new QuerySpec(
+                        "employee",
+                        "SELECT employee_no, phone, org_unit_id FROM employee WHERE org_unit_id = :unit",
+                        Set.of("employee_no", "phone", "org_unit_id"),
+                        Set.of("unit"),
+                        List.of("employee_no"),
+                        "employee_no");
 
-        Page<Map<String, Object>> page = gateway.query(spec, Map.of("unit", "D02"), null, null,
-                PageRequest.defaults(), CALLER);
+        Page<Map<String, Object>> page =
+                gateway.query(
+                        spec, Map.of("unit", "D02"), null, null, PageRequest.defaults(), CALLER);
 
         assertThat(page.total()).isZero();
         assertThat(page.items()).isEmpty();
@@ -155,8 +198,10 @@ class PostgresQueryExecutorTest {
             }
 
             @Override
-            public ScopePredicate resolve(String objectType, Caller caller,
-                                          cn.byteforce.seedj.core.security.ScopeContext context) {
+            public ScopePredicate resolve(
+                    String objectType,
+                    Caller caller,
+                    cn.byteforce.seedj.core.security.ScopeContext context) {
                 return new ScopePredicate.In("org_unit_id", List.of("D01"));
             }
         };
@@ -170,10 +215,12 @@ class PostgresQueryExecutorTest {
             }
 
             @Override
-            public FieldPolicy resolve(String objectType, Caller caller,
-                                       cn.byteforce.seedj.core.security.ScopeContext context) {
-                return new FieldPolicy(Map.of("phone",
-                        new FieldAccess(FieldAccess.Action.MASKED, "test")));
+            public FieldPolicy resolve(
+                    String objectType,
+                    Caller caller,
+                    cn.byteforce.seedj.core.security.ScopeContext context) {
+                return new FieldPolicy(
+                        Map.of("phone", new FieldAccess(FieldAccess.Action.MASKED, "test")));
             }
         };
     }
@@ -181,8 +228,8 @@ class PostgresQueryExecutorTest {
     private static final class UnusedStore implements TemporalStore {
 
         @Override
-        public Optional<TemporalRow> find(String objectType, UUID id, TemporalQuery query,
-                                          ScopePredicate scope) {
+        public Optional<TemporalRow> find(
+                String objectType, UUID id, TemporalQuery query, ScopePredicate scope) {
             return Optional.empty();
         }
 

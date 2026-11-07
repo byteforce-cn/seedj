@@ -2,9 +2,7 @@ package cn.byteforce.seedj.outbox;
 
 import cn.byteforce.seedj.core.InfrastructureException;
 
-/**
- * Outbox 操作的统一异常。
- */
+/** Outbox 操作的统一异常。 */
 public class OutboxException extends InfrastructureException {
 
     private final OutboxErrorCode errorCode;

@@ -5,7 +5,6 @@ import cn.byteforce.seedj.iam.IamException;
 import cn.byteforce.seedj.iam.IamPermission;
 import cn.byteforce.seedj.iam.IamRole;
 import cn.byteforce.seedj.iam.spi.IamAuthorizationRepository;
-
 import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -29,8 +28,10 @@ public class InMemoryIamAuthorizationRepository implements IamAuthorizationRepos
 
     @Override
     public synchronized IamRole createRole(IamRole role) {
-        if (roles.containsKey(role.id()) || findRoleByCode(role.tenantId(), role.code()).isPresent()) {
-            throw new IamException(IamErrorCode.ROLE_CONFLICT, "role already exists: " + role.code());
+        if (roles.containsKey(role.id())
+                || findRoleByCode(role.tenantId(), role.code()).isPresent()) {
+            throw new IamException(
+                    IamErrorCode.ROLE_CONFLICT, "role already exists: " + role.code());
         }
         roles.put(role.id(), role);
         bumpEpoch(role.tenantId());
@@ -44,11 +45,19 @@ public class InMemoryIamAuthorizationRepository implements IamAuthorizationRepos
             throw new IamException(IamErrorCode.ROLE_NOT_FOUND, "role not found: " + role.id());
         }
         if (current.version() != role.version()) {
-            throw new IamException(IamErrorCode.CONFLICT,
-                    "role version conflict: expected " + current.version());
+            throw new IamException(
+                    IamErrorCode.CONFLICT, "role version conflict: expected " + current.version());
         }
-        IamRole updated = new IamRole(role.id(), role.tenantId(), role.code(), role.name(),
-                role.description(), role.parentId(), role.builtIn(), role.version() + 1);
+        IamRole updated =
+                new IamRole(
+                        role.id(),
+                        role.tenantId(),
+                        role.code(),
+                        role.name(),
+                        role.description(),
+                        role.parentId(),
+                        role.builtIn(),
+                        role.version() + 1);
         roles.put(updated.id(), updated);
         bumpEpoch(updated.tenantId());
         return updated;
@@ -102,7 +111,8 @@ public class InMemoryIamAuthorizationRepository implements IamAuthorizationRepos
 
     @Override
     public void grantPermission(String roleId, String permissionCode) {
-        rolePermissions.computeIfAbsent(roleId, ignored -> ConcurrentHashMap.newKeySet())
+        rolePermissions
+                .computeIfAbsent(roleId, ignored -> ConcurrentHashMap.newKeySet())
                 .add(permissionCode);
         bumpForRole(roleId);
     }
@@ -126,7 +136,8 @@ public class InMemoryIamAuthorizationRepository implements IamAuthorizationRepos
     }
 
     @Override
-    public void assignRoleToUser(String userId, String roleId, Instant assignedAt, String assignedBy) {
+    public void assignRoleToUser(
+            String userId, String roleId, Instant assignedAt, String assignedBy) {
         userRoles.computeIfAbsent(userId, ignored -> ConcurrentHashMap.newKeySet()).add(roleId);
         bumpForRole(roleId);
     }

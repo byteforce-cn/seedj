@@ -2,34 +2,36 @@ package cn.byteforce.seedj.core.clock;
 
 import cn.byteforce.seedj.core.clock.spi.ClockConfig;
 import cn.byteforce.seedj.core.clock.spi.ClockProvider;
-
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
-/**
- * 时钟装配工厂：按配置选择 provider，失败时显式降级并告警。
- */
+/** 时钟装配工厂：按配置选择 provider，失败时显式降级并告警。 */
 public final class ClockFactory {
 
-    private ClockFactory() {
-    }
+    private ClockFactory() {}
 
     public static Clock resolve(ClockConfig config, List<ClockProvider> providers) {
         Objects.requireNonNull(config, "config");
         Objects.requireNonNull(providers, "providers");
 
-        ClockProvider selected = providers.stream()
-                .filter(p -> p.name().equals(config.provider()))
-                .findFirst()
-                .orElse(null);
+        ClockProvider selected =
+                providers.stream()
+                        .filter(p -> p.name().equals(config.provider()))
+                        .findFirst()
+                        .orElse(null);
 
         if (selected != null) {
             ClockGuarantee provided = selected.guarantee();
             ClockGuarantee required = config.required();
             if (required != null && !provided.satisfies(required)) {
-                throw new IllegalStateException("provider " + selected.name()
-                        + " guarantee " + provided + " does not satisfy required " + required);
+                throw new IllegalStateException(
+                        "provider "
+                                + selected.name()
+                                + " guarantee "
+                                + provided
+                                + " does not satisfy required "
+                                + required);
             }
             try {
                 Clock clock = selected.create(config);
@@ -52,8 +54,6 @@ public final class ClockFactory {
 
     /** 供降级链排序使用。 */
     public static List<ClockProvider> ordered(List<ClockProvider> providers) {
-        return providers.stream()
-                .sorted(Comparator.comparingInt(ClockProvider::order))
-                .toList();
+        return providers.stream().sorted(Comparator.comparingInt(ClockProvider::order)).toList();
     }
 }

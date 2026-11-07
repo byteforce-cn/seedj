@@ -26,16 +26,19 @@ public class CommandReaperAutoConfiguration {
      * 回收器。
      *
      * @param commands 命令存储
-     * @param clock    取时入口
-     * @param metrics  可选指标
+     * @param clock 取时入口
+     * @param metrics 可选指标
      * @return 回收器
      */
     @Bean
     @ConditionalOnMissingBean
-    @ConditionalOnProperty(prefix = "seedj.command", name = "reaper-enabled",
-            havingValue = "true", matchIfMissing = true)
-    public CommandReaper commandReaper(CommandStore commands, Clock clock,
-                                       ObjectProvider<MeterRegistry> metrics) {
+    @ConditionalOnProperty(
+            prefix = "seedj.command",
+            name = "reaper-enabled",
+            havingValue = "true",
+            matchIfMissing = true)
+    public CommandReaper commandReaper(
+            CommandStore commands, Clock clock, ObjectProvider<MeterRegistry> metrics) {
         return new CommandReaper(commands, clock, metrics.getIfAvailable());
     }
 }

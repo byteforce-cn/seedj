@@ -1,5 +1,8 @@
 package cn.byteforce.seedj.infra.jdbc.cqrs;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import cn.byteforce.seedj.cqrs.CqrsErrorCode;
 import cn.byteforce.seedj.cqrs.CqrsException;
 import cn.byteforce.seedj.cqrs.EventStream;
@@ -13,6 +16,14 @@ import cn.byteforce.seedj.domain.event.DomainEvent;
 import cn.byteforce.seedj.domain.event.EventTypeRegistry;
 import cn.byteforce.seedj.eventbus.spi.EventPayloadSerializer;
 import cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -25,21 +36,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import javax.sql.DataSource;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
-/**
- * PostgreSQL 事件存储：公共契约 + 持久化重开 + 并发裁决 + 损坏检测 + 事务参与。
- */
+/** PostgreSQL 事件存储：公共契约 + 持久化重开 + 并发裁决 + 损坏检测 + 事务参与。 */
 @Testcontainers
 class PostgresEventStoreContractTest extends EventStoreContractTest {
 
@@ -56,8 +53,9 @@ class PostgresEventStoreContractTest extends EventStoreContractTest {
 
     @BeforeAll
     static void initialize() {
-        dataSource = new DriverManagerDataSource(
-                POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
+        dataSource =
+                new DriverManagerDataSource(
+                        POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
         jdbc = new JdbcTemplate(dataSource);
         new EventSchemaCapability(new JdbcMigrationRunner(dataSource)).initialize();
     }
@@ -94,16 +92,17 @@ class PostgresEventStoreContractTest extends EventStoreContractTest {
         ExecutorService pool = Executors.newFixedThreadPool(2);
         CountDownLatch ready = new CountDownLatch(2);
         CountDownLatch go = new CountDownLatch(1);
-        Callable<Object> append = () -> {
-            EventStore<String> store = newStore();
-            ready.countDown();
-            go.await();
-            try {
-                return store.append(stream, 0, List.of(new Created("o-1")));
-            } catch (CqrsException e) {
-                return e;
-            }
-        };
+        Callable<Object> append =
+                () -> {
+                    EventStore<String> store = newStore();
+                    ready.countDown();
+                    go.await();
+                    try {
+                        return store.append(stream, 0, List.of(new Created("o-1")));
+                    } catch (CqrsException e) {
+                        return e;
+                    }
+                };
         try {
             Future<Object> first = pool.submit(append);
             Future<Object> second = pool.submit(append);
@@ -114,13 +113,15 @@ class PostgresEventStoreContractTest extends EventStoreContractTest {
             outcomes.add(first.get());
             outcomes.add(second.get());
 
-            assertThat(outcomes).filteredOn(value -> value instanceof Long)
-                    .containsExactly(1L);
-            assertThat(outcomes).filteredOn(value -> value instanceof CqrsException)
+            assertThat(outcomes).filteredOn(value -> value instanceof Long).containsExactly(1L);
+            assertThat(outcomes)
+                    .filteredOn(value -> value instanceof CqrsException)
                     .singleElement()
-                    .isInstanceOfSatisfying(CqrsException.class, error ->
-                            assertThat(error.getErrorCode())
-                                    .isEqualTo(CqrsErrorCode.CONCURRENCY_CONFLICT));
+                    .isInstanceOfSatisfying(
+                            CqrsException.class,
+                            error ->
+                                    assertThat(error.getErrorCode())
+                                            .isEqualTo(CqrsErrorCode.CONCURRENCY_CONFLICT));
             PostgresEventStore<String> reader =
                     new PostgresEventStore<>(jdbc, IdCodecs.strings(), new EventTypeRegistry());
             reader.register(Order.class);
@@ -135,18 +136,28 @@ class PostgresEventStoreContractTest extends EventStoreContractTest {
     void gapInStreamIsCorrupt() {
         StreamId<String> stream = StreamId.of("test.order", "gap");
         EventStore<String> store = newStore();
-        store.append(stream, 0, List.of(
-                new Created("o-1"), new Confirmed("o-1"), new Renamed("o-1", "new")));
-        jdbc.update("DELETE FROM event_stream"
-                + " WHERE aggregate_type = ? AND stream_key = ? AND version = 2",
-                "test.order", "gap");
+        store.append(
+                stream,
+                0,
+                List.of(new Created("o-1"), new Confirmed("o-1"), new Renamed("o-1", "new")));
+        jdbc.update(
+                "DELETE FROM event_stream"
+                        + " WHERE aggregate_type = ? AND stream_key = ? AND version = 2",
+                "test.order",
+                "gap");
 
         assertThatThrownBy(() -> store.read(stream))
-                .isInstanceOfSatisfying(CqrsException.class, error ->
-                        assertThat(error.getErrorCode()).isEqualTo(CqrsErrorCode.CORRUPT_STREAM));
+                .isInstanceOfSatisfying(
+                        CqrsException.class,
+                        error ->
+                                assertThat(error.getErrorCode())
+                                        .isEqualTo(CqrsErrorCode.CORRUPT_STREAM));
         assertThatThrownBy(() -> store.append(stream, 3, List.of(new Renamed("o-1", "x"))))
-                .isInstanceOfSatisfying(CqrsException.class, error ->
-                        assertThat(error.getErrorCode()).isEqualTo(CqrsErrorCode.CORRUPT_STREAM));
+                .isInstanceOfSatisfying(
+                        CqrsException.class,
+                        error ->
+                                assertThat(error.getErrorCode())
+                                        .isEqualTo(CqrsErrorCode.CORRUPT_STREAM));
     }
 
     @Test
@@ -154,13 +165,17 @@ class PostgresEventStoreContractTest extends EventStoreContractTest {
     void appendJoinsCallerTransaction() {
         StreamId<String> stream = StreamId.of("test.order", "rollback");
         EventStore<String> store = newStore();
-        TransactionTemplate transaction = new TransactionTemplate(
-                new DataSourceTransactionManager(dataSource));
+        TransactionTemplate transaction =
+                new TransactionTemplate(new DataSourceTransactionManager(dataSource));
 
-        assertThatThrownBy(() -> transaction.executeWithoutResult(status -> {
-            store.append(stream, 0, List.of(new Created("o-1")));
-            throw new IllegalStateException("rollback");
-        })).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(
+                        () ->
+                                transaction.executeWithoutResult(
+                                        status -> {
+                                            store.append(stream, 0, List.of(new Created("o-1")));
+                                            throw new IllegalStateException("rollback");
+                                        }))
+                .isInstanceOf(IllegalStateException.class);
 
         assertThat(store.read(stream).isEmpty()).isTrue();
     }
@@ -169,33 +184,48 @@ class PostgresEventStoreContractTest extends EventStoreContractTest {
     @DisplayName("未知事件类型：读取失败关闭为 CORRUPT_STREAM，不静默跳过")
     void unknownEventTypeIsCorrupt() {
         StreamId<String> stream = StreamId.of("test.order", "unknown");
-        jdbc.update("""
+        jdbc.update(
+                """
                 INSERT INTO event_stream
                     (aggregate_type, stream_key, version, event_type, event_version, payload)
                 VALUES (?, ?, ?, ?, ?, ?)
-                """, "test.order", "unknown", 1L, "unknown.event", 1, new byte[]{1});
+                """,
+                "test.order",
+                "unknown",
+                1L,
+                "unknown.event",
+                1,
+                new byte[] {1});
 
         assertThatThrownBy(() -> newStore().read(stream))
-                .isInstanceOfSatisfying(CqrsException.class, error ->
-                        assertThat(error.getErrorCode()).isEqualTo(CqrsErrorCode.CORRUPT_STREAM));
+                .isInstanceOfSatisfying(
+                        CqrsException.class,
+                        error ->
+                                assertThat(error.getErrorCode())
+                                        .isEqualTo(CqrsErrorCode.CORRUPT_STREAM));
     }
 
     @Test
     @DisplayName("序列化失败：append 报 INTERNAL_ERROR，且不写入事件")
     void serializationFailureWritesNothing() {
         StreamId<String> stream = StreamId.of("test.order", "serialize");
-        EventPayloadSerializer failing = new EventPayloadSerializer() {
-            @Override
-            public byte[] serialize(Object payload) {
-                throw new IllegalStateException("boom");
-            }
-        };
-        PostgresEventStore<String> store = new PostgresEventStore<>(
-                jdbc, IdCodecs.strings(), failing, new EventTypeRegistry());
+        EventPayloadSerializer failing =
+                new EventPayloadSerializer() {
+                    @Override
+                    public byte[] serialize(Object payload) {
+                        throw new IllegalStateException("boom");
+                    }
+                };
+        PostgresEventStore<String> store =
+                new PostgresEventStore<>(
+                        jdbc, IdCodecs.strings(), failing, new EventTypeRegistry());
 
         assertThatThrownBy(() -> store.append(stream, 0, List.of(new Created("o-1"))))
-                .isInstanceOfSatisfying(CqrsException.class, error ->
-                        assertThat(error.getErrorCode()).isEqualTo(CqrsErrorCode.INTERNAL_ERROR));
+                .isInstanceOfSatisfying(
+                        CqrsException.class,
+                        error ->
+                                assertThat(error.getErrorCode())
+                                        .isEqualTo(CqrsErrorCode.INTERNAL_ERROR));
         assertThat(store.read(stream).isEmpty()).isTrue();
     }
 
@@ -203,37 +233,46 @@ class PostgresEventStoreContractTest extends EventStoreContractTest {
     @DisplayName("序列化器返回 null 或反序列化失败：都失败关闭")
     void serializerContractViolationsAreCorrupt() {
         StreamId<String> stream = StreamId.of("test.order", "bad-serializer");
-        EventPayloadSerializer nullPayload = new EventPayloadSerializer() {
-            @Override
-            public byte[] serialize(Object payload) {
-                return null;
-            }
-        };
-        PostgresEventStore<String> writer = new PostgresEventStore<>(
-                jdbc, IdCodecs.strings(), nullPayload, new EventTypeRegistry());
+        EventPayloadSerializer nullPayload =
+                new EventPayloadSerializer() {
+                    @Override
+                    public byte[] serialize(Object payload) {
+                        return null;
+                    }
+                };
+        PostgresEventStore<String> writer =
+                new PostgresEventStore<>(
+                        jdbc, IdCodecs.strings(), nullPayload, new EventTypeRegistry());
         assertThatThrownBy(() -> writer.append(stream, 0, List.of(new Created("o-1"))))
-                .isInstanceOfSatisfying(CqrsException.class, error ->
-                        assertThat(error.getErrorCode()).isEqualTo(CqrsErrorCode.INTERNAL_ERROR));
+                .isInstanceOfSatisfying(
+                        CqrsException.class,
+                        error ->
+                                assertThat(error.getErrorCode())
+                                        .isEqualTo(CqrsErrorCode.INTERNAL_ERROR));
 
         newStore().append(stream, 0, List.of(new Created("o-1")));
-        EventPayloadSerializer failingRead = new EventPayloadSerializer() {
-            @Override
-            public byte[] serialize(Object payload) {
-                return new byte[0];
-            }
+        EventPayloadSerializer failingRead =
+                new EventPayloadSerializer() {
+                    @Override
+                    public byte[] serialize(Object payload) {
+                        return new byte[0];
+                    }
 
-            @Override
-            public <T> T deserialize(byte[] payload, Class<T> type) {
-                throw new IllegalStateException("cannot read");
-            }
-        };
+                    @Override
+                    public <T> T deserialize(byte[] payload, Class<T> type) {
+                        throw new IllegalStateException("cannot read");
+                    }
+                };
         EventTypeRegistry types = new EventTypeRegistry();
         types.register(Created.class);
-        PostgresEventStore<String> reader = new PostgresEventStore<>(
-                jdbc, IdCodecs.strings(), failingRead, types);
+        PostgresEventStore<String> reader =
+                new PostgresEventStore<>(jdbc, IdCodecs.strings(), failingRead, types);
         assertThatThrownBy(() -> reader.read(stream))
-                .isInstanceOfSatisfying(CqrsException.class, error ->
-                        assertThat(error.getErrorCode()).isEqualTo(CqrsErrorCode.CORRUPT_STREAM));
+                .isInstanceOfSatisfying(
+                        CqrsException.class,
+                        error ->
+                                assertThat(error.getErrorCode())
+                                        .isEqualTo(CqrsErrorCode.CORRUPT_STREAM));
     }
 
     @Test
@@ -241,23 +280,27 @@ class PostgresEventStoreContractTest extends EventStoreContractTest {
     void boundaryConditions() {
         StreamId<String> stream = StreamId.of("test.order", "boundary");
         EventStore<String> store = newStore();
-        IdCodec<String> blank = new IdCodec<>() {
-            @Override
-            public String encode(String id) {
-                return " ";
-            }
+        IdCodec<String> blank =
+                new IdCodec<>() {
+                    @Override
+                    public String encode(String id) {
+                        return " ";
+                    }
 
-            @Override
-            public String decode(String encoded) {
-                return encoded;
-            }
-        };
-        PostgresEventStore<String> blankStore = new PostgresEventStore<>(
-                jdbc, blank, new EventTypeRegistry());
+                    @Override
+                    public String decode(String encoded) {
+                        return encoded;
+                    }
+                };
+        PostgresEventStore<String> blankStore =
+                new PostgresEventStore<>(jdbc, blank, new EventTypeRegistry());
 
         assertThatThrownBy(() -> blankStore.read(stream))
-                .isInstanceOfSatisfying(CqrsException.class, error ->
-                        assertThat(error.getErrorCode()).isEqualTo(CqrsErrorCode.INVALID_ID));
+                .isInstanceOfSatisfying(
+                        CqrsException.class,
+                        error ->
+                                assertThat(error.getErrorCode())
+                                        .isEqualTo(CqrsErrorCode.INVALID_ID));
         assertThatThrownBy(() -> store.append(stream, -1, List.of(new Created("o-1"))))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThat(store.append(stream, -1, List.of())).isEqualTo(-1L);
@@ -270,11 +313,17 @@ class PostgresEventStoreContractTest extends EventStoreContractTest {
     @Test
     @DisplayName("没有 DataSource 的 JdbcTemplate 在装配期失败，而不是运行期 NPE")
     void requiresDataSource() {
-        assertThatThrownBy(() -> new PostgresEventStore<>(
-                new JdbcTemplate(), IdCodecs.strings(), new EventTypeRegistry()))
-                .isInstanceOfSatisfying(CqrsException.class, error ->
-                        assertThat(error.getErrorCode())
-                                .isEqualTo(CqrsErrorCode.STORE_UNAVAILABLE));
+        assertThatThrownBy(
+                        () ->
+                                new PostgresEventStore<>(
+                                        new JdbcTemplate(),
+                                        IdCodecs.strings(),
+                                        new EventTypeRegistry()))
+                .isInstanceOfSatisfying(
+                        CqrsException.class,
+                        error ->
+                                assertThat(error.getErrorCode())
+                                        .isEqualTo(CqrsErrorCode.STORE_UNAVAILABLE));
     }
 
     @Test
@@ -302,9 +351,7 @@ class PostgresEventStoreContractTest extends EventStoreContractTest {
         capability.validate();
     }
 
-    /**
-     * 只用于让 {@link PostgresEventStore#register(Class)} 从 {@code apply} 方法发现事件类型。
-     */
+    /** 只用于让 {@link PostgresEventStore#register(Class)} 从 {@code apply} 方法发现事件类型。 */
     private static final class Order extends AbstractAggregateRoot<String> {
 
         private Order(String id) {
@@ -316,14 +363,11 @@ class PostgresEventStoreContractTest extends EventStoreContractTest {
         }
     }
 
-    private sealed interface PaymentEvent extends DomainEvent permits Paid, Refunded {
-    }
+    private sealed interface PaymentEvent extends DomainEvent permits Paid, Refunded {}
 
-    private record Paid(String paymentId) implements PaymentEvent {
-    }
+    private record Paid(String paymentId) implements PaymentEvent {}
 
-    private record Refunded(String paymentId) implements PaymentEvent {
-    }
+    private record Refunded(String paymentId) implements PaymentEvent {}
 
     private static final class Ledger extends AbstractAggregateRoot<String> {
 

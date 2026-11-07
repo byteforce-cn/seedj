@@ -15,9 +15,8 @@ import java.util.stream.Stream;
 /**
  * 按 Maven 模块逐个导入 {@code target/classes}，而不是导入全局 classpath。
  *
- * <p>当前仓库存在跨模块 split package：全局导入会把 starter 与 core 的同名包混在一起，
- * 让“core 是否依赖 Spring”这类规则得出错误结论。逐模块导入保证每条规则看到的边界与
- * 实际制品一致。</p>
+ * <p>当前仓库存在跨模块 split package：全局导入会把 starter 与 core 的同名包混在一起， 让“core 是否依赖
+ * Spring”这类规则得出错误结论。逐模块导入保证每条规则看到的边界与 实际制品一致。
  */
 final class ModuleClassPath {
 

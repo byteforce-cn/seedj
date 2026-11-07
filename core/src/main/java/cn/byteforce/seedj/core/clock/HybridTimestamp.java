@@ -7,8 +7,7 @@ import java.util.Objects;
 /**
  * 混合逻辑时钟时间戳：(物理微秒, 逻辑计数器)。
  *
- * <p>物理部分为微秒精度 UTC，逻辑部分用于物理时间相同时的因果排序。
- * {@link #compareTo} 先比物理再比逻辑。</p>
+ * <p>物理部分为微秒精度 UTC，逻辑部分用于物理时间相同时的因果排序。 {@link #compareTo} 先比物理再比逻辑。
  */
 public record HybridTimestamp(long physicalMicros, long logical)
         implements Comparable<HybridTimestamp> {

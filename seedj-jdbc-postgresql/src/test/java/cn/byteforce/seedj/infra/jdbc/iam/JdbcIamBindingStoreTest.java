@@ -1,8 +1,12 @@
 package cn.byteforce.seedj.infra.jdbc.iam;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import cn.byteforce.seedj.iam.authz.IamBinding;
 import cn.byteforce.seedj.iam.authz.IamProxy;
 import cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner;
+import java.time.Instant;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -13,14 +17,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import java.time.Instant;
-import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
-/**
- * PostgreSQL 绑定/代理存储的时点契约。
- */
+/** PostgreSQL 绑定/代理存储的时点契约。 */
 @Testcontainers
 class JdbcIamBindingStoreTest {
 
@@ -39,8 +36,9 @@ class JdbcIamBindingStoreTest {
 
     @BeforeAll
     static void initialize() {
-        DriverManagerDataSource dataSource = new DriverManagerDataSource(
-                POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
+        DriverManagerDataSource dataSource =
+                new DriverManagerDataSource(
+                        POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
         jdbc = new JdbcTemplate(dataSource);
         new IamSchemaCapability(new JdbcMigrationRunner(dataSource)).initialize();
         store = new JdbcIamBindingStore(jdbc);
@@ -72,8 +70,16 @@ class JdbcIamBindingStoreTest {
     @Test
     @DisplayName("recorded_as_of 隐藏已封口版本")
     void recordedAsOfHidesSupersededBinding() {
-        store.save(new IamBinding("b-3", "p", "r1", Map.of("department", "D001"),
-                T0, null, T0, T0.plusSeconds(600)));
+        store.save(
+                new IamBinding(
+                        "b-3",
+                        "p",
+                        "r1",
+                        Map.of("department", "D001"),
+                        T0,
+                        null,
+                        T0,
+                        T0.plusSeconds(600)));
 
         assertThat(store.effectiveBindings("p", T0.plusSeconds(120), T0.plusSeconds(300)))
                 .hasSize(1);
@@ -84,8 +90,16 @@ class JdbcIamBindingStoreTest {
     @Test
     @DisplayName("代理窗口按业务时点过滤")
     void proxyWindowIsRespected() {
-        store.save(new IamProxy("x-1", "away", "agent", Map.of("department", "D001"),
-                T0, T0.plusSeconds(86400), T0, null));
+        store.save(
+                new IamProxy(
+                        "x-1",
+                        "away",
+                        "agent",
+                        Map.of("department", "D001"),
+                        T0,
+                        T0.plusSeconds(86400),
+                        T0,
+                        null));
 
         assertThat(store.effectiveProxies("agent", T0.plusSeconds(60), null)).hasSize(1);
         assertThat(store.effectiveProxies("agent", T0.plusSeconds(86400), null)).isEmpty();

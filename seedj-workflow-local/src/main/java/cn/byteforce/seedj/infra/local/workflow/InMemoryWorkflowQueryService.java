@@ -19,6 +19,7 @@ import java.util.Optional;
 final class InMemoryWorkflowQueryService {
 
     private final InMemoryWorkflowSupport support;
+
     InMemoryWorkflowQueryService(InMemoryWorkflowSupport support) {
         this.support = support;
     }
@@ -63,8 +64,10 @@ final class InMemoryWorkflowQueryService {
                 state.lock.unlock();
             }
         }
-        matches.sort(Comparator.comparing(WorkflowInstance::startedAt).reversed()
-                .thenComparing(i -> i.id().value()));
+        matches.sort(
+                Comparator.comparing(WorkflowInstance::startedAt)
+                        .reversed()
+                        .thenComparing(i -> i.id().value()));
         int offset = support.cursorOffset(query.cursor());
         if (offset >= matches.size()) {
             return List.of();
@@ -90,7 +93,8 @@ final class InMemoryWorkflowQueryService {
             state.lock.lock();
             try {
                 for (HumanTask task : state.tasks.values()) {
-                    if (query.instanceId() != null && !task.instanceId().equals(query.instanceId())) {
+                    if (query.instanceId() != null
+                            && !task.instanceId().equals(query.instanceId())) {
                         continue;
                     }
                     if (query.stepName() != null && !task.stepName().equals(query.stepName())) {
@@ -100,8 +104,8 @@ final class InMemoryWorkflowQueryService {
                         continue;
                     }
                     if (query.status() == HumanTaskStatus.PENDING
-                            && task.assignments().stream().noneMatch(
-                                    a -> a.status() == AssignmentStatus.PENDING)) {
+                            && task.assignments().stream()
+                                    .noneMatch(a -> a.status() == AssignmentStatus.PENDING)) {
                         continue;
                     }
                     if (query.dueBefore() != null
@@ -126,8 +130,7 @@ final class InMemoryWorkflowQueryService {
                 state.lock.unlock();
             }
         }
-        matches.sort(Comparator.comparing(HumanTask::createdAt)
-                .thenComparing(t -> t.id().value()));
+        matches.sort(Comparator.comparing(HumanTask::createdAt).thenComparing(t -> t.id().value()));
         int offset = support.cursorOffset(query.cursor());
         if (offset >= matches.size()) {
             return List.of();
@@ -151,5 +154,4 @@ final class InMemoryWorkflowQueryService {
         }
         return Optional.empty();
     }
-
 }

@@ -3,11 +3,13 @@ package cn.byteforce.seedj.starter.iam.web;
 import cn.byteforce.seedj.iam.IamErrorCode;
 import cn.byteforce.seedj.iam.IamException;
 import cn.byteforce.seedj.iam.IamUser;
+import cn.byteforce.seedj.iam.spi.IamUserRepository;
+import cn.byteforce.seedj.iam.totp.TotpEnrollment;
 import cn.byteforce.seedj.starter.iam.IamProperties;
 import cn.byteforce.seedj.starter.iam.identity.IamIdentityService;
 import cn.byteforce.seedj.starter.iam.identity.IamTotpService;
-import cn.byteforce.seedj.iam.spi.IamUserRepository;
-import cn.byteforce.seedj.iam.totp.TotpEnrollment;
+import java.util.List;
+import java.util.Map;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -15,9 +17,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
-import java.util.Map;
 
 /** TOTP enrollment endpoints for the authenticated browser session or bearer token. */
 @RestController
@@ -29,8 +28,11 @@ public class IamTotpController {
     private final IamIdentityService identities;
     private final String tenantId;
 
-    public IamTotpController(IamTotpService totp, IamUserRepository users,
-                             IamIdentityService identities, IamProperties properties) {
+    public IamTotpController(
+            IamTotpService totp,
+            IamUserRepository users,
+            IamIdentityService identities,
+            IamProperties properties) {
         this.totp = totp;
         this.users = users;
         this.identities = identities;
@@ -45,8 +47,8 @@ public class IamTotpController {
     }
 
     @PostMapping("/confirm")
-    public Map<String, Object> confirm(Authentication authentication,
-                                       @RequestBody Map<String, Object> body) {
+    public Map<String, Object> confirm(
+            Authentication authentication, @RequestBody Map<String, Object> body) {
         IamUser user = current(authentication);
         String code = string(body.get("code"));
         List<String> recoveryCodes = totp.confirm(user.id(), code);
@@ -57,13 +59,17 @@ public class IamTotpController {
     public Map<String, Object> status(Authentication authentication) {
         IamUser user = current(authentication);
         IamTotpService.TotpStatus status = totp.status(user.id());
-        return Map.of("enabled", status.enabled(),
-                "recoveryCodesRemaining", status.recoveryCodesRemaining());
+        return Map.of(
+                "enabled",
+                status.enabled(),
+                "recoveryCodesRemaining",
+                status.recoveryCodesRemaining());
     }
 
     @PostMapping("/disable")
-    public Map<String, Object> disable(Authentication authentication,
-                                       @RequestBody(required = false) Map<String, Object> body) {
+    public Map<String, Object> disable(
+            Authentication authentication,
+            @RequestBody(required = false) Map<String, Object> body) {
         IamUser user = current(authentication);
         String code = body == null ? null : string(body.get("code"));
         String password = body == null ? null : string(body.get("password"));
@@ -84,8 +90,8 @@ public class IamTotpController {
             verified = true;
         }
         if (!verified) {
-            throw new IamException(IamErrorCode.TOTP_INVALID,
-                    "a valid TOTP code or password is required");
+            throw new IamException(
+                    IamErrorCode.TOTP_INVALID, "a valid TOTP code or password is required");
         }
         totp.disable(user.id());
         identities.revokeSessions(user);

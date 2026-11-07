@@ -13,7 +13,6 @@ import cn.byteforce.seedj.domain.Masker;
 import cn.byteforce.seedj.domain.ObjectSchema;
 import cn.byteforce.seedj.domain.Privacy;
 import cn.byteforce.seedj.read.ReadModel;
-
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -26,8 +25,7 @@ import java.util.Set;
 /**
  * 实体声明 DSL：字段、读权限、查询与请求事实 key。
  *
- * <p>{@link #freeze()} 一次性校验并构建 {@link ObjectModuleRegistry}；重复对象/路径、
- * 缺读权限、未知或不可排序的查询排序字段都让启动失败。</p>
+ * <p>{@link #freeze()} 一次性校验并构建 {@link ObjectModuleRegistry}；重复对象/路径、 缺读权限、未知或不可排序的查询排序字段都让启动失败。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -36,8 +34,7 @@ public final class ObjectModules {
 
     private final List<ObjectSpec> objects = new ArrayList<>();
 
-    private ObjectModules() {
-    }
+    private ObjectModules() {}
 
     /**
      * 新建声明。
@@ -52,7 +49,7 @@ public final class ObjectModules {
      * 声明一个对象。
      *
      * @param objectType 对象类型
-     * @param tableName  物理表名
+     * @param tableName 物理表名
      * @return 对象声明
      */
     public ObjectSpec object(String objectType, String tableName) {
@@ -64,8 +61,8 @@ public final class ObjectModules {
     /**
      * 用已生成的 schema 声明一个对象。
      *
-     * <p>字段唯一来源是 {@code @SeedjObject} record 生成的 {@link ObjectSchema}；
-     * 再调用 {@link ObjectSpec#field(String, FieldType)} 会直接失败，避免两处声明。</p>
+     * <p>字段唯一来源是 {@code @SeedjObject} record 生成的 {@link ObjectSchema}； 再调用 {@link
+     * ObjectSpec#field(String, FieldType)} 会直接失败，避免两处声明。
      *
      * @param schema 生成的 schema
      * @return 对象声明
@@ -92,8 +89,7 @@ public final class ObjectModules {
         List<ScopeKey<?>> keys = new ArrayList<>();
         for (ObjectSpec object : objects) {
             if (models.containsKey(object.objectType)) {
-                throw new IllegalArgumentException(
-                        "duplicate object type: " + object.objectType);
+                throw new IllegalArgumentException("duplicate object type: " + object.objectType);
             }
             if (object.readPermission == null || object.readPermission.isBlank()) {
                 throw new IllegalArgumentException(
@@ -104,22 +100,38 @@ public final class ObjectModules {
                         "object " + object.objectType + " must declare at least one field");
             }
             ObjectSchema schema = object.schema();
-            models.put(object.objectType,
+            models.put(
+                    object.objectType,
                     new ReadModel(object.objectType, schema, object.readPermission));
             keys.addAll(object.contextKeys);
             for (CommandSpec command : object.commands) {
-                ObjectModuleCommands.register(command, object.objectType, schema, commandTypes,
-                        declarations, registrations);
+                ObjectModuleCommands.register(
+                        command,
+                        object.objectType,
+                        schema,
+                        commandTypes,
+                        declarations,
+                        registrations);
             }
             for (QuerySpec query : object.queries) {
                 ObjectSchema fieldSchema = schema;
                 if (query.sortField != null) {
-                    FieldDefinition sort = fieldSchema.field(query.sortField).orElseThrow(
-                            () -> new IllegalArgumentException("unknown query sort field: "
-                                    + query.sortField + " on " + object.objectType));
+                    FieldDefinition sort =
+                            fieldSchema
+                                    .field(query.sortField)
+                                    .orElseThrow(
+                                            () ->
+                                                    new IllegalArgumentException(
+                                                            "unknown query sort field: "
+                                                                    + query.sortField
+                                                                    + " on "
+                                                                    + object.objectType));
                     if (!sort.sortable()) {
-                        throw new IllegalArgumentException("query sort field is not sortable: "
-                                + query.sortField + " on " + object.objectType);
+                        throw new IllegalArgumentException(
+                                "query sort field is not sortable: "
+                                        + query.sortField
+                                        + " on "
+                                        + object.objectType);
                     }
                 }
                 if (!query.path.startsWith("/")) {
@@ -129,14 +141,21 @@ public final class ObjectModules {
                 if (!paths.add(query.path)) {
                     throw new IllegalArgumentException("duplicate query path: " + query.path);
                 }
-                String permission = query.permission == null || query.permission.isBlank()
-                        ? object.readPermission : query.permission;
-                queries.add(new QueryDeclaration(object.objectType, query.viewType,
-                        query.path, permission, query.sortField));
+                String permission =
+                        query.permission == null || query.permission.isBlank()
+                                ? object.readPermission
+                                : query.permission;
+                queries.add(
+                        new QueryDeclaration(
+                                object.objectType,
+                                query.viewType,
+                                query.path,
+                                permission,
+                                query.sortField));
             }
         }
-        return new ObjectModuleRegistry(models, queries, declarations, registrations,
-                ScopeKeyCatalog.of(keys));
+        return new ObjectModuleRegistry(
+                models, queries, declarations, registrations, ScopeKeyCatalog.of(keys));
     }
 
     /** 对象声明。 */
@@ -196,7 +215,9 @@ public final class ObjectModules {
         public FieldSpec field(String name, FieldType type) {
             if (fixedSchema != null) {
                 throw new IllegalStateException(
-                        "object " + objectType + " uses a generated schema; declare fields on"
+                        "object "
+                                + objectType
+                                + " uses a generated schema; declare fields on"
                                 + " the @SeedjObject record instead of ObjectModules.field()");
             }
             FieldSpec field = new FieldSpec(this, name, type);
@@ -207,7 +228,7 @@ public final class ObjectModules {
         /**
          * 声明命令。
          *
-         * @param type        命令类型
+         * @param type 命令类型
          * @param payloadType 载荷 record
          * @return 命令声明
          */
@@ -339,8 +360,17 @@ public final class ObjectModules {
 
         private FieldDefinition definition() {
             boolean eventVisible = !writeOnly && privacy.ordinal() < Privacy.SENSITIVE.ordinal();
-            return new FieldDefinition(name, type, required, writeOnly, eventVisible, filterable,
-                    sortable, indexed, privacy, masker);
+            return new FieldDefinition(
+                    name,
+                    type,
+                    required,
+                    writeOnly,
+                    eventVisible,
+                    filterable,
+                    sortable,
+                    indexed,
+                    privacy,
+                    masker);
         }
     }
 

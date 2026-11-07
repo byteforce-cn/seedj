@@ -3,17 +3,15 @@ package cn.byteforce.seedj.infra.local.id;
 import cn.byteforce.seedj.id.IdErrorCode;
 import cn.byteforce.seedj.id.IdException;
 import cn.byteforce.seedj.id.IdGenerator;
-
 import java.util.Objects;
 
 /**
  * 把数值型 ID 适配为字符串 ID。
  *
- * <p>业务契约（IAM、outbox、eventbus）使用 {@code String} 标识，而雪花产出
- * {@code long}。本类负责唯一的转换点，避免各模块各自调用
- * {@code Long.toString(...)} 或退回 {@code UUID.randomUUID()}。</p>
+ * <p>业务契约（IAM、outbox、eventbus）使用 {@code String} 标识，而雪花产出 {@code long}。本类负责唯一的转换点，避免各模块各自调用 {@code
+ * Long.toString(...)} 或退回 {@code UUID.randomUUID()}。
  *
- * <p><b>幂等关闭</b>：委托生成器只会被关闭一次。</p>
+ * <p><b>幂等关闭</b>：委托生成器只会被关闭一次。
  *
  * @author ByteForce
  * @since 1.0.0

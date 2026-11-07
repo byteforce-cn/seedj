@@ -2,16 +2,13 @@ package cn.byteforce.seedj.infra.jdbc.clock;
 
 import cn.byteforce.seedj.core.clock.HybridTimestamp;
 import cn.byteforce.seedj.core.clock.spi.HybridStateStore;
-
-import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import javax.sql.DataSource;
 
-/**
- * PG 参考实现：HLC 状态持久化。
- */
+/** PG 参考实现：HLC 状态持久化。 */
 public final class PgHybridStateStore implements HybridStateStore {
 
     private static final String LOAD_SQL =
@@ -36,7 +33,7 @@ public final class PgHybridStateStore implements HybridStateStore {
     @Override
     public HybridTimestamp load(String nodeId) {
         try (Connection c = dataSource.getConnection();
-             PreparedStatement ps = c.prepareStatement(LOAD_SQL)) {
+                PreparedStatement ps = c.prepareStatement(LOAD_SQL)) {
             ps.setString(1, nodeId);
             try (ResultSet rs = ps.executeQuery()) {
                 if (!rs.next()) {
@@ -52,7 +49,7 @@ public final class PgHybridStateStore implements HybridStateStore {
     @Override
     public void save(String nodeId, HybridTimestamp state) {
         try (Connection c = dataSource.getConnection();
-             PreparedStatement ps = c.prepareStatement(SAVE_SQL)) {
+                PreparedStatement ps = c.prepareStatement(SAVE_SQL)) {
             ps.setString(1, nodeId);
             ps.setLong(2, state.physicalMicros());
             ps.setLong(3, state.logical());

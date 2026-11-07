@@ -2,9 +2,7 @@ package cn.byteforce.seedj.core.clock.spi;
 
 import cn.byteforce.seedj.core.clock.HybridTimestamp;
 
-/**
- * HLC 状态存取 SPI，由业务按所用中间件实现。
- */
+/** HLC 状态存取 SPI，由业务按所用中间件实现。 */
 public interface HybridStateStore {
 
     /** 读取本节点持久化状态，不存在返回 {@code null}。 */

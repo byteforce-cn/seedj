@@ -1,8 +1,8 @@
 package cn.byteforce.seedj.iam;
 
 /**
- * Stable IAM error codes. They are part of the contract surface and are safe to
- * expose to SCIM/OAuth clients (no internal identifiers).
+ * Stable IAM error codes. They are part of the contract surface and are safe to expose to
+ * SCIM/OAuth clients (no internal identifiers).
  */
 public enum IamErrorCode {
     INVALID_CREDENTIALS,

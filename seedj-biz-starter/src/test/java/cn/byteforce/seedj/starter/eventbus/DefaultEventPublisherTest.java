@@ -1,5 +1,10 @@
 package cn.byteforce.seedj.starter.eventbus;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import cn.byteforce.seedj.domain.event.DomainEvent;
 import cn.byteforce.seedj.domain.event.EventType;
 import cn.byteforce.seedj.eventbus.EventBusErrorCode;
@@ -10,26 +15,19 @@ import cn.byteforce.seedj.eventbus.spi.EventPayloadSerializer;
 import cn.byteforce.seedj.outbox.OutboxRecord;
 import cn.byteforce.seedj.outbox.OutboxWriter;
 import cn.byteforce.seedj.outbox.spi.OutboxStore;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.ObjectProvider;
-
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.ObjectProvider;
 
 class DefaultEventPublisherTest {
 
     @EventType(value = "order.cancelled", version = 3)
-    record OrderCancelled(String orderId) implements DomainEvent {
-    }
+    record OrderCancelled(String orderId) implements DomainEvent {}
 
     private final RecordingTransport transport = new RecordingTransport();
     private final RecordingWriter writer = new RecordingWriter();
@@ -120,12 +118,19 @@ class DefaultEventPublisherTest {
                 .isEqualTo(EventBusErrorCode.NO_SERIALIZER);
     }
 
-    private static DefaultEventPublisher publisher(OutboxStore store, OutboxWriter writer,
-                                                   EventBusTransport transport,
-                                                   EventPayloadSerializer serializer) {
-        return new DefaultEventPublisher(provider(store), provider(writer),
-                provider(transport), provider(serializer), () -> "event-1",
-                EventBusMetrics.noop(), cn.byteforce.seedj.starter.observability.TracePropagation.noop());
+    private static DefaultEventPublisher publisher(
+            OutboxStore store,
+            OutboxWriter writer,
+            EventBusTransport transport,
+            EventPayloadSerializer serializer) {
+        return new DefaultEventPublisher(
+                provider(store),
+                provider(writer),
+                provider(transport),
+                provider(serializer),
+                () -> "event-1",
+                EventBusMetrics.noop(),
+                cn.byteforce.seedj.starter.observability.TracePropagation.noop());
     }
 
     @SuppressWarnings("unchecked")
@@ -149,8 +154,14 @@ class DefaultEventPublisherTest {
     }
 
     private static EventMessage message() {
-        return new EventMessage("e1", "topic", "key", "topic", 1,
-                "payload".getBytes(StandardCharsets.UTF_8), null,
+        return new EventMessage(
+                "e1",
+                "topic",
+                "key",
+                "topic",
+                1,
+                "payload".getBytes(StandardCharsets.UTF_8),
+                null,
                 Instant.parse("2026-01-01T00:00:00Z"));
     }
 

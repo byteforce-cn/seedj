@@ -1,5 +1,7 @@
 package cn.byteforce.seedj.starter.iam.token;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import cn.byteforce.seedj.iam.IamGroup;
 import cn.byteforce.seedj.iam.IamPermission;
 import cn.byteforce.seedj.iam.IamRole;
@@ -11,6 +13,11 @@ import cn.byteforce.seedj.infra.local.iam.InMemoryIamUserRepository;
 import cn.byteforce.seedj.starter.iam.IamProperties;
 import cn.byteforce.seedj.starter.iam.identity.IamAuthorizationService;
 import cn.byteforce.seedj.starter.iam.identity.IamPasswordHasherAdapter;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Date;
+import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -27,14 +34,6 @@ import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.security.oauth2.server.authorization.token.JwtEncodingContext;
 
-import java.time.Duration;
-import java.time.Instant;
-import java.util.Date;
-import java.util.List;
-import java.util.Set;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
 class IamTokenCustomizerTest {
 
     private static final String ACCESS_TOKEN = OAuth2TokenType.ACCESS_TOKEN.getValue();
@@ -43,20 +42,24 @@ class IamTokenCustomizerTest {
     private final InMemoryIamGroupRepository groups = new InMemoryIamGroupRepository();
     private final InMemoryIamAuthorizationRepository authorization =
             new InMemoryIamAuthorizationRepository();
-    private final IamPasswordHasher hasher = new IamPasswordHasherAdapter(
-            PasswordEncoderFactories.createDelegatingPasswordEncoder());
+    private final IamPasswordHasher hasher =
+            new IamPasswordHasherAdapter(
+                    PasswordEncoderFactories.createDelegatingPasswordEncoder());
     private final IamAuthorizationService authorizationService =
             new IamAuthorizationService(authorization, groups, Duration.ofSeconds(5));
-    private final IamUser alice = users.create(IamUser.create("u-alice", "acme", "alice",
-            "Alice Ng", "alice@example.com", true), hasher.encode("alice-password"));
+    private final IamUser alice =
+            users.create(
+                    IamUser.create(
+                            "u-alice", "acme", "alice", "Alice Ng", "alice@example.com", true),
+                    hasher.encode("alice-password"));
 
     @Test
     void accessTokenCarriesIamIdentityRolesGroupsAndPermissions() {
         grantRole("r-reader", "reader", "order:read");
-        IamGroup group = groups.create(IamGroup.create("g-1", "acme", "sales", null,
-                Set.of(alice.id())));
-        IamTokenCustomizer customizer = customizer(properties(true, "https://api.example.com"),
-                "acme");
+        IamGroup group =
+                groups.create(IamGroup.create("g-1", "acme", "sales", null, Set.of(alice.id())));
+        IamTokenCustomizer customizer =
+                customizer(properties(true, "https://api.example.com"), "acme");
 
         JwtEncodingContext context = accessTokenContext(ACCESS_TOKEN, "alice");
         customizer.customize(context);
@@ -79,8 +82,8 @@ class IamTokenCustomizerTest {
     @Test
     void idTokenOmitsPermissionsAudienceAndAccessTokenType() {
         grantRole("r-reader", "reader", "order:read");
-        IamTokenCustomizer customizer = customizer(properties(true, "https://api.example.com"),
-                "acme");
+        IamTokenCustomizer customizer =
+                customizer(properties(true, "https://api.example.com"), "acme");
 
         JwtEncodingContext context = accessTokenContext(OidcParameterNames.ID_TOKEN, "alice");
         customizer.customize(context);
@@ -106,14 +109,18 @@ class IamTokenCustomizerTest {
 
     @Test
     void fallsBackToPrincipalAuthoritiesWithoutIamUser() {
-        Authentication principal = new UsernamePasswordAuthenticationToken("external", "n/a",
-                List.of(new SimpleGrantedAuthority("ROLE_service"),
-                        new SimpleGrantedAuthority("PERM_report:read"),
-                        new SimpleGrantedAuthority("GROUP_ops"),
-                        new SimpleGrantedAuthority("AMR_mfa"),
-                        new SimpleGrantedAuthority("ACR_urn:seedj:acr:mfa"),
-                        new SimpleGrantedAuthority("AUTH_TIME_" + 1_700_000_000L),
-                        new SimpleGrantedAuthority("SCOPE_read")));
+        Authentication principal =
+                new UsernamePasswordAuthenticationToken(
+                        "external",
+                        "n/a",
+                        List.of(
+                                new SimpleGrantedAuthority("ROLE_service"),
+                                new SimpleGrantedAuthority("PERM_report:read"),
+                                new SimpleGrantedAuthority("GROUP_ops"),
+                                new SimpleGrantedAuthority("AMR_mfa"),
+                                new SimpleGrantedAuthority("ACR_urn:seedj:acr:mfa"),
+                                new SimpleGrantedAuthority("AUTH_TIME_" + 1_700_000_000L),
+                                new SimpleGrantedAuthority("SCOPE_read")));
         IamTokenCustomizer customizer = customizer(properties(true, null), "acme");
         JwtEncodingContext context = accessTokenContext(ACCESS_TOKEN, "external", principal);
 
@@ -132,8 +139,11 @@ class IamTokenCustomizerTest {
 
     @Test
     void ignoresMalformedAuthTimeAuthorityAndDefaultsAmr() {
-        Authentication principal = new UsernamePasswordAuthenticationToken("external", "n/a",
-                List.of(new SimpleGrantedAuthority("AUTH_TIME_not-a-number")));
+        Authentication principal =
+                new UsernamePasswordAuthenticationToken(
+                        "external",
+                        "n/a",
+                        List.of(new SimpleGrantedAuthority("AUTH_TIME_not-a-number")));
         IamTokenCustomizer customizer = customizer(properties(true, null), "acme");
         JwtEncodingContext context = accessTokenContext(ACCESS_TOKEN, "external", principal);
 
@@ -163,18 +173,20 @@ class IamTokenCustomizerTest {
     void addsDeviceIdAndKeepsExistingAuthTime() {
         Instant authTime = Instant.parse("2026-01-01T00:00:00Z");
         IamTokenCustomizer customizer = customizer(properties(true, null), "acme");
-        OAuth2Authorization authorization = OAuth2Authorization.withRegisteredClient(client())
-                .principalName("alice")
-                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-                .attribute("device_id", "device-1")
-                .build();
-        JwtEncodingContext context = JwtEncodingContext
-                .with(JwsHeader.with(SignatureAlgorithm.RS256), JwtClaimsSet.builder().claim("auth_time",
-                        Date.from(authTime)))
-                .tokenType(new OAuth2TokenType(ACCESS_TOKEN))
-                .principal(principal("alice", List.of()))
-                .authorization(authorization)
-                .build();
+        OAuth2Authorization authorization =
+                OAuth2Authorization.withRegisteredClient(client())
+                        .principalName("alice")
+                        .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                        .attribute("device_id", "device-1")
+                        .build();
+        JwtEncodingContext context =
+                JwtEncodingContext.with(
+                                JwsHeader.with(SignatureAlgorithm.RS256),
+                                JwtClaimsSet.builder().claim("auth_time", Date.from(authTime)))
+                        .tokenType(new OAuth2TokenType(ACCESS_TOKEN))
+                        .principal(principal("alice", List.of()))
+                        .authorization(authorization)
+                        .build();
 
         customizer.customize(context);
 
@@ -186,16 +198,18 @@ class IamTokenCustomizerTest {
     @Test
     void ignoresBlankDeviceIdAndNullPrincipal() {
         IamTokenCustomizer customizer = customizer(properties(true, null), "acme");
-        OAuth2Authorization authorization = OAuth2Authorization.withRegisteredClient(client())
-                .principalName("alice")
-                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-                .attribute("device_id", "  ")
-                .build();
-        JwtEncodingContext context = JwtEncodingContext
-                .with(JwsHeader.with(SignatureAlgorithm.RS256), JwtClaimsSet.builder())
-                .tokenType(new OAuth2TokenType(ACCESS_TOKEN))
-                .authorization(authorization)
-                .build();
+        OAuth2Authorization authorization =
+                OAuth2Authorization.withRegisteredClient(client())
+                        .principalName("alice")
+                        .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                        .attribute("device_id", "  ")
+                        .build();
+        JwtEncodingContext context =
+                JwtEncodingContext.with(
+                                JwsHeader.with(SignatureAlgorithm.RS256), JwtClaimsSet.builder())
+                        .tokenType(new OAuth2TokenType(ACCESS_TOKEN))
+                        .authorization(authorization)
+                        .build();
 
         customizer.customize(context);
 
@@ -222,25 +236,24 @@ class IamTokenCustomizerTest {
     }
 
     private void grantRole(String roleId, String code, String permissionCode) {
-        IamRole role = authorization.createRole(
-                IamRole.create(roleId, "acme", code, code, "", null, false));
+        IamRole role =
+                authorization.createRole(
+                        IamRole.create(roleId, "acme", code, code, "", null, false));
         authorization.savePermission(IamPermission.of("acme", "order", "read", "Read orders"));
         authorization.grantPermission(role.id(), permissionCode);
         authorization.assignRoleToUser(alice.id(), role.id(), Instant.now(), "test");
     }
 
     private JwtEncodingContext accessTokenContext(String tokenType, String username) {
-        return JwtEncodingContext
-                .with(JwsHeader.with(SignatureAlgorithm.RS256), baseClaims())
+        return JwtEncodingContext.with(JwsHeader.with(SignatureAlgorithm.RS256), baseClaims())
                 .tokenType(new OAuth2TokenType(tokenType))
                 .principal(principal(username, List.of()))
                 .build();
     }
 
-    private JwtEncodingContext accessTokenContext(String tokenType, String username,
-                                                  Authentication principal) {
-        return JwtEncodingContext
-                .with(JwsHeader.with(SignatureAlgorithm.RS256), baseClaims())
+    private JwtEncodingContext accessTokenContext(
+            String tokenType, String username, Authentication principal) {
+        return JwtEncodingContext.with(JwsHeader.with(SignatureAlgorithm.RS256), baseClaims())
                 .tokenType(new OAuth2TokenType(tokenType))
                 .principal(principal)
                 .build();
@@ -264,8 +277,21 @@ class IamTokenCustomizerTest {
     }
 
     private static IamProperties properties(boolean includePermissions, String audience) {
-        return new IamProperties(null, null, null, null, null,
+        return new IamProperties(
+                null,
+                null,
+                null,
+                null,
+                null,
                 new IamProperties.Token(null, null, null, includePermissions, audience),
-                null, null, null, null, null, null, null, null, null);
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null);
     }
 }

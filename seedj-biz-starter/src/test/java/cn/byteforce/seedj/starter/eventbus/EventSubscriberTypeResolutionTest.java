@@ -1,5 +1,8 @@
 package cn.byteforce.seedj.starter.eventbus;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import cn.byteforce.seedj.domain.event.DomainEvent;
 import cn.byteforce.seedj.domain.event.EventType;
 import cn.byteforce.seedj.eventbus.EventBusErrorCode;
@@ -10,15 +13,11 @@ import cn.byteforce.seedj.eventbus.EventSubscription;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 /**
  * 订阅者事件类型解析。
  *
- * <p>除了"直接实现 {@code EventSubscriber<E>}"，还必须支持通过抽象基类间接实现——
- * core 的 {@code AbstractProjection<E>} 就是这个形状：类型实参挂在父类上，
- * 只读 {@code getGenericInterfaces()} 会解析失败，消费容器启动时才会炸。
+ * <p>除了"直接实现 {@code EventSubscriber<E>}"，还必须支持通过抽象基类间接实现—— core 的 {@code AbstractProjection<E>}
+ * 就是这个形状：类型实参挂在父类上， 只读 {@code getGenericInterfaces()} 会解析失败，消费容器启动时才会炸。
  */
 class EventSubscriberTypeResolutionTest {
 
@@ -40,13 +39,15 @@ class EventSubscriberTypeResolutionTest {
     @DisplayName("无法解析具体事件类型时启动期失败，而不是静默跳过")
     void rejectsUnresolvableSubscriber() {
         assertThatThrownBy(() -> EventConsumerContainer.resolveEventType(RawSubscriber.class))
-                .isInstanceOfSatisfying(EventBusException.class, e ->
-                        assertThat(e.getErrorCode()).isEqualTo(EventBusErrorCode.INVALID_SUBSCRIBER));
+                .isInstanceOfSatisfying(
+                        EventBusException.class,
+                        e ->
+                                assertThat(e.getErrorCode())
+                                        .isEqualTo(EventBusErrorCode.INVALID_SUBSCRIBER));
     }
 
     @EventType("test.subscriber.event")
-    record TestEvent(String id) implements DomainEvent {
-    }
+    record TestEvent(String id) implements DomainEvent {}
 
     static final class DirectSubscriber implements EventSubscriber<TestEvent> {
         @Override
@@ -55,8 +56,7 @@ class EventSubscriberTypeResolutionTest {
         }
 
         @Override
-        public void onEvent(EventEnvelope<TestEvent> envelope) {
-        }
+        public void onEvent(EventEnvelope<TestEvent> envelope) {}
     }
 
     abstract static class BaseSubscriber<E extends DomainEvent> implements EventSubscriber<E> {
@@ -68,8 +68,7 @@ class EventSubscriberTypeResolutionTest {
 
     static final class InheritedSubscriber extends BaseSubscriber<TestEvent> {
         @Override
-        public void onEvent(EventEnvelope<TestEvent> envelope) {
-        }
+        public void onEvent(EventEnvelope<TestEvent> envelope) {}
     }
 
     @SuppressWarnings("rawtypes")
@@ -80,7 +79,6 @@ class EventSubscriberTypeResolutionTest {
         }
 
         @Override
-        public void onEvent(EventEnvelope envelope) {
-        }
+        public void onEvent(EventEnvelope envelope) {}
     }
 }

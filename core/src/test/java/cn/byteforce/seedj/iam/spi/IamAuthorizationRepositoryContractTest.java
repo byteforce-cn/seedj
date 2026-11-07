@@ -1,19 +1,16 @@
 package cn.byteforce.seedj.iam.spi;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import cn.byteforce.seedj.iam.IamErrorCode;
 import cn.byteforce.seedj.iam.IamException;
 import cn.byteforce.seedj.iam.IamPermission;
 import cn.byteforce.seedj.iam.IamRole;
+import java.time.Instant;
 import org.junit.jupiter.api.Test;
 
-import java.time.Instant;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
-/**
- * {@link IamAuthorizationRepository} 契约测试套件：角色、权限、分配、继承与授权 epoch。
- */
+/** {@link IamAuthorizationRepository} 契约测试套件：角色、权限、分配、继承与授权 epoch。 */
 public abstract class IamAuthorizationRepositoryContractTest {
 
     protected abstract IamAuthorizationRepository repository();
@@ -29,7 +26,8 @@ public abstract class IamAuthorizationRepositoryContractTest {
         assertThat(repository().findRole("r1")).contains(admin);
         assertThat(repository().findRoleByCode("default", "admin")).contains(admin);
         assertThat(repository().findRoles("default"))
-                .extracting(IamRole::code).containsExactly("admin", "viewer");
+                .extracting(IamRole::code)
+                .containsExactly("admin", "viewer");
         assertThat(repository().findRoles("other")).isEmpty();
     }
 
@@ -37,13 +35,25 @@ public abstract class IamAuthorizationRepositoryContractTest {
     void rejectsDuplicateRoleCodeAndId() {
         repository().createRole(IamRole.create("r1", "default", "admin", "Admin", "", null, false));
 
-        assertThatThrownBy(() -> repository().createRole(
-                IamRole.create("r2", "default", "admin", "Admin", "", null, false)))
-                .isInstanceOfSatisfying(IamException.class,
+        assertThatThrownBy(
+                        () ->
+                                repository()
+                                        .createRole(
+                                                IamRole.create(
+                                                        "r2", "default", "admin", "Admin", "", null,
+                                                        false)))
+                .isInstanceOfSatisfying(
+                        IamException.class,
                         e -> assertThat(e.getCode()).isEqualTo(IamErrorCode.ROLE_CONFLICT));
-        assertThatThrownBy(() -> repository().createRole(
-                IamRole.create("r1", "default", "other", "Other", "", null, false)))
-                .isInstanceOfSatisfying(IamException.class,
+        assertThatThrownBy(
+                        () ->
+                                repository()
+                                        .createRole(
+                                                IamRole.create(
+                                                        "r1", "default", "other", "Other", "", null,
+                                                        false)))
+                .isInstanceOfSatisfying(
+                        IamException.class,
                         e -> assertThat(e.getCode()).isEqualTo(IamErrorCode.ROLE_CONFLICT));
     }
 
@@ -57,8 +67,10 @@ public abstract class IamAuthorizationRepositoryContractTest {
 
     @Test
     void updateIncrementsVersion() {
-        IamRole stored = repository().createRole(
-                IamRole.create("r1", "default", "admin", "Admin", "", null, false));
+        IamRole stored =
+                repository()
+                        .createRole(
+                                IamRole.create("r1", "default", "admin", "Admin", "", null, false));
 
         IamRole updated = repository().updateRole(stored.withParent("r0"));
 
@@ -68,16 +80,25 @@ public abstract class IamAuthorizationRepositoryContractTest {
 
     @Test
     void updateRejectsStaleVersionAndUnknownRole() {
-        IamRole stored = repository().createRole(
-                IamRole.create("r1", "default", "admin", "Admin", "", null, false));
+        IamRole stored =
+                repository()
+                        .createRole(
+                                IamRole.create("r1", "default", "admin", "Admin", "", null, false));
         repository().updateRole(stored.withParent("r0"));
 
         assertThatThrownBy(() -> repository().updateRole(stored.withParent("r1")))
-                .isInstanceOfSatisfying(IamException.class,
+                .isInstanceOfSatisfying(
+                        IamException.class,
                         e -> assertThat(e.getCode()).isEqualTo(IamErrorCode.CONFLICT));
-        assertThatThrownBy(() -> repository().updateRole(
-                IamRole.create("missing", "default", "ghost", "Ghost", "", null, false)))
-                .isInstanceOfSatisfying(IamException.class,
+        assertThatThrownBy(
+                        () ->
+                                repository()
+                                        .updateRole(
+                                                IamRole.create(
+                                                        "missing", "default", "ghost", "Ghost", "",
+                                                        null, false)))
+                .isInstanceOfSatisfying(
+                        IamException.class,
                         e -> assertThat(e.getCode()).isEqualTo(IamErrorCode.ROLE_NOT_FOUND));
     }
 
@@ -91,13 +112,16 @@ public abstract class IamAuthorizationRepositoryContractTest {
                 .extracting(IamPermission::code)
                 .containsExactly("audit:read", "employee:read");
         assertThat(repository().findPermissions("other"))
-                .extracting(IamPermission::code).containsExactly("employee:read");
+                .extracting(IamPermission::code)
+                .containsExactly("employee:read");
     }
 
     @Test
     void grantsAndRevokesPermissions() {
-        IamRole role = repository().createRole(
-                IamRole.create("r1", "default", "admin", "Admin", "", null, false));
+        IamRole role =
+                repository()
+                        .createRole(
+                                IamRole.create("r1", "default", "admin", "Admin", "", null, false));
 
         repository().grantPermission(role.id(), "employee:read");
         repository().grantPermission(role.id(), "employee:write");
@@ -113,8 +137,10 @@ public abstract class IamAuthorizationRepositoryContractTest {
 
     @Test
     void findsPermissionCodesForSeveralRoles() {
-        IamRole a = repository().createRole(IamRole.create("r1", "default", "a", "A", "", null, false));
-        IamRole b = repository().createRole(IamRole.create("r2", "default", "b", "B", "", null, false));
+        IamRole a =
+                repository().createRole(IamRole.create("r1", "default", "a", "A", "", null, false));
+        IamRole b =
+                repository().createRole(IamRole.create("r2", "default", "b", "B", "", null, false));
         repository().grantPermission(a.id(), "employee:read");
         repository().grantPermission(b.id(), "employee:write");
 
@@ -124,8 +150,10 @@ public abstract class IamAuthorizationRepositoryContractTest {
 
     @Test
     void assignsAndUnassignsRolesToUsers() {
-        IamRole role = repository().createRole(
-                IamRole.create("r1", "default", "admin", "Admin", "", null, false));
+        IamRole role =
+                repository()
+                        .createRole(
+                                IamRole.create("r1", "default", "admin", "Admin", "", null, false));
 
         repository().assignRoleToUser("u1", role.id(), Instant.now(), "admin");
         repository().assignRoleToUser("u1", role.id(), Instant.now(), "admin");
@@ -139,8 +167,10 @@ public abstract class IamAuthorizationRepositoryContractTest {
 
     @Test
     void assignsAndUnassignsRolesToGroups() {
-        IamRole role = repository().createRole(
-                IamRole.create("r1", "default", "admin", "Admin", "", null, false));
+        IamRole role =
+                repository()
+                        .createRole(
+                                IamRole.create("r1", "default", "admin", "Admin", "", null, false));
 
         repository().assignRoleToGroup("g1", role.id());
         repository().assignRoleToGroup("g1", role.id());
@@ -155,8 +185,11 @@ public abstract class IamAuthorizationRepositoryContractTest {
     @Test
     void resolvesAncestorsAndSurvivesCycles() {
         repository().createRole(IamRole.create("root", "default", "root", "Root", "", null, false));
-        repository().createRole(IamRole.create("child", "default", "child", "Child", "", "root", false));
-        repository().createRole(IamRole.create("leaf", "default", "leaf", "Leaf", "", "child", false));
+        repository()
+                .createRole(
+                        IamRole.create("child", "default", "child", "Child", "", "root", false));
+        repository()
+                .createRole(IamRole.create("leaf", "default", "leaf", "Leaf", "", "child", false));
 
         assertThat(repository().findRoleIdsWithAncestors(java.util.Set.of("leaf")))
                 .containsExactlyInAnyOrder("leaf", "child", "root");
@@ -169,8 +202,10 @@ public abstract class IamAuthorizationRepositoryContractTest {
 
     @Test
     void deleteRoleRemovesAssignmentsAndPermissions() {
-        IamRole role = repository().createRole(
-                IamRole.create("r1", "default", "admin", "Admin", "", null, false));
+        IamRole role =
+                repository()
+                        .createRole(
+                                IamRole.create("r1", "default", "admin", "Admin", "", null, false));
         repository().grantPermission(role.id(), "employee:read");
         repository().assignRoleToUser("u1", role.id(), Instant.now(), "admin");
         repository().assignRoleToGroup("g1", role.id());
@@ -196,8 +231,10 @@ public abstract class IamAuthorizationRepositoryContractTest {
 
     @Test
     void epochAdvancesOnPermissionAndAssignmentChanges() {
-        IamRole role = repository().createRole(
-                IamRole.create("r1", "default", "admin", "Admin", "", null, false));
+        IamRole role =
+                repository()
+                        .createRole(
+                                IamRole.create("r1", "default", "admin", "Admin", "", null, false));
 
         long afterCreate = repository().currentEpoch("default");
         repository().grantPermission(role.id(), "employee:read");

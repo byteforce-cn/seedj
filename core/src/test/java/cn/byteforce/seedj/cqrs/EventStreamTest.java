@@ -1,23 +1,20 @@
 package cn.byteforce.seedj.cqrs;
 
-import cn.byteforce.seedj.domain.event.DomainEvent;
-import cn.byteforce.seedj.domain.event.EventType;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
-import java.util.List;
-import java.util.UUID;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/**
- * 事件流：全量历史与版本必须自洽，空流用 version 0 表示。
- */
+import cn.byteforce.seedj.domain.event.DomainEvent;
+import cn.byteforce.seedj.domain.event.EventType;
+import java.util.List;
+import java.util.UUID;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+/** 事件流：全量历史与版本必须自洽，空流用 version 0 表示。 */
 class EventStreamTest {
 
-    private static final StreamId<UUID> STREAM = new StreamId<>("hr.employee",
-            UUID.fromString("018f2e3a-1234-7000-8000-000000000001"));
+    private static final StreamId<UUID> STREAM =
+            new StreamId<>("hr.employee", UUID.fromString("018f2e3a-1234-7000-8000-000000000001"));
 
     @Test
     @DisplayName("空流版本为 0 且 isEmpty 为真")
@@ -68,6 +65,5 @@ class EventStreamTest {
     }
 
     @EventType("hr.employee.onboarded")
-    static final class Onboarded implements DomainEvent {
-    }
+    static final class Onboarded implements DomainEvent {}
 }

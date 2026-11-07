@@ -5,7 +5,7 @@ import java.util.List;
 /**
  * 一条 SoD 冲突。
  *
- * @param ruleId      规则 ID
+ * @param ruleId 规则 ID
  * @param enforcement 强制方式
  * @param permissions 冲突权限
  * @author ByteForce

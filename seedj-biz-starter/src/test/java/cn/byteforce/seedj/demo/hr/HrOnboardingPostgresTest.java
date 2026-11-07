@@ -1,5 +1,7 @@
 package cn.byteforce.seedj.demo.hr;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import cn.byteforce.seedj.core.clock.Clock;
 import cn.byteforce.seedj.core.clock.Clocks;
 import cn.byteforce.seedj.core.security.Caller;
@@ -11,6 +13,7 @@ import cn.byteforce.seedj.cqrs.CommandReceipt;
 import cn.byteforce.seedj.cqrs.CommandRuntime;
 import cn.byteforce.seedj.cqrs.CommandSubmission;
 import cn.byteforce.seedj.cqrs.TemporalCommandAudit;
+import cn.byteforce.seedj.cqrs.spi.TransactionRunner;
 import cn.byteforce.seedj.demo.hr.app.HrCommandService;
 import cn.byteforce.seedj.demo.hr.app.OnboardingAgent;
 import cn.byteforce.seedj.demo.hr.config.HrEmployeeModule;
@@ -38,8 +41,18 @@ import cn.byteforce.seedj.lock.LockProvider;
 import cn.byteforce.seedj.module.ObjectModuleRegistry;
 import cn.byteforce.seedj.module.ObjectModules;
 import cn.byteforce.seedj.outbox.OutboxWriter;
-import cn.byteforce.seedj.cqrs.spi.TransactionRunner;
 import cn.byteforce.seedj.starter.cqrs.wiring.SpringTransactionRunner;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
+import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -51,26 +64,11 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import javax.sql.DataSource;
-import java.time.Duration;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicLong;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
 /**
  * HR 事件溯源样板跑在真实 PostgreSQL 上：统一命令信封 → 事件流 → 重开重放 → 幂等。
  *
- * <p>这是“生产 EventStore 已交付”的可执行证据：不是内存 mock，也不是直接调仓储，
- * 而是从 {@link CommandCatalog} 进入，事件写入 {@code event_stream}，命令终态写入
- * {@code command_record}，事务由 {@link SpringTransactionRunner} 保证。</p>
+ * <p>这是“生产 EventStore 已交付”的可执行证据：不是内存 mock，也不是直接调仓储， 而是从 {@link CommandCatalog} 进入，事件写入 {@code
+ * event_stream}，命令终态写入 {@code command_record}，事务由 {@link SpringTransactionRunner} 保证。
  */
 @Testcontainers
 class HrOnboardingPostgresTest {
@@ -81,9 +79,17 @@ class HrOnboardingPostgresTest {
 
     private static final UUID ACTOR = UUID.fromString("018f2e3a-0000-7000-8000-000000000001");
 
-    private static final Caller CALLER = new Caller(ACTOR.toString(), "alice", "default",
-            Set.of(), Set.of("hr.employee.write"), Set.of(), Set.of("pwd"),
-            Caller.DEFAULT_ACR, Map.of());
+    private static final Caller CALLER =
+            new Caller(
+                    ACTOR.toString(),
+                    "alice",
+                    "default",
+                    Set.of(),
+                    Set.of("hr.employee.write"),
+                    Set.of(),
+                    Set.of("pwd"),
+                    Caller.DEFAULT_ACR,
+                    Map.of());
 
     @Container
     static final PostgreSQLContainer<?> POSTGRES =
@@ -117,8 +123,9 @@ class HrOnboardingPostgresTest {
 
     @BeforeAll
     static void initializeSchema() {
-        dataSource = new DriverManagerDataSource(
-                POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
+        dataSource =
+                new DriverManagerDataSource(
+                        POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
         jdbc = new JdbcTemplate(dataSource);
         JdbcMigrationRunner runner = new JdbcMigrationRunner(dataSource);
         new EventSchemaCapability(runner).initialize();
@@ -133,49 +140,69 @@ class HrOnboardingPostgresTest {
         publisher.events.clear();
 
         EmployeeIdCodec codec = new EmployeeIdCodec();
-        PostgresEventStore<EmployeeId> events =
-                new PostgresEventStore<>(jdbc, codec, eventTypes);
+        PostgresEventStore<EmployeeId> events = new PostgresEventStore<>(jdbc, codec, eventTypes);
         employees = new EventSourcedEmployeeRepository(events);
 
         PostgresCommandStore commandStore = new PostgresCommandStore(jdbc);
-        TransactionRunner transactions = new SpringTransactionRunner(
-                new DataSourceTransactionManager(dataSource));
+        TransactionRunner transactions =
+                new SpringTransactionRunner(new DataSourceTransactionManager(dataSource));
         LockProvider locks = new InMemoryLockProvider();
         TemporalStore objects = new InMemoryTemporalStore(clock);
-        runtime = new CommandRuntime(new CommandRuntime.Options(
-                transactions, locks, Duration.ofSeconds(30), clock,
-                new Uuid7IdGenerator(clock), commandStore, objects, OutboxWriter.discard(),
-                TemporalCommandAudit.noop()));
+        runtime =
+                new CommandRuntime(
+                        new CommandRuntime.Options(
+                                transactions,
+                                locks,
+                                Duration.ofSeconds(30),
+                                clock,
+                                new Uuid7IdGenerator(clock),
+                                commandStore,
+                                objects,
+                                OutboxWriter.discard(),
+                                TemporalCommandAudit.noop()));
 
-        OnboardingAgent agent = new OnboardingAgent(employees, publisher, codec,
-                CommandAgent.Options.<EmployeeId>defaults()
-                        .withTransactionRunner(transactions)
-                        .withLockProvider(locks)
-                        .withAudit(CommandAudit.noop()));
+        OnboardingAgent agent =
+                new OnboardingAgent(
+                        employees,
+                        publisher,
+                        codec,
+                        CommandAgent.Options.<EmployeeId>defaults()
+                                .withTransactionRunner(transactions)
+                                .withLockProvider(locks)
+                                .withAudit(CommandAudit.noop()));
 
         ObjectModules modules = ObjectModules.create();
         new HrEmployeeModule(agent).configure(modules);
         ObjectModuleRegistry registry = modules.freeze();
-        catalog = new CommandCatalog(registry.commands(), CommandPolicy.permissions(), runtime,
-                (objectType, caller) -> ScopePredicate.all());
+        catalog =
+                new CommandCatalog(
+                        registry.commands(),
+                        CommandPolicy.permissions(),
+                        runtime,
+                        (objectType, caller) -> ScopePredicate.all());
         commands = new HrCommandService(catalog, employeeIds);
     }
 
     @Test
     @DisplayName("入职写入 event_stream 与 command_record，重开仓储仍能重放出完整聚合")
     void onboardPersistsAndReplaysFromPostgres() {
-        EmployeeId id = commands.onboard("E-001", "张三", "研发中心", "后端工程师", HIRE_DATE,
-                CALLER);
+        EmployeeId id = commands.onboard("E-001", "张三", "研发中心", "后端工程师", HIRE_DATE, CALLER);
 
-        Map<String, Object> event = jdbc.queryForMap("""
+        Map<String, Object> event =
+                jdbc.queryForMap(
+                        """
                 SELECT aggregate_type, stream_key, version, event_type, event_version
                 FROM event_stream WHERE aggregate_type = ? AND stream_key = ?
-                """, Employee.STREAM_TYPE, id.value());
+                """,
+                        Employee.STREAM_TYPE,
+                        id.value());
         assertThat(event.get("version")).isEqualTo(1L);
         assertThat(event.get("event_type")).isEqualTo("hr.employee.onboarded");
         assertThat(event.get("event_version")).isEqualTo(1);
 
-        Map<String, Object> record = jdbc.queryForMap("""
+        Map<String, Object> record =
+                jdbc.queryForMap(
+                        """
                 SELECT status, target_ref, locator, version, event_ids::text AS event_ids
                 FROM command_record ORDER BY created_at DESC LIMIT 1
                 """);
@@ -185,8 +212,8 @@ class HrOnboardingPostgresTest {
         assertThat((String) record.get("event_ids")).isNotEqualTo("[]");
 
         // 全新 store + 全新 registry：只靠仓储注册聚合事件类型就能读回。
-        PostgresEventStore<EmployeeId> reopened = new PostgresEventStore<>(
-                jdbc, new EmployeeIdCodec(), new EventTypeRegistry());
+        PostgresEventStore<EmployeeId> reopened =
+                new PostgresEventStore<>(jdbc, new EmployeeIdCodec(), new EventTypeRegistry());
         Employee loaded = new EventSourcedEmployeeRepository(reopened).loadOrThrow(id);
         assertThat(loaded.name()).isEqualTo("张三");
         assertThat(loaded.department()).isEqualTo("研发中心");
@@ -205,8 +232,9 @@ class HrOnboardingPostgresTest {
         payload.put("department", "财务");
         payload.put("position", "会计");
         payload.put("hire_date", HIRE_DATE);
-        CommandSubmission submission = new CommandSubmission("hr.employee.onboard", payload,
-                "pg-idem-1", List.of(), ACTOR);
+        CommandSubmission submission =
+                new CommandSubmission(
+                        "hr.employee.onboard", payload, "pg-idem-1", List.of(), ACTOR);
 
         CommandReceipt first = catalog.execute(submission, CALLER);
         CommandReceipt second = catalog.execute(submission, CALLER);
@@ -214,14 +242,14 @@ class HrOnboardingPostgresTest {
         assertThat(second.commandId()).isEqualTo(first.commandId());
         assertThat(second.targetRef()).isEqualTo("emp-idem");
         assertThat(second.version()).isEqualTo(1L);
-        assertThat(jdbc.queryForObject(
-                "SELECT count(*) FROM event_stream WHERE stream_key = 'emp-idem'",
-                Long.class)).isEqualTo(1L);
+        assertThat(
+                        jdbc.queryForObject(
+                                "SELECT count(*) FROM event_stream WHERE stream_key = 'emp-idem'",
+                                Long.class))
+                .isEqualTo(1L);
     }
 
-    /**
-     * 只记录事件，不投递；本测试验证写模型，读模型投影由其它测试覆盖。
-     */
+    /** 只记录事件，不投递；本测试验证写模型，读模型投影由其它测试覆盖。 */
     private static final class RecordingPublisher implements EventPublisher {
 
         private final List<DomainEvent> events = new ArrayList<>();

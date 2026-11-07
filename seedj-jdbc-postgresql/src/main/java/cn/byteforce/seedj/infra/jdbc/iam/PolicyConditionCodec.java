@@ -4,17 +4,16 @@ import cn.byteforce.seedj.iam.PolicyComparisonOperator;
 import cn.byteforce.seedj.iam.PolicyCondition;
 import cn.byteforce.seedj.iam.PolicyOperand;
 import cn.byteforce.seedj.iam.PolicyOperandSource;
+import java.util.ArrayList;
+import java.util.List;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
-import java.util.ArrayList;
-import java.util.List;
-
 /**
- * Converts the typed policy AST to a tagged JSON object and back. The tag is
- * explicit so a JSONB column never has to guess a Java subtype.
+ * Converts the typed policy AST to a tagged JSON object and back. The tag is explicit so a JSONB
+ * column never has to guess a Java subtype.
  */
 public final class PolicyConditionCodec {
 
@@ -81,12 +80,15 @@ public final class PolicyConditionCodec {
             case "and" -> new PolicyCondition.And(decodeAll(node.get("conditions")));
             case "or" -> new PolicyCondition.Or(decodeAll(node.get("conditions")));
             case "not" -> new PolicyCondition.Not(decodeNode(node.get("condition")));
-            case "compare" -> new PolicyCondition.Compare(
-                    decodeOperand(node.get("left")),
-                    PolicyComparisonOperator.valueOf(node.get("operator").asString()),
-                    decodeOperand(node.get("right")));
+            case "compare" ->
+                    new PolicyCondition.Compare(
+                            decodeOperand(node.get("left")),
+                            PolicyComparisonOperator.valueOf(node.get("operator").asString()),
+                            decodeOperand(node.get("right")));
             case "exists" -> new PolicyCondition.Exists(decodeOperand(node.get("operand")));
-            default -> throw new IllegalArgumentException("unsupported policy condition type: " + type);
+            default ->
+                    throw new IllegalArgumentException(
+                            "unsupported policy condition type: " + type);
         };
     }
 
@@ -102,8 +104,10 @@ public final class PolicyConditionCodec {
         PolicyOperandSource source = PolicyOperandSource.valueOf(node.get("source").asString());
         String path = node.get("path") == null ? "" : node.get("path").asString();
         if (source == PolicyOperandSource.LITERAL) {
-            Object value = node.get("value") == null ? null
-                    : JSON.treeToValue(node.get("value"), Object.class);
+            Object value =
+                    node.get("value") == null
+                            ? null
+                            : JSON.treeToValue(node.get("value"), Object.class);
             return new PolicyOperand(source, path, value);
         }
         return new PolicyOperand(source, path, null);

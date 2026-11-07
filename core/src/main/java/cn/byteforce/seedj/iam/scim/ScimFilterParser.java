@@ -1,25 +1,21 @@
 package cn.byteforce.seedj.iam.scim;
 
-import cn.byteforce.seedj.iam.ScimComparisonOperator;
-
-import cn.byteforce.seedj.iam.ScimFilter;
-
 import cn.byteforce.seedj.iam.IamErrorCode;
 import cn.byteforce.seedj.iam.IamException;
-
+import cn.byteforce.seedj.iam.ScimComparisonOperator;
+import cn.byteforce.seedj.iam.ScimFilter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
 /**
- * Recursive-descent parser for the RFC 7644 filter subset:
- * {@code eq ne co sw ew pr gt lt ge le}, {@code and or not}, and parentheses.
- * Quoted values are treated as literals; they are never interpreted as SQL.
+ * Recursive-descent parser for the RFC 7644 filter subset: {@code eq ne co sw ew pr gt lt ge le},
+ * {@code and or not}, and parentheses. Quoted values are treated as literals; they are never
+ * interpreted as SQL.
  */
 public final class ScimFilterParser {
 
-    private ScimFilterParser() {
-    }
+    private ScimFilterParser() {}
 
     public static ScimFilter parse(String input) {
         if (input == null || input.isBlank()) {
@@ -34,13 +30,19 @@ public final class ScimFilterParser {
     }
 
     private static IamException invalid(String message) {
-        return new IamException(IamErrorCode.SCIM_FILTER_INVALID, "invalid SCIM filter: " + message);
+        return new IamException(
+                IamErrorCode.SCIM_FILTER_INVALID, "invalid SCIM filter: " + message);
     }
 
-    private enum TokenType { WORD, STRING, LPAREN, RPAREN, EOF }
-
-    private record Token(TokenType type, String text) {
+    private enum TokenType {
+        WORD,
+        STRING,
+        LPAREN,
+        RPAREN,
+        EOF
     }
+
+    private record Token(TokenType type, String text) {}
 
     private static final class Parser {
         private final Lexer lexer;
@@ -89,18 +91,19 @@ public final class ScimFilterParser {
             if ("pr".equals(operator)) {
                 return new ScimFilter.Present(attribute);
             }
-            ScimComparisonOperator comparison = switch (operator) {
-                case "eq" -> ScimComparisonOperator.EQ;
-                case "ne" -> ScimComparisonOperator.NE;
-                case "co" -> ScimComparisonOperator.CO;
-                case "sw" -> ScimComparisonOperator.SW;
-                case "ew" -> ScimComparisonOperator.EW;
-                case "gt" -> ScimComparisonOperator.GT;
-                case "lt" -> ScimComparisonOperator.LT;
-                case "ge" -> ScimComparisonOperator.GE;
-                case "le" -> ScimComparisonOperator.LE;
-                default -> throw invalid("unsupported operator '" + operator + "'");
-            };
+            ScimComparisonOperator comparison =
+                    switch (operator) {
+                        case "eq" -> ScimComparisonOperator.EQ;
+                        case "ne" -> ScimComparisonOperator.NE;
+                        case "co" -> ScimComparisonOperator.CO;
+                        case "sw" -> ScimComparisonOperator.SW;
+                        case "ew" -> ScimComparisonOperator.EW;
+                        case "gt" -> ScimComparisonOperator.GT;
+                        case "lt" -> ScimComparisonOperator.LT;
+                        case "ge" -> ScimComparisonOperator.GE;
+                        case "le" -> ScimComparisonOperator.LE;
+                        default -> throw invalid("unsupported operator '" + operator + "'");
+                    };
             return new ScimFilter.Compare(attribute, comparison, parseValue());
         }
 

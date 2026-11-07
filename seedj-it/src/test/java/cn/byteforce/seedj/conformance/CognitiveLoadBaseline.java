@@ -3,8 +3,8 @@ package cn.byteforce.seedj.conformance;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.io.Reader;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -14,16 +14,14 @@ import java.util.stream.Stream;
 /**
  * 认知负担基线读取器。
  *
- * <p>门禁只允许基线收紧：测量值超过基线即失败；测量值改善时打印提示（不失败），
- * 由改动人更新 {@code config/cognitive-load-baseline.json}。基线文件与测试同批入库，
- * CI 默认执行。</p>
+ * <p>门禁只允许基线收紧：测量值超过基线即失败；测量值改善时打印提示（不失败）， 由改动人更新 {@code
+ * config/cognitive-load-baseline.json}。基线文件与测试同批入库， CI 默认执行。
  */
 final class CognitiveLoadBaseline {
 
     static final String FILE = "config/cognitive-load-baseline.properties";
 
-    private CognitiveLoadBaseline() {
-    }
+    private CognitiveLoadBaseline() {}
 
     static int intValue(String key) {
         String value = read().getProperty(key);
@@ -36,18 +34,18 @@ final class CognitiveLoadBaseline {
     /**
      * 断言测量值不超过基线，并提示收紧。
      *
-     * @param label    指标名
-     * @param key      基线键
+     * @param label 指标名
+     * @param key 基线键
      * @param measured 测量值
      */
     static void assertWithin(String label, String key, int measured) {
         int baseline = intValue(key);
         assertThat(measured)
-                .as("%s = %d 超过基线 %d；先降低指标，确有理由再改 %s", label, measured,
-                        baseline, FILE)
+                .as("%s = %d 超过基线 %d；先降低指标，确有理由再改 %s", label, measured, baseline, FILE)
                 .isLessThanOrEqualTo(baseline);
         if (measured < baseline) {
-            System.out.printf("cognitive-load: %s improved %d -> %d; tighten %s%n",
+            System.out.printf(
+                    "cognitive-load: %s improved %d -> %d; tighten %s%n",
                     label, baseline, measured, key);
         }
     }

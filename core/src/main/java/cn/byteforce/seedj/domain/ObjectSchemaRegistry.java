@@ -10,8 +10,7 @@ import java.util.Set;
 /**
  * 对象类型到 {@link ObjectSchema} 的注册表。
  *
- * <p>放在 core 而不是 JDBC 模块：内存实现、HTTP 查询面与装配层都要读 schema，但它们不应
- * 依赖 JDBC 适配器。</p>
+ * <p>放在 core 而不是 JDBC 模块：内存实现、HTTP 查询面与装配层都要读 schema，但它们不应 依赖 JDBC 适配器。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -31,8 +30,7 @@ public final class ObjectSchemaRegistry {
         for (ObjectSchema schema : schemas) {
             Objects.requireNonNull(schema, "schema");
             if (map.putIfAbsent(schema.objectType(), schema) != null) {
-                throw new IllegalArgumentException(
-                        "duplicate objectType: " + schema.objectType());
+                throw new IllegalArgumentException("duplicate objectType: " + schema.objectType());
             }
         }
         this.byType = Map.copyOf(map);
@@ -56,8 +54,8 @@ public final class ObjectSchemaRegistry {
     public ObjectSchema require(String objectType) {
         ObjectSchema schema = byType.get(objectType);
         if (schema == null) {
-            throw new IllegalArgumentException("unknown object type: " + objectType
-                    + " (known: " + byType.keySet() + ")");
+            throw new IllegalArgumentException(
+                    "unknown object type: " + objectType + " (known: " + byType.keySet() + ")");
         }
         return schema;
     }

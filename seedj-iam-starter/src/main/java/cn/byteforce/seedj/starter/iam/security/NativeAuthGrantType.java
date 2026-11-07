@@ -8,6 +8,5 @@ public final class NativeAuthGrantType {
     public static final AuthorizationGrantType NATIVE_AUTH =
             new AuthorizationGrantType("urn:seedj:params:oauth:grant-type:native-auth");
 
-    private NativeAuthGrantType() {
-    }
+    private NativeAuthGrantType() {}
 }

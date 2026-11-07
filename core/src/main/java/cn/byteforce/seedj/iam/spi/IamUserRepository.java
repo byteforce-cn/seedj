@@ -3,7 +3,6 @@ package cn.byteforce.seedj.iam.spi;
 import cn.byteforce.seedj.iam.IamPage;
 import cn.byteforce.seedj.iam.IamUser;
 import cn.byteforce.seedj.iam.IamUserQuery;
-
 import java.time.Instant;
 import java.util.Optional;
 

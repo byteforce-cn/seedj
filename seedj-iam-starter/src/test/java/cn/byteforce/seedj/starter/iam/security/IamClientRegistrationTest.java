@@ -1,19 +1,18 @@
 package cn.byteforce.seedj.starter.iam.security;
 
-import cn.byteforce.seedj.starter.iam.IamProperties;
+import static org.assertj.core.api.Assertions.assertThat;
+
 import cn.byteforce.seedj.id.IdGenerator;
+import cn.byteforce.seedj.starter.iam.IamProperties;
 import cn.byteforce.seedj.starter.iam.TestIdGenerators;
+import java.time.Instant;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
-
-import java.time.Instant;
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 class IamClientRegistrationTest {
 
@@ -37,18 +36,35 @@ class IamClientRegistrationTest {
     void bootstrapRunnerInsertsOnlyMissingClients() {
         IamInMemoryRegisteredClientRepository repository =
                 new IamInMemoryRegisteredClientRepository();
-        IamProperties properties = new IamProperties(null, null, null, null, null, null, null,
-                null, null, null, null, new IamProperties.Demo(true), null, null, List.of());
+        IamProperties properties =
+                new IamProperties(
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        new IamProperties.Demo(true),
+                        null,
+                        null,
+                        List.of());
         RegisteredClientRepository bootstrapTarget = repository;
 
-        new IamClientBootstrapRunner(bootstrapTarget, properties, IDS).afterSingletonsInstantiated();
+        new IamClientBootstrapRunner(bootstrapTarget, properties, IDS)
+                .afterSingletonsInstantiated();
 
         assertThat(repository.findByClientId(IamClientFactory.DEFAULT_CLIENT_ID)).isNotNull();
         assertThat(repository.findByClientId(IamClientFactory.TLS_CLIENT_ID)).isNotNull();
 
         // A second run must not duplicate or fail: existing client ids are skipped.
         RegisteredClient existing = repository.findByClientId(IamClientFactory.DEFAULT_CLIENT_ID);
-        new IamClientBootstrapRunner(bootstrapTarget, properties, IDS).afterSingletonsInstantiated();
+        new IamClientBootstrapRunner(bootstrapTarget, properties, IDS)
+                .afterSingletonsInstantiated();
         assertThat(repository.findByClientId(IamClientFactory.DEFAULT_CLIENT_ID))
                 .isSameAs(existing);
     }
@@ -69,10 +85,13 @@ class IamClientRegistrationTest {
         Jwt accessToken = jwt("at+jwt");
         Jwt idToken = jwt("JWT");
 
-        assertThat(IamJwtValidators.accessToken("https://iam.test").validate(accessToken)
-                .hasErrors()).isFalse();
-        assertThat(IamJwtValidators.accessToken("https://iam.test").validate(idToken)
-                .hasErrors()).isTrue();
+        assertThat(
+                        IamJwtValidators.accessToken("https://iam.test")
+                                .validate(accessToken)
+                                .hasErrors())
+                .isFalse();
+        assertThat(IamJwtValidators.accessToken("https://iam.test").validate(idToken).hasErrors())
+                .isTrue();
         assertThat(IamJwtValidators.hasAudience(List.of("api"))).isTrue();
         assertThat(IamJwtValidators.hasAudience(List.of())).isFalse();
         assertThat(IamJwtValidators.hasAudience(null)).isFalse();

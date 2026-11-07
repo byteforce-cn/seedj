@@ -1,7 +1,6 @@
 package cn.byteforce.seedj.infra.local.numbering;
 
 import cn.byteforce.seedj.numbering.Numbering;
-
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -28,9 +27,7 @@ public final class InMemoryNumbering implements Numbering {
         return counters.computeIfAbsent(scope, ignored -> new AtomicLong()).incrementAndGet();
     }
 
-    /**
-     * 清空全部计数器（测试用）。
-     */
+    /** 清空全部计数器（测试用）。 */
     public void clear() {
         counters.clear();
     }

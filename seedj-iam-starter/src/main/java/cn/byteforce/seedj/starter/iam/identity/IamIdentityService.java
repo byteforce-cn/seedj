@@ -1,15 +1,14 @@
 package cn.byteforce.seedj.starter.iam.identity;
 
 import cn.byteforce.seedj.core.security.SecurityAuditEvent;
+import cn.byteforce.seedj.core.security.SecurityAuditSink;
 import cn.byteforce.seedj.iam.IamErrorCode;
 import cn.byteforce.seedj.iam.IamException;
 import cn.byteforce.seedj.iam.IamUser;
-import cn.byteforce.seedj.core.security.SecurityAuditSink;
 import cn.byteforce.seedj.iam.spi.IamPasswordHasher;
 import cn.byteforce.seedj.iam.spi.IamTokenRevoker;
 import cn.byteforce.seedj.iam.spi.IamUserRepository;
 import cn.byteforce.seedj.id.IdGenerator;
-
 import java.time.Instant;
 import java.util.Map;
 
@@ -23,9 +22,12 @@ public class IamIdentityService {
     private final IdGenerator<String> idGenerator;
     private final String dummyHash;
 
-    public IamIdentityService(IamUserRepository users, IamPasswordHasher hasher,
-                              IamTokenRevoker revoker, SecurityAuditSink audit,
-                              IdGenerator<String> idGenerator) {
+    public IamIdentityService(
+            IamUserRepository users,
+            IamPasswordHasher hasher,
+            IamTokenRevoker revoker,
+            SecurityAuditSink audit,
+            IdGenerator<String> idGenerator) {
         this.users = users;
         this.hasher = hasher;
         this.revoker = revoker;
@@ -37,8 +39,8 @@ public class IamIdentityService {
 
     public IamUser authenticate(String tenantId, String userName, String rawPassword) {
         IamUser user = users.findByUserName(tenantId, userName).orElse(null);
-        String hash = user == null ? dummyHash
-                : users.findPasswordHash(user.id()).orElse(dummyHash);
+        String hash =
+                user == null ? dummyHash : users.findPasswordHash(user.id()).orElse(dummyHash);
         boolean matches = hasher.matches(rawPassword == null ? "" : rawPassword, hash);
         if (user == null || !matches) {
             audit(user, "auth.password", "FAILURE", "invalid credentials");
@@ -52,17 +54,25 @@ public class IamIdentityService {
         return user;
     }
 
-    public IamUser createUser(String tenantId, String userName, String rawPassword,
-                              String displayName, String email) {
-        IamUser user = IamUser.create(idGenerator.id(), tenantId, userName, displayName, email, true);
+    public IamUser createUser(
+            String tenantId,
+            String userName,
+            String rawPassword,
+            String displayName,
+            String email) {
+        IamUser user =
+                IamUser.create(idGenerator.id(), tenantId, userName, displayName, email, true);
         users.create(user, rawPassword == null ? null : hasher.encode(rawPassword));
         audit(user, "iam.user.create", "SUCCESS", "");
         return user;
     }
 
     public IamUser requireUser(String userId) {
-        return users.findById(userId).orElseThrow(
-                () -> new IamException(IamErrorCode.USER_NOT_FOUND, "user not found: " + userId));
+        return users.findById(userId)
+                .orElseThrow(
+                        () ->
+                                new IamException(
+                                        IamErrorCode.USER_NOT_FOUND, "user not found: " + userId));
     }
 
     public IamUser update(IamUser user) {
@@ -108,11 +118,18 @@ public class IamIdentityService {
             return;
         }
         try {
-            audit.record(new SecurityAuditEvent(idGenerator.id(),
-                    user == null ? IamUser.DEFAULT_TENANT : user.tenantId(),
-                    user == null ? "" : user.id(), action, "user",
-                    user == null ? "" : user.id(), outcome, reason, Instant.now(),
-                    Map.of("username", user == null ? "" : user.userName())));
+            audit.record(
+                    new SecurityAuditEvent(
+                            idGenerator.id(),
+                            user == null ? IamUser.DEFAULT_TENANT : user.tenantId(),
+                            user == null ? "" : user.id(),
+                            action,
+                            "user",
+                            user == null ? "" : user.id(),
+                            outcome,
+                            reason,
+                            Instant.now(),
+                            Map.of("username", user == null ? "" : user.userName())));
         } catch (RuntimeException ignored) {
             // audit must never change authentication semantics
         }

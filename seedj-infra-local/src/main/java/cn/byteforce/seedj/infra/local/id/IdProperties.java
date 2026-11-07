@@ -1,14 +1,12 @@
 package cn.byteforce.seedj.infra.local.id;
 
-import org.springframework.boot.context.properties.ConfigurationProperties;
-
 import java.nio.file.Path;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
  * 标识生成配置。
  *
- * <p>多服务部署：不配置 {@code node-id} 时，各实例从共享文件
- * {@code node-state-file} 原子领取互不相同的节点编号。
+ * <p>多服务部署：不配置 {@code node-id} 时，各实例从共享文件 {@code node-state-file} 原子领取互不相同的节点编号。
  */
 @ConfigurationProperties(prefix = "seedj.id")
 public class IdProperties {
@@ -23,8 +21,8 @@ public class IdProperties {
     private long epochMillis = SnowflakeIdGenerator.DEFAULT_EPOCH_MILLIS;
 
     /** 节点编号分配文件；同机多服务共享同一路径。 */
-    private Path nodeStateFile = Path.of(
-            System.getProperty("java.io.tmpdir"), "seedj-id-nodes.properties");
+    private Path nodeStateFile =
+            Path.of(System.getProperty("java.io.tmpdir"), "seedj-id-nodes.properties");
 
     public boolean isEnabled() {
         return enabled;

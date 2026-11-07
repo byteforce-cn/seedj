@@ -1,5 +1,6 @@
 package cn.byteforce.seedj.infra.local.workflow;
 
+import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.workflow.spi.AssignmentStatus;
 import cn.byteforce.seedj.workflow.spi.HumanTask;
 import cn.byteforce.seedj.workflow.spi.HumanTaskNotFoundException;
@@ -21,9 +22,6 @@ import cn.byteforce.seedj.workflow.spi.WorkflowInstanceId;
 import cn.byteforce.seedj.workflow.spi.WorkflowNotFoundException;
 import cn.byteforce.seedj.workflow.spi.WorkflowProviderException;
 import cn.byteforce.seedj.workflow.spi.WorkflowStateConflictException;
-import cn.byteforce.seedj.id.IdGenerator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -35,6 +33,8 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** 拆分后的内存工作流协作者：InMemoryWorkflowSupport。 */
 final class InMemoryWorkflowSupport {
@@ -51,10 +51,15 @@ final class InMemoryWorkflowSupport {
     final boolean ownsScheduler;
     final IdGenerator<String> idGenerator;
     final ConcurrentHashMap<String, WorkflowDefinition> definitions = new ConcurrentHashMap<>();
-    final ConcurrentHashMap<WorkflowInstanceId, InstanceState> instances = new ConcurrentHashMap<>();
+    final ConcurrentHashMap<WorkflowInstanceId, InstanceState> instances =
+            new ConcurrentHashMap<>();
     final ConcurrentHashMap<String, WorkflowInstanceId> actionIndex = new ConcurrentHashMap<>();
     final AtomicBoolean closed = new AtomicBoolean();
-    InMemoryWorkflowSupport(Clock clock, ScheduledExecutorService scheduler, boolean ownsScheduler,
+
+    InMemoryWorkflowSupport(
+            Clock clock,
+            ScheduledExecutorService scheduler,
+            boolean ownsScheduler,
             IdGenerator<String> idGenerator) {
         this.clock = Objects.requireNonNull(clock, "clock cannot be null");
         this.scheduler = Objects.requireNonNull(scheduler, "scheduler cannot be null");
@@ -156,18 +161,24 @@ final class InMemoryWorkflowSupport {
         return null;
     }
 
-    List<ParticipantSpec> resolveAssignees(InstanceState state, String stepName,
-                                                   List<ParticipantSpec> assignees) {
+    List<ParticipantSpec> resolveAssignees(
+            InstanceState state, String stepName, List<ParticipantSpec> assignees) {
         List<ParticipantSpec> resolved = new ArrayList<>();
         for (ParticipantSpec participant : assignees) {
             if (participant.type() != ParticipantType.EXPRESSION) {
                 resolved.add(participant);
                 continue;
             }
-            List<ParticipantSpec> dynamic = resolveParticipants(
-                    new ParticipantResolutionContext(participant.value(), state.id,
-                            state.definition.id(), state.definition.version(), stepName,
-                            Map.copyOf(state.variables), now()));
+            List<ParticipantSpec> dynamic =
+                    resolveParticipants(
+                            new ParticipantResolutionContext(
+                                    participant.value(),
+                                    state.id,
+                                    state.definition.id(),
+                                    state.definition.version(),
+                                    stepName,
+                                    Map.copyOf(state.variables),
+                                    now()));
             if (dynamic == null || dynamic.isEmpty()) {
                 throw new ParticipantResolutionException(
                         "expression '" + participant.value() + "' resolved to no participants");
@@ -184,37 +195,89 @@ final class InMemoryWorkflowSupport {
     HumanTask withFormData(HumanTask task, Map<String, String> formData, Instant now) {
         Map<String, String> merged = new HashMap<>(task.formData());
         merged.putAll(formData);
-        return new HumanTask(task.id(), task.instanceId(), task.stepName(), task.kind(),
-                task.status(), task.assignments(), merged, task.predecessorTaskId(),
-                task.successorTaskId(), task.spawnedByActionId(), task.createdAt(), now,
-                task.completedAt(), task.dueAt(), task.metadata());
+        return new HumanTask(
+                task.id(),
+                task.instanceId(),
+                task.stepName(),
+                task.kind(),
+                task.status(),
+                task.assignments(),
+                merged,
+                task.predecessorTaskId(),
+                task.successorTaskId(),
+                task.spawnedByActionId(),
+                task.createdAt(),
+                now,
+                task.completedAt(),
+                task.dueAt(),
+                task.metadata());
     }
 
     HumanTask withDueAt(HumanTask task, Instant dueAt, Instant now) {
-        return new HumanTask(task.id(), task.instanceId(), task.stepName(), task.kind(),
-                task.status(), task.assignments(), task.formData(), task.predecessorTaskId(),
-                task.successorTaskId(), task.spawnedByActionId(), task.createdAt(), now,
-                task.completedAt(), dueAt, task.metadata());
+        return new HumanTask(
+                task.id(),
+                task.instanceId(),
+                task.stepName(),
+                task.kind(),
+                task.status(),
+                task.assignments(),
+                task.formData(),
+                task.predecessorTaskId(),
+                task.successorTaskId(),
+                task.spawnedByActionId(),
+                task.createdAt(),
+                now,
+                task.completedAt(),
+                dueAt,
+                task.metadata());
     }
 
     HumanTask withSuccessor(HumanTask task, TaskId successor, Instant now) {
-        return new HumanTask(task.id(), task.instanceId(), task.stepName(), task.kind(),
-                task.status(), task.assignments(), task.formData(), task.predecessorTaskId(),
-                successor, task.spawnedByActionId(), task.createdAt(), now,
-                task.completedAt(), task.dueAt(), task.metadata());
+        return new HumanTask(
+                task.id(),
+                task.instanceId(),
+                task.stepName(),
+                task.kind(),
+                task.status(),
+                task.assignments(),
+                task.formData(),
+                task.predecessorTaskId(),
+                successor,
+                task.spawnedByActionId(),
+                task.createdAt(),
+                now,
+                task.completedAt(),
+                task.dueAt(),
+                task.metadata());
     }
 
     WorkflowInstance snapshot(InstanceState state) {
-        List<TaskId> pendingTaskIds = state.tasks.values().stream()
-                .filter(t -> t.status() == HumanTaskStatus.PENDING)
-                .filter(t -> t.assignments().stream()
-                        .anyMatch(a -> a.status() == AssignmentStatus.PENDING))
-                .map(HumanTask::id)
-                .toList();
-        return new WorkflowInstance(state.id, state.definition.id(),
-                state.definition.version(), state.status, state.currentStep,
-                pendingTaskIds, state.startedBy, state.startedAt, state.updatedAt,
-                state.completedAt, Map.copyOf(state.variables), state.failure);
+        List<TaskId> pendingTaskIds =
+                state.tasks.values().stream()
+                        .filter(t -> t.status() == HumanTaskStatus.PENDING)
+                        .filter(
+                                t ->
+                                        t.assignments().stream()
+                                                .anyMatch(
+                                                        a ->
+                                                                a.status()
+                                                                        == AssignmentStatus
+                                                                                .PENDING))
+                        .map(HumanTask::id)
+                        .toList();
+        return new WorkflowInstance(
+                state.id,
+                state.definition.id(),
+                state.definition.version(),
+                state.status,
+                state.currentStep,
+                pendingTaskIds,
+                state.startedBy,
+                state.startedAt,
+                state.updatedAt,
+                state.completedAt,
+                Map.copyOf(state.variables),
+                state.failure);
     }
 
     void touch(InstanceState state) {
@@ -222,11 +285,22 @@ final class InMemoryWorkflowSupport {
         state.version++;
     }
 
-    void event(InstanceState state, String eventType, String stepName,
-                       TaskId taskId, String actionId, Map<String, String> attributes) {
-        state.events.add(new WorkflowHistoryEvent(idGenerator.id(), eventType,
-                stepName, taskId == null ? null : taskId.value(), actionId, now(),
-                attributes));
+    void event(
+            InstanceState state,
+            String eventType,
+            String stepName,
+            TaskId taskId,
+            String actionId,
+            Map<String, String> attributes) {
+        state.events.add(
+                new WorkflowHistoryEvent(
+                        idGenerator.id(),
+                        eventType,
+                        stepName,
+                        taskId == null ? null : taskId.value(),
+                        actionId,
+                        now(),
+                        attributes));
     }
 
     static Map<String, String> attrs(String... keyValues) {
@@ -249,8 +323,7 @@ final class InMemoryWorkflowSupport {
         return -1;
     }
 
-    static int assignmentIndex(HumanTask task, AssignmentStatus status,
-                                       String participant) {
+    static int assignmentIndex(HumanTask task, AssignmentStatus status, String participant) {
         List<TaskAssignment> assignments = task.assignments();
         for (int i = 0; i < assignments.size(); i++) {
             TaskAssignment assignment = assignments.get(i);
@@ -271,8 +344,9 @@ final class InMemoryWorkflowSupport {
                     || !delegation.proxyParticipant.equals(assignee)) {
                 continue;
             }
-            int originalIndex = assignmentIndex(task, AssignmentStatus.DELEGATED,
-                    delegation.originalParticipant);
+            int originalIndex =
+                    assignmentIndex(
+                            task, AssignmentStatus.DELEGATED, delegation.originalParticipant);
             int proxyIndex = pendingIndex(task, delegation.proxyParticipant);
             if (originalIndex >= 0 && proxyIndex >= 0) {
                 return new ProxyRef(proxyIndex, delegation);
@@ -283,25 +357,32 @@ final class InMemoryWorkflowSupport {
 
     static boolean hasPendingAssignment(HumanTask task, String participant) {
         return task.assignments().stream()
-                .anyMatch(a -> a.status() == AssignmentStatus.PENDING
-                        && a.participant().value().equals(participant));
+                .anyMatch(
+                        a ->
+                                a.status() == AssignmentStatus.PENDING
+                                        && a.participant().value().equals(participant));
     }
 
     static boolean hasCompletedBy(HumanTask task, String completedBy) {
         return task.assignments().stream()
                 .filter(a -> a.status() == AssignmentStatus.COMPLETED)
                 .map(TaskAssignment::record)
-                .anyMatch(r -> r.assignee().equals(completedBy)
-                        || (r.onBehalfOf() != null && r.onBehalfOf().equals(completedBy)));
+                .anyMatch(
+                        r ->
+                                r.assignee().equals(completedBy)
+                                        || (r.onBehalfOf() != null
+                                                && r.onBehalfOf().equals(completedBy)));
     }
 
     static boolean hasCandidateGroup(HumanTask task, List<String> groups) {
         return task.assignments().stream()
                 .filter(a -> a.status() == AssignmentStatus.PENDING)
                 .map(TaskAssignment::participant)
-                .anyMatch(p -> (p.type() == ParticipantType.GROUP
-                        || p.type() == ParticipantType.DEPARTMENT)
-                        && groups.contains(p.value()));
+                .anyMatch(
+                        p ->
+                                (p.type() == ParticipantType.GROUP
+                                                || p.type() == ParticipantType.DEPARTMENT)
+                                        && groups.contains(p.value()));
     }
 
     static String participantText(List<ParticipantSpec> participants) {
@@ -328,8 +409,7 @@ final class InMemoryWorkflowSupport {
 
     void requireCapability(boolean supported, String capability) {
         if (!supported) {
-            throw new WorkflowStateConflictException(
-                    "provider does not support " + capability);
+            throw new WorkflowStateConflictException("provider does not support " + capability);
         }
     }
 
@@ -341,6 +421,7 @@ final class InMemoryWorkflowSupport {
             scheduler.shutdownNow();
         }
     }
+
     Instant now() {
         return clock.instant();
     }
@@ -363,6 +444,7 @@ final class InMemoryWorkflowSupport {
                 .map(v -> new ParticipantSpec(ParticipantType.USER, v, Map.of()))
                 .toList();
     }
+
     WorkflowCapabilities capabilities() {
         return WorkflowCapabilities.approval();
     }

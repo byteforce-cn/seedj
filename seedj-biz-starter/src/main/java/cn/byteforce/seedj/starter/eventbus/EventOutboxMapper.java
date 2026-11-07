@@ -6,13 +6,12 @@ import cn.byteforce.seedj.outbox.OutboxRecord;
 /**
  * eventbus 与 outbox 之间的唯一映射点。
  *
- * <p>eventbus 把 topic / eventType / eventVersion 交给 outbox 的
- * destination / contentType / contentVersion；outbox 不认识事件语义。
+ * <p>eventbus 把 topic / eventType / eventVersion 交给 outbox 的 destination / contentType /
+ * contentVersion；outbox 不认识事件语义。
  */
 final class EventOutboxMapper {
 
-    private EventOutboxMapper() {
-    }
+    private EventOutboxMapper() {}
 
     static OutboxRecord toRecord(EventMessage message) {
         return new OutboxRecord(

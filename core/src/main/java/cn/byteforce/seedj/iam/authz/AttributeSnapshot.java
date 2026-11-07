@@ -9,19 +9,24 @@ import java.util.Objects;
 /**
  * 权威属性快照（主体 + 时点）。
  *
- * @param principal     主体 ID
- * @param asOf          快照业务时点
- * @param recordedAt    系统记录时间
- * @param expiresAt     有效期；{@code null} = 不过期
- * @param source        权威属主
+ * @param principal 主体 ID
+ * @param asOf 快照业务时点
+ * @param recordedAt 系统记录时间
+ * @param expiresAt 有效期；{@code null} = 不过期
+ * @param source 权威属主
  * @param sourceVersion 属主契约版本
- * @param snapshot      属性集合
+ * @param snapshot 属性集合
  * @author ByteForce
  * @since 1.0.0
  */
-public record AttributeSnapshot(String principal, Instant asOf, Instant recordedAt,
-                                Instant expiresAt, String source, String sourceVersion,
-                                Map<String, Object> snapshot) {
+public record AttributeSnapshot(
+        String principal,
+        Instant asOf,
+        Instant recordedAt,
+        Instant expiresAt,
+        String source,
+        String sourceVersion,
+        Map<String, Object> snapshot) {
 
     public AttributeSnapshot {
         principal = requireText(principal, "principal");
@@ -29,8 +34,7 @@ public record AttributeSnapshot(String principal, Instant asOf, Instant recorded
         recordedAt = truncate(Objects.requireNonNull(recordedAt, "recordedAt"));
         expiresAt = truncate(expiresAt);
         source = requireText(source, "source");
-        snapshot = snapshot == null ? Map.of()
-                : Map.copyOf(new LinkedHashMap<>(snapshot));
+        snapshot = snapshot == null ? Map.of() : Map.copyOf(new LinkedHashMap<>(snapshot));
     }
 
     /**
@@ -44,7 +48,8 @@ public record AttributeSnapshot(String principal, Instant asOf, Instant recorded
             return AttributeState.FRESH;
         }
         return truncate(requestedAsOf).isBefore(expiresAt)
-                ? AttributeState.FRESH : AttributeState.STALE;
+                ? AttributeState.FRESH
+                : AttributeState.STALE;
     }
 
     private static Instant truncate(Instant instant) {

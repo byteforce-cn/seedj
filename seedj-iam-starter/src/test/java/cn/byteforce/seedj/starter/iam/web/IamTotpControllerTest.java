@@ -1,22 +1,5 @@
 package cn.byteforce.seedj.starter.iam.web;
 
-import cn.byteforce.seedj.iam.IamErrorCode;
-import cn.byteforce.seedj.iam.IamException;
-import cn.byteforce.seedj.iam.IamUser;
-import cn.byteforce.seedj.iam.spi.IamUserRepository;
-import cn.byteforce.seedj.iam.totp.TotpEnrollment;
-import cn.byteforce.seedj.starter.iam.IamProperties;
-import cn.byteforce.seedj.starter.iam.identity.IamIdentityService;
-import cn.byteforce.seedj.starter.iam.identity.IamTotpService;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -26,11 +9,27 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import cn.byteforce.seedj.iam.IamErrorCode;
+import cn.byteforce.seedj.iam.IamException;
+import cn.byteforce.seedj.iam.IamUser;
+import cn.byteforce.seedj.iam.spi.IamUserRepository;
+import cn.byteforce.seedj.iam.totp.TotpEnrollment;
+import cn.byteforce.seedj.starter.iam.IamProperties;
+import cn.byteforce.seedj.starter.iam.identity.IamIdentityService;
+import cn.byteforce.seedj.starter.iam.identity.IamTotpService;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+
 /** TOTP 自助端点的认证、用户解析与 disable 双重凭证语义。 */
 class IamTotpControllerTest {
 
-    private static final IamUser USER = IamUser.create("user-1", "default", "alice", "Alice",
-            "alice@example.com", true);
+    private static final IamUser USER =
+            IamUser.create("user-1", "default", "alice", "Alice", "alice@example.com", true);
 
     private final IamTotpService totp = mock(IamTotpService.class);
     private final IamUserRepository users = mock(IamUserRepository.class);
@@ -64,8 +63,9 @@ class IamTotpControllerTest {
     @Test
     void enrollReturnsSecretAndOtpauthUri() {
         when(users.findByUserName("default", "alice")).thenReturn(Optional.of(USER));
-        when(totp.enroll(USER.id())).thenReturn(new TotpEnrollment("SECRET",
-                "otpauth://totp/Seedj:alice?secret=SECRET"));
+        when(totp.enroll(USER.id()))
+                .thenReturn(
+                        new TotpEnrollment("SECRET", "otpauth://totp/Seedj:alice?secret=SECRET"));
 
         Map<String, Object> body = controller.enroll(authentication());
 
@@ -81,7 +81,8 @@ class IamTotpControllerTest {
 
         Map<String, Object> body = controller.confirm(authentication(), Map.of("code", "123456"));
 
-        assertThat(body).containsEntry("enabled", true)
+        assertThat(body)
+                .containsEntry("enabled", true)
                 .containsEntry("recoveryCodes", List.of("A1", "B2"));
     }
 
@@ -92,8 +93,7 @@ class IamTotpControllerTest {
 
         Map<String, Object> body = controller.status(authentication());
 
-        assertThat(body).containsEntry("enabled", true)
-                .containsEntry("recoveryCodesRemaining", 7);
+        assertThat(body).containsEntry("enabled", true).containsEntry("recoveryCodesRemaining", 7);
     }
 
     @Test
@@ -123,7 +123,8 @@ class IamTotpControllerTest {
     void disableFallsBackToPasswordWhenCodeIsRejected() {
         when(users.findByUserName("default", "alice")).thenReturn(Optional.of(USER));
         doThrow(new IamException(IamErrorCode.TOTP_REPLAY, "replay"))
-                .when(totp).verify(USER.id(), "123456");
+                .when(totp)
+                .verify(USER.id(), "123456");
         when(identities.authenticate("default", "alice", "pw")).thenReturn(USER);
 
         controller.disable(authentication(), Map.of("code", "123456", "password", "pw"));
@@ -147,7 +148,8 @@ class IamTotpControllerTest {
     void disablePropagatesNonTotpFailures() {
         when(users.findByUserName("default", "alice")).thenReturn(Optional.of(USER));
         doThrow(new IamException(IamErrorCode.TOTP_NOT_ENROLLED, "not enrolled"))
-                .when(totp).verify(USER.id(), "123456");
+                .when(totp)
+                .verify(USER.id(), "123456");
 
         assertThatThrownBy(() -> controller.disable(authentication(), Map.of("code", "123456")))
                 .isInstanceOf(IamException.class)

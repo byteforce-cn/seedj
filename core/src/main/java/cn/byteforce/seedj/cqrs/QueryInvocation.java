@@ -9,13 +9,9 @@ package cn.byteforce.seedj.cqrs;
  */
 public interface QueryInvocation<R> {
 
-    /**
-     * 正在执行的查询。
-     */
+    /** 正在执行的查询。 */
     Query<R> query();
 
-    /**
-     * 继续执行（可能命中缓存并短路）。
-     */
+    /** 继续执行（可能命中缓存并短路）。 */
     R proceed();
 }

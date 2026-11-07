@@ -10,9 +10,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-/**
- * PostgreSQL 实现跑公共命令存储契约套件。
- */
+/** PostgreSQL 实现跑公共命令存储契约套件。 */
 @Testcontainers
 class PostgresCommandStoreContractTest extends CommandStoreContractTest {
 
@@ -29,8 +27,9 @@ class PostgresCommandStoreContractTest extends CommandStoreContractTest {
 
     @BeforeAll
     static void initialize() {
-        DriverManagerDataSource dataSource = new DriverManagerDataSource(
-                POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
+        DriverManagerDataSource dataSource =
+                new DriverManagerDataSource(
+                        POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
         jdbc = new JdbcTemplate(dataSource);
         new CommandSchemaCapability(new JdbcMigrationRunner(dataSource)).initialize();
         store = new PostgresCommandStore(jdbc);

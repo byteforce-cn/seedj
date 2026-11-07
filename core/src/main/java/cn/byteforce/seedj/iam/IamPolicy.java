@@ -1,12 +1,11 @@
 package cn.byteforce.seedj.iam;
 
-
 import java.util.Objects;
 import java.util.Set;
 
 /**
- * ABAC policy. {@code actions} and {@code resources} support exact values and
- * trailing {@code *} wildcards; matching is otherwise case-sensitive.
+ * ABAC policy. {@code actions} and {@code resources} support exact values and trailing {@code *}
+ * wildcards; matching is otherwise case-sensitive.
  */
 public record IamPolicy(
         String id,
@@ -33,25 +32,54 @@ public record IamPolicy(
         condition = condition == null ? PolicyCondition.Always.INSTANCE : condition;
         version = Math.max(0, version);
         if (actions.isEmpty() || resources.isEmpty()) {
-            throw new IamException(IamErrorCode.POLICY_INVALID,
-                    "policy actions and resources must not be empty");
+            throw new IamException(
+                    IamErrorCode.POLICY_INVALID, "policy actions and resources must not be empty");
         }
     }
 
-    public static IamPolicy allow(String id, String tenantId, String name, Set<String> actions,
-                                  Set<String> resources, PolicyCondition condition) {
-        return new IamPolicy(id, tenantId, name,
-                IamPolicyEffect.ALLOW, 0, actions, resources, condition, true, 0);
+    public static IamPolicy allow(
+            String id,
+            String tenantId,
+            String name,
+            Set<String> actions,
+            Set<String> resources,
+            PolicyCondition condition) {
+        return new IamPolicy(
+                id,
+                tenantId,
+                name,
+                IamPolicyEffect.ALLOW,
+                0,
+                actions,
+                resources,
+                condition,
+                true,
+                0);
     }
 
-    public static IamPolicy deny(String id, String tenantId, String name, Set<String> actions,
-                                 Set<String> resources, PolicyCondition condition) {
-        return new IamPolicy(id, tenantId, name,
-                IamPolicyEffect.DENY, 1000, actions, resources, condition, true, 0);
+    public static IamPolicy deny(
+            String id,
+            String tenantId,
+            String name,
+            Set<String> actions,
+            Set<String> resources,
+            PolicyCondition condition) {
+        return new IamPolicy(
+                id,
+                tenantId,
+                name,
+                IamPolicyEffect.DENY,
+                1000,
+                actions,
+                resources,
+                condition,
+                true,
+                0);
     }
 
     public IamPolicy withEnabled(boolean enabled) {
-        return new IamPolicy(id, tenantId, name, effect, priority, actions, resources,
-                condition, enabled, version);
+        return new IamPolicy(
+                id, tenantId, name, effect, priority, actions, resources, condition, enabled,
+                version);
     }
 }

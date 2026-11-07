@@ -1,14 +1,13 @@
 package cn.byteforce.seedj.starter.cqrs.wiring;
 
-import org.springframework.boot.context.properties.ConfigurationProperties;
-
 import java.time.Duration;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
  * 命令运行时装配属性。
  *
- * <p>缺事务/锁/outbox 默认启动失败；只有显式 {@code seedj.command.degraded-mode=true}
- * 才允许退回直通事务、禁用锁与丢弃 outbox，并打印 WARN。该开关只应出现在 local/test。</p>
+ * <p>缺事务/锁/outbox 默认启动失败；只有显式 {@code seedj.command.degraded-mode=true} 才允许退回直通事务、禁用锁与丢弃 outbox，并打印
+ * WARN。该开关只应出现在 local/test。
  *
  * @author ByteForce
  * @since 1.0.0

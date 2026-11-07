@@ -3,7 +3,6 @@ package cn.byteforce.seedj.iam.spi;
 import cn.byteforce.seedj.iam.IamGroup;
 import cn.byteforce.seedj.iam.IamGroupQuery;
 import cn.byteforce.seedj.iam.IamPage;
-
 import java.util.Optional;
 import java.util.Set;
 

@@ -17,18 +17,27 @@ import org.junit.jupiter.api.Test;
 class CommandDescriptorTest {
 
     private static final Caller WRITER =
-            new Caller("u-1", "alice", "default", Set.of(), Set.of("hr.employee.write"),
-                    Set.of(), Set.of("pwd"), Caller.DEFAULT_ACR, Map.of());
+            new Caller(
+                    "u-1",
+                    "alice",
+                    "default",
+                    Set.of(),
+                    Set.of("hr.employee.write"),
+                    Set.of(),
+                    Set.of("pwd"),
+                    Caller.DEFAULT_ACR,
+                    Map.of());
 
     @Test
     @DisplayName("合法描述保留声明值，validator/redactor 缺省为非空 noop")
     void validDescriptorKeepsDeclaredValues() {
-        CommandDescriptor descriptor = CommandDescriptor.builder()
-                .type("hr.employee.create")
-                .objectType("employee")
-                .payloadType(Map.class)
-                .permission("hr.employee.write")
-                .build();
+        CommandDescriptor descriptor =
+                CommandDescriptor.builder()
+                        .type("hr.employee.create")
+                        .objectType("employee")
+                        .payloadType(Map.class)
+                        .permission("hr.employee.write")
+                        .build();
 
         assertThat(descriptor.type()).isEqualTo("hr.employee.create");
         assertThat(descriptor.objectType()).isEqualTo("employee");
@@ -36,14 +45,16 @@ class CommandDescriptorTest {
         assertThat(descriptor.permission()).isEqualTo("hr.employee.write");
         assertThat(descriptor.validator()).isNotNull();
         assertThat(descriptor.redactor()).isNotNull();
-        assertThatCode(() -> descriptor.validator().validate(new Object())).doesNotThrowAnyException();
+        assertThatCode(() -> descriptor.validator().validate(new Object()))
+                .doesNotThrowAnyException();
         assertThat(descriptor.redactor().redact(Map.of("a", 1))).containsEntry("a", 1);
     }
 
     @Test
     @DisplayName("命令类型必须匹配线格式")
     void typeMustMatchWireFormat() {
-        for (String invalid : List.of("Hr.Employee.Create", "1command", "hr-employee", "hr employee")) {
+        for (String invalid :
+                List.of("Hr.Employee.Create", "1command", "hr-employee", "hr employee")) {
             assertThatThrownBy(() -> descriptor(invalid))
                     .as(invalid)
                     .isInstanceOf(IllegalArgumentException.class)
@@ -55,12 +66,16 @@ class CommandDescriptorTest {
     @Test
     @DisplayName("objectType / payloadType 必填")
     void objectTypeAndPayloadTypeAreRequired() {
-        assertThatThrownBy(() -> new CommandDescriptor("hr.employee.create", " ", Map.class, null,
-                null, null))
+        assertThatThrownBy(
+                        () ->
+                                new CommandDescriptor(
+                                        "hr.employee.create", " ", Map.class, null, null, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("objectType");
-        assertThatThrownBy(() -> new CommandDescriptor("hr.employee.create", "employee", null, null,
-                null, null))
+        assertThatThrownBy(
+                        () ->
+                                new CommandDescriptor(
+                                        "hr.employee.create", "employee", null, null, null, null))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessageContaining("payloadType");
     }
@@ -68,16 +83,28 @@ class CommandDescriptorTest {
     @Test
     @DisplayName("builder 缺字段在构造期失败")
     void builderFailsOnMissingFields() {
-        assertThatThrownBy(() -> CommandDescriptor.builder().objectType("employee")
-                .payloadType(Map.class).build())
+        assertThatThrownBy(
+                        () ->
+                                CommandDescriptor.builder()
+                                        .objectType("employee")
+                                        .payloadType(Map.class)
+                                        .build())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("type");
-        assertThatThrownBy(() -> CommandDescriptor.builder().type("hr.employee.create")
-                .payloadType(Map.class).build())
+        assertThatThrownBy(
+                        () ->
+                                CommandDescriptor.builder()
+                                        .type("hr.employee.create")
+                                        .payloadType(Map.class)
+                                        .build())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("objectType");
-        assertThatThrownBy(() -> CommandDescriptor.builder().type("hr.employee.create")
-                .objectType("employee").build())
+        assertThatThrownBy(
+                        () ->
+                                CommandDescriptor.builder()
+                                        .type("hr.employee.create")
+                                        .objectType("employee")
+                                        .build())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("payloadType");
     }
@@ -92,10 +119,15 @@ class CommandDescriptorTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("no permission");
 
-        assertThatThrownBy(() -> policy.authorize(
-                descriptor("hr.employee.create"), callerWithoutPermission(), payload))
-                .isInstanceOfSatisfying(ContractException.class, error ->
-                        assertThat(error.code()).isEqualTo(ContractErrorCode.FORBIDDEN));
+        assertThatThrownBy(
+                        () ->
+                                policy.authorize(
+                                        descriptor("hr.employee.create"),
+                                        callerWithoutPermission(),
+                                        payload))
+                .isInstanceOfSatisfying(
+                        ContractException.class,
+                        error -> assertThat(error.code()).isEqualTo(ContractErrorCode.FORBIDDEN));
 
         assertThatCode(() -> policy.authorize(descriptor("hr.employee.create"), WRITER, payload))
                 .doesNotThrowAnyException();
@@ -119,23 +151,36 @@ class CommandDescriptorTest {
     }
 
     private static Caller callerWithoutPermission() {
-        return new Caller("u-2", "bob", "default", Set.of(), Set.of("hr.employee.read"),
-                Set.of(), Set.of("pwd"), Caller.DEFAULT_ACR, Map.of());
+        return new Caller(
+                "u-2",
+                "bob",
+                "default",
+                Set.of(),
+                Set.of("hr.employee.read"),
+                Set.of(),
+                Set.of("pwd"),
+                Caller.DEFAULT_ACR,
+                Map.of());
     }
 
     @Test
     @DisplayName("空白类型被拒绝，validator 与 redactor 缺省为无操作实现")
     void descriptorDefaults() {
-        assertThatThrownBy(() -> new CommandDescriptor(" ", "employee", Map.class, null, null,
-                null))
+        assertThatThrownBy(
+                        () -> new CommandDescriptor(" ", "employee", Map.class, null, null, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("command type is required");
 
-        CommandDescriptor descriptor = new CommandDescriptor("hr.employee.create", "employee",
-                Map.class, "hr.employee.write", null, null);
+        CommandDescriptor descriptor =
+                new CommandDescriptor(
+                        "hr.employee.create",
+                        "employee",
+                        Map.class,
+                        "hr.employee.write",
+                        null,
+                        null);
 
-        assertThatCode(() -> descriptor.validator().validate(Map.of()))
-                .doesNotThrowAnyException();
+        assertThatCode(() -> descriptor.validator().validate(Map.of())).doesNotThrowAnyException();
         assertThat(descriptor.redactor().redact(Map.of("password", "x")))
                 .containsEntry("password", "x");
     }

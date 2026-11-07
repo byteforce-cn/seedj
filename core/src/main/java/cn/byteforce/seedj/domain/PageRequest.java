@@ -3,7 +3,7 @@ package cn.byteforce.seedj.domain;
 /**
  * 分页请求：页码从 1 开始，单页最多 200 条。
  *
- * <p>边界值在构造期失败（无效载荷），避免把 {@code size=0} 或超大页带到 SQL 层。</p>
+ * <p>边界值在构造期失败（无效载荷），避免把 {@code size=0} 或超大页带到 SQL 层。
  *
  * @param page 页码（>=1）
  * @param size 每页条数（1..200）

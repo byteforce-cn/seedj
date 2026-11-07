@@ -10,10 +10,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingClas
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/**
- * 追踪装配。宿主应用自带 micrometer-tracing bridge 时使用真实传播，
- * 否则退化为 no-op——不会因为缺依赖而启动失败。
- */
+/** 追踪装配。宿主应用自带 micrometer-tracing bridge 时使用真实传播， 否则退化为 no-op——不会因为缺依赖而启动失败。 */
 @AutoConfiguration
 public class ObservabilityAutoConfiguration {
 
@@ -23,8 +20,8 @@ public class ObservabilityAutoConfiguration {
 
         @Bean
         @ConditionalOnMissingBean
-        TracePropagation tracePropagation(ObjectProvider<Tracer> tracer,
-                                          ObjectProvider<Propagator> propagator) {
+        TracePropagation tracePropagation(
+                ObjectProvider<Tracer> tracer, ObjectProvider<Propagator> propagator) {
             Tracer resolvedTracer = tracer.getIfAvailable();
             Propagator resolvedPropagator = propagator.getIfAvailable();
             return resolvedTracer == null || resolvedPropagator == null

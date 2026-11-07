@@ -8,7 +8,6 @@ import cn.byteforce.seedj.workflow.spi.WorkflowFailure;
 import cn.byteforce.seedj.workflow.spi.WorkflowHistoryEvent;
 import cn.byteforce.seedj.workflow.spi.WorkflowInstanceId;
 import cn.byteforce.seedj.workflow.spi.WorkflowStatus;
-
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -49,8 +48,12 @@ final class InstanceState {
     WorkflowFailure failure;
     long version;
 
-    InstanceState(WorkflowInstanceId id, WorkflowDefinition definition,
-                  String startedBy, Instant startedAt, Instant updatedAt) {
+    InstanceState(
+            WorkflowInstanceId id,
+            WorkflowDefinition definition,
+            String startedBy,
+            Instant startedAt,
+            Instant updatedAt) {
         this.id = id;
         this.definition = definition;
         this.startedBy = startedBy;

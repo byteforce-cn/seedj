@@ -1,5 +1,8 @@
 package cn.byteforce.seedj.infra.jdbc.outbox;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import cn.byteforce.seedj.core.InfrastructureCapability;
 import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner;
@@ -7,6 +10,8 @@ import cn.byteforce.seedj.outbox.OutboxErrorCode;
 import cn.byteforce.seedj.outbox.OutboxException;
 import cn.byteforce.seedj.outbox.OutboxRecord;
 import cn.byteforce.seedj.outbox.spi.OutboxStore;
+import java.nio.charset.StandardCharsets;
+import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,12 +22,6 @@ import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-
-import javax.sql.DataSource;
-import java.nio.charset.StandardCharsets;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @Testcontainers
 class PostgresOutboxAutoConfigurationTest {
@@ -38,77 +37,98 @@ class PostgresOutboxAutoConfigurationTest {
 
     @BeforeEach
     void setUp() {
-        dataSource = new DriverManagerDataSource(
-                POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
-        new JdbcTemplate(dataSource).execute("""
+        dataSource =
+                new DriverManagerDataSource(
+                        POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
+        new JdbcTemplate(dataSource)
+                .execute(
+                        """
                 DROP TABLE IF EXISTS outbox_audit, outbox, seedj_schema_history
                 """);
     }
 
     private ApplicationContextRunner runner() {
-        java.util.concurrent.atomic.AtomicLong sequence = new java.util.concurrent.atomic.AtomicLong();
+        java.util.concurrent.atomic.AtomicLong sequence =
+                new java.util.concurrent.atomic.AtomicLong();
         return new ApplicationContextRunner()
                 .withConfiguration(AutoConfigurations.of(PostgresOutboxAutoConfiguration.class))
                 .withBean(DataSource.class, () -> dataSource)
                 .withBean(JdbcTemplate.class, () -> new JdbcTemplate(dataSource))
-                .withBean(IdGenerator.class,
+                .withBean(
+                        IdGenerator.class,
                         () -> (IdGenerator<String>) () -> "id-" + sequence.incrementAndGet());
     }
 
     @Test
     @DisplayName("有 DataSource 时提供 OutboxStore，迁移由 InfrastructureCapability 执行")
     void providesStoreAndSchema() {
-        runner().run(context -> {
-            assertThat(context).hasSingleBean(OutboxStore.class);
-            assertThat(context).hasSingleBean(InfrastructureCapability.class);
+        runner().run(
+                        context -> {
+                            assertThat(context).hasSingleBean(OutboxStore.class);
+                            assertThat(context).hasSingleBean(InfrastructureCapability.class);
 
-            context.getBean(InfrastructureCapability.class).initialize();
+                            context.getBean(InfrastructureCapability.class).initialize();
 
-            JdbcTemplate jdbc = new JdbcTemplate(dataSource);
-            Integer tables = jdbc.queryForObject("""
+                            JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+                            Integer tables =
+                                    jdbc.queryForObject(
+                                            """
                     SELECT count(*) FROM information_schema.tables
                     WHERE table_name IN ('outbox', 'outbox_audit', 'seedj_schema_history')
-                    """, Integer.class);
-            assertThat(tables).isEqualTo(3);
-        });
+                    """,
+                                            Integer.class);
+                            assertThat(tables).isEqualTo(3);
+                        });
     }
 
     @Test
     @DisplayName("V2 迁移把 eventbus 列名改为通用 outbox 列名")
     void migrationsRenameColumns() {
-        runner().run(context -> {
-            context.getBean(InfrastructureCapability.class).initialize();
+        runner().run(
+                        context -> {
+                            context.getBean(InfrastructureCapability.class).initialize();
 
-            JdbcTemplate jdbc = new JdbcTemplate(dataSource);
-            Integer renamed = jdbc.queryForObject("""
+                            JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+                            Integer renamed =
+                                    jdbc.queryForObject(
+                                            """
                     SELECT count(*) FROM information_schema.columns
                     WHERE table_name = 'outbox'
                       AND column_name IN ('message_id', 'destination', 'content_type', 'content_version')
-                    """, Integer.class);
-            assertThat(renamed).isEqualTo(4);
+                    """,
+                                            Integer.class);
+                            assertThat(renamed).isEqualTo(4);
 
-            Integer oldColumns = jdbc.queryForObject("""
+                            Integer oldColumns =
+                                    jdbc.queryForObject(
+                                            """
                     SELECT count(*) FROM information_schema.columns
                     WHERE table_name = 'outbox'
                       AND column_name IN ('event_id', 'topic', 'event_type', 'event_version')
-                    """, Integer.class);
-            assertThat(oldColumns).isZero();
-        });
+                    """,
+                                            Integer.class);
+                            assertThat(oldColumns).isZero();
+                        });
     }
 
     @Test
     @DisplayName("迁移重复执行是幂等的（多实例启动）")
     void migrationsAreIdempotent() {
-        runner().run(context -> {
-            InfrastructureCapability capability = context.getBean(InfrastructureCapability.class);
-            capability.initialize();
-            capability.initialize();
-            capability.validate();
+        runner().run(
+                        context -> {
+                            InfrastructureCapability capability =
+                                    context.getBean(InfrastructureCapability.class);
+                            capability.initialize();
+                            capability.initialize();
+                            capability.validate();
 
-            Integer history = new JdbcTemplate(dataSource).queryForObject(
-                    "SELECT count(*) FROM seedj_schema_history", Integer.class);
-            assertThat(history).isEqualTo(3);
-        });
+                            Integer history =
+                                    new JdbcTemplate(dataSource)
+                                            .queryForObject(
+                                                    "SELECT count(*) FROM seedj_schema_history",
+                                                    Integer.class);
+                            assertThat(history).isEqualTo(3);
+                        });
     }
 
     @Test
@@ -130,7 +150,11 @@ class PostgresOutboxAutoConfigurationTest {
     void backsOffWithoutDataSource() {
         new ApplicationContextRunner()
                 .withConfiguration(AutoConfigurations.of(PostgresOutboxAutoConfiguration.class))
-                .run(context -> assertThat(context).hasNotFailed().doesNotHaveBean(OutboxStore.class));
+                .run(
+                        context ->
+                                assertThat(context)
+                                        .hasNotFailed()
+                                        .doesNotHaveBean(OutboxStore.class));
     }
 
     @Test
@@ -138,11 +162,19 @@ class PostgresOutboxAutoConfigurationTest {
     void appendRequiresTransaction() {
         new PostgresOutboxSchemaCapability(new JdbcMigrationRunner(dataSource)).initialize();
         java.util.concurrent.atomic.AtomicLong seq = new java.util.concurrent.atomic.AtomicLong();
-        OutboxStore store = new PostgresOutboxStore(new JdbcTemplate(dataSource),
-                () -> "outbox-" + seq.incrementAndGet());
+        OutboxStore store =
+                new PostgresOutboxStore(
+                        new JdbcTemplate(dataSource), () -> "outbox-" + seq.incrementAndGet());
 
-        assertThatThrownBy(() -> store.append(OutboxRecord.of("m-1", "destination", "k", "content",
-                "p".getBytes(StandardCharsets.UTF_8))))
+        assertThatThrownBy(
+                        () ->
+                                store.append(
+                                        OutboxRecord.of(
+                                                "m-1",
+                                                "destination",
+                                                "k",
+                                                "content",
+                                                "p".getBytes(StandardCharsets.UTF_8))))
                 .isInstanceOf(OutboxException.class)
                 .extracting(e -> ((OutboxException) e).getErrorCode())
                 .isEqualTo(OutboxErrorCode.TX_REQUIRED);

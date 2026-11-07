@@ -1,16 +1,18 @@
 package cn.byteforce.seedj.iam;
 
-
 import java.util.List;
 import java.util.Objects;
 
 /**
- * SCIM filter AST. Attribute paths are validated by the SQL translator against a
- * whitelist; this AST never carries SQL.
+ * SCIM filter AST. Attribute paths are validated by the SQL translator against a whitelist; this
+ * AST never carries SQL.
  */
 public sealed interface ScimFilter
-        permits ScimFilter.And, ScimFilter.Or, ScimFilter.Not,
-                ScimFilter.Compare, ScimFilter.Present {
+        permits ScimFilter.And,
+                ScimFilter.Or,
+                ScimFilter.Not,
+                ScimFilter.Compare,
+                ScimFilter.Present {
 
     record And(List<ScimFilter> filters) implements ScimFilter {
         public And {

@@ -1,6 +1,10 @@
 package cn.byteforce.seedj.starter.iam.nativeauth;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import cn.byteforce.seedj.starter.iam.security.NativeAuthGrantType;
+import java.util.Set;
+import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -10,11 +14,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.oauth2.server.authorization.authentication.OAuth2ClientAuthenticationToken;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
-
-import java.util.Set;
-import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /** native-auth 授权请求解析：只认 POST + 自定义 grant。 */
 class NativeAuthAuthenticationConverterTest {
@@ -62,13 +61,15 @@ class NativeAuthAuthenticationConverterTest {
     @Test
     @DisplayName("解析全部表单参数并把 scope 拆成去重集合")
     void parsesFormParametersAndScopes() {
-        RegisteredClient client = RegisteredClient.withId(UUID.randomUUID().toString())
-                .clientId("native-app")
-                .clientAuthenticationMethod(ClientAuthenticationMethod.NONE)
-                .authorizationGrantType(NativeAuthGrantType.NATIVE_AUTH)
-                .build();
-        OAuth2ClientAuthenticationToken principal = new OAuth2ClientAuthenticationToken(
-                client, ClientAuthenticationMethod.NONE, "native-app");
+        RegisteredClient client =
+                RegisteredClient.withId(UUID.randomUUID().toString())
+                        .clientId("native-app")
+                        .clientAuthenticationMethod(ClientAuthenticationMethod.NONE)
+                        .authorizationGrantType(NativeAuthGrantType.NATIVE_AUTH)
+                        .build();
+        OAuth2ClientAuthenticationToken principal =
+                new OAuth2ClientAuthenticationToken(
+                        client, ClientAuthenticationMethod.NONE, "native-app");
         SecurityContextHolder.getContext().setAuthentication(principal);
         MockHttpServletRequest request = nativeRequest();
         request.setParameter("username", "alice");

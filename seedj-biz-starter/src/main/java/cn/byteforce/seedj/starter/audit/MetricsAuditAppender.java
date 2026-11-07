@@ -2,15 +2,13 @@ package cn.byteforce.seedj.starter.audit;
 
 import cn.byteforce.seedj.audit.AuditAppendRequest;
 import cn.byteforce.seedj.audit.AuditAppender;
-
 import java.time.Duration;
 import java.util.Objects;
 
 /**
  * 审计指标装饰器：包在事务装饰器外面，量到 append 的总耗时。
  *
- * <p>指标名是 {@code seedj.audit.append.*} 而不是 {@code commit}：事务提交不在本类
- * 范围内，成功也只代表“已追加”，不代表“已提交”。</p>
+ * <p>指标名是 {@code seedj.audit.append.*} 而不是 {@code commit}：事务提交不在本类 范围内，成功也只代表“已追加”，不代表“已提交”。
  */
 public final class MetricsAuditAppender implements AuditAppender<String> {
 
@@ -31,7 +29,10 @@ public final class MetricsAuditAppender implements AuditAppender<String> {
             delegate.append(request);
             ok = true;
         } finally {
-            metrics.appended(request.getAction(), request.getResourceType(), ok,
+            metrics.appended(
+                    request.getAction(),
+                    request.getResourceType(),
+                    ok,
                     Duration.ofNanos(System.nanoTime() - start));
         }
     }

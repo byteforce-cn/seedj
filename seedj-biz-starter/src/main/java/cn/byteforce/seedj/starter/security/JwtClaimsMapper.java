@@ -2,17 +2,15 @@ package cn.byteforce.seedj.starter.security;
 
 import cn.byteforce.seedj.core.security.AccessTokenRules;
 import cn.byteforce.seedj.core.security.TokenClaims;
-import org.springframework.security.oauth2.jwt.Jwt;
-
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import org.springframework.security.oauth2.jwt.Jwt;
 
 /**
  * Spring {@link Jwt} → {@link TokenClaims} 映射。
  *
- * <p>两侧唯一的技术适配：规则本体在 {@link AccessTokenRules}，这里只做字段搬运，
- * 因此不包含任何判定逻辑。</p>
+ * <p>两侧唯一的技术适配：规则本体在 {@link AccessTokenRules}，这里只做字段搬运， 因此不包含任何判定逻辑。
  *
  * @author ByteForce
  * @since 1.0.0

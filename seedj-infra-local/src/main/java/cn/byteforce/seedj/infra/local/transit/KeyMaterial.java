@@ -2,9 +2,6 @@ package cn.byteforce.seedj.infra.local.transit;
 
 import cn.byteforce.seedj.transit.TransitErrorCode;
 import cn.byteforce.seedj.transit.TransitException;
-
-import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.PrivateKey;
@@ -13,12 +10,14 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
 import java.util.Objects;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 
 /**
  * 与存储格式无关的密钥材料表示。
  *
- * <p>对称密钥只填 {@code secret}；非对称密钥对填 {@code privateKey}/{@code publicKey}。
- * {@code algorithm} 是 JCE 算法名，用于重建 {@link SecretKey} / {@link KeyPair}。
+ * <p>对称密钥只填 {@code secret}；非对称密钥对填 {@code privateKey}/{@code publicKey}。 {@code algorithm} 是 JCE
+ * 算法名，用于重建 {@link SecretKey} / {@link KeyPair}。
  */
 record KeyMaterial(byte[] secret, byte[] privateKey, byte[] publicKey, String algorithm) {
 
@@ -36,7 +35,8 @@ record KeyMaterial(byte[] secret, byte[] privateKey, byte[] publicKey, String al
     }
 
     static KeyMaterial of(KeyPair keyPair, String algorithm) {
-        return new KeyMaterial(null,
+        return new KeyMaterial(
+                null,
                 keyPair.getPrivate().getEncoded(),
                 keyPair.getPublic().getEncoded(),
                 algorithm);
@@ -57,8 +57,10 @@ record KeyMaterial(byte[] secret, byte[] privateKey, byte[] publicKey, String al
             PublicKey pub = factory.generatePublic(new X509EncodedKeySpec(publicKey));
             return new KeyPair(pub, priv);
         } catch (Exception e) {
-            throw new TransitException(TransitErrorCode.INVALID_CONFIGURATION,
-                    "无法还原密钥对 (algorithm=" + algorithm + ")", e);
+            throw new TransitException(
+                    TransitErrorCode.INVALID_CONFIGURATION,
+                    "无法还原密钥对 (algorithm=" + algorithm + ")",
+                    e);
         }
     }
 

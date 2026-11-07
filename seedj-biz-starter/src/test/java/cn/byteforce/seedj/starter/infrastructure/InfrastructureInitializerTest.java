@@ -1,26 +1,23 @@
 package cn.byteforce.seedj.starter.infrastructure;
 
-import cn.byteforce.seedj.core.InfrastructureCapability;
-import cn.byteforce.seedj.core.InfrastructureErrorCode;
-import cn.byteforce.seedj.core.InfrastructureException;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.boot.autoconfigure.AutoConfigurations;
-import org.springframework.boot.test.context.runner.ApplicationContextRunner;
-
-import java.util.ArrayList;
-import java.util.List;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/**
- * 启动期能力执行器：顺序、就绪短路、必需/可选失败语义。
- */
+import cn.byteforce.seedj.core.InfrastructureCapability;
+import cn.byteforce.seedj.core.InfrastructureErrorCode;
+import cn.byteforce.seedj.core.InfrastructureException;
+import java.util.ArrayList;
+import java.util.List;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+
+/** 启动期能力执行器：顺序、就绪短路、必需/可选失败语义。 */
 class InfrastructureInitializerTest {
 
     @Test
@@ -32,8 +29,14 @@ class InfrastructureInitializerTest {
 
         initializer(late, early).afterPropertiesSet();
 
-        assertThat(calls).containsExactly("early:ready", "early:init", "early:validate",
-                "late:ready", "late:init", "late:validate");
+        assertThat(calls)
+                .containsExactly(
+                        "early:ready",
+                        "early:init",
+                        "early:validate",
+                        "late:ready",
+                        "late:init",
+                        "late:validate");
     }
 
     @Test
@@ -51,8 +54,7 @@ class InfrastructureInitializerTest {
     @Test
     @DisplayName("没有能力时启动流程直接结束")
     void noCapabilitiesIsNoop() {
-        assertThatCode(() -> initializer().afterPropertiesSet())
-                .doesNotThrowAnyException();
+        assertThatCode(() -> initializer().afterPropertiesSet()).doesNotThrowAnyException();
     }
 
     @Test
@@ -64,12 +66,15 @@ class InfrastructureInitializerTest {
         StubCapability after = new StubCapability("after", 10, calls);
 
         assertThatThrownBy(() -> initializer(broken, after).afterPropertiesSet())
-                .isInstanceOfSatisfying(InfrastructureException.class, e -> {
-                    assertThat(e.code())
-                            .isEqualTo(InfrastructureErrorCode.INITIALIZATION_FAILED.name());
-                    assertThat(e.getMessage()).contains("[db]");
-                    assertThat(e.getCause()).hasMessage("cannot migrate");
-                });
+                .isInstanceOfSatisfying(
+                        InfrastructureException.class,
+                        e -> {
+                            assertThat(e.code())
+                                    .isEqualTo(
+                                            InfrastructureErrorCode.INITIALIZATION_FAILED.name());
+                            assertThat(e.getMessage()).contains("[db]");
+                            assertThat(e.getCause()).hasMessage("cannot migrate");
+                        });
         assertThat(calls).doesNotContain("after:ready");
     }
 
@@ -92,13 +97,17 @@ class InfrastructureInitializerTest {
     void validationFailureAbortsStartup() {
         List<String> calls = new ArrayList<>();
         StubCapability capability = new StubCapability("db", 0, calls);
-        capability.validateError = new InfrastructureException(
-                InfrastructureErrorCode.NOT_READY, "table missing");
+        capability.validateError =
+                new InfrastructureException(InfrastructureErrorCode.NOT_READY, "table missing");
 
         assertThatThrownBy(() -> initializer(capability).afterPropertiesSet())
-                .isInstanceOfSatisfying(InfrastructureException.class, e ->
-                        assertThat(e.code())
-                                .isEqualTo(InfrastructureErrorCode.INITIALIZATION_FAILED.name()));
+                .isInstanceOfSatisfying(
+                        InfrastructureException.class,
+                        e ->
+                                assertThat(e.code())
+                                        .isEqualTo(
+                                                InfrastructureErrorCode.INITIALIZATION_FAILED
+                                                        .name()));
     }
 
     @Test
@@ -106,10 +115,11 @@ class InfrastructureInitializerTest {
     void autoConfigurationRegistersInitializer() {
         new ApplicationContextRunner()
                 .withConfiguration(AutoConfigurations.of(InfrastructureAutoConfiguration.class))
-                .run(context -> {
-                    assertThat(context).hasNotFailed();
-                    assertThat(context).hasSingleBean(InfrastructureInitializer.class);
-                });
+                .run(
+                        context -> {
+                            assertThat(context).hasNotFailed();
+                            assertThat(context).hasSingleBean(InfrastructureInitializer.class);
+                        });
     }
 
     private static InfrastructureInitializer initializer(InfrastructureCapability... capabilities) {

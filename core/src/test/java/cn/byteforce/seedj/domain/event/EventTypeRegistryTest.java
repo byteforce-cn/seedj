@@ -1,16 +1,13 @@
 package cn.byteforce.seedj.domain.event;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
-import java.util.Map;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/**
- * 事件类型注册表：逻辑名解析、schema 版本、冲突与非法声明。
- */
+import java.util.Map;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+/** 事件类型注册表：逻辑名解析、schema 版本、冲突与非法声明。 */
 class EventTypeRegistryTest {
 
     @Test
@@ -50,7 +47,8 @@ class EventTypeRegistryTest {
 
         Map<String, Class<? extends DomainEvent>> snapshot = registry.snapshot();
 
-        assertThat(snapshot).containsEntry("account.opened", AccountOpened.class)
+        assertThat(snapshot)
+                .containsEntry("account.opened", AccountOpened.class)
                 .containsEntry("NoAnnotation", NoAnnotation.class);
         assertThatThrownBy(snapshot::clear).isInstanceOf(UnsupportedOperationException.class);
     }
@@ -123,21 +121,16 @@ class EventTypeRegistryTest {
     }
 
     @EventType(value = "account.opened", version = 2)
-    static final class AccountOpened implements DomainEvent {
-    }
+    static final class AccountOpened implements DomainEvent {}
 
     @EventType("account.opened")
-    static final class DuplicateName implements DomainEvent {
-    }
+    static final class DuplicateName implements DomainEvent {}
 
-    static final class NoAnnotation implements DomainEvent {
-    }
+    static final class NoAnnotation implements DomainEvent {}
 
     @EventType("  ")
-    static final class BlankName implements DomainEvent {
-    }
+    static final class BlankName implements DomainEvent {}
 
     @EventType(value = "account.bad", version = 0)
-    static final class BadVersion implements DomainEvent {
-    }
+    static final class BadVersion implements DomainEvent {}
 }

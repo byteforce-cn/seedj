@@ -1,26 +1,25 @@
 package cn.byteforce.seedj.outbox.spi;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import cn.byteforce.seedj.outbox.OutboxErrorCode;
 import cn.byteforce.seedj.outbox.OutboxException;
 import cn.byteforce.seedj.outbox.OutboxRecord;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
 /**
  * OutboxStore 契约测试套件。
  *
- * <p>实现方需要提供 {@link #store()}、{@link #appendInTransaction(OutboxRecord)}
- * （在真实事务内写入）与 {@link #reset()}（清空状态）。
+ * <p>实现方需要提供 {@link #store()}、{@link #appendInTransaction(OutboxRecord)} （在真实事务内写入）与 {@link
+ * #reset()}（清空状态）。
  */
 public abstract class OutboxStoreContractTest {
 
@@ -38,8 +37,14 @@ public abstract class OutboxStoreContractTest {
     }
 
     protected static OutboxRecord record(String messageId, String partitionKey, String payload) {
-        return new OutboxRecord(messageId, "destination", partitionKey, "test.content", 1,
-                payload.getBytes(StandardCharsets.UTF_8), Map.of("k", "v"),
+        return new OutboxRecord(
+                messageId,
+                "destination",
+                partitionKey,
+                "test.content",
+                1,
+                payload.getBytes(StandardCharsets.UTF_8),
+                Map.of("k", "v"),
                 Instant.parse("2026-01-01T00:00:00Z"));
     }
 
@@ -78,14 +83,16 @@ public abstract class OutboxStoreContractTest {
         appendInTransaction(record("msg-1", "agg-1", "first"));
         appendInTransaction(record("msg-2", "agg-1", "second"));
 
-        List<ClaimedRecord> firstBatch = store().claim(new ClaimRequest(10, Duration.ofSeconds(30)));
+        List<ClaimedRecord> firstBatch =
+                store().claim(new ClaimRequest(10, Duration.ofSeconds(30)));
         assertThat(firstBatch).hasSize(1);
         assertThat(firstBatch.get(0).record().payload())
                 .isEqualTo("first".getBytes(StandardCharsets.UTF_8));
 
         store().markSent(firstBatch.get(0).token());
 
-        List<ClaimedRecord> secondBatch = store().claim(new ClaimRequest(10, Duration.ofSeconds(30)));
+        List<ClaimedRecord> secondBatch =
+                store().claim(new ClaimRequest(10, Duration.ofSeconds(30)));
         assertThat(secondBatch).hasSize(1);
         assertThat(secondBatch.get(0).record().payload())
                 .isEqualTo("second".getBytes(StandardCharsets.UTF_8));
@@ -121,7 +128,10 @@ public abstract class OutboxStoreContractTest {
         appendInTransaction(record("msg-1", "agg-1", "payload"));
         ClaimedRecord claimed = applyOne(Duration.ofSeconds(30));
 
-        store().markFailed(claimed.token(), new OutboxFailure("io.IOException", "boom", true), Duration.ZERO);
+        store().markFailed(
+                        claimed.token(),
+                        new OutboxFailure("io.IOException", "boom", true),
+                        Duration.ZERO);
 
         ClaimedRecord again = applyOne(Duration.ofSeconds(30));
         assertThat(again.id()).isEqualTo(claimed.id());
@@ -134,7 +144,10 @@ public abstract class OutboxStoreContractTest {
         appendInTransaction(record("msg-1", "agg-1", "payload"));
         ClaimedRecord claimed = applyOne(Duration.ofSeconds(30));
 
-        store().markFailed(claimed.token(), new OutboxFailure("IllegalArgument", "bad", false), Duration.ZERO);
+        store().markFailed(
+                        claimed.token(),
+                        new OutboxFailure("IllegalArgument", "bad", false),
+                        Duration.ZERO);
         assertThat(store().claim(new ClaimRequest(10, Duration.ofSeconds(30)))).isEmpty();
 
         store().retry(claimed.id(), "ops");

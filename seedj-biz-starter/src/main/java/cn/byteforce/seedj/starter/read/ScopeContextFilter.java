@@ -9,15 +9,14 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.web.filter.OncePerRequestFilter;
-
 import java.io.IOException;
 import java.util.Objects;
+import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
  * 认证之后打开请求事实作用域，{@code finally} 关闭。
  *
- * <p>解析失败 fail closed：返回 503，不带着半份上下文继续。</p>
+ * <p>解析失败 fail closed：返回 503，不带着半份上下文继续。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -32,7 +31,7 @@ public final class ScopeContextFilter extends OncePerRequestFilter {
      * 构造过滤器。
      *
      * @param resolver 事实解析器
-     * @param callers  当前调用方
+     * @param callers 当前调用方
      */
     public ScopeContextFilter(ContextResolver resolver, CallerProvider callers) {
         this.resolver = Objects.requireNonNull(resolver, "resolver");
@@ -40,8 +39,9 @@ public final class ScopeContextFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
-                                    FilterChain chain) throws ServletException, IOException {
+    protected void doFilterInternal(
+            HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+            throws ServletException, IOException {
         ScopeContext context;
         try {
             Caller caller = callers.find().orElse(null);
@@ -49,8 +49,8 @@ public final class ScopeContextFilter extends OncePerRequestFilter {
         } catch (RuntimeException error) {
             response.setStatus(503);
             response.setContentType("application/json");
-            response.getWriter().write(
-                    "{\"code\":\"EIS-503-001\",\"message\":\"scope context unavailable\"}");
+            response.getWriter()
+                    .write("{\"code\":\"EIS-503-001\",\"message\":\"scope context unavailable\"}");
             return;
         }
         try (ScopeContextHolder.Scope ignored = ScopeContextHolder.open(context)) {

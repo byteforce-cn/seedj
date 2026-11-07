@@ -1,12 +1,7 @@
 package cn.byteforce.seedj.iam;
 
-
 /** Paged user query. {@code startIndex} is 1-based, matching SCIM. */
-public record IamUserQuery(
-        String tenantId,
-        ScimFilter filter,
-        int startIndex,
-        int count) {
+public record IamUserQuery(String tenantId, ScimFilter filter, int startIndex, int count) {
 
     public IamUserQuery {
         tenantId = tenantId == null || tenantId.isBlank() ? IamUser.DEFAULT_TENANT : tenantId;

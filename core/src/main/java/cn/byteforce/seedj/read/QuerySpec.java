@@ -2,7 +2,6 @@ package cn.byteforce.seedj.read;
 
 import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;
-
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
@@ -12,29 +11,30 @@ import java.util.regex.Pattern;
 /**
  * 可审阅的自定义查询：单条 SELECT、命名参数、字段白名单、排序与分页。
  *
- * <p><b>报表专用</b>：普通列表页必须使用 {@code TemporalSearch}（过滤器 + keyset），
- * 不得为了省事把页面查询塞进本类型。</p>
+ * <p><b>报表专用</b>：普通列表页必须使用 {@code TemporalSearch}（过滤器 + keyset）， 不得为了省事把页面查询塞进本类型。
  *
- * <p>SQL 由业务声明并随代码评审，网关只做三件事：把命名参数绑定为位置参数、在子查询外层
- * 注入行范围谓词、按 schema 的字段策略脱敏与审计。业务代码不再需要 {@code JdbcTemplate}
- * 绕过权限与脱敏。</p>
+ * <p>SQL 由业务声明并随代码评审，网关只做三件事：把命名参数绑定为位置参数、在子查询外层 注入行范围谓词、按 schema 的字段策略脱敏与审计。业务代码不再需要 {@code
+ * JdbcTemplate} 绕过权限与脱敏。
  *
- * <p>安全约束（构造期失败）：只允许单条 {@code SELECT}；不允许 {@code ;}、{@code --}、
- * {@code /*} 注释；字段名与参数名必须是标识符；排序字段必须同时出现在 {@link #fields()}
- * 与对象 schema 的 sortable 字段里。</p>
+ * <p>安全约束（构造期失败）：只允许单条 {@code SELECT}；不允许 {@code ;}、{@code --}、 {@code /*}
+ * 注释；字段名与参数名必须是标识符；排序字段必须同时出现在 {@link #fields()} 与对象 schema 的 sortable 字段里。
  *
- * @param objectType    主对象类型
- * @param sql           reviewed SQL（不含 {@code ORDER BY}/{@code LIMIT}）
- * @param fields        返回列白名单（必须是对象 schema 的字段）
- * @param parameters    命名参数白名单
+ * @param objectType 主对象类型
+ * @param sql reviewed SQL（不含 {@code ORDER BY}/{@code LIMIT}）
+ * @param fields 返回列白名单（必须是对象 schema 的字段）
+ * @param parameters 命名参数白名单
  * @param sortableFields 允许排序的列（必须是 {@code fields} 的子集）
- * @param defaultSort   默认排序字段
+ * @param defaultSort 默认排序字段
  * @author ByteForce
  * @since 1.0.0
  */
-public record QuerySpec(String objectType, String sql, Set<String> fields,
-                        Set<String> parameters, List<String> sortableFields,
-                        String defaultSort) {
+public record QuerySpec(
+        String objectType,
+        String sql,
+        Set<String> fields,
+        Set<String> parameters,
+        List<String> sortableFields,
+        String defaultSort) {
 
     private static final Pattern IDENTIFIER = Pattern.compile("^[a-z][a-z0-9_]*$");
 
@@ -55,8 +55,9 @@ public record QuerySpec(String objectType, String sql, Set<String> fields,
         // 对象必须属于已声明 schema；这部分由评审与负例共同保证。
         String lower = normalized.toLowerCase(java.util.Locale.ROOT);
         if (lower.contains(" union ")) {
-            throw invalid("report query must not use union;"
-                    + " split it into reviewed queries or use TemporalSearch");
+            throw invalid(
+                    "report query must not use union;"
+                            + " split it into reviewed queries or use TemporalSearch");
         }
         fields = copy(fields, "fields");
         if (fields.isEmpty()) {

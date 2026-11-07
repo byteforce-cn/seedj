@@ -5,46 +5,48 @@ import cn.byteforce.seedj.audit.AuditErrorCode;
 import cn.byteforce.seedj.audit.AuditException;
 import cn.byteforce.seedj.audit.spi.AuditStore;
 import cn.byteforce.seedj.core.utils.CanonicalJsonHelper;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
-
 import java.sql.Timestamp;
 import java.util.List;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
 
 /**
  * PostgreSQL 审计链存储。
  *
- * <p>{@code nextSequenceAndPrevHash} 对 {@code audit_head} 单行加 {@code FOR UPDATE}，
- * 使并发 append 在审计处串行；序号只在 {@code updateHead} 时推进，回滚则序号不消耗。</p>
+ * <p>{@code nextSequenceAndPrevHash} 对 {@code audit_head} 单行加 {@code FOR UPDATE}， 使并发 append
+ * 在审计处串行；序号只在 {@code updateHead} 时推进，回滚则序号不消耗。
  */
 public final class JdbcAuditStore implements AuditStore<String> {
 
-    private static final String INSERT = """
+    private static final String INSERT =
+            """
             INSERT INTO audit_entry (id, sequence, timestamp, actor, action, resource_type,
                                      resource_id, payload, payload_digest, hash, prev_hash, signature)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?)
             """;
 
-    private static final String SELECT_ENTRY = """
+    private static final String SELECT_ENTRY =
+            """
             SELECT id, sequence, timestamp, actor, action, resource_type, resource_id,
                    payload, payload_digest, hash, prev_hash, signature
             FROM audit_entry
             """;
 
-    private static final RowMapper<AuditEntry<String>> ENTRY_MAPPER = (rs, rowNum) ->
-            new AuditEntry<>(
-                    rs.getString("id"),
-                    rs.getLong("sequence"),
-                    rs.getTimestamp("timestamp").toInstant(),
-                    rs.getString("actor"),
-                    rs.getString("action"),
-                    rs.getString("resource_type"),
-                    rs.getString("resource_id"),
-                    CanonicalJsonHelper.parse(rs.getString("payload")),
-                    rs.getString("payload_digest"),
-                    rs.getString("hash"),
-                    rs.getString("prev_hash"),
-                    rs.getString("signature"));
+    private static final RowMapper<AuditEntry<String>> ENTRY_MAPPER =
+            (rs, rowNum) ->
+                    new AuditEntry<>(
+                            rs.getString("id"),
+                            rs.getLong("sequence"),
+                            rs.getTimestamp("timestamp").toInstant(),
+                            rs.getString("actor"),
+                            rs.getString("action"),
+                            rs.getString("resource_type"),
+                            rs.getString("resource_id"),
+                            CanonicalJsonHelper.parse(rs.getString("payload")),
+                            rs.getString("payload_digest"),
+                            rs.getString("hash"),
+                            rs.getString("prev_hash"),
+                            rs.getString("signature"));
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -54,11 +56,14 @@ public final class JdbcAuditStore implements AuditStore<String> {
 
     @Override
     public Head nextSequenceAndPrevHash() {
-        List<Head> rows = jdbcTemplate.query(
-                "SELECT sequence, last_hash FROM audit_head WHERE id = 'audit' FOR UPDATE",
-                (rs, rowNum) -> new Head(rs.getLong("sequence"), rs.getString("last_hash")));
+        List<Head> rows =
+                jdbcTemplate.query(
+                        "SELECT sequence, last_hash FROM audit_head WHERE id = 'audit' FOR UPDATE",
+                        (rs, rowNum) ->
+                                new Head(rs.getLong("sequence"), rs.getString("last_hash")));
         if (rows.isEmpty()) {
-            throw new AuditException(AuditErrorCode.STORE_UNAVAILABLE,
+            throw new AuditException(
+                    AuditErrorCode.STORE_UNAVAILABLE,
                     "audit_head is missing; run the audit migration first");
         }
         Head current = rows.get(0);
@@ -67,7 +72,8 @@ public final class JdbcAuditStore implements AuditStore<String> {
 
     @Override
     public void insert(AuditEntry<String> entry) {
-        jdbcTemplate.update(INSERT,
+        jdbcTemplate.update(
+                INSERT,
                 entry.getId(),
                 entry.getSequence(),
                 Timestamp.from(entry.getTimestamp()),
@@ -96,11 +102,14 @@ public final class JdbcAuditStore implements AuditStore<String> {
 
     @Override
     public Head head() {
-        List<Head> rows = jdbcTemplate.query(
-                "SELECT sequence, last_hash FROM audit_head WHERE id = 'audit'",
-                (rs, rowNum) -> new Head(rs.getLong("sequence"), rs.getString("last_hash")));
+        List<Head> rows =
+                jdbcTemplate.query(
+                        "SELECT sequence, last_hash FROM audit_head WHERE id = 'audit'",
+                        (rs, rowNum) ->
+                                new Head(rs.getLong("sequence"), rs.getString("last_hash")));
         if (rows.isEmpty()) {
-            throw new AuditException(AuditErrorCode.STORE_UNAVAILABLE,
+            throw new AuditException(
+                    AuditErrorCode.STORE_UNAVAILABLE,
                     "audit_head is missing; run the audit migration first");
         }
         return rows.get(0);

@@ -1,22 +1,21 @@
 package cn.byteforce.seedj.infra.jdbc.outbox.wiring;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import cn.byteforce.seedj.outbox.OutboxErrorCode;
 import cn.byteforce.seedj.outbox.OutboxException;
 import cn.byteforce.seedj.outbox.OutboxRecord;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.ObjectProvider;
-
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.ObjectProvider;
 
 class OutboxRelayTest {
 
@@ -51,8 +50,10 @@ class OutboxRelayTest {
     @DisplayName("可重试失败 → markFailed(retryable=true, 有退避)")
     void retryableFailureIsMarkedRetryable() throws Exception {
         store.enqueue("r1", record("m1"), Duration.ofSeconds(30));
-        sink.behavior = record -> CompletableFuture.failedFuture(
-                new OutboxException(OutboxErrorCode.DELIVERY_FAILED, "boom"));
+        sink.behavior =
+                record ->
+                        CompletableFuture.failedFuture(
+                                new OutboxException(OutboxErrorCode.DELIVERY_FAILED, "boom"));
         relay = relay(withSink());
 
         relay.relay();
@@ -69,8 +70,9 @@ class OutboxRelayTest {
     @DisplayName("不可重试失败 → markFailed(retryable=false, 无退避)")
     void nonRetryableFailureIsMarkedNonRetryable() throws Exception {
         store.enqueue("r1", record("m1"), Duration.ofSeconds(30));
-        sink.behavior = record -> CompletableFuture.failedFuture(
-                new IllegalArgumentException("bad record"));
+        sink.behavior =
+                record ->
+                        CompletableFuture.failedFuture(new IllegalArgumentException("bad record"));
         relay = relay(withSink());
 
         relay.relay();
@@ -89,10 +91,13 @@ class OutboxRelayTest {
         store.enqueue("r1", record("m1"), Duration.ofMillis(300));
 
         CountDownLatch deliverStarted = new CountDownLatch(1);
-        sink.behavior = record -> CompletableFuture.runAsync(() -> {
-            deliverStarted.countDown();
-            sleep(1_500);
-        });
+        sink.behavior =
+                record ->
+                        CompletableFuture.runAsync(
+                                () -> {
+                                    deliverStarted.countDown();
+                                    sleep(1_500);
+                                });
         relay = relay(withSink());
 
         relay.relay();
@@ -123,7 +128,8 @@ class OutboxRelayTest {
         relay.close();
     }
 
-    private OutboxRelay relay(ObjectProvider<cn.byteforce.seedj.outbox.spi.OutboxSink> sinkProvider) {
+    private OutboxRelay relay(
+            ObjectProvider<cn.byteforce.seedj.outbox.spi.OutboxSink> sinkProvider) {
         OutboxProperties.Relay properties = new OutboxProperties.Relay();
         properties.setPollInterval(Duration.ofHours(1));
         properties.setLease(Duration.ofSeconds(30));
@@ -145,8 +151,15 @@ class OutboxRelayTest {
     }
 
     private static OutboxRecord record(String messageId) {
-        return new OutboxRecord(messageId, "destination", "partition-1", "content", 1,
-                "payload".getBytes(StandardCharsets.UTF_8), null, java.time.Instant.now());
+        return new OutboxRecord(
+                messageId,
+                "destination",
+                "partition-1",
+                "content",
+                1,
+                "payload".getBytes(StandardCharsets.UTF_8),
+                null,
+                java.time.Instant.now());
     }
 
     private static void sleep(long millis) {
@@ -168,8 +181,7 @@ class OutboxRelayTest {
         private final CountDownLatch sentLatch = new CountDownLatch(1);
 
         @Override
-        public void claimed(int count) {
-        }
+        public void claimed(int count) {}
 
         @Override
         public void sent() {
@@ -191,7 +203,6 @@ class OutboxRelayTest {
         }
 
         @Override
-        public void claimFailed() {
-        }
+        public void claimFailed() {}
     }
 }

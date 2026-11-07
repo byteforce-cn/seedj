@@ -24,10 +24,14 @@ class BeanValidationCommandValidatorTest {
     @DisplayName("字段违规：INVALID_PAYLOAD，消息包含字段路径")
     void violationBecomesInvalidPayload() {
         assertThatThrownBy(() -> commandValidator.validate(new Command("")))
-                .isInstanceOfSatisfying(ContractException.class, error -> {
-                    assertThat(error.code()).isEqualTo(ContractErrorCode.INVALID_PAYLOAD);
-                    assertThat(error.reason()).contains("name").contains("must not be blank");
-                });
+                .isInstanceOfSatisfying(
+                        ContractException.class,
+                        error -> {
+                            assertThat(error.code()).isEqualTo(ContractErrorCode.INVALID_PAYLOAD);
+                            assertThat(error.reason())
+                                    .contains("name")
+                                    .contains("must not be blank");
+                        });
     }
 
     @Test

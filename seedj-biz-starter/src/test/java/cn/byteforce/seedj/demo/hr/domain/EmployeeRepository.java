@@ -8,5 +8,4 @@ import cn.byteforce.seedj.domain.Repository;
  * @author ByteForce
  * @since 1.0.0
  */
-public interface EmployeeRepository extends Repository<Employee, EmployeeId> {
-}
+public interface EmployeeRepository extends Repository<Employee, EmployeeId> {}

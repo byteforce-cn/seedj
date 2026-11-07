@@ -3,9 +3,8 @@ package cn.byteforce.seedj.starter.security;
 import cn.byteforce.seedj.core.security.Caller;
 import cn.byteforce.seedj.core.security.ScopeContext;
 import cn.byteforce.seedj.core.security.ScopeContextHolder;
-import org.springframework.core.task.TaskDecorator;
-
 import java.util.Objects;
+import org.springframework.core.task.TaskDecorator;
 
 /**
  * 异步装饰器：同时传播 {@link Caller} 与 {@link ScopeContext}。
@@ -33,8 +32,8 @@ public final class RequestContextDecorator implements TaskDecorator {
         ScopeContext context = ScopeContextHolder.current().orElse(null);
         return () -> {
             try (CallerPropagation.Scope callerScope = propagation.open(caller);
-                 ScopeContextHolder.Scope contextScope = context == null
-                         ? null : ScopeContextHolder.open(context)) {
+                    ScopeContextHolder.Scope contextScope =
+                            context == null ? null : ScopeContextHolder.open(context)) {
                 runnable.run();
             }
         };

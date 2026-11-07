@@ -1,7 +1,6 @@
 package cn.byteforce.seedj.cqrs.spi;
 
 import cn.byteforce.seedj.cqrs.CommandRecord;
-
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
@@ -9,15 +8,15 @@ import java.util.UUID;
 /**
  * 命令记录存储 SPI。
  *
- * <p>命令运行时按 {@code insert → complete} 两步写入：{@code insert} 在命令执行前
- * 落一条 {@code PENDING}，{@code complete} 在事务内（或拒绝路径的事务外）落终态。
- * 实现必须保证：</p>
+ * <p>命令运行时按 {@code insert → complete} 两步写入：{@code insert} 在命令执行前 落一条 {@code PENDING}，{@code
+ * complete} 在事务内（或拒绝路径的事务外）落终态。 实现必须保证：
+ *
  * <ul>
- *   <li>{@link #insert(CommandRecord)} 的 {@code id} 与 {@code idempotencyKey} 唯一；
- *       冲突返回 {@code false} 且不覆盖既有行；</li>
- *   <li>{@link #complete(CommandRecord)} 只允许 {@code PENDING → ACCEPTED/REJECTED}；
- *       同一终态重复调用幂等，其他改写抛 {@link IllegalStateException}；</li>
- *   <li>实现自身不开启事务：命令运行时保证对象行、命令记录、审计与事件同事务。</li>
+ *   <li>{@link #insert(CommandRecord)} 的 {@code id} 与 {@code idempotencyKey} 唯一； 冲突返回 {@code false}
+ *       且不覆盖既有行；
+ *   <li>{@link #complete(CommandRecord)} 只允许 {@code PENDING → ACCEPTED/REJECTED}； 同一终态重复调用幂等，其他改写抛
+ *       {@link IllegalStateException}；
+ *   <li>实现自身不开启事务：命令运行时保证对象行、命令记录、审计与事件同事务。
  * </ul>
  *
  * @author ByteForce
@@ -36,7 +35,7 @@ public interface CommandStore {
     /**
      * 按发起者与幂等键查询。
      *
-     * @param issuer         发起者
+     * @param issuer 发起者
      * @param idempotencyKey 幂等键
      * @return 记录；不存在为空
      */
@@ -61,8 +60,7 @@ public interface CommandStore {
     /**
      * 放弃一条待处理记录：只删除 {@code PENDING}，并释放幂等键；终态记录不受影响。
      *
-     * <p>用于依赖不可用等技术故障（{@code EIS-503-001}）——命令未被接受，
-     * 同一幂等键必须可以安全重试，不能被一条永远 pending 的记录挡住。</p>
+     * <p>用于依赖不可用等技术故障（{@code EIS-503-001}）——命令未被接受， 同一幂等键必须可以安全重试，不能被一条永远 pending 的记录挡住。
      *
      * @param id 命令 ID
      */

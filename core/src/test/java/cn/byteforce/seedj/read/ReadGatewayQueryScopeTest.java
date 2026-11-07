@@ -1,5 +1,8 @@
 package cn.byteforce.seedj.read;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import cn.byteforce.seedj.core.clock.TestClock;
 import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;
@@ -19,9 +22,6 @@ import cn.byteforce.seedj.domain.TemporalQuery;
 import cn.byteforce.seedj.domain.TemporalRow;
 import cn.byteforce.seedj.domain.TemporalSearch;
 import cn.byteforce.seedj.domain.TemporalStore;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -30,61 +30,79 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
-/**
- * 自定义查询：行范围谓词到 SQL 的编译、字段白名单与投影校验。
- */
+/** 自定义查询：行范围谓词到 SQL 的编译、字段白名单与投影校验。 */
 class ReadGatewayQueryScopeTest {
 
     private static final UUID ACTOR = UUID.fromString("018f2e3a-0000-7000-8000-000000000001");
 
-    private static final Caller CALLER = new Caller(ACTOR.toString(), "alice", "default", null,
-            Set.of("employee.read"), null, null, null, null);
+    private static final Caller CALLER =
+            new Caller(
+                    ACTOR.toString(),
+                    "alice",
+                    "default",
+                    null,
+                    Set.of("employee.read"),
+                    null,
+                    null,
+                    null,
+                    null);
 
-    private static final ObjectSchema SCHEMA = ObjectSchema.builder("employee", "hr_employee")
-            .field(FieldDefinition.required("employee_no", FieldType.TEXT).withSortable())
-            .field(FieldDefinition.of("org_unit_id", FieldType.TEXT).withFilterable())
-            .field(FieldDefinition.of("status", FieldType.TEXT).withFilterable())
-            .writeOnly("id_number_hash", FieldType.TEXT)
-            .build();
+    private static final ObjectSchema SCHEMA =
+            ObjectSchema.builder("employee", "hr_employee")
+                    .field(FieldDefinition.required("employee_no", FieldType.TEXT).withSortable())
+                    .field(FieldDefinition.of("org_unit_id", FieldType.TEXT).withFilterable())
+                    .field(FieldDefinition.of("status", FieldType.TEXT).withFilterable())
+                    .writeOnly("id_number_hash", FieldType.TEXT)
+                    .build();
 
-    private static final QuerySpec SPEC = new QuerySpec("employee",
-            "SELECT employee_no, org_unit_id, status FROM hr_employee WHERE employee_no = :number",
-            Set.of("employee_no", "org_unit_id", "status"), Set.of("number"),
-            List.of("employee_no"), "employee_no");
+    private static final QuerySpec SPEC =
+            new QuerySpec(
+                    "employee",
+                    "SELECT employee_no, org_unit_id, status FROM hr_employee WHERE employee_no = :number",
+                    Set.of("employee_no", "org_unit_id", "status"),
+                    Set.of("number"),
+                    List.of("employee_no"),
+                    "employee_no");
 
     private final RecordingExecutor executor = new RecordingExecutor();
 
     @Test
     @DisplayName("In 谓词编译为占位符列表并按类型转换常量")
     void compilesInPredicate() {
-        Page<Map<String, Object>> page = query(ScopePredicate.in("org_unit_id",
-                List.of("D01", "D02")));
+        Page<Map<String, Object>> page =
+                query(ScopePredicate.in("org_unit_id", List.of("D01", "D02")));
 
         assertThat(executor.pageSql).contains("seedj_q.\"org_unit_id\" IN (?,?)");
         assertThat(executor.pageArguments).containsExactly("E-1", "D01", "D02", 20, 0L);
-        assertThat(page.items()).singleElement()
+        assertThat(page.items())
+                .singleElement()
                 .satisfies(row -> assertThat(row).containsEntry("employee_no", "E-1"));
     }
 
     @Test
     @DisplayName("Not/Or/And/NotNull 谓词编译为嵌套条件")
     void compilesCompositePredicates() {
-        ScopePredicate predicate = ScopePredicates.and(List.of(
-                ScopePredicate.not(ScopePredicate.eq("status", "LEFT")),
-                ScopePredicate.or(ScopePredicate.notNull("org_unit_id"),
-                        ScopePredicate.in("status", List.of("ACTIVE", "PENDING")))));
+        ScopePredicate predicate =
+                ScopePredicates.and(
+                        List.of(
+                                ScopePredicate.not(ScopePredicate.eq("status", "LEFT")),
+                                ScopePredicate.or(
+                                        ScopePredicate.notNull("org_unit_id"),
+                                        ScopePredicate.in(
+                                                "status", List.of("ACTIVE", "PENDING")))));
 
         query(predicate);
 
-        assertThat(executor.pageSql).contains("(NOT (seedj_q.\"status\" = ?)"
-                + " AND (seedj_q.\"org_unit_id\" IS NOT NULL"
-                + " OR seedj_q.\"status\" IN (?,?)))");
-        assertThat(executor.pageArguments).containsExactly("E-1", "LEFT", "ACTIVE", "PENDING",
-                20, 0L);
+        assertThat(executor.pageSql)
+                .contains(
+                        "(NOT (seedj_q.\"status\" = ?)"
+                                + " AND (seedj_q.\"org_unit_id\" IS NOT NULL"
+                                + " OR seedj_q.\"status\" IN (?,?)))");
+        assertThat(executor.pageArguments)
+                .containsExactly("E-1", "LEFT", "ACTIVE", "PENDING", 20, 0L);
     }
 
     @Test
@@ -99,12 +117,25 @@ class ReadGatewayQueryScopeTest {
     @Test
     @DisplayName("行范围引用未投影字段时失败关闭")
     void scopeFieldMustBeProjected() {
-        QuerySpec narrow = new QuerySpec("employee", "SELECT employee_no FROM hr_employee",
-                Set.of("employee_no"), Set.of(), List.of("employee_no"), "employee_no");
+        QuerySpec narrow =
+                new QuerySpec(
+                        "employee",
+                        "SELECT employee_no FROM hr_employee",
+                        Set.of("employee_no"),
+                        Set.of(),
+                        List.of("employee_no"),
+                        "employee_no");
         ReadGateway gateway = gateway(ScopePredicate.eq("org_unit_id", "D01"), narrow);
 
-        assertThatThrownBy(() -> gateway.query(narrow, Map.of(), null, null,
-                PageRequest.defaults(), CALLER))
+        assertThatThrownBy(
+                        () ->
+                                gateway.query(
+                                        narrow,
+                                        Map.of(),
+                                        null,
+                                        null,
+                                        PageRequest.defaults(),
+                                        CALLER))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("row scope uses field org_unit_id");
         assertThat(executor.calls).isEmpty();
@@ -113,55 +144,89 @@ class ReadGatewayQueryScopeTest {
     @Test
     @DisplayName("查询声明的字段必须是 schema 字段")
     void rejectsUnknownProjectedField() {
-        QuerySpec spec = new QuerySpec("employee",
-                "SELECT employee_no, salary FROM hr_employee",
-                Set.of("employee_no", "salary"), Set.of(), List.of("employee_no"),
-                "employee_no");
+        QuerySpec spec =
+                new QuerySpec(
+                        "employee",
+                        "SELECT employee_no, salary FROM hr_employee",
+                        Set.of("employee_no", "salary"),
+                        Set.of(),
+                        List.of("employee_no"),
+                        "employee_no");
         ReadGateway gateway = gateway(ScopePredicate.all(), spec);
 
-        assertThatThrownBy(() -> gateway.query(spec, Map.of(), null, null,
-                PageRequest.defaults(), CALLER))
-                .isInstanceOfSatisfying(ContractException.class, error ->
-                        assertThat(error.reason()).contains("unknown field for employee: salary"));
+        assertThatThrownBy(
+                        () ->
+                                gateway.query(
+                                        spec, Map.of(), null, null, PageRequest.defaults(), CALLER))
+                .isInstanceOfSatisfying(
+                        ContractException.class,
+                        error ->
+                                assertThat(error.reason())
+                                        .contains("unknown field for employee: salary"));
     }
 
     @Test
     @DisplayName("排序字段必须可排序且不能是写入专用字段")
     void rejectsNonSortableField() {
-        QuerySpec spec = new QuerySpec("employee",
-                "SELECT employee_no, id_number_hash FROM hr_employee",
-                Set.of("employee_no", "id_number_hash"), Set.of(), List.of("employee_no"),
-                "employee_no");
+        QuerySpec spec =
+                new QuerySpec(
+                        "employee",
+                        "SELECT employee_no, id_number_hash FROM hr_employee",
+                        Set.of("employee_no", "id_number_hash"),
+                        Set.of(),
+                        List.of("employee_no"),
+                        "employee_no");
         ReadGateway gateway = gateway(ScopePredicate.all(), spec);
 
-        assertThatThrownBy(() -> gateway.query(spec, Map.of(), "id_number_hash", null,
-                PageRequest.defaults(), CALLER))
-                .isInstanceOfSatisfying(ContractException.class, error ->
-                        assertThat(error.reason()).contains("sort field is not allowed"));
+        assertThatThrownBy(
+                        () ->
+                                gateway.query(
+                                        spec,
+                                        Map.of(),
+                                        "id_number_hash",
+                                        null,
+                                        PageRequest.defaults(),
+                                        CALLER))
+                .isInstanceOfSatisfying(
+                        ContractException.class,
+                        error -> assertThat(error.reason()).contains("sort field is not allowed"));
     }
 
     @Test
     @DisplayName("schema 未声明 sortable 的字段不能用于排序")
     void rejectsSchemaNonSortableField() {
-        QuerySpec spec = new QuerySpec("employee",
-                "SELECT employee_no, org_unit_id, status FROM hr_employee",
-                Set.of("employee_no", "org_unit_id", "status"), Set.of(), List.of("status"),
-                "status");
+        QuerySpec spec =
+                new QuerySpec(
+                        "employee",
+                        "SELECT employee_no, org_unit_id, status FROM hr_employee",
+                        Set.of("employee_no", "org_unit_id", "status"),
+                        Set.of(),
+                        List.of("status"),
+                        "status");
         ReadGateway gateway = gateway(ScopePredicate.all(), spec);
 
-        assertThatThrownBy(() -> gateway.query(spec, Map.of(), null, null,
-                PageRequest.defaults(), CALLER))
-                .isInstanceOfSatisfying(ContractException.class, error ->
-                        assertThat(error.reason()).contains("field is not sortable: status"));
+        assertThatThrownBy(
+                        () ->
+                                gateway.query(
+                                        spec, Map.of(), null, null, PageRequest.defaults(), CALLER))
+                .isInstanceOfSatisfying(
+                        ContractException.class,
+                        error ->
+                                assertThat(error.reason())
+                                        .contains("field is not sortable: status"));
     }
 
     @Test
     @DisplayName("无参数查询接受 null 参数映射")
     void acceptsNullParameters() {
-        QuerySpec spec = new QuerySpec("employee",
-                "SELECT employee_no, org_unit_id, status FROM hr_employee",
-                Set.of("employee_no", "org_unit_id", "status"), Set.of(),
-                List.of("employee_no"), "employee_no");
+        QuerySpec spec =
+                new QuerySpec(
+                        "employee",
+                        "SELECT employee_no, org_unit_id, status FROM hr_employee",
+                        Set.of("employee_no", "org_unit_id", "status"),
+                        Set.of(),
+                        List.of("employee_no"),
+                        "employee_no");
         ReadGateway gateway = gateway(ScopePredicate.all(), spec);
 
         Page<Map<String, Object>> page = gateway.query(spec, null, null, null, null, CALLER);
@@ -183,34 +248,51 @@ class ReadGatewayQueryScopeTest {
     @Test
     @DisplayName("SQL 含位置占位符时拒绝执行")
     void rejectsPositionalPlaceholders() {
-        QuerySpec spec = new QuerySpec("employee",
-                "SELECT employee_no, org_unit_id, status FROM hr_employee WHERE status = ?",
-                Set.of("employee_no", "org_unit_id", "status"), Set.of(),
-                List.of("employee_no"), "employee_no");
+        QuerySpec spec =
+                new QuerySpec(
+                        "employee",
+                        "SELECT employee_no, org_unit_id, status FROM hr_employee WHERE status = ?",
+                        Set.of("employee_no", "org_unit_id", "status"),
+                        Set.of(),
+                        List.of("employee_no"),
+                        "employee_no");
         ReadGateway gateway = gateway(ScopePredicate.all(), spec);
 
-        assertThatThrownBy(() -> gateway.query(spec, Map.of(), null, null,
-                PageRequest.defaults(), CALLER))
-                .isInstanceOfSatisfying(ContractException.class, error -> {
-                    assertThat(error.code()).isEqualTo(ContractErrorCode.INVALID_PAYLOAD);
-                    assertThat(error.reason()).contains("named parameters");
-                });
+        assertThatThrownBy(
+                        () ->
+                                gateway.query(
+                                        spec, Map.of(), null, null, PageRequest.defaults(), CALLER))
+                .isInstanceOfSatisfying(
+                        ContractException.class,
+                        error -> {
+                            assertThat(error.code()).isEqualTo(ContractErrorCode.INVALID_PAYLOAD);
+                            assertThat(error.reason()).contains("named parameters");
+                        });
     }
 
     @Test
     @DisplayName("SQL 引用未声明的命名参数时失败")
     void rejectsUndeclaredNamedParameter() {
-        QuerySpec spec = new QuerySpec("employee",
-                "SELECT employee_no, org_unit_id, status FROM hr_employee"
-                        + " WHERE status = :state",
-                Set.of("employee_no", "org_unit_id", "status"), Set.of(),
-                List.of("employee_no"), "employee_no");
+        QuerySpec spec =
+                new QuerySpec(
+                        "employee",
+                        "SELECT employee_no, org_unit_id, status FROM hr_employee"
+                                + " WHERE status = :state",
+                        Set.of("employee_no", "org_unit_id", "status"),
+                        Set.of(),
+                        List.of("employee_no"),
+                        "employee_no");
         ReadGateway gateway = gateway(ScopePredicate.all(), spec);
 
-        assertThatThrownBy(() -> gateway.query(spec, Map.of(), null, null,
-                PageRequest.defaults(), CALLER))
-                .isInstanceOfSatisfying(ContractException.class, error ->
-                        assertThat(error.reason()).contains("undeclared parameter in query: state"));
+        assertThatThrownBy(
+                        () ->
+                                gateway.query(
+                                        spec, Map.of(), null, null, PageRequest.defaults(), CALLER))
+                .isInstanceOfSatisfying(
+                        ContractException.class,
+                        error ->
+                                assertThat(error.reason())
+                                        .contains("undeclared parameter in query: state"));
     }
 
     @Test
@@ -219,8 +301,15 @@ class ReadGatewayQueryScopeTest {
         executor.omitStatus = true;
         ReadGateway gateway = gateway(ScopePredicate.all(), SPEC);
 
-        assertThatThrownBy(() -> gateway.query(SPEC, Map.of("number", "E-1"), null, null,
-                PageRequest.defaults(), CALLER))
+        assertThatThrownBy(
+                        () ->
+                                gateway.query(
+                                        SPEC,
+                                        Map.of("number", "E-1"),
+                                        null,
+                                        null,
+                                        PageRequest.defaults(),
+                                        CALLER))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("custom query did not return declared field: status");
     }
@@ -230,10 +319,11 @@ class ReadGatewayQueryScopeTest {
     void defaultsPagingAndDirection() {
         Page<Map<String, Object>> page = query(ScopePredicate.all());
 
-        assertThat(executor.pageSql).endsWith("ORDER BY seedj_q.\"employee_no\" ASC"
-                + " LIMIT ? OFFSET ?");
-        assertThat(executor.pageArguments).containsExactly("E-1", PageRequest.defaults().size(),
-                PageRequest.defaults().offset());
+        assertThat(executor.pageSql)
+                .endsWith("ORDER BY seedj_q.\"employee_no\" ASC" + " LIMIT ? OFFSET ?");
+        assertThat(executor.pageArguments)
+                .containsExactly(
+                        "E-1", PageRequest.defaults().size(), PageRequest.defaults().offset());
         assertThat(page.page()).isEqualTo(PageRequest.defaults().page());
     }
 
@@ -242,11 +332,16 @@ class ReadGatewayQueryScopeTest {
     void explicitPagingAndDirection() {
         ReadGateway gateway = gateway(ScopePredicate.all(), SPEC);
 
-        gateway.query(SPEC, Map.of("number", "E-1"), "employee_no", SortDirection.DESC,
-                new PageRequest(3, 5), CALLER);
+        gateway.query(
+                SPEC,
+                Map.of("number", "E-1"),
+                "employee_no",
+                SortDirection.DESC,
+                new PageRequest(3, 5),
+                CALLER);
 
-        assertThat(executor.pageSql).endsWith("ORDER BY seedj_q.\"employee_no\" DESC"
-                + " LIMIT ? OFFSET ?");
+        assertThat(executor.pageSql)
+                .endsWith("ORDER BY seedj_q.\"employee_no\" DESC" + " LIMIT ? OFFSET ?");
         assertThat(executor.pageArguments).containsExactly("E-1", 5, 10L);
     }
 
@@ -256,30 +351,45 @@ class ReadGatewayQueryScopeTest {
         Map<String, FieldAccess> granted = new LinkedHashMap<>();
         granted.put("status", new FieldAccess(FieldAccess.Action.HIDDEN, "p-hide"));
         granted.put("org_unit_id", new FieldAccess(FieldAccess.Action.MASKED, "p-mask"));
-        ReadGateway gateway = new ReadGateway(registry(), new StubStore(),
-                List.of(scope(ScopePredicate.all())),
-                List.of(policy(new FieldPolicy(granted))), event -> { },
-                new TestClock(Instant.parse("2026-11-06T09:00:00Z")), UUID::randomUUID, executor);
+        ReadGateway gateway =
+                new ReadGateway(
+                        registry(),
+                        new StubStore(),
+                        List.of(scope(ScopePredicate.all())),
+                        List.of(policy(new FieldPolicy(granted))),
+                        event -> {},
+                        new TestClock(Instant.parse("2026-11-06T09:00:00Z")),
+                        UUID::randomUUID,
+                        executor);
 
-        Page<Map<String, Object>> page = gateway.query(SPEC, Map.of("number", "E-1"), null, null,
-                PageRequest.defaults(), CALLER);
+        Page<Map<String, Object>> page =
+                gateway.query(
+                        SPEC, Map.of("number", "E-1"), null, null, PageRequest.defaults(), CALLER);
 
-        assertThat(page.items()).singleElement().satisfies(row -> {
-            assertThat(row).doesNotContainKey("status");
-            assertThat(row).doesNotContainKey("org_unit_id");
-        });
+        assertThat(page.items())
+                .singleElement()
+                .satisfies(
+                        row -> {
+                            assertThat(row).doesNotContainKey("status");
+                            assertThat(row).doesNotContainKey("org_unit_id");
+                        });
     }
 
     private Page<Map<String, Object>> query(ScopePredicate predicate) {
-        return gateway(predicate, SPEC).query(SPEC, Map.of("number", "E-1"), null, null,
-                PageRequest.defaults(), CALLER);
+        return gateway(predicate, SPEC)
+                .query(SPEC, Map.of("number", "E-1"), null, null, PageRequest.defaults(), CALLER);
     }
 
     private ReadGateway gateway(ScopePredicate predicate, QuerySpec spec) {
-        return new ReadGateway(registry(), new StubStore(), List.of(scope(predicate)),
+        return new ReadGateway(
+                registry(),
+                new StubStore(),
+                List.of(scope(predicate)),
                 List.of(policy(FieldPolicy.defaults(SCHEMA))),
-                event -> { }, new TestClock(Instant.parse("2026-11-06T09:00:00Z")),
-                UUID::randomUUID, executor);
+                event -> {},
+                new TestClock(Instant.parse("2026-11-06T09:00:00Z")),
+                UUID::randomUUID,
+                executor);
     }
 
     private static DataScopeResolver scope(ScopePredicate predicate) {
@@ -290,8 +400,7 @@ class ReadGatewayQueryScopeTest {
             }
 
             @Override
-            public ScopePredicate resolve(String objectType, Caller caller,
-                                          ScopeContext context) {
+            public ScopePredicate resolve(String objectType, Caller caller, ScopeContext context) {
                 return predicate;
             }
         };
@@ -361,8 +470,8 @@ class ReadGatewayQueryScopeTest {
     private static final class StubStore implements TemporalStore {
 
         @Override
-        public Optional<TemporalRow> find(String objectType, UUID id, TemporalQuery query,
-                                          ScopePredicate scope) {
+        public Optional<TemporalRow> find(
+                String objectType, UUID id, TemporalQuery query, ScopePredicate scope) {
             return Optional.empty();
         }
 

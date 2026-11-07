@@ -3,9 +3,7 @@ package cn.byteforce.seedj.id;
 import cn.byteforce.seedj.core.ErrorCategory;
 import cn.byteforce.seedj.core.ErrorDescriptor;
 
-/**
- * 标识生成错误码。
- */
+/** 标识生成错误码。 */
 public enum IdErrorCode implements ErrorDescriptor {
 
     /** 本机时钟回拨超过允许阈值，继续生成会破坏单调性。 */

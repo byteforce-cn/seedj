@@ -3,8 +3,7 @@ package cn.byteforce.seedj.domain;
 /**
  * 字段打码扩展点：把原值转换为同类型值或字符串。
  *
- * <p>只在 {@code ReadGateway} 的投影阶段调用；没有 masker 的字段不允许“猜一个规则”，
- * {@code MASKED} 会退化为隐藏。</p>
+ * <p>只在 {@code ReadGateway} 的投影阶段调用；没有 masker 的字段不允许“猜一个规则”， {@code MASKED} 会退化为隐藏。
  *
  * @author ByteForce
  * @since 1.0.0

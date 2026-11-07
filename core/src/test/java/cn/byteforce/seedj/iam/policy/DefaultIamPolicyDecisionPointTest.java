@@ -1,44 +1,61 @@
 package cn.byteforce.seedj.iam.policy;
 
-import cn.byteforce.seedj.iam.PolicyOperand;
-import cn.byteforce.seedj.iam.PolicyComparisonOperator;
-
-import cn.byteforce.seedj.iam.PolicyCondition;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import cn.byteforce.seedj.iam.IamAuthorizationDecision;
 import cn.byteforce.seedj.iam.IamAuthorizationRequest;
 import cn.byteforce.seedj.iam.IamPolicy;
 import cn.byteforce.seedj.iam.IamPolicyEffect;
 import cn.byteforce.seedj.iam.IamSubject;
+import cn.byteforce.seedj.iam.PolicyComparisonOperator;
+import cn.byteforce.seedj.iam.PolicyCondition;
+import cn.byteforce.seedj.iam.PolicyOperand;
 import cn.byteforce.seedj.iam.spi.IamPolicyRepository;
 import cn.byteforce.seedj.iam.spi.IamResourceAttributeResolver;
-import org.junit.jupiter.api.Test;
-
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
 
 class DefaultIamPolicyDecisionPointTest {
 
     private final InMemoryPolicyRepository repository = new InMemoryPolicyRepository();
-    private final DefaultIamPolicyDecisionPoint pdp = new DefaultIamPolicyDecisionPoint(
-            repository, List.of(new OwnerResolver()), null, () -> "audit-1");
+    private final DefaultIamPolicyDecisionPoint pdp =
+            new DefaultIamPolicyDecisionPoint(
+                    repository, List.of(new OwnerResolver()), null, () -> "audit-1");
 
-    private final IamSubject subject = new IamSubject("u-1", "alice", "default",
-            Set.of("sales"), Set.of("order:read"), Set.of(), Set.of("pwd"),
-            "urn:seedj:acr:pwd", Map.of("department", "sales"));
+    private final IamSubject subject =
+            new IamSubject(
+                    "u-1",
+                    "alice",
+                    "default",
+                    Set.of("sales"),
+                    Set.of("order:read"),
+                    Set.of(),
+                    Set.of("pwd"),
+                    "urn:seedj:acr:pwd",
+                    Map.of("department", "sales"));
 
     @Test
     void allowsWhenPolicyMatchesAndResourceResolverProvidesOwner() {
-        repository.save(new IamPolicy("p1", "default", "own orders", IamPolicyEffect.ALLOW, 10,
-                Set.of("order:read"), Set.of("order"), new PolicyCondition.Compare(
-                PolicyOperand.resource("ownerId"), PolicyComparisonOperator.EQ,
-                PolicyOperand.subject("userId")), true, 0));
+        repository.save(
+                new IamPolicy(
+                        "p1",
+                        "default",
+                        "own orders",
+                        IamPolicyEffect.ALLOW,
+                        10,
+                        Set.of("order:read"),
+                        Set.of("order"),
+                        new PolicyCondition.Compare(
+                                PolicyOperand.resource("ownerId"),
+                                PolicyComparisonOperator.EQ,
+                                PolicyOperand.subject("userId")),
+                        true,
+                        0));
 
         IamAuthorizationDecision decision = pdp.decide(request("order", "o-1"));
 
@@ -53,10 +70,30 @@ class DefaultIamPolicyDecisionPointTest {
 
     @Test
     void denyWinsOverAllowRegardlessOfPriority() {
-        repository.save(new IamPolicy("allow", "default", "allow", IamPolicyEffect.ALLOW, 1000,
-                Set.of("order:read"), Set.of("order"), PolicyCondition.Always.INSTANCE, true, 0));
-        repository.save(new IamPolicy("deny", "default", "deny", IamPolicyEffect.DENY, 1,
-                Set.of("order:read"), Set.of("order"), PolicyCondition.Always.INSTANCE, true, 0));
+        repository.save(
+                new IamPolicy(
+                        "allow",
+                        "default",
+                        "allow",
+                        IamPolicyEffect.ALLOW,
+                        1000,
+                        Set.of("order:read"),
+                        Set.of("order"),
+                        PolicyCondition.Always.INSTANCE,
+                        true,
+                        0));
+        repository.save(
+                new IamPolicy(
+                        "deny",
+                        "default",
+                        "deny",
+                        IamPolicyEffect.DENY,
+                        1,
+                        Set.of("order:read"),
+                        Set.of("order"),
+                        PolicyCondition.Always.INSTANCE,
+                        true,
+                        0));
 
         IamAuthorizationDecision decision = pdp.decide(request("order", "o-1"));
 
@@ -66,17 +103,40 @@ class DefaultIamPolicyDecisionPointTest {
 
     @Test
     void evaluatesTypedOperatorsAndNestedConditions() {
-        repository.save(new IamPolicy("p1", "default", "sales", IamPolicyEffect.ALLOW, 10,
-                Set.of("order:*"), Set.of("order"), new PolicyCondition.And(List.of(
-                new PolicyCondition.Compare(PolicyOperand.subject("department"),
-                        PolicyComparisonOperator.EQ, PolicyOperand.literal("sales")),
-                new PolicyCondition.Compare(PolicyOperand.resource("status"),
-                        PolicyComparisonOperator.IN, PolicyOperand.literal(List.of("OPEN", "PAID")))
-        )), true, 0));
+        repository.save(
+                new IamPolicy(
+                        "p1",
+                        "default",
+                        "sales",
+                        IamPolicyEffect.ALLOW,
+                        10,
+                        Set.of("order:*"),
+                        Set.of("order"),
+                        new PolicyCondition.And(
+                                List.of(
+                                        new PolicyCondition.Compare(
+                                                PolicyOperand.subject("department"),
+                                                PolicyComparisonOperator.EQ,
+                                                PolicyOperand.literal("sales")),
+                                        new PolicyCondition.Compare(
+                                                PolicyOperand.resource("status"),
+                                                PolicyComparisonOperator.IN,
+                                                PolicyOperand.literal(List.of("OPEN", "PAID"))))),
+                        true,
+                        0));
 
         assertThat(pdp.decide(request("order", "o-1")).allowed()).isTrue();
-        assertThat(pdp.decide(new IamAuthorizationRequest(subject, "order:read", "order", "o-1",
-                Map.of("status", "CLOSED"), Map.of())).allowed()).isFalse();
+        assertThat(
+                        pdp.decide(
+                                        new IamAuthorizationRequest(
+                                                subject,
+                                                "order:read",
+                                                "order",
+                                                "o-1",
+                                                Map.of("status", "CLOSED"),
+                                                Map.of()))
+                                .allowed())
+                .isFalse();
     }
 
     private IamAuthorizationRequest request(String type, String id) {
@@ -90,7 +150,8 @@ class DefaultIamPolicyDecisionPointTest {
         }
 
         @Override
-        public Map<String, Object> resolve(String resourceType, String resourceId, IamSubject subject) {
+        public Map<String, Object> resolve(
+                String resourceType, String resourceId, IamSubject subject) {
             return Map.of("ownerId", "u-1", "status", "OPEN");
         }
     }
@@ -130,7 +191,6 @@ class DefaultIamPolicyDecisionPointTest {
         }
 
         @Override
-        public void bumpEpoch(String tenantId) {
-        }
+        public void bumpEpoch(String tenantId) {}
     }
 }

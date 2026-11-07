@@ -1,23 +1,21 @@
 package cn.byteforce.seedj.starter.iam.scim;
 
-import cn.byteforce.seedj.iam.scim.ScimFilterParser;
-import cn.byteforce.seedj.iam.scim.ScimPatchOperation;
-import cn.byteforce.seedj.iam.scim.ScimPatchParser;
-
 import cn.byteforce.seedj.iam.IamErrorCode;
 import cn.byteforce.seedj.iam.IamException;
 import cn.byteforce.seedj.iam.IamGroup;
 import cn.byteforce.seedj.iam.IamPage;
 import cn.byteforce.seedj.iam.IamUser;
 import cn.byteforce.seedj.iam.IamUserQuery;
-import cn.byteforce.seedj.starter.iam.IamProperties;
-import cn.byteforce.seedj.starter.iam.identity.IamIdentityService;
+import cn.byteforce.seedj.iam.scim.ScimFilterParser;
+import cn.byteforce.seedj.iam.scim.ScimPatchOperation;
+import cn.byteforce.seedj.iam.scim.ScimPatchParser;
 import cn.byteforce.seedj.iam.spi.IamGroupRepository;
 import cn.byteforce.seedj.iam.spi.IamPasswordHasher;
 import cn.byteforce.seedj.iam.spi.IamUserRepository;
-import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.iam.totp.Base32;
-
+import cn.byteforce.seedj.id.IdGenerator;
+import cn.byteforce.seedj.starter.iam.IamProperties;
+import cn.byteforce.seedj.starter.iam.identity.IamIdentityService;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -38,9 +36,13 @@ public class ScimUserService {
     private final IdGenerator<String> idGenerator;
     private final String basePath;
 
-    public ScimUserService(IamUserRepository users, IamGroupRepository groups,
-                           IamPasswordHasher hasher, IamIdentityService identities,
-                           IamProperties properties, IdGenerator<String> idGenerator) {
+    public ScimUserService(
+            IamUserRepository users,
+            IamGroupRepository groups,
+            IamPasswordHasher hasher,
+            IamIdentityService identities,
+            IamProperties properties,
+            IdGenerator<String> idGenerator) {
         this.users = users;
         this.groups = groups;
         this.hasher = hasher;
@@ -55,8 +57,11 @@ public class ScimUserService {
     }
 
     public IamUser require(String id) {
-        return users.findById(id).orElseThrow(
-                () -> new IamException(IamErrorCode.USER_NOT_FOUND, "user not found: " + id));
+        return users.findById(id)
+                .orElseThrow(
+                        () ->
+                                new IamException(
+                                        IamErrorCode.USER_NOT_FOUND, "user not found: " + id));
     }
 
     public Map<String, Object> create(Map<String, Object> body) {
@@ -65,12 +70,21 @@ public class ScimUserService {
             throw new IamException(IamErrorCode.SCIM_BAD_REQUEST, "userName is required");
         }
         Draft draft = Draft.from(body);
-        IamUser user = IamUser.create(idGenerator.id(), properties.tenantId(), userName, draft.displayName,
-                draft.email, draft.active);
-        user = user.withExternalId(draft.externalId)
-                .withProfile(draft.displayName, draft.email, draft.attributes());
-        String passwordHash = draft.password == null || draft.password.isBlank()
-                ? hasher.encode(randomPassword()) : hasher.encode(draft.password);
+        IamUser user =
+                IamUser.create(
+                        idGenerator.id(),
+                        properties.tenantId(),
+                        userName,
+                        draft.displayName,
+                        draft.email,
+                        draft.active);
+        user =
+                user.withExternalId(draft.externalId)
+                        .withProfile(draft.displayName, draft.email, draft.attributes());
+        String passwordHash =
+                draft.password == null || draft.password.isBlank()
+                        ? hasher.encode(randomPassword())
+                        : hasher.encode(draft.password);
         IamUser created = users.create(user, passwordHash);
         return map(created);
     }
@@ -120,8 +134,13 @@ public class ScimUserService {
     }
 
     public Map<String, Object> list(String filter, int startIndex, int count) {
-        IamPage<IamUser> page = users.find(new IamUserQuery(properties.tenantId(),
-                ScimFilterParser.parse(filter), startIndex, count));
+        IamPage<IamUser> page =
+                users.find(
+                        new IamUserQuery(
+                                properties.tenantId(),
+                                ScimFilterParser.parse(filter),
+                                startIndex,
+                                count));
         List<Map<String, Object>> resources = page.items().stream().map(this::map).toList();
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("schemas", List.of(ScimSupport.LIST_SCHEMA));
@@ -167,8 +186,14 @@ public class ScimUserService {
         if (!memberships.isEmpty()) {
             value.put("groups", memberships);
         }
-        value.put("meta", ScimSupport.meta("User", basePath + "/Users/" + user.id(),
-                user.version(), user.createdAt(), user.updatedAt()));
+        value.put(
+                "meta",
+                ScimSupport.meta(
+                        "User",
+                        basePath + "/Users/" + user.id(),
+                        user.version(),
+                        user.createdAt(),
+                        user.updatedAt()));
         return value;
     }
 
@@ -184,13 +209,24 @@ public class ScimUserService {
         if (draft.userName == null || draft.userName.isBlank()) {
             throw new IamException(IamErrorCode.SCIM_BAD_REQUEST, "userName is required");
         }
-        IamUser user = current.withExternalId(draft.externalId)
-                .withProfile(draft.displayName, draft.email, draft.attributes())
-                .withActive(draft.active);
+        IamUser user =
+                current.withExternalId(draft.externalId)
+                        .withProfile(draft.displayName, draft.email, draft.attributes())
+                        .withActive(draft.active);
         if (!draft.userName.equals(current.userName())) {
-            user = new IamUser(user.id(), user.tenantId(), draft.userName, user.externalId(),
-                    user.displayName(), user.email(), user.active(), user.attributes(),
-                    user.version(), user.createdAt(), user.updatedAt());
+            user =
+                    new IamUser(
+                            user.id(),
+                            user.tenantId(),
+                            draft.userName,
+                            user.externalId(),
+                            user.displayName(),
+                            user.email(),
+                            user.active(),
+                            user.attributes(),
+                            user.version(),
+                            user.createdAt(),
+                            user.updatedAt());
         }
         return user;
     }
@@ -259,7 +295,8 @@ public class ScimUserService {
                     map.forEach((key, value) -> set(String.valueOf(key), value));
                     return;
                 }
-                throw new IamException(IamErrorCode.SCIM_PATCH_INVALID,
+                throw new IamException(
+                        IamErrorCode.SCIM_PATCH_INVALID,
                         "PATCH without path requires an object value");
             }
             String path = operation.path();
@@ -287,8 +324,9 @@ public class ScimUserService {
                 case "emails", "emails.value" -> email = emailValue(value);
                 case "active" -> active = ScimSupport.bool(value, active);
                 case "password" -> password = ScimSupport.string(value);
-                default -> throw new IamException(IamErrorCode.SCIM_PATCH_INVALID,
-                        "unsupported PATCH path: " + path);
+                default ->
+                        throw new IamException(
+                                IamErrorCode.SCIM_PATCH_INVALID, "unsupported PATCH path: " + path);
             }
             if (displayName == null) {
                 displayName = join(givenName, familyName);

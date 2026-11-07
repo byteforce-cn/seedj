@@ -21,15 +21,25 @@ public record SodRuleSet(List<SodRule> rules) {
      * @return 默认规则集
      */
     public static SodRuleSet defaults() {
-        return new SodRuleSet(List.of(
-                new SodRule("SOD-001", "采购申请与审批分离",
-                        List.of("purchase.request.create", "purchase.request.approve"),
-                        SodScope.SAME_DEPARTMENT, SodEnforcement.PREVENT),
-                new SodRule("SOD-002", "付款与审批分离",
-                        List.of("payment.create", "payment.approve"),
-                        SodScope.SAME_ORGANIZATION, SodEnforcement.PREVENT),
-                new SodRule("SOD-003", "库存盘点与调整分离",
-                        List.of("inventory.count", "inventory.adjust"),
-                        SodScope.SAME_WAREHOUSE, SodEnforcement.WARN)));
+        return new SodRuleSet(
+                List.of(
+                        new SodRule(
+                                "SOD-001",
+                                "采购申请与审批分离",
+                                List.of("purchase.request.create", "purchase.request.approve"),
+                                SodScope.SAME_DEPARTMENT,
+                                SodEnforcement.PREVENT),
+                        new SodRule(
+                                "SOD-002",
+                                "付款与审批分离",
+                                List.of("payment.create", "payment.approve"),
+                                SodScope.SAME_ORGANIZATION,
+                                SodEnforcement.PREVENT),
+                        new SodRule(
+                                "SOD-003",
+                                "库存盘点与调整分离",
+                                List.of("inventory.count", "inventory.adjust"),
+                                SodScope.SAME_WAREHOUSE,
+                                SodEnforcement.WARN)));
     }
 }

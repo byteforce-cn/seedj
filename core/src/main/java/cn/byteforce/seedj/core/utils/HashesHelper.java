@@ -9,12 +9,10 @@ import java.util.Objects;
 /**
  * 摘要工具：SHA-256 小写 hex（幂等指纹与审计链共用）。
  *
- * <p><b>配合契约</b>：审计链的摘要输入应为
- * {@link CanonicalJson#canonicalizePayload(String)} 的输出，
- * 而非原始 JSON 文本——否则同一语义的不同空白/键序会产出不同摘要。</p>
+ * <p><b>配合契约</b>：审计链的摘要输入应为 {@link CanonicalJson#canonicalizePayload(String)} 的输出， 而非原始 JSON
+ * 文本——否则同一语义的不同空白/键序会产出不同摘要。
  *
- * <p><b>确定性</b>：本类每次调用新建 {@link MessageDigest}（非线程安全，
- * 不共享），保证并发下摘要结果与单线程一致；不使用静态实例缓存。</p>
+ * <p><b>确定性</b>：本类每次调用新建 {@link MessageDigest}（非线程安全， 不共享），保证并发下摘要结果与单线程一致；不使用静态实例缓存。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -27,8 +25,7 @@ public final class HashesHelper {
     /** 无状态 hex 格式化器，小写、无分隔符，线程安全。 */
     private static final HexFormat HEX = HexFormat.of();
 
-    private HashesHelper() {
-    }
+    private HashesHelper() {}
 
     /**
      * 计算 UTF-8 文本的 SHA-256 小写 hex。

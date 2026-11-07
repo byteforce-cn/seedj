@@ -2,6 +2,7 @@ package cn.byteforce.seedj.transit;
 
 final class Base64Validator {
     private Base64Validator() {}
+
     public static void validate(String base64) {
         if (base64 == null || base64.isEmpty()) {
             throw new IllegalArgumentException("Base64 字符串不能为空");

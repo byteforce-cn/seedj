@@ -2,14 +2,13 @@ package cn.byteforce.seedj.starter.iam.scim;
 
 import cn.byteforce.seedj.iam.IamErrorCode;
 import cn.byteforce.seedj.iam.IamException;
+import java.util.Map;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-
-import java.util.Map;
 
 /** SCIM-specific error envelope ({@code scimType} + {@code status}). */
 @RestControllerAdvice(basePackages = "cn.byteforce.seedj.starter.iam.scim")
@@ -22,7 +21,8 @@ public class ScimExceptionHandler {
     public ResponseEntity<Map<String, Object>> handle(IamException exception) {
         int status = status(exception.getCode());
         String scimType = scimType(exception.getCode());
-        return ResponseEntity.status(status).contentType(SCIM)
+        return ResponseEntity.status(status)
+                .contentType(SCIM)
                 .body(ScimSupport.error(exception.getMessage(), status, scimType));
     }
 

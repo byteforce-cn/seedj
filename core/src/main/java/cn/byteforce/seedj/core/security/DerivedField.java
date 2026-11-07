@@ -1,26 +1,26 @@
 package cn.byteforce.seedj.core.security;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 
 /**
  * 写入专用派生字段：HMAC-SHA256(scope + 0x00 + 原始值)。
  *
- * <p>scope 形如 {@code seedj:<extension>:<object>:<field>:v1}；输出 64 位小写 hex。
- * 轮换窗口内 {@link #variants(String)} 覆盖全部接受密钥，用于防重/匹配。</p>
+ * <p>scope 形如 {@code seedj:<extension>:<object>:<field>:v1}；输出 64 位小写 hex。 轮换窗口内 {@link
+ * #variants(String)} 覆盖全部接受密钥，用于防重/匹配。
  *
  * @author ByteForce
  * @since 1.0.0
  */
 public final class DerivedField {
 
-    private static final Pattern SCOPE = Pattern.compile(
-            "^seedj:[a-z0-9_.-]+:[a-z0-9_.-]+:[a-z0-9_.-]+:v[0-9]+$");
+    private static final Pattern SCOPE =
+            Pattern.compile("^seedj:[a-z0-9_.-]+:[a-z0-9_.-]+:[a-z0-9_.-]+:v[0-9]+$");
 
     private static final char[] HEX = "0123456789abcdef".toCharArray();
 
@@ -32,7 +32,7 @@ public final class DerivedField {
      * 构造派生字段。
      *
      * @param scope 域分离 scope
-     * @param keys  密钥环
+     * @param keys 密钥环
      */
     public DerivedField(String scope, DerivedFieldKeyRing keys) {
         if (scope == null || !SCOPE.matcher(scope).matches()) {
@@ -72,7 +72,7 @@ public final class DerivedField {
     /**
      * 原始值是否匹配任一已接受散列。
      *
-     * @param raw      原始值
+     * @param raw 原始值
      * @param expected 已存散列
      * @return 是否匹配
      */

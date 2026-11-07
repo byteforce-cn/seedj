@@ -1,28 +1,31 @@
 package cn.byteforce.seedj.domain.support;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/**
- * 聚合测试期断言：命令后的状态必须与事件重放的状态一致。
- */
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+/** 聚合测试期断言：命令后的状态必须与事件重放的状态一致。 */
 class AggregateAssertionsTest {
 
     @Test
     @DisplayName("状态一致时静默通过")
     void passesWhenStatesMatch() {
-        assertThatCode(() -> AggregateAssertions.assertReplayable("frozen", "frozen",
-                value -> value)).doesNotThrowAnyException();
+        assertThatCode(
+                        () ->
+                                AggregateAssertions.assertReplayable(
+                                        "frozen", "frozen", value -> value))
+                .doesNotThrowAnyException();
     }
 
     @Test
     @DisplayName("状态不一致时给出修复指引")
     void failsWhenStatesDiffer() {
-        assertThatThrownBy(() -> AggregateAssertions.assertReplayable("frozen", "unfrozen",
-                value -> value))
+        assertThatThrownBy(
+                        () ->
+                                AggregateAssertions.assertReplayable(
+                                        "frozen", "unfrozen", value -> value))
                 .isInstanceOf(AssertionError.class)
                 .hasMessageContaining("live    : frozen")
                 .hasMessageContaining("replayed: unfrozen")

@@ -2,16 +2,14 @@ package cn.byteforce.seedj.core.clock;
 
 import cn.byteforce.seedj.core.clock.spi.GlobalSequencer;
 import cn.byteforce.seedj.core.clock.spi.HybridStateStore;
-
 import java.time.Instant;
 import java.util.Objects;
 
 /**
  * 混合逻辑时钟实现。
  *
- * <p>在标准 HLC 本地事件算法基础上，强制 {@link #now()} 返回的物理部分严格递增：
- * 若本次 HLC 物理值不大于上次已返回值，则推进到上次值 +1 微秒并重置逻辑计数器。
- * 这样既满足 {@code superseded_at > recorded_at}，又保留跨节点合并能力。</p>
+ * <p>在标准 HLC 本地事件算法基础上，强制 {@link #now()} 返回的物理部分严格递增： 若本次 HLC 物理值不大于上次已返回值，则推进到上次值 +1 微秒并重置逻辑计数器。
+ * 这样既满足 {@code superseded_at > recorded_at}，又保留跨节点合并能力。
  */
 final class HybridClockImpl implements HybridClock {
 
@@ -26,8 +24,8 @@ final class HybridClockImpl implements HybridClock {
     private long lastEmittedMicros;
     private long lastPersistedMicros;
 
-    HybridClockImpl(String nodeId, Clock physical,
-                    HybridStateStore stateStore, GlobalSequencer sequencer) {
+    HybridClockImpl(
+            String nodeId, Clock physical, HybridStateStore stateStore, GlobalSequencer sequencer) {
         this.nodeId = Objects.requireNonNull(nodeId, "nodeId");
         this.physical = Objects.requireNonNull(physical, "physical");
         this.stateStore = Objects.requireNonNull(stateStore, "stateStore");

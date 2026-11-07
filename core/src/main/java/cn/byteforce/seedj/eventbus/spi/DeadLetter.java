@@ -1,13 +1,10 @@
 package cn.byteforce.seedj.eventbus.spi;
 
 import cn.byteforce.seedj.eventbus.EventMessage;
-
 import java.time.Instant;
 import java.util.Objects;
 
-/**
- * 一条进入死信的消息。
- */
+/** 一条进入死信的消息。 */
 public record DeadLetter(
         String id,
         String topic,

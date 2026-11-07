@@ -3,14 +3,12 @@ package cn.byteforce.seedj.infra.jdbc.cqrs;
 import cn.byteforce.seedj.core.InfrastructureCapability;
 import cn.byteforce.seedj.core.Migration;
 import cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner;
-
 import java.util.List;
 
 /**
  * 保证 {@code command_record} 表与索引一定存在。
  *
- * <p>由 {@code InfrastructureInitializer} 在启动期调用；迁移失败阻断启动，
- * 而不是等到第一条命令才报错。</p>
+ * <p>由 {@code InfrastructureInitializer} 在启动期调用；迁移失败阻断启动， 而不是等到第一条命令才报错。
  *
  * @author ByteForce
  * @since 1.0.0

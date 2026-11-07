@@ -1,17 +1,14 @@
 package cn.byteforce.seedj.starter.eventbus;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-/**
- * {@code seedj.eventbus.*} 配置默认值与 setter 绑定（Spring 绑定只走 setter，默认值必须可预期）。
- */
+/** {@code seedj.eventbus.*} 配置默认值与 setter 绑定（Spring 绑定只走 setter，默认值必须可预期）。 */
 class EventBusPropertiesTest {
 
     @Test

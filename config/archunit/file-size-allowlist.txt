@@ -1,3 +1,10 @@
 # >600 行主源码文件：T3.5 拆分后清空。
 # 格式：相对仓库根的路径
 core/src/main/java/cn/byteforce/seedj/read/ReadGateway.java
+# 格式化（google-java-format AOSP）后越过 600 行；待拆分。
+core/src/main/java/cn/byteforce/seedj/cqrs/CommandRuntime.java
+core/src/main/java/cn/byteforce/seedj/module/ObjectModules.java
+seedj-iam-starter/src/main/java/cn/byteforce/seedj/starter/iam/config/IamServerAutoConfiguration.java
+seedj-infra-local/src/main/java/cn/byteforce/seedj/infra/local/eventbus/FileEventBusTransport.java
+seedj-infra-local/src/main/java/cn/byteforce/seedj/infra/local/transit/BcTransitProvider.java
+seedj-workflow-local/src/main/java/cn/byteforce/seedj/infra/local/workflow/InMemoryWorkflowActions.java

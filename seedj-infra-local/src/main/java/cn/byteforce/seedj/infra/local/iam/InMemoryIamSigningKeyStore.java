@@ -3,7 +3,6 @@ package cn.byteforce.seedj.infra.local.iam;
 import cn.byteforce.seedj.iam.IamSigningKey;
 import cn.byteforce.seedj.iam.spi.IamSigningKeyStore;
 import cn.byteforce.seedj.id.IdGenerator;
-
 import java.math.BigInteger;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -15,8 +14,8 @@ import java.util.Base64;
 import java.util.List;
 
 /**
- * In-memory RSA signing keys. Not persistent: every restart creates a new active
- * key, which invalidates previously issued tokens. Use the JDBC store in production.
+ * In-memory RSA signing keys. Not persistent: every restart creates a new active key, which
+ * invalidates previously issued tokens. Use the JDBC store in production.
  */
 public class InMemoryIamSigningKeyStore implements IamSigningKeyStore {
 
@@ -68,28 +67,52 @@ public class InMemoryIamSigningKeyStore implements IamSigningKeyStore {
             String kid = idGenerator.id();
             String publicJwk = publicJwk(kid, publicKey);
             String privateJwk = privateJwk(kid, publicKey, privateKey);
-            return new IamSigningKey(kid, "RS256", publicJwk, privateJwk, true,
-                    Instant.now(), null);
+            return new IamSigningKey(
+                    kid, "RS256", publicJwk, privateJwk, true, Instant.now(), null);
         } catch (Exception e) {
             throw new IllegalStateException("unable to generate RSA signing key", e);
         }
     }
 
     private static String publicJwk(String kid, RSAPublicKey key) {
-        return "{\"kty\":\"RSA\",\"kid\":\"" + kid + "\",\"use\":\"sig\",\"alg\":\"RS256\","
-                + "\"n\":\"" + b64(key.getModulus()) + "\",\"e\":\"" + b64(key.getPublicExponent()) + "\"}";
+        return "{\"kty\":\"RSA\",\"kid\":\""
+                + kid
+                + "\",\"use\":\"sig\",\"alg\":\"RS256\","
+                + "\"n\":\""
+                + b64(key.getModulus())
+                + "\",\"e\":\""
+                + b64(key.getPublicExponent())
+                + "\"}";
     }
 
     private static String privateJwk(String kid, RSAPublicKey publicKey, RSAPrivateCrtKey key) {
-        return "{\"kty\":\"RSA\",\"kid\":\"" + kid + "\",\"use\":\"sig\",\"alg\":\"RS256\","
-                + "\"n\":\"" + b64(publicKey.getModulus()) + "\","
-                + "\"e\":\"" + b64(publicKey.getPublicExponent()) + "\","
-                + "\"d\":\"" + b64(key.getPrivateExponent()) + "\","
-                + "\"p\":\"" + b64(key.getPrimeP()) + "\","
-                + "\"q\":\"" + b64(key.getPrimeQ()) + "\","
-                + "\"dp\":\"" + b64(key.getPrimeExponentP()) + "\","
-                + "\"dq\":\"" + b64(key.getPrimeExponentQ()) + "\","
-                + "\"qi\":\"" + b64(key.getCrtCoefficient()) + "\"}";
+        return "{\"kty\":\"RSA\",\"kid\":\""
+                + kid
+                + "\",\"use\":\"sig\",\"alg\":\"RS256\","
+                + "\"n\":\""
+                + b64(publicKey.getModulus())
+                + "\","
+                + "\"e\":\""
+                + b64(publicKey.getPublicExponent())
+                + "\","
+                + "\"d\":\""
+                + b64(key.getPrivateExponent())
+                + "\","
+                + "\"p\":\""
+                + b64(key.getPrimeP())
+                + "\","
+                + "\"q\":\""
+                + b64(key.getPrimeQ())
+                + "\","
+                + "\"dp\":\""
+                + b64(key.getPrimeExponentP())
+                + "\","
+                + "\"dq\":\""
+                + b64(key.getPrimeExponentQ())
+                + "\","
+                + "\"qi\":\""
+                + b64(key.getCrtCoefficient())
+                + "\"}";
     }
 
     private static String b64(BigInteger value) {

@@ -2,7 +2,6 @@ package cn.byteforce.seedj.domain;
 
 import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;
-
 import java.util.List;
 import java.util.Objects;
 import java.util.regex.Pattern;
@@ -10,8 +9,7 @@ import java.util.regex.Pattern;
 /**
  * 受限列表过滤器 AST：只允许 schema 声明的可过滤字段与参数化值。
  *
- * <p>存储实现负责按 {@link FieldType} 转换值并生成占位符；未知/不可过滤字段
- * 一律抛无效载荷，不拼接进 SQL。</p>
+ * <p>存储实现负责按 {@link FieldType} 转换值并生成占位符；未知/不可过滤字段 一律抛无效载荷，不拼接进 SQL。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -48,7 +46,7 @@ public sealed interface TemporalFilter {
     /**
      * 属于集合。
      *
-     * @param field  字段名
+     * @param field 字段名
      * @param values 值集合
      */
     record In(String field, List<?> values) implements TemporalFilter {
@@ -57,9 +55,12 @@ public sealed interface TemporalFilter {
             Objects.requireNonNull(values, "values");
             values = values.stream().filter(Objects::nonNull).toList();
             if (values.size() > ScopePredicates.MAX_IN_VALUES) {
-                throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
-                        "in filter supports at most " + ScopePredicates.MAX_IN_VALUES
-                                + " values, got: " + values.size());
+                throw new ContractException(
+                        ContractErrorCode.INVALID_PAYLOAD,
+                        "in filter supports at most "
+                                + ScopePredicates.MAX_IN_VALUES
+                                + " values, got: "
+                                + values.size());
             }
         }
     }
@@ -134,15 +135,15 @@ public sealed interface TemporalFilter {
     /**
      * SQL LIKE 模式（{@code %} / {@code _}）。
      *
-     * @param field   字段名
+     * @param field 字段名
      * @param pattern 模式
      */
     record Like(String field, String pattern) implements TemporalFilter {
         public Like {
             requireField(field);
             if (pattern == null || pattern.isBlank()) {
-                throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
-                        "like filter pattern is required");
+                throw new ContractException(
+                        ContractErrorCode.INVALID_PAYLOAD, "like filter pattern is required");
             }
         }
     }
@@ -190,8 +191,8 @@ public sealed interface TemporalFilter {
 
     private static void requireField(String field) {
         if (field == null || !FIELD.matcher(field).matches()) {
-            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
-                    "illegal filter field: " + field);
+            throw new ContractException(
+                    ContractErrorCode.INVALID_PAYLOAD, "illegal filter field: " + field);
         }
     }
 }

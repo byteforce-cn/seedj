@@ -3,7 +3,6 @@ package cn.byteforce.seedj.cqrs;
 import cn.byteforce.seedj.domain.AppendRequest;
 import cn.byteforce.seedj.domain.AppendResult;
 import cn.byteforce.seedj.domain.event.CommandEvent;
-
 import java.util.List;
 import java.util.UUID;
 
@@ -28,7 +27,7 @@ public interface CommandHandler<C> {
      * 在锁内、事务内决定追加请求。
      *
      * @param command 命令载荷
-     * @param ctx     执行上下文
+     * @param ctx 执行上下文
      * @return 追加请求
      */
     AppendRequest decide(C command, CommandContext ctx);
@@ -37,8 +36,8 @@ public interface CommandHandler<C> {
      * 本次命令产生的事件。
      *
      * @param command 命令载荷
-     * @param result  追加结果
-     * @param ctx     执行上下文
+     * @param result 追加结果
+     * @param ctx 执行上下文
      * @return 事件列表
      */
     default List<CommandEvent> events(C command, AppendResult result, CommandContext ctx) {

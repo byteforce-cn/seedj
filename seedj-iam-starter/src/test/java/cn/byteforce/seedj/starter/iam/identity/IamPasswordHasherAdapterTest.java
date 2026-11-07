@@ -1,17 +1,18 @@
 package cn.byteforce.seedj.starter.iam.identity;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import cn.byteforce.seedj.iam.spi.IamPasswordHasher;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.NoOpPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 class IamPasswordHasherAdapterTest {
 
-    private final IamPasswordHasher delegating = new IamPasswordHasherAdapter(
-            PasswordEncoderFactories.createDelegatingPasswordEncoder());
+    private final IamPasswordHasher delegating =
+            new IamPasswordHasherAdapter(
+                    PasswordEncoderFactories.createDelegatingPasswordEncoder());
 
     @Test
     void encodesAndMatchesThroughTheDelegatingEncoder() {

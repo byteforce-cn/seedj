@@ -1,16 +1,19 @@
 package cn.byteforce.seedj.iam;
 
-
 import java.util.List;
 import java.util.Objects;
 
 /**
- * Small typed ABAC expression AST. It deliberately has no scripting, reflection,
- * or method invocation; extending it requires a code change and a review.
+ * Small typed ABAC expression AST. It deliberately has no scripting, reflection, or method
+ * invocation; extending it requires a code change and a review.
  */
 public sealed interface PolicyCondition
-        permits PolicyCondition.Always, PolicyCondition.And, PolicyCondition.Or,
-                PolicyCondition.Not, PolicyCondition.Compare, PolicyCondition.Exists {
+        permits PolicyCondition.Always,
+                PolicyCondition.And,
+                PolicyCondition.Or,
+                PolicyCondition.Not,
+                PolicyCondition.Compare,
+                PolicyCondition.Exists {
 
     /** Matches everything; used by policies with no condition. */
     enum Always implements PolicyCondition {

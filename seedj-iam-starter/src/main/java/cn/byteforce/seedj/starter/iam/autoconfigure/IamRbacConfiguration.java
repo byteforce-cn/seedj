@@ -8,8 +8,10 @@ import org.springframework.context.annotation.Import;
 
 /** RBAC management API; the claim mapping itself is always active. */
 @Configuration(proxyBeanMethods = false)
-@ConditionalOnProperty(prefix = "seedj.iam.rbac", name = "enabled",
-        havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(
+        prefix = "seedj.iam.rbac",
+        name = "enabled",
+        havingValue = "true",
+        matchIfMissing = true)
 @Import({IamRbacAdminController.class, IamJwkAdminController.class})
-public class IamRbacConfiguration {
-}
+public class IamRbacConfiguration {}

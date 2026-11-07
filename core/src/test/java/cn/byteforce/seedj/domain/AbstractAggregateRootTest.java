@@ -1,18 +1,15 @@
 package cn.byteforce.seedj.domain;
 
-import cn.byteforce.seedj.domain.event.DomainEvent;
-import cn.byteforce.seedj.domain.event.EventApplier;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
-import java.util.List;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/**
- * 聚合根：raise 绑定状态与事件、replay 只改状态、版本与乐观锁基准。
- */
+import cn.byteforce.seedj.domain.event.DomainEvent;
+import cn.byteforce.seedj.domain.event.EventApplier;
+import java.util.List;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+/** 聚合根：raise 绑定状态与事件、replay 只改状态、版本与乐观锁基准。 */
 class AbstractAggregateRootTest {
 
     @Test
@@ -139,20 +136,19 @@ class AbstractAggregateRootTest {
 
         tally.assertAllEventsHandled(TallyEvent.class);
 
-        assertThat(cn.byteforce.seedj.domain.event.EventDispatch
-                .missingHandlers(Tally.class, TallyEvent.class)).isEmpty();
+        assertThat(
+                        cn.byteforce.seedj.domain.event.EventDispatch.missingHandlers(
+                                Tally.class, TallyEvent.class))
+                .isEmpty();
     }
 
     // ---------------------------------------------------------------- fixtures
 
-    sealed interface OrderEvent extends DomainEvent permits OrderPlaced, OrderCancelled {
-    }
+    sealed interface OrderEvent extends DomainEvent permits OrderPlaced, OrderCancelled {}
 
-    static final class OrderPlaced implements OrderEvent {
-    }
+    static final class OrderPlaced implements OrderEvent {}
 
-    static final class OrderCancelled implements OrderEvent {
-    }
+    static final class OrderCancelled implements OrderEvent {}
 
     static final class Order extends AbstractAggregateRoot<String>
             implements EventApplier<OrderEvent> {
@@ -161,8 +157,7 @@ class AbstractAggregateRootTest {
             super(id);
         }
 
-        protected void apply(OrderPlaced event) {
-        }
+        protected void apply(OrderPlaced event) {}
     }
 
     static final class Incremented implements DomainEvent {
@@ -174,17 +169,13 @@ class AbstractAggregateRootTest {
         }
     }
 
-    static final class Cleared implements DomainEvent {
-    }
+    static final class Cleared implements DomainEvent {}
 
-    sealed interface TallyEvent extends DomainEvent permits Started, Stopped {
-    }
+    sealed interface TallyEvent extends DomainEvent permits Started, Stopped {}
 
-    static final class Started implements TallyEvent {
-    }
+    static final class Started implements TallyEvent {}
 
-    static final class Stopped implements TallyEvent {
-    }
+    static final class Stopped implements TallyEvent {}
 
     static final class Tally extends AbstractAggregateRoot<String>
             implements EventApplier<TallyEvent> {
@@ -193,11 +184,9 @@ class AbstractAggregateRootTest {
             super(id);
         }
 
-        protected void apply(Started event) {
-        }
+        protected void apply(Started event) {}
 
-        protected void apply(Stopped event) {
-        }
+        protected void apply(Stopped event) {}
     }
 
     static final class Counter extends AbstractAggregateRoot<String>
@@ -223,6 +212,5 @@ class AbstractAggregateRootTest {
             }
             total += event.delta;
         }
-
     }
 }

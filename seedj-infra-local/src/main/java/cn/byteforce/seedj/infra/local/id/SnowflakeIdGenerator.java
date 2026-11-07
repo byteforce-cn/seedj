@@ -3,23 +3,23 @@ package cn.byteforce.seedj.infra.local.id;
 import cn.byteforce.seedj.id.IdErrorCode;
 import cn.byteforce.seedj.id.IdException;
 import cn.byteforce.seedj.id.IdGenerator;
-
 import java.util.function.LongSupplier;
 
 /**
  * 雪花。
  *
  * <p>雪花布局（64 位正数）：
+ *
  * <pre>
  * 1 位符号(0) | 41 位毫秒时间戳（相对 epoch） | 10 位节点 | 12 位序列
  * </pre>
+ *
  * 单节点每毫秒 4096 个，可用约 69 年。
  *
  * <p>UUIDv7 布局见 RFC 9562 §5.7：48 位毫秒 + 版本(7) + 12 位序列 + 变体(10) + 62 位随机。
  *
- * <p>时钟回拨处理：回拨 ≤ {@value #MAX_BACKWARD_MS}ms 时冻结在上一毫秒继续发号
- * （宁可"借用"未来几毫秒，也不产生重复 ID）；超过阈值抛
- * {@link IdErrorCode#CLOCK_BACKWARDS}，由运维介入。
+ * <p>时钟回拨处理：回拨 ≤ {@value #MAX_BACKWARD_MS}ms 时冻结在上一毫秒继续发号 （宁可"借用"未来几毫秒，也不产生重复 ID）；超过阈值抛 {@link
+ * IdErrorCode#CLOCK_BACKWARDS}，由运维介入。
  */
 public class SnowflakeIdGenerator implements IdGenerator<Long> {
 
@@ -50,7 +50,8 @@ public class SnowflakeIdGenerator implements IdGenerator<Long> {
 
     SnowflakeIdGenerator(long nodeId, long epochMillis, LongSupplier clock) {
         if (nodeId < 0 || nodeId > MAX_NODE_ID) {
-            throw new IdException(IdErrorCode.INVALID_NODE_ID,
+            throw new IdException(
+                    IdErrorCode.INVALID_NODE_ID,
                     "nodeId must be in [0, " + MAX_NODE_ID + "]: " + nodeId);
         }
         this.nodeId = nodeId;
@@ -65,8 +66,8 @@ public class SnowflakeIdGenerator implements IdGenerator<Long> {
         if (now < lastMillis) {
             long backward = lastMillis - now;
             if (backward > MAX_BACKWARD_MS) {
-                throw new IdException(IdErrorCode.CLOCK_BACKWARDS,
-                        "clock moved backwards by " + backward + "ms");
+                throw new IdException(
+                        IdErrorCode.CLOCK_BACKWARDS, "clock moved backwards by " + backward + "ms");
             }
             now = lastMillis;
         }

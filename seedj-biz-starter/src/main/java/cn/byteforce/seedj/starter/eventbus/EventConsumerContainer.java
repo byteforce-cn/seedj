@@ -7,18 +7,12 @@ import cn.byteforce.seedj.eventbus.EventBusException;
 import cn.byteforce.seedj.eventbus.EventEnvelope;
 import cn.byteforce.seedj.eventbus.EventSubscriber;
 import cn.byteforce.seedj.eventbus.EventSubscription;
+import cn.byteforce.seedj.eventbus.spi.DeliveryFailure;
 import cn.byteforce.seedj.eventbus.spi.EventConsumerStore;
 import cn.byteforce.seedj.eventbus.spi.EventPayloadSerializer;
-import cn.byteforce.seedj.eventbus.spi.DeliveryFailure;
 import cn.byteforce.seedj.eventbus.spi.PollRequest;
 import cn.byteforce.seedj.eventbus.spi.ReceivedEvent;
 import cn.byteforce.seedj.starter.observability.TracePropagation;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.InitializingBean;
-import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.core.env.Environment;
-
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.time.Duration;
@@ -32,17 +26,22 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.core.env.Environment;
 
 /**
- * 消费者容器：发现 {@link EventSubscriber} bean，按订阅轮询
- * {@link EventConsumerStore}，反序列化后调用业务处理器。
+ * 消费者容器：发现 {@link EventSubscriber} bean，按订阅轮询 {@link EventConsumerStore}，反序列化后调用业务处理器。
  *
  * <p>投递语义：
+ *
  * <ul>
- *   <li>正常返回 → ack；</li>
- *   <li>异常且可重试且未超过 max-attempts → retry（带退避）；</li>
- *   <li>不可重试或超过 max-attempts → dead-letter；</li>
- *   <li>没有 store / serializer 时只打日志并空转，不阻断启动。</li>
+ *   <li>正常返回 → ack；
+ *   <li>异常且可重试且未超过 max-attempts → retry（带退避）；
+ *   <li>不可重试或超过 max-attempts → dead-letter；
+ *   <li>没有 store / serializer 时只打日志并空转，不阻断启动。
  * </ul>
  *
  * <p>自己持有调度线程：业务应用不需要 {@code @EnableScheduling}。
@@ -67,13 +66,14 @@ public class EventConsumerContainer implements InitializingBean, AutoCloseable {
     private volatile EventConsumerStore store;
     private volatile EventPayloadSerializer serializer;
 
-    public EventConsumerContainer(ObjectProvider<EventConsumerStore> stores,
-                                  ObjectProvider<EventSubscriber<?>> subscribers,
-                                  ObjectProvider<EventPayloadSerializer> serializers,
-                                  EventBusProperties properties,
-                                  EventBusMetrics metrics,
-                                  TracePropagation tracing,
-                                  Environment environment) {
+    public EventConsumerContainer(
+            ObjectProvider<EventConsumerStore> stores,
+            ObjectProvider<EventSubscriber<?>> subscribers,
+            ObjectProvider<EventPayloadSerializer> serializers,
+            EventBusProperties properties,
+            EventBusMetrics metrics,
+            TracePropagation tracing,
+            Environment environment) {
         this.stores = stores;
         this.subscribers = subscribers;
         this.serializers = serializers;
@@ -111,25 +111,32 @@ public class EventConsumerContainer implements InitializingBean, AutoCloseable {
             EventSubscription subscription = subscriber.subscription();
             String group = resolveGroup(subscription);
             Class<? extends DomainEvent> eventType = resolveEventType(subscriber.getClass());
-            runtimes.add(new SubscriptionRuntime(subscriber, eventType, group,
-                    subscription.topics(), subscription.concurrency()));
+            runtimes.add(
+                    new SubscriptionRuntime(
+                            subscriber,
+                            eventType,
+                            group,
+                            subscription.topics(),
+                            subscription.concurrency()));
             workerCount += subscription.concurrency();
         }
 
-        this.workers = Executors.newFixedThreadPool(Math.max(1, workerCount),
-                daemon("seedj-eventbus-consumer-worker"));
-        this.scheduler = Executors.newSingleThreadScheduledExecutor(
-                daemon("seedj-eventbus-consumer"));
+        this.workers =
+                Executors.newFixedThreadPool(
+                        Math.max(1, workerCount), daemon("seedj-eventbus-consumer-worker"));
+        this.scheduler =
+                Executors.newSingleThreadScheduledExecutor(daemon("seedj-eventbus-consumer"));
 
         long interval = Math.max(50, properties.getConsumer().getPollInterval().toMillis());
         scheduler.scheduleWithFixedDelay(this::pollAll, interval, interval, TimeUnit.MILLISECONDS);
-        log.info("seedj eventbus consumer started: subscriptions={} workers={} poll={}ms",
-                runtimes.size(), workerCount, interval);
+        log.info(
+                "seedj eventbus consumer started: subscriptions={} workers={} poll={}ms",
+                runtimes.size(),
+                workerCount,
+                interval);
     }
 
-    /**
-     * 执行一轮拉取。public 以便测试直接驱动。
-     */
+    /** 执行一轮拉取。public 以便测试直接驱动。 */
     public void pollAll() {
         if (closed.get() || store == null || serializer == null) {
             return;
@@ -145,8 +152,13 @@ public class EventConsumerContainer implements InitializingBean, AutoCloseable {
             int limit = Math.min(properties.getConsumer().getBatchSize(), available);
             List<ReceivedEvent> events;
             try {
-                events = store.poll(new PollRequest(runtime.group, runtime.topics, limit,
-                        properties.getConsumer().getLease()));
+                events =
+                        store.poll(
+                                new PollRequest(
+                                        runtime.group,
+                                        runtime.topics,
+                                        limit,
+                                        properties.getConsumer().getLease()));
             } catch (RuntimeException e) {
                 metrics.pollFailed();
                 log.error("seedj eventbus consumer poll failed for group {}", runtime.group, e);
@@ -170,21 +182,25 @@ public class EventConsumerContainer implements InitializingBean, AutoCloseable {
 
     private void dispatchInScope(SubscriptionRuntime runtime, ReceivedEvent received) {
         try {
-            Object payload = serializer.deserialize(received.message().payload(),
-                    runtime.eventType);
+            Object payload =
+                    serializer.deserialize(received.message().payload(), runtime.eventType);
             if (!runtime.eventType.isInstance(payload)) {
-                throw new EventBusException(EventBusErrorCode.SERIALIZATION_FAILED,
-                        "payload deserialized to " + payload.getClass().getName()
-                                + " but subscriber expects " + runtime.eventType.getName());
+                throw new EventBusException(
+                        EventBusErrorCode.SERIALIZATION_FAILED,
+                        "payload deserialized to "
+                                + payload.getClass().getName()
+                                + " but subscriber expects "
+                                + runtime.eventType.getName());
             }
-            EventEnvelope<?> envelope = new EventEnvelope<>(
-                    (DomainEvent) payload,
-                    received.message().eventId(),
-                    received.message().topic(),
-                    runtime.group,
-                    received.attempts(),
-                    received.message().occurredAt(),
-                    received.message().headers());
+            EventEnvelope<?> envelope =
+                    new EventEnvelope<>(
+                            (DomainEvent) payload,
+                            received.message().eventId(),
+                            received.message().topic(),
+                            runtime.group,
+                            received.attempts(),
+                            received.message().occurredAt(),
+                            received.message().headers());
             runtime.invoke(envelope);
             store.ack(received);
             metrics.consumed();
@@ -195,30 +211,40 @@ public class EventConsumerContainer implements InitializingBean, AutoCloseable {
         }
     }
 
-    private void onFailure(SubscriptionRuntime runtime, ReceivedEvent received, RuntimeException raw) {
+    private void onFailure(
+            SubscriptionRuntime runtime, ReceivedEvent received, RuntimeException raw) {
         Throwable error = unwrap(raw);
         boolean retryable = isRetryable(error);
         boolean exhausted = received.attempts() >= properties.getConsumer().getMaxAttempts();
-        DeliveryFailure failure = new DeliveryFailure(
-                error.getClass().getName(), error.getMessage(), retryable);
+        DeliveryFailure failure =
+                new DeliveryFailure(error.getClass().getName(), error.getMessage(), retryable);
         try {
             if (!retryable || exhausted) {
                 store.deadLetter(received, failure);
                 metrics.deadLettered();
-                log.warn("dead-lettered event {} (group={}, attempts={}): {}",
-                        received.message().eventId(), runtime.group, received.attempts(),
+                log.warn(
+                        "dead-lettered event {} (group={}, attempts={}): {}",
+                        received.message().eventId(),
+                        runtime.group,
+                        received.attempts(),
                         error.getMessage());
                 return;
             }
             Duration delay = backoff(received.attempts());
             store.retry(received, delay, failure);
             metrics.consumerFailed(true);
-            log.warn("retry event {} (group={}, attempts={}) in {}ms: {}",
-                    received.message().eventId(), runtime.group, received.attempts(),
-                    delay.toMillis(), error.getMessage());
+            log.warn(
+                    "retry event {} (group={}, attempts={}) in {}ms: {}",
+                    received.message().eventId(),
+                    runtime.group,
+                    received.attempts(),
+                    delay.toMillis(),
+                    error.getMessage());
         } catch (RuntimeException storeError) {
-            log.error("cannot record consumer failure for event {}",
-                    received.message().eventId(), storeError);
+            log.error(
+                    "cannot record consumer failure for event {}",
+                    received.message().eventId(),
+                    storeError);
         }
     }
 
@@ -249,7 +275,7 @@ public class EventConsumerContainer implements InitializingBean, AutoCloseable {
     private static Throwable unwrap(Throwable error) {
         Throwable current = error;
         while ((current instanceof java.util.concurrent.CompletionException
-                || current instanceof java.util.concurrent.ExecutionException)
+                        || current instanceof java.util.concurrent.ExecutionException)
                 && current.getCause() != null) {
             current = current.getCause();
         }
@@ -263,12 +289,11 @@ public class EventConsumerContainer implements InitializingBean, AutoCloseable {
         return !(error instanceof IllegalArgumentException);
     }
 
-    /**
-     * 从 {@code EventSubscriber<E>} 解析具体事件类型；支持父类/接口间接实现。
-     */
+    /** 从 {@code EventSubscriber<E>} 解析具体事件类型；支持父类/接口间接实现。 */
     static Class<? extends DomainEvent> resolveEventType(Class<?> subscriberClass) {
-        for (Class<?> type = subscriberClass; type != null && type != Object.class;
-             type = type.getSuperclass()) {
+        for (Class<?> type = subscriberClass;
+                type != null && type != Object.class;
+                type = type.getSuperclass()) {
             Class<? extends DomainEvent> found = familyIn(type.getGenericInterfaces());
             if (found == null) {
                 found = familyInSuperclass(type.getGenericSuperclass());
@@ -277,8 +302,10 @@ public class EventConsumerContainer implements InitializingBean, AutoCloseable {
                 return found;
             }
         }
-        throw new EventBusException(EventBusErrorCode.INVALID_SUBSCRIBER,
-                "cannot resolve event type from " + subscriberClass.getName()
+        throw new EventBusException(
+                EventBusErrorCode.INVALID_SUBSCRIBER,
+                "cannot resolve event type from "
+                        + subscriberClass.getName()
                         + "; implement EventSubscriber<ConcreteEvent> with a concrete type");
     }
 
@@ -310,7 +337,8 @@ public class EventConsumerContainer implements InitializingBean, AutoCloseable {
             if (raw == null) {
                 continue;
             }
-            if (raw == EventSubscriber.class && candidate instanceof ParameterizedType parameterized) {
+            if (raw == EventSubscriber.class
+                    && candidate instanceof ParameterizedType parameterized) {
                 Type argument = parameterized.getActualTypeArguments()[0];
                 if (argument instanceof Class<?> eventType
                         && DomainEvent.class.isAssignableFrom(eventType)) {
@@ -377,11 +405,12 @@ public class EventConsumerContainer implements InitializingBean, AutoCloseable {
         private final Set<String> topics;
         private final Semaphore permits;
 
-        private SubscriptionRuntime(EventSubscriber<?> subscriber,
-                                    Class<? extends DomainEvent> eventType,
-                                    String group,
-                                    Set<String> topics,
-                                    int concurrency) {
+        private SubscriptionRuntime(
+                EventSubscriber<?> subscriber,
+                Class<? extends DomainEvent> eventType,
+                String group,
+                Set<String> topics,
+                int concurrency) {
             this.subscriber = subscriber;
             this.eventType = eventType;
             this.group = group;

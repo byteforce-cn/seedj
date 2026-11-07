@@ -1,22 +1,19 @@
 package cn.byteforce.seedj.core.clock;
 
-import cn.byteforce.seedj.core.clock.spi.HybridStateStore;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import cn.byteforce.seedj.core.clock.spi.HybridStateStore;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
-/**
- * 混合逻辑时钟：单实例严格递增、回拨不倒退、跨节点合并与状态持久化。
- */
+/** 混合逻辑时钟：单实例严格递增、回拨不倒退、跨节点合并与状态持久化。 */
 class HybridClockImplTest {
 
     private static final Instant T0 = Instant.parse("2026-11-06T09:00:00Z");
@@ -77,8 +74,7 @@ class HybridClockImplTest {
     @DisplayName("构造期恢复的持久状态不会被回退覆盖")
     void restoredStateIsHonoured() {
         long persisted = micros(T0) + 60_000_000L;
-        HybridClock clock = Clocks.hybrid(NODE, new TestClock(T0),
-                restoredAt(persisted), null);
+        HybridClock clock = Clocks.hybrid(NODE, new TestClock(T0), restoredAt(persisted), null);
 
         assertThat(clock.nowTimestamp().physicalMicros()).isEqualTo(persisted + 1);
     }
@@ -146,9 +142,10 @@ class HybridClockImplTest {
 
         physical.advance(Duration.ofSeconds(2));
         clock.nowTimestamp();
-        assertThat(store.saved).containsExactly(
-                new HybridTimestamp(micros(T0), 0),
-                new HybridTimestamp(micros(T0) + 2_000_000L, 0));
+        assertThat(store.saved)
+                .containsExactly(
+                        new HybridTimestamp(micros(T0), 0),
+                        new HybridTimestamp(micros(T0) + 2_000_000L, 0));
 
         clock.nowTimestamp();
         assertThat(store.saved).hasSize(2);
@@ -184,8 +181,10 @@ class HybridClockImplTest {
     @Test
     @DisplayName("节点标识不可为空")
     void requiresNodeId() {
-        assertThatThrownBy(() -> Clocks.hybrid(null, new TestClock(T0),
-                new InMemoryStateStore(), null))
+        assertThatThrownBy(
+                        () ->
+                                Clocks.hybrid(
+                                        null, new TestClock(T0), new InMemoryStateStore(), null))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessageContaining("nodeId");
     }

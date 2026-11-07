@@ -1,17 +1,14 @@
 package cn.byteforce.seedj.audit;
 
-import org.junit.jupiter.api.Test;
-import tools.jackson.databind.json.JsonMapper;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.UUID;
+import org.junit.jupiter.api.Test;
+import tools.jackson.databind.json.JsonMapper;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-/**
- * {@link CanonicalHasher} 冻结向量与规范化规则测试（{@code hash-chain.spec.md §2/§3}）。
- */
+/** {@link CanonicalHasher} 冻结向量与规范化规则测试（{@code hash-chain.spec.md §2/§3}）。 */
 class CanonicalHasherTest {
 
     private static final JsonMapper MAPPER = JsonMapper.builder().build();
@@ -35,16 +32,19 @@ class CanonicalHasherTest {
     void frozenGenesisVectorCanonicalStringMatchesSpec() {
         String canonical = CanonicalHasher.canonicalString(genesisEntry());
 
-        assertThat(canonical).isEqualTo(String.join("\n",
-                "018f2e3a-1234-7000-8000-000000000001",
-                "1",
-                "2026-10-08T09:00:00.000000Z",
-                "018f2e3a-0000-7000-8000-000000000001",
-                "voucher.create",
-                "voucher",
-                "018f2e3a-9999-7000-8000-000000000002",
-                "{\"amount\":\"100.00\",\"currency\":\"CNY\"}",
-                "0000000000000000000000000000000000000000000000000000000000000000"));
+        assertThat(canonical)
+                .isEqualTo(
+                        String.join(
+                                "\n",
+                                "018f2e3a-1234-7000-8000-000000000001",
+                                "1",
+                                "2026-10-08T09:00:00.000000Z",
+                                "018f2e3a-0000-7000-8000-000000000001",
+                                "voucher.create",
+                                "voucher",
+                                "018f2e3a-9999-7000-8000-000000000002",
+                                "{\"amount\":\"100.00\",\"currency\":\"CNY\"}",
+                                "0000000000000000000000000000000000000000000000000000000000000000"));
     }
 
     @Test
@@ -63,11 +63,19 @@ class CanonicalHasherTest {
 
     @Test
     void emptyAndMissingPayloadBecomeEmptyObject() {
-        AuditEntry<UUID> entry = new AuditEntry<>(
-                UUID.fromString("018f2e3a-1234-7000-8000-000000000010"), 2L,
-                Instant.parse("2026-10-08T09:00:01Z"),
-                UUID.fromString("018f2e3a-0000-7000-8000-000000000010"), "a", "t", null,
-                null, null, CanonicalHasher.GENESIS_PREV_HASH, null);
+        AuditEntry<UUID> entry =
+                new AuditEntry<>(
+                        UUID.fromString("018f2e3a-1234-7000-8000-000000000010"),
+                        2L,
+                        Instant.parse("2026-10-08T09:00:01Z"),
+                        UUID.fromString("018f2e3a-0000-7000-8000-000000000010"),
+                        "a",
+                        "t",
+                        null,
+                        null,
+                        null,
+                        CanonicalHasher.GENESIS_PREV_HASH,
+                        null);
 
         String canonical = CanonicalHasher.canonicalString(entry);
 
@@ -78,9 +86,19 @@ class CanonicalHasherTest {
     @Test
     void prevHashAndUuidsAreLowercased() {
         UUID id = UUID.fromString("018F2E3A-1234-7000-8000-0000000000AB");
-        AuditEntry<UUID> entry = new AuditEntry<>(id, 3L, Instant.parse("2026-10-08T09:00:02Z"),
-                UUID.fromString("018F2E3A-0000-7000-8000-0000000000CD"), "a", "t", null, null,
-                null, "AB".repeat(32), null);
+        AuditEntry<UUID> entry =
+                new AuditEntry<>(
+                        id,
+                        3L,
+                        Instant.parse("2026-10-08T09:00:02Z"),
+                        UUID.fromString("018F2E3A-0000-7000-8000-0000000000CD"),
+                        "a",
+                        "t",
+                        null,
+                        null,
+                        null,
+                        "AB".repeat(32),
+                        null);
 
         String canonical = CanonicalHasher.canonicalString(entry);
 

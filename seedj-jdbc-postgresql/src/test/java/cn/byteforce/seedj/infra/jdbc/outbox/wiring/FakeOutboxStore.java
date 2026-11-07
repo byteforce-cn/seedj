@@ -6,7 +6,6 @@ import cn.byteforce.seedj.outbox.spi.ClaimToken;
 import cn.byteforce.seedj.outbox.spi.ClaimedRecord;
 import cn.byteforce.seedj.outbox.spi.OutboxFailure;
 import cn.byteforce.seedj.outbox.spi.OutboxStore;
-
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -14,9 +13,7 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 
-/**
- * relay 测试用的可控 store。
- */
+/** relay 测试用的可控 store。 */
 final class FakeOutboxStore implements OutboxStore {
 
     final List<ClaimedRecord> pending = new CopyOnWriteArrayList<>();
@@ -30,8 +27,13 @@ final class FakeOutboxStore implements OutboxStore {
     volatile boolean closed;
 
     void enqueue(String recordId, OutboxRecord record, Duration lease) {
-        pending.add(new ClaimedRecord(recordId, record, 1,
-                new ClaimToken(recordId, "lease-" + recordId, lease), Instant.now().plus(lease)));
+        pending.add(
+                new ClaimedRecord(
+                        recordId,
+                        record,
+                        1,
+                        new ClaimToken(recordId, "lease-" + recordId, lease),
+                        Instant.now().plus(lease)));
     }
 
     @Override
@@ -71,18 +73,15 @@ final class FakeOutboxStore implements OutboxStore {
     }
 
     @Override
-    public void retry(String recordId, String operator) {
-    }
+    public void retry(String recordId, String operator) {}
 
     @Override
-    public void discard(String recordId, String operator) {
-    }
+    public void discard(String recordId, String operator) {}
 
     @Override
     public void close() {
         closed = true;
     }
 
-    record FailureCall(ClaimToken token, OutboxFailure failure, Duration delay) {
-    }
+    record FailureCall(ClaimToken token, OutboxFailure failure, Duration delay) {}
 }

@@ -2,7 +2,6 @@ package cn.byteforce.seedj.infra.local.id;
 
 import cn.byteforce.seedj.id.IdErrorCode;
 import cn.byteforce.seedj.id.IdException;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -19,14 +18,15 @@ import java.util.concurrent.locks.ReentrantLock;
 /**
  * 多服务节点编号分配器：在共享状态文件里按 {@code next} 轮转分配 0..1023。
  *
- * <p>与 PKI / Transit 的状态文件同构：同机多个服务共享同一文件即可拿到互不相同的
- * 节点编号，避免雪花 ID 碰撞。显式配置了 {@code seedj.id.node-id} 时不走本类。
+ * <p>与 PKI / Transit 的状态文件同构：同机多个服务共享同一文件即可拿到互不相同的 节点编号，避免雪花 ID 碰撞。显式配置了 {@code seedj.id.node-id}
+ * 时不走本类。
  */
 final class NodeIdAllocator {
 
     static final int MAX_NODE_ID = (1 << 10) - 1;
 
-    private static final ConcurrentHashMap<Path, ReentrantLock> LOCAL_LOCKS = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<Path, ReentrantLock> LOCAL_LOCKS =
+            new ConcurrentHashMap<>();
     private static final String NEXT_KEY = "next";
 
     private final Path file;
@@ -41,16 +41,22 @@ final class NodeIdAllocator {
             try {
                 Files.createDirectories(parent);
             } catch (IOException e) {
-                throw new IdException(IdErrorCode.STATE_UNAVAILABLE,
-                        "cannot create node-id directory: " + parent, e);
+                throw new IdException(
+                        IdErrorCode.STATE_UNAVAILABLE,
+                        "cannot create node-id directory: " + parent,
+                        e);
             }
         }
 
         ReentrantLock localLock = LOCAL_LOCKS.computeIfAbsent(file, k -> new ReentrantLock());
         localLock.lock();
-        try (FileChannel channel = FileChannel.open(file,
-                StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE);
-             FileLock ignored = channel.lock()) {
+        try (FileChannel channel =
+                        FileChannel.open(
+                                file,
+                                StandardOpenOption.CREATE,
+                                StandardOpenOption.READ,
+                                StandardOpenOption.WRITE);
+                FileLock ignored = channel.lock()) {
 
             Properties props = new Properties();
             long size = channel.size();
@@ -64,11 +70,11 @@ final class NodeIdAllocator {
                 props.load(new ByteArrayInputStream(data));
             }
 
-            long next = props.containsKey(NEXT_KEY)
-                    ? Long.parseLong(props.getProperty(NEXT_KEY))
-                    : 0L;
+            long next =
+                    props.containsKey(NEXT_KEY) ? Long.parseLong(props.getProperty(NEXT_KEY)) : 0L;
             if (next > MAX_NODE_ID) {
-                throw new IdException(IdErrorCode.NODE_ID_EXHAUSTED,
+                throw new IdException(
+                        IdErrorCode.NODE_ID_EXHAUSTED,
                         "all node ids are in use, configure seedj.id.node-id explicitly");
             }
             int allocated = (int) next;
@@ -86,8 +92,8 @@ final class NodeIdAllocator {
             channel.force(true);
             return allocated;
         } catch (IOException e) {
-            throw new IdException(IdErrorCode.STATE_UNAVAILABLE,
-                    "cannot allocate node id from " + file, e);
+            throw new IdException(
+                    IdErrorCode.STATE_UNAVAILABLE, "cannot allocate node id from " + file, e);
         } finally {
             localLock.unlock();
         }

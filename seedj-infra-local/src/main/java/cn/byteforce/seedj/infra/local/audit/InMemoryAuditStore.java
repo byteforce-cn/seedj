@@ -3,15 +3,14 @@ package cn.byteforce.seedj.infra.local.audit;
 import cn.byteforce.seedj.audit.AuditEntry;
 import cn.byteforce.seedj.audit.CanonicalHasher;
 import cn.byteforce.seedj.audit.spi.AuditStore;
-
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * 内存审计存储：只用于开发与测试。
  *
- * <p>语义与 JDBC 实现一致：{@code nextSequenceAndPrevHash} 不消耗序号，
- * {@code updateHead} 才推进；回滚场景由调用方不调用 {@code updateHead} 表达。</p>
+ * <p>语义与 JDBC 实现一致：{@code nextSequenceAndPrevHash} 不消耗序号， {@code updateHead} 才推进；回滚场景由调用方不调用 {@code
+ * updateHead} 表达。
  */
 public final class InMemoryAuditStore implements AuditStore<String> {
 

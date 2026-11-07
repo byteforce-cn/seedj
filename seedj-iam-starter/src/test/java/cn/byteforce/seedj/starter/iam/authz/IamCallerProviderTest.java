@@ -1,6 +1,10 @@
 package cn.byteforce.seedj.starter.iam.authz;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import cn.byteforce.seedj.core.security.Caller;
+import java.time.Instant;
+import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -11,14 +15,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 
-import java.time.Instant;
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
-/**
- * IAM 宿主的 CallerProvider：从 SecurityContext 读取权限。
- */
+/** IAM 宿主的 CallerProvider：从 SecurityContext 读取权限。 */
 class IamCallerProviderTest {
 
     private final IamCallerProvider provider = new IamCallerProvider("default");
@@ -33,10 +30,14 @@ class IamCallerProviderTest {
     void mapsAuthoritiesAndHandlesAnonymous() {
         assertThat(provider.find()).isEmpty();
 
-        SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken("svc", "n/a",
-                        List.of(new SimpleGrantedAuthority("PERM_hr.attributes.read"),
-                                new SimpleGrantedAuthority("ROLE_internal"))));
+        SecurityContextHolder.getContext()
+                .setAuthentication(
+                        new UsernamePasswordAuthenticationToken(
+                                "svc",
+                                "n/a",
+                                List.of(
+                                        new SimpleGrantedAuthority("PERM_hr.attributes.read"),
+                                        new SimpleGrantedAuthority("ROLE_internal"))));
 
         Caller caller = provider.find().orElseThrow();
         assertThat(caller.username()).isEqualTo("svc");
@@ -47,8 +48,12 @@ class IamCallerProviderTest {
     @Test
     @DisplayName("匿名与非认证令牌都返回空")
     void anonymousAndUnauthenticatedAreEmpty() {
-        SecurityContextHolder.getContext().setAuthentication(new AnonymousAuthenticationToken(
-                "key", "anonymous", List.of(new SimpleGrantedAuthority("ROLE_ANONYMOUS"))));
+        SecurityContextHolder.getContext()
+                .setAuthentication(
+                        new AnonymousAuthenticationToken(
+                                "key",
+                                "anonymous",
+                                List.of(new SimpleGrantedAuthority("ROLE_ANONYMOUS"))));
         assertThat(provider.find()).isEmpty();
 
         UsernamePasswordAuthenticationToken unauthenticated =
@@ -61,9 +66,12 @@ class IamCallerProviderTest {
     @Test
     @DisplayName("GROUP_ 前缀转为组，缺省 amr/acr 使用默认值")
     void mapsGroupAuthoritiesWithDefaultAmr() {
-        SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken("svc", "n/a",
-                        List.of(new SimpleGrantedAuthority("GROUP_finance"))));
+        SecurityContextHolder.getContext()
+                .setAuthentication(
+                        new UsernamePasswordAuthenticationToken(
+                                "svc",
+                                "n/a",
+                                List.of(new SimpleGrantedAuthority("GROUP_finance"))));
 
         Caller caller = provider.find().orElseThrow();
 
@@ -76,20 +84,25 @@ class IamCallerProviderTest {
     @Test
     @DisplayName("JWT：user_id 覆盖主体，声明并入角色/权限/组/属性")
     void jwtClaimsExtendCaller() {
-        Jwt jwt = Jwt.withTokenValue("jwt-value")
-                .header("alg", "none")
-                .subject("alice")
-                .claim("user_id", "u-9")
-                .claim("roles", List.of("auditor"))
-                .claim("permissions", List.of("audit.read"))
-                .claim("groups", List.of("compliance"))
-                .claim("tenant", "acme")
-                .issuedAt(Instant.now())
-                .expiresAt(Instant.now().plusSeconds(60))
-                .build();
-        SecurityContextHolder.getContext().setAuthentication(new JwtAuthenticationToken(jwt,
-                List.of(new SimpleGrantedAuthority("ROLE_reader"),
-                        new SimpleGrantedAuthority("PERM_order.read"))));
+        Jwt jwt =
+                Jwt.withTokenValue("jwt-value")
+                        .header("alg", "none")
+                        .subject("alice")
+                        .claim("user_id", "u-9")
+                        .claim("roles", List.of("auditor"))
+                        .claim("permissions", List.of("audit.read"))
+                        .claim("groups", List.of("compliance"))
+                        .claim("tenant", "acme")
+                        .issuedAt(Instant.now())
+                        .expiresAt(Instant.now().plusSeconds(60))
+                        .build();
+        SecurityContextHolder.getContext()
+                .setAuthentication(
+                        new JwtAuthenticationToken(
+                                jwt,
+                                List.of(
+                                        new SimpleGrantedAuthority("ROLE_reader"),
+                                        new SimpleGrantedAuthority("PERM_order.read"))));
 
         Caller caller = provider.find().orElseThrow();
 
@@ -104,14 +117,17 @@ class IamCallerProviderTest {
     @Test
     @DisplayName("JWT 缺 user_id 时以 sub 作为主体")
     void jwtWithoutUserIdUsesSubject() {
-        Jwt jwt = Jwt.withTokenValue("jwt-value")
-                .header("alg", "none")
-                .subject("bob")
-                .issuedAt(Instant.now())
-                .expiresAt(Instant.now().plusSeconds(60))
-                .build();
-        SecurityContextHolder.getContext().setAuthentication(new JwtAuthenticationToken(jwt,
-                List.of(new SimpleGrantedAuthority("SCOPE_read"))));
+        Jwt jwt =
+                Jwt.withTokenValue("jwt-value")
+                        .header("alg", "none")
+                        .subject("bob")
+                        .issuedAt(Instant.now())
+                        .expiresAt(Instant.now().plusSeconds(60))
+                        .build();
+        SecurityContextHolder.getContext()
+                .setAuthentication(
+                        new JwtAuthenticationToken(
+                                jwt, List.of(new SimpleGrantedAuthority("SCOPE_read"))));
 
         Caller caller = provider.find().orElseThrow();
 

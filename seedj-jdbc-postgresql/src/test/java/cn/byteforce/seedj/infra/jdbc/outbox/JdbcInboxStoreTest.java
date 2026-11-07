@@ -1,5 +1,7 @@
 package cn.byteforce.seedj.infra.jdbc.outbox;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import cn.byteforce.seedj.core.Migration;
 import cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner;
 import cn.byteforce.seedj.outbox.OutboxRecord;
@@ -8,6 +10,11 @@ import cn.byteforce.seedj.outbox.spi.ClaimedRecord;
 import cn.byteforce.seedj.outbox.spi.InboxStatus;
 import cn.byteforce.seedj.outbox.spi.InboxStore;
 import cn.byteforce.seedj.outbox.spi.OutboxFailure;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -20,17 +27,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import java.time.Duration;
-import java.time.Instant;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
-/**
- * Inbox 幂等与 Outbox 死信状态。
- */
+/** Inbox 幂等与 Outbox 死信状态。 */
 @Testcontainers
 class JdbcInboxStoreTest {
 
@@ -48,12 +45,19 @@ class JdbcInboxStoreTest {
 
     @BeforeAll
     static void initialize() {
-        DriverManagerDataSource dataSource = new DriverManagerDataSource(
-                POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
+        DriverManagerDataSource dataSource =
+                new DriverManagerDataSource(
+                        POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
         jdbc = new JdbcTemplate(dataSource);
         JdbcMigrationRunner runner = new JdbcMigrationRunner(dataSource);
         new PostgresOutboxSchemaCapability(runner).initialize();
-        runner.migrate("inbox-test", List.of(new Migration(1, "inbox message", """
+        runner.migrate(
+                "inbox-test",
+                List.of(
+                        new Migration(
+                                1,
+                                "inbox message",
+                                """
                 CREATE TABLE IF NOT EXISTS inbox_message (
                     consumer_group  TEXT        NOT NULL,
                     event_id        UUID        NOT NULL,
@@ -84,7 +88,8 @@ class JdbcInboxStoreTest {
 
         assertThat(inbox.claim("group-a", eventId)).isTrue();
         assertThat(inbox.claim("group-a", eventId)).isFalse();
-        assertThat(inbox.find("group-a", eventId)).get()
+        assertThat(inbox.find("group-a", eventId))
+                .get()
                 .satisfies(record -> assertThat(record.status()).isEqualTo(InboxStatus.PROCESSING));
     }
 
@@ -105,7 +110,8 @@ class JdbcInboxStoreTest {
         inbox.markDone("group-a", eventId);
 
         assertThat(inbox.claim("group-a", eventId)).isFalse();
-        assertThat(inbox.find("group-a", eventId)).get()
+        assertThat(inbox.find("group-a", eventId))
+                .get()
                 .satisfies(record -> assertThat(record.status()).isEqualTo(InboxStatus.DONE));
     }
 
@@ -117,39 +123,57 @@ class JdbcInboxStoreTest {
         inbox.markDead("group-a", eventId, "boom");
 
         assertThat(inbox.claim("group-a", eventId)).isFalse();
-        assertThat(inbox.find("group-a", eventId)).get()
-                .satisfies(record -> {
-                    assertThat(record.status()).isEqualTo(InboxStatus.DEAD);
-                    assertThat(record.lastError()).isEqualTo("boom");
-                });
+        assertThat(inbox.find("group-a", eventId))
+                .get()
+                .satisfies(
+                        record -> {
+                            assertThat(record.status()).isEqualTo(InboxStatus.DEAD);
+                            assertThat(record.lastError()).isEqualTo("boom");
+                        });
         assertThat(inbox.resetDead("group-a", eventId)).isTrue();
-        assertThat(inbox.find("group-a", eventId)).get()
+        assertThat(inbox.find("group-a", eventId))
+                .get()
                 .satisfies(record -> assertThat(record.status()).isEqualTo(InboxStatus.PROCESSING));
     }
 
     @Test
     @DisplayName("Outbox 不可重试失败进入 DEAD，retry 可恢复")
     void outboxNonRetryableFailureBecomesDead() {
-        OutboxRecord record = new OutboxRecord("m-1", "probe.updated", "p-1",
-                "eis://core/event/v1", 1, new byte[]{1}, Map.of(), Instant.now());
+        OutboxRecord record =
+                new OutboxRecord(
+                        "m-1",
+                        "probe.updated",
+                        "p-1",
+                        "eis://core/event/v1",
+                        1,
+                        new byte[] {1},
+                        Map.of(),
+                        Instant.now());
         transaction.executeWithoutResult(status -> outbox.append(record));
-        ClaimedRecord claimed = outbox.claim(new ClaimRequest(10, Duration.ofSeconds(30)))
-                .get(0);
+        ClaimedRecord claimed = outbox.claim(new ClaimRequest(10, Duration.ofSeconds(30))).get(0);
 
-        outbox.markFailed(claimed.token(), new OutboxFailure("bad", "boom", false),
-                Duration.ZERO);
+        outbox.markFailed(claimed.token(), new OutboxFailure("bad", "boom", false), Duration.ZERO);
 
-        Map<String, Object> row = jdbc.queryForMap(
-                "SELECT status, dead_at, last_error FROM outbox WHERE id = ?", claimed.id());
+        Map<String, Object> row =
+                jdbc.queryForMap(
+                        "SELECT status, dead_at, last_error FROM outbox WHERE id = ?",
+                        claimed.id());
         assertThat(row.get("status")).isEqualTo("DEAD");
         assertThat(row.get("dead_at")).isNotNull();
         assertThat(row.get("last_error")).isEqualTo("boom");
 
         outbox.retry(claimed.id(), "ops");
-        assertThat(jdbc.queryForObject("SELECT status FROM outbox WHERE id = ?", String.class,
-                claimed.id())).isEqualTo("PENDING");
-        assertThat(jdbc.queryForObject("SELECT dead_at FROM outbox WHERE id = ?",
-                java.sql.Timestamp.class, claimed.id())).isNull();
+        assertThat(
+                        jdbc.queryForObject(
+                                "SELECT status FROM outbox WHERE id = ?",
+                                String.class,
+                                claimed.id()))
+                .isEqualTo("PENDING");
+        assertThat(
+                        jdbc.queryForObject(
+                                "SELECT dead_at FROM outbox WHERE id = ?",
+                                java.sql.Timestamp.class,
+                                claimed.id()))
+                .isNull();
     }
-
 }

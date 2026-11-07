@@ -1,7 +1,6 @@
 package cn.byteforce.seedj.infra.jdbc.clock;
 
 import cn.byteforce.seedj.core.Migration;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
@@ -11,8 +10,7 @@ import java.util.List;
 /**
  * PG 时钟适配器迁移：HLC 节点状态表与全局序列锚点。
  *
- * <p>{@code sys_} 前缀沿用既有产品表约定；DDL 单独放在资源中，便于同样的脚本
- * 在部署侧直接审阅。</p>
+ * <p>{@code sys_} 前缀沿用既有产品表约定；DDL 单独放在资源中，便于同样的脚本 在部署侧直接审阅。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -22,8 +20,7 @@ public final class ClockMigrations {
     /** 迁移 scope。 */
     public static final String SCOPE = "clock";
 
-    private static final String SCHEMA_RESOURCE =
-            "/cn/byteforce/seedj/infra/jdbc/clock/schema.sql";
+    private static final String SCHEMA_RESOURCE = "/cn/byteforce/seedj/infra/jdbc/clock/schema.sql";
 
     private ClockMigrations() {}
 

@@ -1,13 +1,12 @@
 package cn.byteforce.seedj.starter.iam;
 
-import org.springframework.boot.context.properties.ConfigurationProperties;
-
 import java.time.Duration;
 import java.util.List;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * IAM configuration. Nested records are constructor-bound; every null is
- * replaced with a safe default in the compact constructor.
+ * IAM configuration. Nested records are constructor-bound; every null is replaced with a safe
+ * default in the compact constructor.
  */
 @ConfigurationProperties(prefix = "seedj.iam")
 public record IamProperties(
@@ -27,12 +26,16 @@ public record IamProperties(
         Secret secret,
         List<Client> clients) {
 
-    public enum Store { MEMORY, JDBC }
+    public enum Store {
+        MEMORY,
+        JDBC
+    }
 
     /** Defaults for programmatic construction (tests, embedded use). */
     public static IamProperties defaults() {
-        return new IamProperties(null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null);
+        return new IamProperties(
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+                null);
     }
 
     public IamProperties {
@@ -58,13 +61,17 @@ public record IamProperties(
         }
     }
 
-    public record Token(Duration accessTtl, Duration refreshTtl, Duration authorizationCodeTtl,
-                        Boolean includePermissions, String resourceAudience) {
+    public record Token(
+            Duration accessTtl,
+            Duration refreshTtl,
+            Duration authorizationCodeTtl,
+            Boolean includePermissions,
+            String resourceAudience) {
         public Token {
             accessTtl = accessTtl == null ? Duration.ofMinutes(15) : accessTtl;
             refreshTtl = refreshTtl == null ? Duration.ofDays(30) : refreshTtl;
-            authorizationCodeTtl = authorizationCodeTtl == null ? Duration.ofMinutes(5)
-                    : authorizationCodeTtl;
+            authorizationCodeTtl =
+                    authorizationCodeTtl == null ? Duration.ofMinutes(5) : authorizationCodeTtl;
             includePermissions = includePermissions == null || includePermissions;
         }
     }
@@ -76,8 +83,14 @@ public record IamProperties(
         }
     }
 
-    public record Totp(Boolean enabled, String issuer, Integer digits, Duration period,
-                       Integer window, Integer recoveryCodes, String secretKey) {
+    public record Totp(
+            Boolean enabled,
+            String issuer,
+            Integer digits,
+            Duration period,
+            Integer window,
+            Integer recoveryCodes,
+            String secretKey) {
         public Totp {
             enabled = enabled == null ? Boolean.TRUE : enabled;
             issuer = issuer == null || issuer.isBlank() ? "Seedj" : issuer;
@@ -97,8 +110,8 @@ public record IamProperties(
         }
     }
 
-    public record NativeAuth(Boolean enabled, Boolean mfaRequired, Duration mfaTokenTtl,
-                             Integer maxAttempts) {
+    public record NativeAuth(
+            Boolean enabled, Boolean mfaRequired, Duration mfaTokenTtl, Integer maxAttempts) {
         public NativeAuth {
             enabled = enabled == null ? Boolean.FALSE : enabled;
             mfaRequired = mfaRequired == null ? Boolean.TRUE : mfaRequired;
@@ -147,19 +160,29 @@ public record IamProperties(
         }
     }
 
-    public record Client(String clientId, String clientSecret, List<String> redirectUris,
-                         List<String> scopes, List<String> grantTypes,
-                         Boolean requireProofKey, Boolean requireConsent,
-                         String authenticationMethod, String x509SubjectDn) {
+    public record Client(
+            String clientId,
+            String clientSecret,
+            List<String> redirectUris,
+            List<String> scopes,
+            List<String> grantTypes,
+            Boolean requireProofKey,
+            Boolean requireConsent,
+            String authenticationMethod,
+            String x509SubjectDn) {
         public Client {
             scopes = scopes == null ? List.of("openid", "profile") : List.copyOf(scopes);
             redirectUris = redirectUris == null ? List.of() : List.copyOf(redirectUris);
-            grantTypes = grantTypes == null ? List.of("authorization_code", "refresh_token")
-                    : List.copyOf(grantTypes);
+            grantTypes =
+                    grantTypes == null
+                            ? List.of("authorization_code", "refresh_token")
+                            : List.copyOf(grantTypes);
             requireProofKey = requireProofKey == null || requireProofKey;
             requireConsent = requireConsent == null || requireConsent;
-            authenticationMethod = authenticationMethod == null || authenticationMethod.isBlank()
-                    ? "client_secret_basic" : authenticationMethod;
+            authenticationMethod =
+                    authenticationMethod == null || authenticationMethod.isBlank()
+                            ? "client_secret_basic"
+                            : authenticationMethod;
         }
     }
 }

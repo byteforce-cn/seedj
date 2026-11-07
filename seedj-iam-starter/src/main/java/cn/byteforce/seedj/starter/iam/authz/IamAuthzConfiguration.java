@@ -1,19 +1,19 @@
 package cn.byteforce.seedj.starter.iam.authz;
 
+import cn.byteforce.seedj.core.security.CallerProvider;
 import cn.byteforce.seedj.iam.authz.IamAttributeSource;
 import cn.byteforce.seedj.iam.authz.IamBindingStore;
 import cn.byteforce.seedj.iam.authz.IamPermissionCondition;
 import cn.byteforce.seedj.iam.authz.SodRuleSet;
-
-import cn.byteforce.seedj.starter.iam.IamProperties;
+import cn.byteforce.seedj.iam.spi.IamAuthorizationRepository;
+import cn.byteforce.seedj.iam.spi.IamPolicyDecisionPoint;
 import cn.byteforce.seedj.infra.jdbc.iam.JdbcIamBindingStore;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamAttributeSource;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamBindingStore;
-import cn.byteforce.seedj.iam.spi.IamAuthorizationRepository;
-import cn.byteforce.seedj.iam.spi.IamPolicyDecisionPoint;
-import cn.byteforce.seedj.core.security.CallerProvider;
 import cn.byteforce.seedj.security.AuthorizationDecisionPoint;
+import cn.byteforce.seedj.starter.iam.IamProperties;
 import cn.byteforce.seedj.starter.iam.abac.CompositeAuthorizationDecisionPoint;
+import java.util.List;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -23,8 +23,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.JdbcTemplate;
 
-import java.util.List;
-
 /**
  * 授权契约装配：存储 provider、属性源、SoD 规则与解析服务。
  *
@@ -32,20 +30,25 @@ import java.util.List;
  * @since 1.0.0
  */
 @Configuration(proxyBeanMethods = false)
-@ConditionalOnProperty(prefix = "seedj.authz", name = "enabled", havingValue = "true",
+@ConditionalOnProperty(
+        prefix = "seedj.authz",
+        name = "enabled",
+        havingValue = "true",
         matchIfMissing = true)
 @EnableConfigurationProperties(AuthzProperties.class)
 public class IamAuthzConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public IamBindingStore iamBindingStore(AuthzProperties authz, IamProperties iam,
-                                           ObjectProvider<JdbcTemplate> jdbc) {
+    public IamBindingStore iamBindingStore(
+            AuthzProperties authz, IamProperties iam, ObjectProvider<JdbcTemplate> jdbc) {
         JdbcTemplate template = jdbc.getIfAvailable();
         String provider = authz.provider();
         if (provider == null || provider.isBlank()) {
-            provider = template != null && iam.store() == IamProperties.Store.JDBC
-                    ? "postgres" : "memory";
+            provider =
+                    template != null && iam.store() == IamProperties.Store.JDBC
+                            ? "postgres"
+                            : "memory";
         }
         return switch (provider) {
             case "memory" -> new InMemoryIamBindingStore();
@@ -56,8 +59,7 @@ public class IamAuthzConfiguration {
                 }
                 yield new JdbcIamBindingStore(template);
             }
-            default -> throw new IllegalStateException(
-                    "unknown seedj.authz.provider: " + provider);
+            default -> throw new IllegalStateException("unknown seedj.authz.provider: " + provider);
         };
     }
 
@@ -82,12 +84,13 @@ public class IamAuthzConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public IamContractAuthorizationService iamContractAuthorizationService(
-            IamBindingStore bindings, IamAuthorizationRepository roles,
+            IamBindingStore bindings,
+            IamAuthorizationRepository roles,
             IamAttributeSource attributes,
-            ObjectProvider<IamPermissionCondition> conditions, SodRuleSet ruleSet) {
+            ObjectProvider<IamPermissionCondition> conditions,
+            SodRuleSet ruleSet) {
         List<IamPermissionCondition> declared = conditions.orderedStream().toList();
-        return new IamContractAuthorizationService(bindings, roles, attributes, declared,
-                ruleSet);
+        return new IamContractAuthorizationService(bindings, roles, attributes, declared, ruleSet);
     }
 
     /**
@@ -99,14 +102,14 @@ public class IamAuthzConfiguration {
      */
     @Bean
     @Primary
-    @ConditionalOnMissingBean(value = AuthorizationDecisionPoint.class,
+    @ConditionalOnMissingBean(
+            value = AuthorizationDecisionPoint.class,
             ignored = IamContractAuthorizationService.class)
     public AuthorizationDecisionPoint authorizationDecisionPoint(
             IamContractAuthorizationService contract,
             @org.springframework.beans.factory.annotation.Qualifier("iamPolicyDecisionPoint")
-            ObjectProvider<IamPolicyDecisionPoint> policies) {
-        return new CompositeAuthorizationDecisionPoint(contract,
-                policies.getIfAvailable());
+                    ObjectProvider<IamPolicyDecisionPoint> policies) {
+        return new CompositeAuthorizationDecisionPoint(contract, policies.getIfAvailable());
     }
 
     @Bean

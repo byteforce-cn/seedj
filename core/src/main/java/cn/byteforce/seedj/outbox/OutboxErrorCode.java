@@ -3,9 +3,7 @@ package cn.byteforce.seedj.outbox;
 import cn.byteforce.seedj.core.ErrorCategory;
 import cn.byteforce.seedj.core.ErrorDescriptor;
 
-/**
- * Outbox 错误码。
- */
+/** Outbox 错误码。 */
 public enum OutboxErrorCode implements ErrorDescriptor {
 
     /** 存在 outbox 时，append 必须在活动事务内调用。 */

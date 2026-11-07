@@ -3,6 +3,7 @@ package cn.byteforce.seedj.infra.jdbc.lock;
 import cn.byteforce.seedj.core.InfrastructureCapability;
 import cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner;
 import cn.byteforce.seedj.lock.LockProvider;
+import javax.sql.DataSource;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -10,8 +11,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.jdbc.core.JdbcTemplate;
-
-import javax.sql.DataSource;
 
 /**
  * PostgreSQL 锁装配：显式 {@code seedj.lock.postgres.enabled=true} 才生效。
@@ -41,12 +40,13 @@ public class PostgresLockAutoConfiguration {
      * 锁表迁移能力。
      *
      * @param dataSource 数据源
-     * @param runners    迁移执行器
+     * @param runners 迁移执行器
      * @return 能力
      */
     @Bean
     public InfrastructureCapability postgresLockSchemaCapability(
-            DataSource dataSource, org.springframework.beans.factory.ObjectProvider<JdbcMigrationRunner> runners) {
+            DataSource dataSource,
+            org.springframework.beans.factory.ObjectProvider<JdbcMigrationRunner> runners) {
         return new PostgresLockSchemaCapability(
                 runners.getIfAvailable(() -> new JdbcMigrationRunner(dataSource)));
     }

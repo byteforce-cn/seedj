@@ -3,19 +3,17 @@ package cn.byteforce.seedj.starter.iam.autoconfigure;
 import cn.byteforce.seedj.core.InfrastructureCapability;
 import cn.byteforce.seedj.core.InfrastructureErrorCode;
 import cn.byteforce.seedj.core.InfrastructureException;
+import java.util.Comparator;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.ObjectProvider;
 
-import java.util.Comparator;
-import java.util.List;
-
 /**
- * IAM starter's copy of the capability lifecycle so an application that depends
- * only on {@code seedj-iam-starter} still runs IAM/OAuth2 migrations. The
- * aggregate starter keeps its own initializer; whichever is present runs the
- * idempotent migrations.
+ * IAM starter's copy of the capability lifecycle so an application that depends only on {@code
+ * seedj-iam-starter} still runs IAM/OAuth2 migrations. The aggregate starter keeps its own
+ * initializer; whichever is present runs the idempotent migrations.
  */
 public class IamInfrastructureInitializer implements InitializingBean {
 
@@ -29,9 +27,11 @@ public class IamInfrastructureInitializer implements InitializingBean {
 
     @Override
     public void afterPropertiesSet() {
-        List<InfrastructureCapability> sorted = capabilities.orderedStream()
-                .sorted(Comparator.comparingInt(InfrastructureCapability::getOrder))
-                .toList();
+        List<InfrastructureCapability> sorted =
+                capabilities
+                        .orderedStream()
+                        .sorted(Comparator.comparingInt(InfrastructureCapability::getOrder))
+                        .toList();
         for (InfrastructureCapability capability : sorted) {
             String name = capability.getName();
             try {
@@ -43,8 +43,10 @@ public class IamInfrastructureInitializer implements InitializingBean {
                 capability.validate();
             } catch (RuntimeException e) {
                 if (capability.isRequired()) {
-                    throw new InfrastructureException(InfrastructureErrorCode.INITIALIZATION_FAILED,
-                            "infrastructure initialization failed: " + name, e);
+                    throw new InfrastructureException(
+                            InfrastructureErrorCode.INITIALIZATION_FAILED,
+                            "infrastructure initialization failed: " + name,
+                            e);
                 }
                 log.warn("optional infrastructure component [{}] failed: {}", name, e.getMessage());
             }

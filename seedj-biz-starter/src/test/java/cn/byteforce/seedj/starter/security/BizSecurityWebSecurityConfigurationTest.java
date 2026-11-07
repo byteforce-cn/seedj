@@ -1,5 +1,10 @@
 package cn.byteforce.seedj.starter.security;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import com.nimbusds.jose.JOSEObjectType;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
@@ -9,6 +14,16 @@ import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import com.sun.net.httpserver.HttpServer;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.interfaces.RSAPublicKey;
+import java.time.Instant;
+import java.util.Date;
+import java.util.List;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -20,28 +35,11 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.net.InetSocketAddress;
-import java.nio.charset.StandardCharsets;
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
-import java.security.interfaces.RSAPublicKey;
-import java.time.Instant;
-import java.util.Date;
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
 /**
  * 资源服务器 JWT 解码器装配：issuer 解析顺序与 RFC 9068 校验器是否真的挂上。
  *
- * <p>用一个本地 HTTP 授权服务器（JDK {@link HttpServer} + 自签 RSA 密钥）走真实的
- * discovery / JWKS 流程，断言"能解出合法访问令牌、拒绝 ID Token / 缺 audience"，
- * 而不是只断言 bean 存在。
+ * <p>用一个本地 HTTP 授权服务器（JDK {@link HttpServer} + 自签 RSA 密钥）走真实的 discovery / JWKS 流程，断言"能解出合法访问令牌、拒绝
+ * ID Token / 缺 audience"， 而不是只断言 bean 存在。
  */
 class BizSecurityWebSecurityConfigurationTest {
 
@@ -57,18 +55,27 @@ class BizSecurityWebSecurityConfigurationTest {
         KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
         generator.initialize(2048);
         KeyPair pair = generator.generateKeyPair();
-        signingKey = new RSAKey.Builder((RSAPublicKey) pair.getPublic())
-                .privateKey(pair.getPrivate())
-                .keyID("test-key")
-                .build();
+        signingKey =
+                new RSAKey.Builder((RSAPublicKey) pair.getPublic())
+                        .privateKey(pair.getPrivate())
+                        .keyID("test-key")
+                        .build();
 
         authorizationServer = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         issuer = "http://127.0.0.1:" + authorizationServer.getAddress().getPort();
-        authorizationServer.createContext("/.well-known/openid-configuration", exchange ->
-                respond(exchange, "{\"issuer\":\"" + issuer + "\",\"jwks_uri\":\"" + issuer
-                        + "/jwks\"}"));
-        authorizationServer.createContext("/jwks", exchange ->
-                respond(exchange, new JWKSet(signingKey.toPublicJWK()).toString()));
+        authorizationServer.createContext(
+                "/.well-known/openid-configuration",
+                exchange ->
+                        respond(
+                                exchange,
+                                "{\"issuer\":\""
+                                        + issuer
+                                        + "\",\"jwks_uri\":\""
+                                        + issuer
+                                        + "/jwks\"}"));
+        authorizationServer.createContext(
+                "/jwks",
+                exchange -> respond(exchange, new JWKSet(signingKey.toPublicJWK()).toString()));
         authorizationServer.start();
     }
 
@@ -144,32 +151,33 @@ class BizSecurityWebSecurityConfigurationTest {
     void mapsAuthorities() {
         JwtAuthenticationConverter converter =
                 configuration.jwtAuthenticationConverter(new JwtClaimsMapper());
-        Jwt jwt = Jwt.withTokenValue("token")
-                .header("alg", "RS256")
-                .header("typ", "at+jwt")
-                .subject("user-1")
-                .issuer(issuer)
-                .audience(List.of("billing-api"))
-                .claim("scope", "orders.read")
-                .claim("roles", List.of("admin"))
-                .issuedAt(Instant.now())
-                .expiresAt(Instant.now().plusSeconds(300))
-                .build();
+        Jwt jwt =
+                Jwt.withTokenValue("token")
+                        .header("alg", "RS256")
+                        .header("typ", "at+jwt")
+                        .subject("user-1")
+                        .issuer(issuer)
+                        .audience(List.of("billing-api"))
+                        .claim("scope", "orders.read")
+                        .claim("roles", List.of("admin"))
+                        .issuedAt(Instant.now())
+                        .expiresAt(Instant.now().plusSeconds(300))
+                        .build();
 
-        List<String> authorities = converter.convert(jwt).getAuthorities().stream()
-                .map(Object::toString)
-                .toList();
+        List<String> authorities =
+                converter.convert(jwt).getAuthorities().stream().map(Object::toString).toList();
 
         assertThat(authorities)
-                .filteredOn(authority -> authority.startsWith("SCOPE_")
-                        || authority.startsWith("ROLE_"))
+                .filteredOn(
+                        authority ->
+                                authority.startsWith("SCOPE_") || authority.startsWith("ROLE_"))
                 .containsExactlyInAnyOrder("SCOPE_orders.read", "ROLE_admin");
         // Spring Security 7 另加一个认证因子权限，不属于令牌映射的一部分。
         assertThat(authorities).anyMatch(authority -> authority.contains("FACTOR_BEARER"));
     }
 
-    private JwtDecoder decoder(BizSecurityProperties properties,
-                               OAuth2ResourceServerProperties boot) {
+    private JwtDecoder decoder(
+            BizSecurityProperties properties, OAuth2ResourceServerProperties boot) {
         return configuration.jwtDecoder(properties, providerOf(boot));
     }
 
@@ -178,20 +186,22 @@ class BizSecurityWebSecurityConfigurationTest {
     }
 
     private static String token(String type, String audience) {
-        JWTClaimsSet.Builder claims = new JWTClaimsSet.Builder()
-                .issuer(issuer)
-                .subject("user-1")
-                .expirationTime(Date.from(Instant.now().plusSeconds(300)))
-                .claim("scope", "orders.read");
+        JWTClaimsSet.Builder claims =
+                new JWTClaimsSet.Builder()
+                        .issuer(issuer)
+                        .subject("user-1")
+                        .expirationTime(Date.from(Instant.now().plusSeconds(300)))
+                        .claim("scope", "orders.read");
         if (audience != null) {
             claims.audience(audience);
         }
-        SignedJWT jwt = new SignedJWT(
-                new JWSHeader.Builder(JWSAlgorithm.RS256)
-                        .keyID("test-key")
-                        .type(new JOSEObjectType(type))
-                        .build(),
-                claims.build());
+        SignedJWT jwt =
+                new SignedJWT(
+                        new JWSHeader.Builder(JWSAlgorithm.RS256)
+                                .keyID("test-key")
+                                .type(new JOSEObjectType(type))
+                                .build(),
+                        claims.build());
         try {
             jwt.sign(new RSASSASigner(signingKey));
         } catch (Exception e) {

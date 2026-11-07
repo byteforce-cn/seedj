@@ -1,5 +1,8 @@
 package cn.byteforce.seedj.demo.hr;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import cn.byteforce.seedj.core.clock.Clock;
 import cn.byteforce.seedj.core.clock.Clocks;
 import cn.byteforce.seedj.core.exception.ContractErrorCode;
@@ -42,10 +45,6 @@ import cn.byteforce.seedj.lock.LockLease;
 import cn.byteforce.seedj.lock.LockProvider;
 import cn.byteforce.seedj.module.ObjectModuleRegistry;
 import cn.byteforce.seedj.module.ObjectModules;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -57,13 +56,11 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
-/**
- * 入职全链路：命令目录 → 事件流 → 投影 → 查询代理。
- */
+/** 入职全链路：命令目录 → 事件流 → 投影 → 查询代理。 */
 class HrOnboardingTest {
 
     private static final LocalDate HIRE_DATE = LocalDate.of(2024, 3, 1);
@@ -72,9 +69,17 @@ class HrOnboardingTest {
 
     private static final UUID ACTOR = UUID.fromString("018f2e3a-0000-7000-8000-000000000001");
 
-    private static final Caller CALLER = new Caller(ACTOR.toString(), "alice", "default",
-            Set.of(), Set.of("hr.employee.write"), Set.of(), Set.of("pwd"),
-            Caller.DEFAULT_ACR, Map.of());
+    private static final Caller CALLER =
+            new Caller(
+                    ACTOR.toString(),
+                    "alice",
+                    "default",
+                    Set.of(),
+                    Set.of("hr.employee.write"),
+                    Set.of(),
+                    Set.of("pwd"),
+                    Caller.DEFAULT_ACR,
+                    Map.of());
 
     private final EmployeeDirectory directory = new EmployeeDirectory();
 
@@ -99,23 +104,31 @@ class HrOnboardingTest {
 
     private final TemporalStore objects = new InMemoryTemporalStore(clock);
 
-    private final CommandRuntime runtime = new CommandRuntime(
-            CommandRuntime.Options.forTests(clock, new Uuid7IdGenerator(clock), commandStore,
-                    objects));
+    private final CommandRuntime runtime =
+            new CommandRuntime(
+                    CommandRuntime.Options.forTests(
+                            clock, new Uuid7IdGenerator(clock), commandStore, objects));
 
-    private final OnboardingAgent onboarding = new OnboardingAgent(
-            employees, new InProcessPublisher(projection), new EmployeeIdCodec(),
-            CommandAgent.Options.<EmployeeId>defaults().withLockProvider(lock));
+    private final OnboardingAgent onboarding =
+            new OnboardingAgent(
+                    employees,
+                    new InProcessPublisher(projection),
+                    new EmployeeIdCodec(),
+                    CommandAgent.Options.<EmployeeId>defaults().withLockProvider(lock));
 
     private final ObjectModuleRegistry registry = registry();
 
-    private final CommandCatalog catalog = new CommandCatalog(registry.commands(),
-            CommandPolicy.permissions(), runtime, (objectType, caller) -> ScopePredicate.all());
+    private final CommandCatalog catalog =
+            new CommandCatalog(
+                    registry.commands(),
+                    CommandPolicy.permissions(),
+                    runtime,
+                    (objectType, caller) -> ScopePredicate.all());
 
     private final HrCommandService commands = new HrCommandService(catalog, employeeIds);
 
-    private final HrQueryService queries = new HrQueryService(directory,
-            new QueryAgent<>(), new QueryAgent<>());
+    private final HrQueryService queries =
+            new HrQueryService(directory, new QueryAgent<>(), new QueryAgent<>());
 
     @BeforeEach
     void resetSequence() {
@@ -125,8 +138,7 @@ class HrOnboardingTest {
     @Test
     @DisplayName("入职：事件落流，读模型可查")
     void onboardWritesStreamAndProjection() {
-        EmployeeId id = commands.onboard("E-001", "张三", "研发中心", "后端工程师", HIRE_DATE,
-                CALLER);
+        EmployeeId id = commands.onboard("E-001", "张三", "研发中心", "后端工程师", HIRE_DATE, CALLER);
 
         EmployeeView view = queries.byId(id).orElseThrow();
         assertThat(view.employeeNo()).isEqualTo("E-001");
@@ -136,15 +148,15 @@ class HrOnboardingTest {
 
         var stream = store.read(StreamId.of(Employee.STREAM_TYPE, id));
         assertThat(stream.version()).isEqualTo(1);
-        assertThat(stream.events()).containsExactly(
-                new EmployeeOnboarded(id, "E-001", "张三", "研发中心", "后端工程师", HIRE_DATE));
+        assertThat(stream.events())
+                .containsExactly(
+                        new EmployeeOnboarded(id, "E-001", "张三", "研发中心", "后端工程师", HIRE_DATE));
     }
 
     @Test
     @DisplayName("加载：聚合从事件流重建，版本与待提交事件都正确")
     void aggregateRebuildsFromStream() {
-        EmployeeId id = commands.onboard("E-002", "李四", "研发中心", "后端工程师", HIRE_DATE,
-                CALLER);
+        EmployeeId id = commands.onboard("E-002", "李四", "研发中心", "后端工程师", HIRE_DATE, CALLER);
 
         Employee loaded = employees.loadOrThrow(id);
 
@@ -158,8 +170,7 @@ class HrOnboardingTest {
     @Test
     @DisplayName("命令按聚合加锁：键为 聚合类型:标识，执行后释放")
     void commandAcquiresAggregateScopedLock() {
-        EmployeeId id = commands.onboard("E-003", "王五", "研发中心", "后端工程师", HIRE_DATE,
-                CALLER);
+        EmployeeId id = commands.onboard("E-003", "王五", "研发中心", "后端工程师", HIRE_DATE, CALLER);
 
         assertThat(lock.acquiredKeys).containsExactly("hr.employee:" + id.value());
         assertThat(lock.released).isEqualTo(1);
@@ -171,9 +182,11 @@ class HrOnboardingTest {
         EmployeeId id = commands.onboard("E-004", "赵六", "财务", "会计", HIRE_DATE, CALLER);
 
         assertThatThrownBy(() -> submit(id, "E-099", "冒名", "财务", "会计"))
-                .isInstanceOfSatisfying(ContractException.class, error ->
-                        assertThat(error.code())
-                                .isEqualTo(ContractErrorCode.COMMAND_REJECTED));
+                .isInstanceOfSatisfying(
+                        ContractException.class,
+                        error ->
+                                assertThat(error.code())
+                                        .isEqualTo(ContractErrorCode.COMMAND_REJECTED));
 
         assertThat(store.read(StreamId.of(Employee.STREAM_TYPE, id)).version()).isEqualTo(1);
     }
@@ -181,10 +194,10 @@ class HrOnboardingTest {
     @Test
     @DisplayName("重复投递同一事件：读模型仍然只有一行")
     void duplicateDeliveryIsIdempotent() {
-        EmployeeId id = commands.onboard("E-005", "孙八", "研发中心", "后端工程师", HIRE_DATE,
-                CALLER);
-        EmployeeOnboarded event = (EmployeeOnboarded) store
-                .read(StreamId.of(Employee.STREAM_TYPE, id)).events().get(0);
+        EmployeeId id = commands.onboard("E-005", "孙八", "研发中心", "后端工程师", HIRE_DATE, CALLER);
+        EmployeeOnboarded event =
+                (EmployeeOnboarded)
+                        store.read(StreamId.of(Employee.STREAM_TYPE, id)).events().get(0);
 
         projection.onEvent(envelope(event, "evt-dup"));
         projection.onEvent(envelope(event, "evt-dup"));
@@ -203,10 +216,13 @@ class HrOnboardingTest {
         employees.save(first);
 
         assertThatThrownBy(() -> employees.save(second))
-                .isInstanceOfSatisfying(cn.byteforce.seedj.cqrs.CqrsException.class, error ->
-                        assertThat(error.getErrorCode())
-                                .isEqualTo(cn.byteforce.seedj.cqrs.CqrsErrorCode
-                                        .CONCURRENCY_CONFLICT));
+                .isInstanceOfSatisfying(
+                        cn.byteforce.seedj.cqrs.CqrsException.class,
+                        error ->
+                                assertThat(error.getErrorCode())
+                                        .isEqualTo(
+                                                cn.byteforce.seedj.cqrs.CqrsErrorCode
+                                                        .CONCURRENCY_CONFLICT));
 
         assertThat(store.read(StreamId.of(Employee.STREAM_TYPE, id)).version()).isEqualTo(1);
         assertThat(employees.loadOrThrow(id).employeeNo()).isEqualTo("E-006");
@@ -215,8 +231,7 @@ class HrOnboardingTest {
     @Test
     @DisplayName("保存无待提交事件的聚合是 no-op")
     void saveWithoutEventsIsNoOp() {
-        EmployeeId id = commands.onboard("E-008", "郑十一", "研发中心", "后端工程师", HIRE_DATE,
-                CALLER);
+        EmployeeId id = commands.onboard("E-008", "郑十一", "研发中心", "后端工程师", HIRE_DATE, CALLER);
         Employee loaded = employees.loadOrThrow(id);
 
         employees.save(loaded);
@@ -237,8 +252,8 @@ class HrOnboardingTest {
         return modules.freeze();
     }
 
-    private void submit(EmployeeId id, String employeeNo, String name, String department,
-                        String position) {
+    private void submit(
+            EmployeeId id, String employeeNo, String name, String department, String position) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("employee_id", id.value());
         payload.put("employee_no", employeeNo);
@@ -246,20 +261,29 @@ class HrOnboardingTest {
         payload.put("department", department);
         payload.put("position", position);
         payload.put("hire_date", HIRE_DATE);
-        catalog.execute(new CommandSubmission("hr.employee.onboard", payload,
-                "manual-" + UUID.randomUUID(), List.of(), ACTOR), CALLER);
+        catalog.execute(
+                new CommandSubmission(
+                        "hr.employee.onboard",
+                        payload,
+                        "manual-" + UUID.randomUUID(),
+                        List.of(),
+                        ACTOR),
+                CALLER);
     }
 
-    private static EventEnvelope<EmployeeOnboarded> envelope(EmployeeOnboarded event,
-                                                             String eventId) {
-        return new EventEnvelope<>(event, eventId,
+    private static EventEnvelope<EmployeeOnboarded> envelope(
+            EmployeeOnboarded event, String eventId) {
+        return new EventEnvelope<>(
+                event,
+                eventId,
                 EventTypeRegistry.logicalName(EmployeeOnboarded.class),
-                "demo.hr.employee.directory", 1, Instant.now(), Map.of());
+                "demo.hr.employee.directory",
+                1,
+                Instant.now(),
+                Map.of());
     }
 
-    /**
-     * 记录锁的获取键与释放次数：验证模板把锁包在事务外层，且键是聚合级的。
-     */
+    /** 记录锁的获取键与释放次数：验证模板把锁包在事务外层，且键是聚合级的。 */
     private static final class RecordingLock implements LockProvider {
 
         private final List<String> acquiredKeys = new ArrayList<>();
@@ -273,9 +297,7 @@ class HrOnboardingTest {
         }
     }
 
-    /**
-     * 进程内投递：代替 outbox + 消费者容器，让读侧在同一测试里追平。
-     */
+    /** 进程内投递：代替 outbox + 消费者容器，让读侧在同一测试里追平。 */
     private static final class InProcessPublisher implements EventPublisher {
 
         private final EmployeeDirectoryProjection projection;

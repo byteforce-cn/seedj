@@ -1,5 +1,7 @@
 package cn.byteforce.seedj.infra.local.transit;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import cn.byteforce.seedj.transit.Ciphertext;
 import cn.byteforce.seedj.transit.CreateKeyRequest;
 import cn.byteforce.seedj.transit.DecryptRequest;
@@ -11,19 +13,13 @@ import cn.byteforce.seedj.transit.TransitErrorCode;
 import cn.byteforce.seedj.transit.TransitException;
 import cn.byteforce.seedj.transit.TransitProvider;
 import cn.byteforce.seedj.transit.TransitProviderContractTest;
-
+import java.nio.file.Files;
+import java.nio.file.Path;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
-/**
- * 内置 Transit 实现：契约套件 + 磁盘共享状态。
- */
+/** 内置 Transit 实现：契约套件 + 磁盘共享状态。 */
 class BcTransitProviderContractTest extends TransitProviderContractTest {
 
     @Override
@@ -70,8 +66,10 @@ class BcTransitProviderContractTest extends TransitProviderContractTest {
     @DisplayName("导出：非 exportable key 抛 NOT_EXPORTABLE，exportable key 可导出密钥材料")
     void exportKey() {
         BcTransitProvider provider = new BcTransitProvider();
-        provider.keyAdmin().createKey(new CreateKeyRequest("plain", KeyType.AES256_GCM96,
-                null, null, false, null));
+        provider.keyAdmin()
+                .createKey(
+                        new CreateKeyRequest(
+                                "plain", KeyType.AES256_GCM96, null, null, false, null));
 
         org.assertj.core.api.Assertions.assertThatThrownBy(
                         () -> provider.keyAdmin().exportKey("plain", KeyType.AES256_GCM96, null))
@@ -79,8 +77,9 @@ class BcTransitProviderContractTest extends TransitProviderContractTest {
                 .extracting(e -> ((TransitException) e).getErrorCode())
                 .isEqualTo(TransitErrorCode.NOT_EXPORTABLE);
 
-        provider.keyAdmin().createKey(new CreateKeyRequest("open", KeyType.AES256_GCM96,
-                null, null, true, null));
+        provider.keyAdmin()
+                .createKey(
+                        new CreateKeyRequest("open", KeyType.AES256_GCM96, null, null, true, null));
         ExportedKey exported = provider.keyAdmin().exportKey("open", KeyType.AES256_GCM96, 1);
 
         assertThat(exported.getKeys()).containsKey(1);

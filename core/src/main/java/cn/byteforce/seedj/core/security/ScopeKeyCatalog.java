@@ -34,8 +34,14 @@ public final class ScopeKeyCatalog {
             Objects.requireNonNull(key, "key");
             ScopeKey<?> previous = byName.putIfAbsent(key.name(), key);
             if (previous != null && previous.type() != key.type()) {
-                throw new IllegalArgumentException("duplicate scope key with different type: "
-                        + key.name() + " (" + previous.type() + " vs " + key.type() + ")");
+                throw new IllegalArgumentException(
+                        "duplicate scope key with different type: "
+                                + key.name()
+                                + " ("
+                                + previous.type()
+                                + " vs "
+                                + key.type()
+                                + ")");
             }
         }
         return new ScopeKeyCatalog(byName);
@@ -64,8 +70,13 @@ public final class ScopeKeyCatalog {
         Objects.requireNonNull(key, "key");
         ScopeKey<?> registered = require(key.name());
         if (registered.type() != key.type()) {
-            throw new IllegalArgumentException("scope key " + key.name() + " is declared as "
-                    + registered.type() + ", got " + key.type());
+            throw new IllegalArgumentException(
+                    "scope key "
+                            + key.name()
+                            + " is declared as "
+                            + registered.type()
+                            + ", got "
+                            + key.type());
         }
     }
 

@@ -32,8 +32,8 @@ public interface FieldPolicyResolver {
      * 解析字段策略。
      *
      * @param objectType 对象类型
-     * @param caller     调用方
-     * @param context    请求事实快照（不会为 {@code null}）
+     * @param caller 调用方
+     * @param context 请求事实快照（不会为 {@code null}）
      * @return 策略；不得为 {@code null}
      */
     FieldPolicy resolve(String objectType, Caller caller, ScopeContext context);

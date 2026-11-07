@@ -33,8 +33,8 @@ public interface DataScopeResolver {
      * 解析行范围。
      *
      * @param objectType 对象类型
-     * @param caller     调用方
-     * @param context    请求事实快照（不会为 {@code null}）
+     * @param caller 调用方
+     * @param context 请求事实快照（不会为 {@code null}）
      * @return 谓词；不得为 {@code null}
      */
     ScopePredicate resolve(String objectType, Caller caller, ScopeContext context);

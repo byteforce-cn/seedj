@@ -10,7 +10,6 @@ import cn.byteforce.seedj.workflow.spi.HumanTask;
 import cn.byteforce.seedj.workflow.spi.HumanTaskStatus;
 import cn.byteforce.seedj.workflow.spi.SignCompletion;
 import cn.byteforce.seedj.workflow.spi.TaskAssignment;
-
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -18,8 +17,7 @@ import java.util.List;
 /** 会签计数与任务记录更新的纯函数。 */
 final class TaskSupport {
 
-    private TaskSupport() {
-    }
+    private TaskSupport() {}
 
     static boolean active(AssignmentStatus status) {
         return status == AssignmentStatus.PENDING
@@ -28,27 +26,40 @@ final class TaskSupport {
     }
 
     static int denominator(HumanTask task) {
-        return (int) task.assignments().stream()
-                .filter(a -> a.status() == AssignmentStatus.PENDING
-                        || a.status() == AssignmentStatus.SUSPENDED
-                        || a.status() == AssignmentStatus.COMPLETED)
-                .count();
+        return (int)
+                task.assignments().stream()
+                        .filter(
+                                a ->
+                                        a.status() == AssignmentStatus.PENDING
+                                                || a.status() == AssignmentStatus.SUSPENDED
+                                                || a.status() == AssignmentStatus.COMPLETED)
+                        .count();
     }
 
     static int approvals(HumanTask task) {
-        return (int) task.assignments().stream()
-                .filter(a -> a.status() == AssignmentStatus.COMPLETED)
-                .map(TaskAssignment::record)
-                .filter(r -> r.decision() == cn.byteforce.seedj.workflow.spi.ActionDecision.APPROVE)
-                .count();
+        return (int)
+                task.assignments().stream()
+                        .filter(a -> a.status() == AssignmentStatus.COMPLETED)
+                        .map(TaskAssignment::record)
+                        .filter(
+                                r ->
+                                        r.decision()
+                                                == cn.byteforce.seedj.workflow.spi.ActionDecision
+                                                        .APPROVE)
+                        .count();
     }
 
     static int rejects(HumanTask task) {
-        return (int) task.assignments().stream()
-                .filter(a -> a.status() == AssignmentStatus.COMPLETED)
-                .map(TaskAssignment::record)
-                .filter(r -> r.decision() == cn.byteforce.seedj.workflow.spi.ActionDecision.REJECT)
-                .count();
+        return (int)
+                task.assignments().stream()
+                        .filter(a -> a.status() == AssignmentStatus.COMPLETED)
+                        .map(TaskAssignment::record)
+                        .filter(
+                                r ->
+                                        r.decision()
+                                                == cn.byteforce.seedj.workflow.spi.ActionDecision
+                                                        .REJECT)
+                        .count();
     }
 
     static List<ApproveRecord> rejectRecords(HumanTask task) {
@@ -80,9 +91,11 @@ final class TaskSupport {
     static boolean hasActiveAssignment(HumanTask task) {
         // DELEGATED 的活跃性由代理人 PENDING assignment 表达；代理人已处理时
         // 原 DELEGATED 是历史记录，不参与死锁判定（§1.5.4 / §1.5.12）。
-        return task.assignments().stream().anyMatch(a ->
-                a.status() == AssignmentStatus.PENDING
-                        || a.status() == AssignmentStatus.SUSPENDED);
+        return task.assignments().stream()
+                .anyMatch(
+                        a ->
+                                a.status() == AssignmentStatus.PENDING
+                                        || a.status() == AssignmentStatus.SUSPENDED);
     }
 
     /** §1.5.12：无 PENDING/SUSPENDED/DELEGATED，且无待派生 AFTER 记录。 */
@@ -90,20 +103,34 @@ final class TaskSupport {
         if (hasActiveAssignment(task)) {
             return false;
         }
-        return state.afterPending.stream()
-                .noneMatch(p -> p.originalTaskId().equals(task.id()));
+        return state.afterPending.stream().noneMatch(p -> p.originalTaskId().equals(task.id()));
     }
 
-    static HumanTask withAssignments(HumanTask task, List<TaskAssignment> assignments,
-                                     HumanTaskStatus status, Instant now, Instant completedAt) {
-        return new HumanTask(task.id(), task.instanceId(), task.stepName(), task.kind(), status,
-                assignments, task.formData(), task.predecessorTaskId(), task.successorTaskId(),
-                task.spawnedByActionId(), task.createdAt(), now, completedAt, task.dueAt(),
+    static HumanTask withAssignments(
+            HumanTask task,
+            List<TaskAssignment> assignments,
+            HumanTaskStatus status,
+            Instant now,
+            Instant completedAt) {
+        return new HumanTask(
+                task.id(),
+                task.instanceId(),
+                task.stepName(),
+                task.kind(),
+                status,
+                assignments,
+                task.formData(),
+                task.predecessorTaskId(),
+                task.successorTaskId(),
+                task.spawnedByActionId(),
+                task.createdAt(),
+                now,
+                completedAt,
+                task.dueAt(),
                 task.metadata());
     }
 
-    static HumanTask replace(HumanTask task, int index, TaskAssignment assignment,
-                             Instant now) {
+    static HumanTask replace(HumanTask task, int index, TaskAssignment assignment, Instant now) {
         List<TaskAssignment> copy = new ArrayList<>(task.assignments());
         copy.set(index, assignment);
         return withAssignments(task, copy, task.status(), now, task.completedAt());
@@ -116,12 +143,22 @@ final class TaskSupport {
     }
 
     static TaskAssignment cancelled(TaskAssignment assignment, String reason, Instant now) {
-        return new TaskAssignment(assignment.participant(), AssignmentStatus.CANCELLED,
-                null, assignment.assignedAt(), now, reason);
+        return new TaskAssignment(
+                assignment.participant(),
+                AssignmentStatus.CANCELLED,
+                null,
+                assignment.assignedAt(),
+                now,
+                reason);
     }
 
     static TaskAssignment completed(TaskAssignment assignment, ApproveRecord record, Instant now) {
-        return new TaskAssignment(assignment.participant(), AssignmentStatus.COMPLETED,
-                record, assignment.assignedAt(), now, null);
+        return new TaskAssignment(
+                assignment.participant(),
+                AssignmentStatus.COMPLETED,
+                record,
+                assignment.assignedAt(),
+                now,
+                null);
     }
 }

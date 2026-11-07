@@ -1,19 +1,18 @@
 package cn.byteforce.seedj.starter.iam.abac;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import cn.byteforce.seedj.iam.IamAuthorizationDecision;
 import cn.byteforce.seedj.iam.IamAuthorizationRequest;
 import cn.byteforce.seedj.iam.IamSubject;
 import cn.byteforce.seedj.iam.spi.IamPolicyDecisionPoint;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamPolicyRepository;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
 import java.time.Duration;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
 /** 决策缓存：按 epoch 失效、TTL 兜底、空主体直通、上限清理。 */
 class CachingIamPolicyDecisionPointTest {
@@ -24,8 +23,8 @@ class CachingIamPolicyDecisionPointTest {
     @Test
     @DisplayName("同一请求在 TTL 内只询问一次委托方")
     void cachesWithinTtl() {
-        CachingIamPolicyDecisionPoint pdp = new CachingIamPolicyDecisionPoint(delegate, policies,
-                Duration.ofMinutes(1));
+        CachingIamPolicyDecisionPoint pdp =
+                new CachingIamPolicyDecisionPoint(delegate, policies, Duration.ofMinutes(1));
 
         assertThat(pdp.decide(request("u-1", "o-1")).allowed()).isTrue();
         assertThat(pdp.decide(request("u-1", "o-1")).allowed()).isTrue();
@@ -37,8 +36,8 @@ class CachingIamPolicyDecisionPointTest {
     @Test
     @DisplayName("epoch 变化使缓存失效")
     void epochBumpInvalidatesCache() {
-        CachingIamPolicyDecisionPoint pdp = new CachingIamPolicyDecisionPoint(delegate, policies,
-                Duration.ofMinutes(1));
+        CachingIamPolicyDecisionPoint pdp =
+                new CachingIamPolicyDecisionPoint(delegate, policies, Duration.ofMinutes(1));
 
         pdp.decide(request("u-1", "o-1"));
         policies.bumpEpoch("default");
@@ -50,8 +49,8 @@ class CachingIamPolicyDecisionPointTest {
     @Test
     @DisplayName("空 userId 不缓存")
     void blankUserIdBypassesCache() {
-        CachingIamPolicyDecisionPoint pdp = new CachingIamPolicyDecisionPoint(delegate, policies,
-                Duration.ofMinutes(1));
+        CachingIamPolicyDecisionPoint pdp =
+                new CachingIamPolicyDecisionPoint(delegate, policies, Duration.ofMinutes(1));
 
         pdp.decide(request("", "o-1"));
         pdp.decide(request("", "o-1"));
@@ -64,8 +63,8 @@ class CachingIamPolicyDecisionPointTest {
     void invalidTtlFallsBackToDefault() {
         for (Duration ttl : new Duration[] {null, Duration.ZERO, Duration.ofSeconds(-5)}) {
             CountingPdp counting = new CountingPdp();
-            CachingIamPolicyDecisionPoint pdp = new CachingIamPolicyDecisionPoint(counting,
-                    policies, ttl);
+            CachingIamPolicyDecisionPoint pdp =
+                    new CachingIamPolicyDecisionPoint(counting, policies, ttl);
 
             pdp.decide(request("u-1", "o-1"));
             pdp.decide(request("u-1", "o-1"));
@@ -77,8 +76,8 @@ class CachingIamPolicyDecisionPointTest {
     @Test
     @DisplayName("缓存超过 10000 条后整体清理")
     void clearsCacheAboveCap() {
-        CachingIamPolicyDecisionPoint pdp = new CachingIamPolicyDecisionPoint(delegate, policies,
-                Duration.ofMinutes(1));
+        CachingIamPolicyDecisionPoint pdp =
+                new CachingIamPolicyDecisionPoint(delegate, policies, Duration.ofMinutes(1));
 
         for (int index = 0; index <= 10_000; index++) {
             pdp.decide(request("u-1", "o-" + index));
@@ -92,10 +91,19 @@ class CachingIamPolicyDecisionPointTest {
     }
 
     private static IamAuthorizationRequest request(String userId, String resourceId) {
-        IamSubject subject = new IamSubject(userId, "alice", "default", Set.of(), Set.of(),
-                Set.of(), Set.of("pwd"), "urn:seedj:acr:pwd", Map.of());
-        return new IamAuthorizationRequest(subject, "read", "order", resourceId, Map.of(),
-                Map.of());
+        IamSubject subject =
+                new IamSubject(
+                        userId,
+                        "alice",
+                        "default",
+                        Set.of(),
+                        Set.of(),
+                        Set.of(),
+                        Set.of("pwd"),
+                        "urn:seedj:acr:pwd",
+                        Map.of());
+        return new IamAuthorizationRequest(
+                subject, "read", "order", resourceId, Map.of(), Map.of());
     }
 
     private static final class CountingPdp implements IamPolicyDecisionPoint {

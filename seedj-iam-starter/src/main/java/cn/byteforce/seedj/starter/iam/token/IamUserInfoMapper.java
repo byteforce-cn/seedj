@@ -2,25 +2,25 @@ package cn.byteforce.seedj.starter.iam.token;
 
 import cn.byteforce.seedj.iam.IamSubjectAuthorization;
 import cn.byteforce.seedj.iam.IamUser;
-import cn.byteforce.seedj.starter.iam.identity.IamAuthorizationService;
 import cn.byteforce.seedj.iam.spi.IamUserRepository;
-import org.springframework.security.oauth2.core.oidc.OidcUserInfo;
-import org.springframework.security.oauth2.server.authorization.oidc.authentication.OidcUserInfoAuthenticationContext;
-
+import cn.byteforce.seedj.starter.iam.identity.IamAuthorizationService;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import org.springframework.security.oauth2.core.oidc.OidcUserInfo;
+import org.springframework.security.oauth2.server.authorization.oidc.authentication.OidcUserInfoAuthenticationContext;
 
 /** Maps IAM/SCIM attributes to UserInfo claims. */
-public class IamUserInfoMapper implements Function<OidcUserInfoAuthenticationContext, OidcUserInfo> {
+public class IamUserInfoMapper
+        implements Function<OidcUserInfoAuthenticationContext, OidcUserInfo> {
 
     private final IamUserRepository users;
     private final IamAuthorizationService authorization;
     private final String tenantId;
 
-    public IamUserInfoMapper(IamUserRepository users, IamAuthorizationService authorization,
-                             String tenantId) {
+    public IamUserInfoMapper(
+            IamUserRepository users, IamAuthorizationService authorization, String tenantId) {
         this.users = users;
         this.authorization = authorization;
         this.tenantId = tenantId;

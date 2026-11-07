@@ -1,18 +1,17 @@
 package cn.byteforce.seedj.module;
 
-import cn.byteforce.seedj.core.security.ScopeKey;
-import cn.byteforce.seedj.domain.FieldType;
-import cn.byteforce.seedj.domain.Privacy;
-import cn.byteforce.seedj.read.ReadModel;
-import org.junit.jupiter.api.Test;
-
-import java.util.List;
-import java.util.Map;
-
 import static cn.byteforce.seedj.core.security.ScopeKeyType.LIST_STRING;
 import static cn.byteforce.seedj.core.security.ScopeKeyType.STRING;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import cn.byteforce.seedj.core.security.ScopeKey;
+import cn.byteforce.seedj.domain.FieldType;
+import cn.byteforce.seedj.domain.Privacy;
+import cn.byteforce.seedj.read.ReadModel;
+import java.util.List;
+import java.util.Map;
+import org.junit.jupiter.api.Test;
 
 class ObjectModulesTest {
 
@@ -25,21 +24,28 @@ class ObjectModulesTest {
         modules.object("employee", "hr_employee")
                 .readPermission("hr.employee.read")
                 .contextKey(ORG_UNITS)
-                .field("employee_no", FieldType.TEXT).required().filterable().sortable().indexed()
-                .field("id_number", FieldType.TEXT).privacy(Privacy.SENSITIVE)
-                .query(Map.class).path("/api/employees").permission("hr.employee.read")
+                .field("employee_no", FieldType.TEXT)
+                .required()
+                .filterable()
+                .sortable()
+                .indexed()
+                .field("id_number", FieldType.TEXT)
+                .privacy(Privacy.SENSITIVE)
+                .query(Map.class)
+                .path("/api/employees")
+                .permission("hr.employee.read")
                 .sort("employee_no");
 
         ObjectModuleRegistry registry = modules.freeze();
 
         ReadModel model = registry.find("employee").orElseThrow();
         assertThat(model.readPermission()).isEqualTo("hr.employee.read");
-        assertThat(model.schema().fields()).extracting("name")
+        assertThat(model.schema().fields())
+                .extracting("name")
                 .containsExactly("employee_no", "id_number");
         assertThat(model.schema().requireField("employee_no").sortable()).isTrue();
         assertThat(model.schema().requireField("employee_no").indexed()).isTrue();
-        assertThat(model.schema().requireField("id_number").privacy())
-                .isEqualTo(Privacy.SENSITIVE);
+        assertThat(model.schema().requireField("id_number").privacy()).isEqualTo(Privacy.SENSITIVE);
         assertThat(model.schema().requireField("id_number").eventVisible()).isFalse();
         assertThat(registry.all()).hasSize(1);
         assertThat(registry.queries()).hasSize(1);
@@ -51,8 +57,10 @@ class ObjectModulesTest {
         ObjectModules modules = ObjectModules.create();
         modules.object("employee", "hr_employee")
                 .readPermission("hr.employee.read")
-                .field("name", FieldType.TEXT).required()
-                .field("secret", FieldType.TEXT).writeOnly();
+                .field("name", FieldType.TEXT)
+                .required()
+                .field("secret", FieldType.TEXT)
+                .writeOnly();
 
         var schema = modules.freeze().find("employee").orElseThrow().schema();
 
@@ -84,9 +92,11 @@ class ObjectModulesTest {
     void duplicateObjectTypeFailsAtFreeze() {
         ObjectModules modules = ObjectModules.create();
         modules.object("employee", "hr_employee")
-                .readPermission("hr.employee.read").field("name", FieldType.TEXT);
+                .readPermission("hr.employee.read")
+                .field("name", FieldType.TEXT);
         modules.object("employee", "hr_employee_2")
-                .readPermission("hr.employee.read").field("name", FieldType.TEXT);
+                .readPermission("hr.employee.read")
+                .field("name", FieldType.TEXT);
 
         assertThatThrownBy(modules::freeze)
                 .isInstanceOf(IllegalArgumentException.class)
@@ -99,7 +109,9 @@ class ObjectModulesTest {
         modules.object("employee", "hr_employee")
                 .readPermission("hr.employee.read")
                 .field("name", FieldType.TEXT)
-                .query(Map.class).path("/api/employees").sort("missing");
+                .query(Map.class)
+                .path("/api/employees")
+                .sort("missing");
 
         assertThatThrownBy(modules::freeze)
                 .isInstanceOf(IllegalArgumentException.class)
@@ -111,8 +123,11 @@ class ObjectModulesTest {
         ObjectModules modules = ObjectModules.create();
         modules.object("employee", "hr_employee")
                 .readPermission("hr.employee.read")
-                .field("name", FieldType.TEXT).filterable()
-                .query(Map.class).path("/api/employees").sort("name");
+                .field("name", FieldType.TEXT)
+                .filterable()
+                .query(Map.class)
+                .path("/api/employees")
+                .sort("name");
 
         assertThatThrownBy(modules::freeze)
                 .isInstanceOf(IllegalArgumentException.class)
@@ -125,10 +140,10 @@ class ObjectModulesTest {
         modules.object("employee", "hr_employee")
                 .readPermission("hr.employee.read")
                 .field("name", FieldType.TEXT)
-                .query(Map.class).path("/api/employees");
+                .query(Map.class)
+                .path("/api/employees");
 
-        assertThat(modules.freeze().queries().get(0).permission())
-                .isEqualTo("hr.employee.read");
+        assertThat(modules.freeze().queries().get(0).permission()).isEqualTo("hr.employee.read");
     }
 
     @Test
@@ -137,21 +152,26 @@ class ObjectModulesTest {
         modules.object("employee", "hr_employee")
                 .readPermission("hr.employee.read")
                 .field("name", FieldType.TEXT)
-                .query(Map.class).path("api/employees");
+                .query(Map.class)
+                .path("api/employees");
 
         assertThatThrownBy(modules::freeze)
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("path");
 
         ObjectModules duplicate = ObjectModules.create();
-        duplicate.object("employee", "hr_employee")
+        duplicate
+                .object("employee", "hr_employee")
                 .readPermission("hr.employee.read")
                 .field("name", FieldType.TEXT)
-                .query(Map.class).path("/api/employees");
-        duplicate.object("department", "hr_department")
+                .query(Map.class)
+                .path("/api/employees");
+        duplicate
+                .object("department", "hr_department")
                 .readPermission("hr.department.read")
                 .field("name", FieldType.TEXT)
-                .query(Map.class).path("/api/employees");
+                .query(Map.class)
+                .path("/api/employees");
 
         assertThatThrownBy(duplicate::freeze)
                 .isInstanceOf(IllegalArgumentException.class)

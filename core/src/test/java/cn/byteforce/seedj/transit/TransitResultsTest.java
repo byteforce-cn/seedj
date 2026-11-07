@@ -1,19 +1,16 @@
 package cn.byteforce.seedj.transit;
 
-import cn.byteforce.seedj.core.ErrorCategory;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.Map;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/**
- * 结果与密钥值对象：构造校验、不可变语义与错误码分类。
- */
+import cn.byteforce.seedj.core.ErrorCategory;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Map;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+/** 结果与密钥值对象：构造校验、不可变语义与错误码分类。 */
 class TransitResultsTest {
 
     @Test
@@ -59,8 +56,8 @@ class TransitResultsTest {
     @Test
     @DisplayName("KeyInfo：全部只读视图可取值")
     void keyInfo() {
-        KeyInfo info = new KeyInfo("k1", KeyType.AES256_GCM96, 4, 2, 3, false, true, false,
-                true, false);
+        KeyInfo info =
+                new KeyInfo("k1", KeyType.AES256_GCM96, 4, 2, 3, false, true, false, true, false);
 
         assertThat(info.getName()).isEqualTo("k1");
         assertThat(info.getType()).isEqualTo(KeyType.AES256_GCM96);
@@ -118,27 +115,35 @@ class TransitResultsTest {
     @Test
     @DisplayName("BatchResult：成功与失败互斥")
     void batchResult() {
-        BatchResult<Ciphertext> ok = new BatchResult<>("ref-1",
-                new Ciphertext("vault:v1:a", 1, null), null, null);
+        BatchResult<Ciphertext> ok =
+                new BatchResult<>("ref-1", new Ciphertext("vault:v1:a", 1, null), null, null);
         assertThat(ok.getReference()).isEqualTo("ref-1");
         assertThat(ok.getValue().getValue()).isEqualTo("vault:v1:a");
         assertThat(ok.getErrorCode()).isNull();
         assertThat(ok.getErrorMessage()).isNull();
         assertThat(ok.toString()).isEqualTo("BatchResult{reference='ref-1', errorCode=null}");
 
-        BatchResult<Ciphertext> failed = new BatchResult<>("ref-2", null,
-                TransitErrorCode.INVALID_CIPHERTEXT, "bad ciphertext");
+        BatchResult<Ciphertext> failed =
+                new BatchResult<>(
+                        "ref-2", null, TransitErrorCode.INVALID_CIPHERTEXT, "bad ciphertext");
         assertThat(failed.getValue()).isNull();
         assertThat(failed.getErrorCode()).isEqualTo(TransitErrorCode.INVALID_CIPHERTEXT);
         assertThat(failed.getErrorMessage()).isEqualTo("bad ciphertext");
 
         assertThatThrownBy(() -> new BatchResult<>("ref-3", null, null, null))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new BatchResult<>("ref-3",
-                new Ciphertext("v", 1, null), null, "unexpected"))
+        assertThatThrownBy(
+                        () ->
+                                new BatchResult<>(
+                                        "ref-3", new Ciphertext("v", 1, null), null, "unexpected"))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new BatchResult<>("ref-3",
-                new Ciphertext("v", 1, null), TransitErrorCode.KEY_NOT_FOUND, null))
+        assertThatThrownBy(
+                        () ->
+                                new BatchResult<>(
+                                        "ref-3",
+                                        new Ciphertext("v", 1, null),
+                                        TransitErrorCode.KEY_NOT_FOUND,
+                                        null))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new BatchResult<>("", null, TransitErrorCode.KEY_NOT_FOUND, null))
                 .isInstanceOf(IllegalArgumentException.class);
@@ -147,16 +152,17 @@ class TransitResultsTest {
     @Test
     @DisplayName("TransitException：携带错误码、类别与可重试标记")
     void transitException() {
-        TransitException fromCode = new TransitException(TransitErrorCode.KEY_NOT_FOUND,
-                "missing key", null);
+        TransitException fromCode =
+                new TransitException(TransitErrorCode.KEY_NOT_FOUND, "missing key", null);
         assertThat(fromCode.getErrorCode()).isEqualTo(TransitErrorCode.KEY_NOT_FOUND);
         assertThat(fromCode.getMessage()).isEqualTo("missing key");
         assertThat(fromCode.category()).isEqualTo(ErrorCategory.CLIENT_ERROR);
         assertThat(fromCode.isRetryable()).isFalse();
 
         IllegalStateException cause = new IllegalStateException("boom");
-        TransitException retryable = new TransitException(TransitErrorCode.BACKEND_UNAVAILABLE,
-                "backend down", true, cause);
+        TransitException retryable =
+                new TransitException(
+                        TransitErrorCode.BACKEND_UNAVAILABLE, "backend down", true, cause);
         assertThat(retryable.getErrorCode()).isEqualTo(TransitErrorCode.BACKEND_UNAVAILABLE);
         assertThat(retryable.getCause()).isSameAs(cause);
         assertThat(retryable.isRetryable()).isTrue();
@@ -178,32 +184,33 @@ class TransitResultsTest {
     @Test
     @DisplayName("TransitProvider：close 默认幂等且不抛")
     void providerCloseIsNoOp() {
-        TransitProvider provider = new TransitProvider() {
-            @Override
-            public TransitCrypto crypto() {
-                return null;
-            }
+        TransitProvider provider =
+                new TransitProvider() {
+                    @Override
+                    public TransitCrypto crypto() {
+                        return null;
+                    }
 
-            @Override
-            public TransitSigner signer() {
-                return null;
-            }
+                    @Override
+                    public TransitSigner signer() {
+                        return null;
+                    }
 
-            @Override
-            public TransitMac mac() {
-                return null;
-            }
+                    @Override
+                    public TransitMac mac() {
+                        return null;
+                    }
 
-            @Override
-            public TransitKeyAdmin keyAdmin() {
-                return null;
-            }
+                    @Override
+                    public TransitKeyAdmin keyAdmin() {
+                        return null;
+                    }
 
-            @Override
-            public boolean supports(KeyType keyType, TransitOperation operation) {
-                return false;
-            }
-        };
+                    @Override
+                    public boolean supports(KeyType keyType, TransitOperation operation) {
+                        return false;
+                    }
+                };
 
         provider.close();
         provider.close();

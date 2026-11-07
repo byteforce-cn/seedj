@@ -20,30 +20,24 @@ public interface OutboxMetrics {
     void claimFailed();
 
     /** 本轮 claim 到的最老记录的库龄（occurredAt → now）。 */
-    default void oldestLag(Duration lag) {
-    }
+    default void oldestLag(Duration lag) {}
 
     static OutboxMetrics noop() {
         return new OutboxMetrics() {
             @Override
-            public void claimed(int count) {
-            }
+            public void claimed(int count) {}
 
             @Override
-            public void sent() {
-            }
+            public void sent() {}
 
             @Override
-            public void failed(boolean retryable) {
-            }
+            public void failed(boolean retryable) {}
 
             @Override
-            public void leaseLost() {
-            }
+            public void leaseLost() {}
 
             @Override
-            public void claimFailed() {
-            }
+            public void claimFailed() {}
         };
     }
 }

@@ -1,14 +1,13 @@
 package cn.byteforce.seedj.infra.local.eventbus;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import cn.byteforce.seedj.eventbus.EventMessage;
 import cn.byteforce.seedj.eventbus.spi.EventBusTransportContractTest;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
 class MemoryEventBusTransportContractTest extends EventBusTransportContractTest {
 
@@ -23,8 +22,15 @@ class MemoryEventBusTransportContractTest extends EventBusTransportContractTest 
         MemoryEventBusTransport transport = new MemoryEventBusTransport(2);
 
         for (int i = 0; i < 5; i++) {
-            transport.send(EventMessage.of("e-" + i, "topic", "k", ("p" + i).getBytes(StandardCharsets.UTF_8)))
-                    .toCompletableFuture().join();
+            transport
+                    .send(
+                            EventMessage.of(
+                                    "e-" + i,
+                                    "topic",
+                                    "k",
+                                    ("p" + i).getBytes(StandardCharsets.UTF_8)))
+                    .toCompletableFuture()
+                    .join();
         }
 
         assertThat(transport.size()).isEqualTo(2);

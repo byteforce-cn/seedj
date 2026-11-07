@@ -1,12 +1,12 @@
 package cn.byteforce.seedj.starter.iam.autoconfigure;
 
-import cn.byteforce.seedj.starter.iam.IamProperties;
-import cn.byteforce.seedj.starter.iam.config.IamServerAutoConfiguration;
-import cn.byteforce.seedj.starter.iam.authz.IamAuthzConfiguration;
-import cn.byteforce.seedj.starter.iam.security.PkiIamSigningKeyStore;
-import cn.byteforce.seedj.iam.spi.IamSigningKeyStore;
 import cn.byteforce.seedj.core.InfrastructureCapability;
+import cn.byteforce.seedj.iam.spi.IamSigningKeyStore;
 import cn.byteforce.seedj.pki.PkiProvider;
+import cn.byteforce.seedj.starter.iam.IamProperties;
+import cn.byteforce.seedj.starter.iam.authz.IamAuthzConfiguration;
+import cn.byteforce.seedj.starter.iam.config.IamServerAutoConfiguration;
+import cn.byteforce.seedj.starter.iam.security.PkiIamSigningKeyStore;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -17,25 +17,34 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 
 /**
- * Single IAM auto-configuration entry point. It activates only when
- * {@code @EnableIamServer} registered the marker bean, and every sub-capability
- * can be switched off independently.
+ * Single IAM auto-configuration entry point. It activates only when {@code @EnableIamServer}
+ * registered the marker bean, and every sub-capability can be switched off independently.
  */
 @AutoConfiguration
 @ConditionalOnBean(IamEnabledMarker.class)
-@ConditionalOnProperty(prefix = "seedj.iam", name = "enabled", havingValue = "true",
+@ConditionalOnProperty(
+        prefix = "seedj.iam",
+        name = "enabled",
+        havingValue = "true",
         matchIfMissing = true)
 @EnableConfigurationProperties(IamProperties.class)
-@Import({IamStoreConfiguration.class, IamJdbcStoreConfiguration.class,
-        IamServerAutoConfiguration.class, IamNativeAuthConfiguration.class,
-        IamRbacConfiguration.class, IamScimConfiguration.class, IamAbacConfiguration.class,
-        IamAuthzConfiguration.class, IamWebConfiguration.class})
+@Import({
+    IamStoreConfiguration.class,
+    IamJdbcStoreConfiguration.class,
+    IamServerAutoConfiguration.class,
+    IamNativeAuthConfiguration.class,
+    IamRbacConfiguration.class,
+    IamScimConfiguration.class,
+    IamAbacConfiguration.class,
+    IamAuthzConfiguration.class,
+    IamWebConfiguration.class
+})
 public class IamAutoConfiguration {
 
     /**
-     * Runs before any repository bean is instantiated, so a missing DataSource is
-     * reported as an IAM configuration error, not as a generic missing-bean error
-     * from whichever repository happens to be created first.
+     * Runs before any repository bean is instantiated, so a missing DataSource is reported as an
+     * IAM configuration error, not as a generic missing-bean error from whichever repository
+     * happens to be created first.
      */
     @org.springframework.context.annotation.Bean
     @ConditionalOnProperty(prefix = "seedj.iam", name = "store", havingValue = "jdbc")
@@ -43,8 +52,9 @@ public class IamAutoConfiguration {
             iamJdbcStorePrecondition() {
         return beanFactory -> {
             if (beanFactory.getBeanNamesForType(javax.sql.DataSource.class).length == 0) {
-                throw new IllegalStateException("seedj.iam.store=jdbc requires a DataSource; "
-                        + "configure spring.datasource.* or switch to seedj.iam.store=memory");
+                throw new IllegalStateException(
+                        "seedj.iam.store=jdbc requires a DataSource; "
+                                + "configure spring.datasource.* or switch to seedj.iam.store=memory");
             }
         };
     }
@@ -61,8 +71,9 @@ public class IamAutoConfiguration {
     IamSigningKeyStore pkiIamSigningKeyStore(ObjectProvider<PkiProvider> pki) {
         PkiProvider provider = pki.getIfAvailable();
         if (provider == null) {
-            throw new IllegalStateException("seedj.iam.jwk.provider=pki requires a PkiProvider; "
-                    + "enable seedj.pki and provide a CA, or use the default JDBC/memory JWK store");
+            throw new IllegalStateException(
+                    "seedj.iam.jwk.provider=pki requires a PkiProvider; "
+                            + "enable seedj.pki and provide a CA, or use the default JDBC/memory JWK store");
         }
         return new PkiIamSigningKeyStore(provider, "iam-jwt-signer");
     }

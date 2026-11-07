@@ -1,17 +1,15 @@
 package cn.byteforce.seedj.infra.local.id;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import cn.byteforce.seedj.id.IdException;
 import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.id.IdGeneratorContractTest;
-
+import java.nio.file.Path;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-
-import java.nio.file.Path;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class SnowflakeIdGeneratorContractTest extends IdGeneratorContractTest {
 
@@ -44,8 +42,9 @@ class SnowflakeIdGeneratorContractTest extends IdGeneratorContractTest {
     @DisplayName("时钟轻微回拨不产生重复 ID；大幅回拨抛 CLOCK_BACKWARDS")
     void clockBackwards(@TempDir Path dir) {
         long[] now = {10_000L};
-        SnowflakeIdGenerator generator = new SnowflakeIdGenerator(3,
-                SnowflakeIdGenerator.DEFAULT_EPOCH_MILLIS, () -> now[0]);
+        SnowflakeIdGenerator generator =
+                new SnowflakeIdGenerator(
+                        3, SnowflakeIdGenerator.DEFAULT_EPOCH_MILLIS, () -> now[0]);
         long first = generator.id();
 
         now[0] -= 1; // 回拨 1ms

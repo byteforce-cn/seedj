@@ -1,24 +1,23 @@
 package cn.byteforce.seedj.starter.audit;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import cn.byteforce.seedj.audit.AuditAppendRequest;
 import cn.byteforce.seedj.audit.AuditErrorCode;
 import cn.byteforce.seedj.audit.AuditException;
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
-
-import java.util.ArrayList;
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class TransactionalAuditAppenderTest {
 
     private final List<AuditAppendRequest<String>> appended = new ArrayList<>();
 
-    private final TransactionalAuditAppender appender = new TransactionalAuditAppender(
-            appended::add);
+    private final TransactionalAuditAppender appender =
+            new TransactionalAuditAppender(appended::add);
 
     private final AuditAppendRequest<String> request =
             new AuditAppendRequest<>("employee.onboarded", "alice", "employee", "e-1", null);

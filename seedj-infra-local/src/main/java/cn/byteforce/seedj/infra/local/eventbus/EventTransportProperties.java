@@ -1,14 +1,12 @@
 package cn.byteforce.seedj.infra.local.eventbus;
 
-import org.springframework.boot.context.properties.ConfigurationProperties;
-
 import java.nio.file.Path;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
  * 本地队列（transport）配置。
  *
- * <p>只描述"事件发到哪里"；是否需要 outbox 由
- * {@code seedj-jdbc-postgresql} 的配置决定。
+ * <p>只描述"事件发到哪里"；是否需要 outbox 由 {@code seedj-jdbc-postgresql} 的配置决定。
  */
 @ConfigurationProperties(prefix = "seedj.eventbus")
 public class EventTransportProperties {

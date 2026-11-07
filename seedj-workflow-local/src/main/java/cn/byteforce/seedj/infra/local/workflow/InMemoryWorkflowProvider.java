@@ -8,14 +8,16 @@ import cn.byteforce.seedj.workflow.spi.CancelWorkflowRequest;
 import cn.byteforce.seedj.workflow.spi.CcAction;
 import cn.byteforce.seedj.workflow.spi.DelegateAction;
 import cn.byteforce.seedj.workflow.spi.HumanTaskStateConflictException;
-import cn.byteforce.seedj.workflow.spi.RemoveAssigneeAction;
 import cn.byteforce.seedj.workflow.spi.RejectAction;
+import cn.byteforce.seedj.workflow.spi.RemoveAssigneeAction;
 import cn.byteforce.seedj.workflow.spi.ResumeWorkflowAction;
 import cn.byteforce.seedj.workflow.spi.SignalAction;
 import cn.byteforce.seedj.workflow.spi.StartWorkflowRequest;
 import cn.byteforce.seedj.workflow.spi.TerminateWorkflowRequest;
 import cn.byteforce.seedj.workflow.spi.TransferAction;
 import cn.byteforce.seedj.workflow.spi.UrgeAction;
+import cn.byteforce.seedj.workflow.spi.WithdrawAction;
+import cn.byteforce.seedj.workflow.spi.WithdrawInstanceAction;
 import cn.byteforce.seedj.workflow.spi.WorkflowAction;
 import cn.byteforce.seedj.workflow.spi.WorkflowCapabilities;
 import cn.byteforce.seedj.workflow.spi.WorkflowDefinition;
@@ -26,9 +28,6 @@ import cn.byteforce.seedj.workflow.spi.WorkflowProvider;
 import cn.byteforce.seedj.workflow.spi.WorkflowStateConflictException;
 import cn.byteforce.seedj.workflow.spi.WorkflowStatus;
 import cn.byteforce.seedj.workflow.spi.WorkflowVersionConflictException;
-import cn.byteforce.seedj.workflow.spi.WithdrawAction;
-import cn.byteforce.seedj.workflow.spi.WithdrawInstanceAction;
-
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Objects;
@@ -41,15 +40,15 @@ import java.util.concurrent.atomic.AtomicLong;
  * 内存实现：完整实现 v2.4 契约的组合语义，用于契约测试与其他 Provider 的参照。
  *
  * <p>语义要点：
+ *
  * <ul>
- *   <li>单进程，每实例一把锁；动作在锁内串行，重复 {@code actionId} 直接返回当前快照。</li>
- *   <li>{@code ACTIVITY}/{@code COMPENSATION} 在本实现中立即完成（没有外部执行器契约）。</li>
- *   <li>所有时间（超时、{@code dueAt}、委托到期）使用注入的 {@link Clock}。</li>
- *   <li>{@code close()} 只停止调度线程，不清空实例状态。</li>
+ *   <li>单进程，每实例一把锁；动作在锁内串行，重复 {@code actionId} 直接返回当前快照。
+ *   <li>{@code ACTIVITY}/{@code COMPENSATION} 在本实现中立即完成（没有外部执行器契约）。
+ *   <li>所有时间（超时、{@code dueAt}、委托到期）使用注入的 {@link Clock}。
+ *   <li>{@code close()} 只停止调度线程，不清空实例状态。
  * </ul>
  *
- * <p>实现按职责拆为定义存储、实例引擎、任务生命周期、动作处理、超时调度与查询六个协作者；
- * 本类只做入口校验与委托。</p>
+ * <p>实现按职责拆为定义存储、实例引擎、任务生命周期、动作处理、超时调度与查询六个协作者； 本类只做入口校验与委托。
  */
 public final class InMemoryWorkflowProvider implements WorkflowProvider {
 
@@ -82,7 +81,7 @@ public final class InMemoryWorkflowProvider implements WorkflowProvider {
     /**
      * 指定时钟与 ID 生成器。
      *
-     * @param clock       取时入口
+     * @param clock 取时入口
      * @param idGenerator ID 生成器
      */
     public InMemoryWorkflowProvider(Clock clock, IdGenerator<String> idGenerator) {
@@ -92,15 +91,18 @@ public final class InMemoryWorkflowProvider implements WorkflowProvider {
     /**
      * 指定时钟与调度器；调度器生命周期由调用方管理。
      *
-     * @param clock     取时入口
+     * @param clock 取时入口
      * @param scheduler 调度器
      */
     public InMemoryWorkflowProvider(Clock clock, ScheduledExecutorService scheduler) {
         this(clock, scheduler, false, localIdGenerator());
     }
 
-    private InMemoryWorkflowProvider(Clock clock, ScheduledExecutorService scheduler,
-                                     boolean ownsScheduler, IdGenerator<String> idGenerator) {
+    private InMemoryWorkflowProvider(
+            Clock clock,
+            ScheduledExecutorService scheduler,
+            boolean ownsScheduler,
+            IdGenerator<String> idGenerator) {
         this.support = new InMemoryWorkflowSupport(clock, scheduler, ownsScheduler, idGenerator);
         this.definitions = new InMemoryWorkflowDefinitionStore(support);
         this.lifecycle = new InMemoryWorkflowTaskLifecycle(support);
@@ -112,18 +114,21 @@ public final class InMemoryWorkflowProvider implements WorkflowProvider {
     }
 
     private static IdGenerator<String> localIdGenerator() {
-        String prefix = "wf-" + ProcessHandle.current().pid() + "-"
-                + Long.toHexString(System.nanoTime());
+        String prefix =
+                "wf-" + ProcessHandle.current().pid() + "-" + Long.toHexString(System.nanoTime());
         AtomicLong sequence = new AtomicLong();
         return () -> prefix + "-" + sequence.incrementAndGet();
     }
 
     private static ScheduledExecutorService newScheduler() {
-        ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(2, runnable -> {
-            Thread thread = new Thread(runnable, "seedj-workflow-memory");
-            thread.setDaemon(true);
-            return thread;
-        });
+        ScheduledThreadPoolExecutor executor =
+                new ScheduledThreadPoolExecutor(
+                        2,
+                        runnable -> {
+                            Thread thread = new Thread(runnable, "seedj-workflow-memory");
+                            thread.setDaemon(true);
+                            return thread;
+                        });
         executor.setRemoveOnCancelPolicy(true);
         return executor;
     }
@@ -134,9 +139,9 @@ public final class InMemoryWorkflowProvider implements WorkflowProvider {
     }
 
     @Override
-    public Optional<WorkflowDefinition> findDefinition(WorkflowDefinitionId id,
-                                                        cn.byteforce.seedj.workflow.spi
-                                                                .WorkflowDefinitionVersion version) {
+    public Optional<WorkflowDefinition> findDefinition(
+            WorkflowDefinitionId id,
+            cn.byteforce.seedj.workflow.spi.WorkflowDefinitionVersion version) {
         return definitions.findDefinition(id, version);
     }
 
@@ -148,14 +153,16 @@ public final class InMemoryWorkflowProvider implements WorkflowProvider {
             if (existing != null) {
                 if (!existing.definition.id().equals(request.definitionId())) {
                     throw new WorkflowVersionConflictException(
-                            "instance " + request.instanceId().value()
+                            "instance "
+                                    + request.instanceId().value()
                                     + " already exists for definition "
                                     + existing.definition.id());
                 }
                 if (request.definitionVersion() != null
                         && !existing.definition.version().equals(request.definitionVersion())) {
                     throw new WorkflowVersionConflictException(
-                            "instance " + request.instanceId().value()
+                            "instance "
+                                    + request.instanceId().value()
                                     + " already exists for version "
                                     + existing.definition.version());
                 }
@@ -167,30 +174,44 @@ public final class InMemoryWorkflowProvider implements WorkflowProvider {
                 }
             }
 
-            WorkflowDefinition definition = definitions.resolveDefinition(
-                    request.definitionId(), request.definitionVersion());
+            WorkflowDefinition definition =
+                    definitions.resolveDefinition(
+                            request.definitionId(), request.definitionVersion());
             Instant now = now();
-            InstanceState state = new InstanceState(request.instanceId(), definition,
-                    request.startedBy(), now, now);
+            InstanceState state =
+                    new InstanceState(
+                            request.instanceId(), definition, request.startedBy(), now, now);
             state.variables.putAll(request.initialVariables());
             state.updatedAt = now;
             support.instances.put(state.id, state);
 
             state.lock.lock();
             try {
-                support.event(state, "INSTANCE_STARTED", null, null, null,
-                        InMemoryWorkflowSupport.attrs("definitionId", definition.id().name(),
-                                "version", definitions.versionText(definition.version()),
-                                "startedBy", request.startedBy()));
+                support.event(
+                        state,
+                        "INSTANCE_STARTED",
+                        null,
+                        null,
+                        null,
+                        InMemoryWorkflowSupport.attrs(
+                                "definitionId",
+                                definition.id().name(),
+                                "version",
+                                definitions.versionText(definition.version()),
+                                "startedBy",
+                                request.startedBy()));
                 if (definition.steps().isEmpty()) {
                     throw new WorkflowStateConflictException("definition has no steps");
                 }
                 engine.enterStep(state, definition.steps().get(0).stepName(), null);
                 timeouts.scheduleWorkflowTimeout(state);
                 support.touch(state);
-                InMemoryWorkflowSupport.LOG.info("workflow started instanceId={} definitionId={} version={} step={}",
-                        state.id.value(), definition.id(),
-                        definitions.versionText(definition.version()), state.currentStep);
+                InMemoryWorkflowSupport.LOG.info(
+                        "workflow started instanceId={} definitionId={} version={} step={}",
+                        state.id.value(),
+                        definition.id(),
+                        definitions.versionText(definition.version()),
+                        state.currentStep);
                 return support.snapshot(state);
             } catch (RuntimeException failure) {
                 support.instances.remove(state.id, state);
@@ -225,10 +246,14 @@ public final class InMemoryWorkflowProvider implements WorkflowProvider {
                 state.actionIds.add(action.actionId());
                 support.actionIndex.put(action.actionId(), state.id);
                 support.touch(state);
-                InMemoryWorkflowSupport.LOG.debug("workflow action instanceId={} definitionId={} actionId={} type={} "
+                InMemoryWorkflowSupport.LOG.debug(
+                        "workflow action instanceId={} definitionId={} actionId={} type={} "
                                 + "step={}",
-                        state.id.value(), state.definition.id(), action.actionId(),
-                        action.getClass().getSimpleName(), state.currentStep);
+                        state.id.value(),
+                        state.definition.id(),
+                        action.actionId(),
+                        action.getClass().getSimpleName(),
+                        state.currentStep);
                 return support.snapshot(state);
             } finally {
                 state.lock.unlock();
@@ -281,9 +306,17 @@ public final class InMemoryWorkflowProvider implements WorkflowProvider {
             lifecycle.discardAllAfterPending(state, "UPSTREAM_ROLLBACK");
             state.status = WorkflowStatus.CANCELLED;
             state.completedAt = now();
-            support.event(state, "INSTANCE_CANCELLED", state.currentStep, null, null,
-                    InMemoryWorkflowSupport.attrs("reason", InMemoryWorkflowSupport.nullSafe(request.reason()),
-                            "compensate", Boolean.toString(request.compensate())));
+            support.event(
+                    state,
+                    "INSTANCE_CANCELLED",
+                    state.currentStep,
+                    null,
+                    null,
+                    InMemoryWorkflowSupport.attrs(
+                            "reason",
+                            InMemoryWorkflowSupport.nullSafe(request.reason()),
+                            "compensate",
+                            Boolean.toString(request.compensate())));
             support.touch(state);
             return support.snapshot(state);
         } finally {
@@ -302,7 +335,12 @@ public final class InMemoryWorkflowProvider implements WorkflowProvider {
             lifecycle.discardAllAfterPending(state, "UPSTREAM_ROLLBACK");
             state.status = WorkflowStatus.TERMINATED;
             state.completedAt = now();
-            support.event(state, "INSTANCE_TERMINATED", state.currentStep, null, null,
+            support.event(
+                    state,
+                    "INSTANCE_TERMINATED",
+                    state.currentStep,
+                    null,
+                    null,
                     InMemoryWorkflowSupport.attrs("reason", request.reason()));
             support.touch(state);
             return support.snapshot(state);

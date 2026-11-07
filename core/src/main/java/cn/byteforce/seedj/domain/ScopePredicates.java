@@ -8,9 +8,8 @@ import java.util.Objects;
 /**
  * {@link ScopePredicate} 的求值与合成工具。
  *
- * <p>合成遵循“只能收窄”：{@code and} 以 {@link ScopePredicate.All} 为单位元、
- * {@link ScopePredicate.None} 为吸收元，{@code or} 反之。子谓词扁平化并用
- * {@link LinkedHashSet} 去重，保持首次出现顺序。</p>
+ * <p>合成遵循“只能收窄”：{@code and} 以 {@link ScopePredicate.All} 为单位元、 {@link ScopePredicate.None}
+ * 为吸收元，{@code or} 反之。子谓词扁平化并用 {@link LinkedHashSet} 去重，保持首次出现顺序。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -20,37 +19,35 @@ public final class ScopePredicates {
     /** 单个 {@code In} 允许的常量上限，避免生成巨型 SQL。 */
     public static final int MAX_IN_VALUES = 1000;
 
-    private ScopePredicates() {
-    }
+    private ScopePredicates() {}
 
     /**
      * 在内存中求值：字段按 schema 声明类型转换后比较。
      *
-     * <p>{@code Not} 使用二值逻辑，字段为 {@code null} 时 {@code Not(Eq(...))} 为真。
-     * 未知字段抛 {@link IllegalArgumentException}，不静默当作不匹配。</p>
+     * <p>{@code Not} 使用二值逻辑，字段为 {@code null} 时 {@code Not(Eq(...))} 为真。 未知字段抛 {@link
+     * IllegalArgumentException}，不静默当作不匹配。
      *
-     * @param row       待判定行
+     * @param row 待判定行
      * @param predicate 谓词
-     * @param schema    对象 schema
+     * @param schema 对象 schema
      * @return 命中为 {@code true}
      */
-    public static boolean matches(TemporalRow row, ScopePredicate predicate,
-                                  ObjectSchema schema) {
+    public static boolean matches(TemporalRow row, ScopePredicate predicate, ObjectSchema schema) {
         Objects.requireNonNull(row, "row");
         return matches(row.fields(), predicate, schema);
     }
 
     /**
-     * 在内存中求值一份字段快照：与 {@link #matches(TemporalRow, ScopePredicate, ObjectSchema)}
-     * 语义相同，供没有 {@link TemporalRow} 的事件溯源聚合复用。
+     * 在内存中求值一份字段快照：与 {@link #matches(TemporalRow, ScopePredicate, ObjectSchema)} 语义相同，供没有 {@link
+     * TemporalRow} 的事件溯源聚合复用。
      *
-     * @param fields    字段名到值的映射
+     * @param fields 字段名到值的映射
      * @param predicate 谓词
-     * @param schema    对象 schema
+     * @param schema 对象 schema
      * @return 命中为 {@code true}
      */
-    public static boolean matches(Map<String, Object> fields, ScopePredicate predicate,
-                                  ObjectSchema schema) {
+    public static boolean matches(
+            Map<String, Object> fields, ScopePredicate predicate, ObjectSchema schema) {
         Objects.requireNonNull(fields, "fields");
         Objects.requireNonNull(predicate, "predicate");
         Objects.requireNonNull(schema, "schema");
@@ -60,16 +57,16 @@ public final class ScopePredicates {
             case ScopePredicate.Eq eq -> matchesEq(fields, eq, schema);
             case ScopePredicate.In in -> matchesIn(fields, in, schema);
             case ScopePredicate.NotNull notNull -> matchesNotNull(fields, notNull, schema);
-            case ScopePredicate.And and -> and.parts().stream()
-                    .allMatch(part -> matches(fields, part, schema));
-            case ScopePredicate.Or or -> or.parts().stream()
-                    .anyMatch(part -> matches(fields, part, schema));
+            case ScopePredicate.And and ->
+                    and.parts().stream().allMatch(part -> matches(fields, part, schema));
+            case ScopePredicate.Or or ->
+                    or.parts().stream().anyMatch(part -> matches(fields, part, schema));
             case ScopePredicate.Not not -> !matches(fields, not.part(), schema);
         };
     }
 
-    private static boolean matchesEq(Map<String, Object> fields, ScopePredicate.Eq eq,
-                                     ObjectSchema schema) {
+    private static boolean matchesEq(
+            Map<String, Object> fields, ScopePredicate.Eq eq, ObjectSchema schema) {
         if (eq.value() == null) {
             return false;
         }
@@ -77,8 +74,8 @@ public final class ScopePredicates {
         return Objects.equals(fields.get(eq.field()), expected);
     }
 
-    private static boolean matchesIn(Map<String, Object> fields, ScopePredicate.In in,
-                                     ObjectSchema schema) {
+    private static boolean matchesIn(
+            Map<String, Object> fields, ScopePredicate.In in, ObjectSchema schema) {
         FieldType type = schema.requireField(in.field()).type();
         Object actual = fields.get(in.field());
         if (actual == null || in.values().isEmpty()) {
@@ -87,9 +84,8 @@ public final class ScopePredicates {
         return in.values().stream().map(type::coerce).anyMatch(actual::equals);
     }
 
-    private static boolean matchesNotNull(Map<String, Object> fields,
-                                          ScopePredicate.NotNull notNull,
-                                          ObjectSchema schema) {
+    private static boolean matchesNotNull(
+            Map<String, Object> fields, ScopePredicate.NotNull notNull, ObjectSchema schema) {
         schema.requireField(notNull.field());
         return fields.get(notNull.field()) != null;
     }

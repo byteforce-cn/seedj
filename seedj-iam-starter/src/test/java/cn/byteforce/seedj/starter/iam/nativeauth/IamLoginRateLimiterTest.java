@@ -1,19 +1,18 @@
 package cn.byteforce.seedj.starter.iam.nativeauth;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import cn.byteforce.seedj.iam.IamErrorCode;
 import cn.byteforce.seedj.iam.IamException;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
 /** 登录节流窗口：阈值、窗口重置与成功清零。 */
 class IamLoginRateLimiterTest {
@@ -21,8 +20,8 @@ class IamLoginRateLimiterTest {
     private static final Instant NOW = Instant.parse("2026-10-15T12:00:00Z");
 
     private final MutableClock clock = new MutableClock(NOW);
-    private final IamLoginRateLimiter limiter = new IamLoginRateLimiter(3, Duration.ofMinutes(5),
-            clock);
+    private final IamLoginRateLimiter limiter =
+            new IamLoginRateLimiter(3, Duration.ofMinutes(5), clock);
 
     @Test
     @DisplayName("未达阈值不锁定")
@@ -42,8 +41,11 @@ class IamLoginRateLimiterTest {
         limiter.failure("default", "alice", "native-app");
 
         assertThatThrownBy(() -> limiter.check("default", "alice", "native-app"))
-                .isInstanceOfSatisfying(IamException.class, exception ->
-                        assertThat(exception.getCode()).isEqualTo(IamErrorCode.ACCOUNT_LOCKED));
+                .isInstanceOfSatisfying(
+                        IamException.class,
+                        exception ->
+                                assertThat(exception.getCode())
+                                        .isEqualTo(IamErrorCode.ACCOUNT_LOCKED));
 
         clock.advance(Duration.ofMinutes(5).plusSeconds(1));
 
@@ -97,8 +99,10 @@ class IamLoginRateLimiterTest {
 
         assertThatThrownBy(() -> single.check("default", "bob", "native-app"))
                 .isInstanceOf(IamException.class);
-        assertThatCode(() -> new IamLoginRateLimiter(1, Duration.ofMinutes(1), clock)
-                .check("default", "nobody", "native-app"))
+        assertThatCode(
+                        () ->
+                                new IamLoginRateLimiter(1, Duration.ofMinutes(1), clock)
+                                        .check("default", "nobody", "native-app"))
                 .doesNotThrowAnyException();
     }
 

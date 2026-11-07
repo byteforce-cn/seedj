@@ -1,26 +1,25 @@
 package cn.byteforce.seedj.cqrs;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import cn.byteforce.seedj.cqrs.spi.CommandStore;
 import cn.byteforce.seedj.cqrs.spi.TransactionRunner;
-import cn.byteforce.seedj.lock.LockErrorCode;
-import cn.byteforce.seedj.lock.LockException;
-import cn.byteforce.seedj.lock.LockLease;
-import cn.byteforce.seedj.lock.LockProvider;
 import cn.byteforce.seedj.domain.AbstractAggregateRoot;
-import cn.byteforce.seedj.domain.Repository;
-import cn.byteforce.seedj.domain.event.DomainEvent;
-import cn.byteforce.seedj.domain.event.EventApplier;
 import cn.byteforce.seedj.domain.FieldType;
 import cn.byteforce.seedj.domain.ObjectSchema;
+import cn.byteforce.seedj.domain.Repository;
 import cn.byteforce.seedj.domain.ScopePredicate;
+import cn.byteforce.seedj.domain.event.DomainEvent;
+import cn.byteforce.seedj.domain.event.EventApplier;
 import cn.byteforce.seedj.domain.event.EventType;
 import cn.byteforce.seedj.domain.exception.AggregateNotFoundException;
 import cn.byteforce.seedj.eventbus.EventMessage;
 import cn.byteforce.seedj.eventbus.EventPublisher;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import tools.jackson.databind.json.JsonMapper;
-
+import cn.byteforce.seedj.lock.LockErrorCode;
+import cn.byteforce.seedj.lock.LockException;
+import cn.byteforce.seedj.lock.LockLease;
+import cn.byteforce.seedj.lock.LockProvider;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -28,15 +27,14 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * 命令模板的顺序保证。
  *
- * <p>这些断言就是"模板"的全部产出：锁在事务外、事务在锁内、事件先取后存、
- * 保存成功才发布、冲突重试不重复发布、异常路径必释放锁、拦截器只执行一次。
+ * <p>这些断言就是"模板"的全部产出：锁在事务外、事务在锁内、事件先取后存、 保存成功才发布、冲突重试不重复发布、异常路径必释放锁、拦截器只执行一次。
  */
 class CommandAgentTest {
 
@@ -44,17 +42,26 @@ class CommandAgentTest {
 
     private static final JsonMapper JSON = JsonMapper.builder().build();
 
-    private static final ObjectSchema SCHEMA = ObjectSchema.builder("test_counter", "counter")
-            .field("counter_id", FieldType.TEXT)
-            .field("value", FieldType.INTEGER)
-            .build();
+    private static final ObjectSchema SCHEMA =
+            ObjectSchema.builder("test_counter", "counter")
+                    .field("counter_id", FieldType.TEXT)
+                    .field("value", FieldType.INTEGER)
+                    .build();
 
-    private static final CommandRegistration REGISTRATION = new CommandRegistration(
-            CommandDescriptor.builder().type("test.counter.increment")
-                    .objectType("test_counter").payloadType(Increment.class)
-                    .permission("test.counter.write").build(),
-            new NoopHandler(), SCHEMA, java.util.Set.of(), java.util.Set.of(),
-            List.of("test.counter.incremented"), false);
+    private static final CommandRegistration REGISTRATION =
+            new CommandRegistration(
+                    CommandDescriptor.builder()
+                            .type("test.counter.increment")
+                            .objectType("test_counter")
+                            .payloadType(Increment.class)
+                            .permission("test.counter.write")
+                            .build(),
+                    new NoopHandler(),
+                    SCHEMA,
+                    java.util.Set.of(),
+                    java.util.Set.of(),
+                    List.of("test.counter.incremented"),
+                    false);
 
     private final List<String> trace = new ArrayList<>();
 
@@ -67,17 +74,26 @@ class CommandAgentTest {
     @Test
     @DisplayName("新建：加锁 → 事务 → 加载(空) → 创建 → 保存 → 发布 → 提交 → 释放")
     void creationPathOrderIsFixed() {
-        CommandRecord record = run(agent("counter-1", CommandAgent.Options.<String>defaults()
-                .withLockProvider(new RecordingLock(trace))
-                .withTransactionRunner(transactionRunner)), new Increment("counter-1"));
+        CommandRecord record =
+                run(
+                        agent(
+                                "counter-1",
+                                CommandAgent.Options.<String>defaults()
+                                        .withLockProvider(new RecordingLock(trace))
+                                        .withTransactionRunner(transactionRunner)),
+                        new Increment("counter-1"));
 
         assertThat(record.targetRef()).isEqualTo("counter-1");
-        assertThat(trace).containsExactly(
-                "lock:acquire:test.counter:counter-1",
-                "tx:begin",
-                "load:counter-1", "create", "save", "publish",
-                "tx:end",
-                "lock:release");
+        assertThat(trace)
+                .containsExactly(
+                        "lock:acquire:test.counter:counter-1",
+                        "tx:begin",
+                        "load:counter-1",
+                        "create",
+                        "save",
+                        "publish",
+                        "tx:end",
+                        "lock:release");
         assertThat(publisher.published).hasSize(1);
     }
 
@@ -125,13 +141,23 @@ class CommandAgentTest {
         publisher.published.clear();
 
         CommandRuntimeTest.FakeCommands scopedStore = new CommandRuntimeTest.FakeCommands();
-        AgentInvocation scoped = new AgentInvocation("counter-11",
-                CommandRecord.pending(UUID.randomUUID(), "test.counter.increment",
-                        java.time.Instant.parse("2026-11-07T09:00:00Z"), ISSUER,
-                        Map.of("counter_id", "counter-11"), "k-scope", "a".repeat(64),
-                        java.time.Instant.parse("2026-11-07T09:00:00Z")),
-                SCHEMA, REGISTRATION, ScopePredicate.eq("value", 99), JSON,
-                scopedStore);
+        AgentInvocation scoped =
+                new AgentInvocation(
+                        "counter-11",
+                        CommandRecord.pending(
+                                UUID.randomUUID(),
+                                "test.counter.increment",
+                                java.time.Instant.parse("2026-11-07T09:00:00Z"),
+                                ISSUER,
+                                Map.of("counter_id", "counter-11"),
+                                "k-scope",
+                                "a".repeat(64),
+                                java.time.Instant.parse("2026-11-07T09:00:00Z")),
+                        SCHEMA,
+                        REGISTRATION,
+                        ScopePredicate.eq("value", 99),
+                        JSON,
+                        scopedStore);
         scopedStore.insert(scoped.pending());
 
         assertThatThrownBy(() -> agent.executeWithin(new Increment("counter-11"), scoped))
@@ -144,19 +170,26 @@ class CommandAgentTest {
     @DisplayName("事件白名单之外的 DomainEvent 失败关闭")
     void undeclaredEventFailsClosed() {
         CounterAgent agent = agent("counter-12", CommandAgent.Options.<String>defaults());
-        CommandRegistration restricted = new CommandRegistration(
-                CommandDescriptor.builder().type("test.counter.increment")
-                        .objectType("test_counter").payloadType(Increment.class)
-                        .permission("test.counter.write").build(),
-                new NoopHandler(), SCHEMA, java.util.Set.of(), java.util.Set.of(),
-                List.of("test.counter.something-else"), false);
+        CommandRegistration restricted =
+                new CommandRegistration(
+                        CommandDescriptor.builder()
+                                .type("test.counter.increment")
+                                .objectType("test_counter")
+                                .payloadType(Increment.class)
+                                .permission("test.counter.write")
+                                .build(),
+                        new NoopHandler(),
+                        SCHEMA,
+                        java.util.Set.of(),
+                        java.util.Set.of(),
+                        List.of("test.counter.something-else"),
+                        false);
 
         CommandRuntimeTest.FakeCommands restrictedStore = new CommandRuntimeTest.FakeCommands();
-        AgentInvocation restrictedContext = invocation("counter-12", restricted,
-                restrictedStore);
+        AgentInvocation restrictedContext = invocation("counter-12", restricted, restrictedStore);
         restrictedStore.insert(restrictedContext.pending());
-        assertThatThrownBy(() -> agent.executeWithin(new Increment("counter-12"),
-                restrictedContext))
+        assertThatThrownBy(
+                        () -> agent.executeWithin(new Increment("counter-12"), restrictedContext))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("undeclared domain event");
         assertThat(publisher.published).isEmpty();
@@ -166,21 +199,35 @@ class CommandAgentTest {
     @DisplayName("complete 在事务内、audit 之后执行")
     void completeRunsAfterAuditInsideTransaction() {
         CommandRuntimeTest.FakeCommands store = new CommandRuntimeTest.FakeCommands();
-        CounterAgent agent = agent("counter-13", CommandAgent.Options.<String>defaults()
-                .withTransactionRunner(transactionRunner)
-                .withAudit(new CommandAudit() {
-                    @Override
-                    public void accepted(Command<?> command, String resourceId) {
-                        assertThat(trace).contains("tx:begin").doesNotContain("tx:end");
-                        trace.add("audit");
-                    }
-                }));
+        CounterAgent agent =
+                agent(
+                        "counter-13",
+                        CommandAgent.Options.<String>defaults()
+                                .withTransactionRunner(transactionRunner)
+                                .withAudit(
+                                        new CommandAudit() {
+                                            @Override
+                                            public void accepted(
+                                                    Command<?> command, String resourceId) {
+                                                assertThat(trace)
+                                                        .contains("tx:begin")
+                                                        .doesNotContain("tx:end");
+                                                trace.add("audit");
+                                            }
+                                        }));
         AgentInvocation context = invocation("counter-13", REGISTRATION, store);
         store.insert(context.pending());
         CommandRecord record = agent.executeWithin(new Increment("counter-13"), context);
 
-        assertThat(trace).containsExactly("tx:begin", "load:counter-13", "create", "save",
-                "publish", "audit", "tx:end");
+        assertThat(trace)
+                .containsExactly(
+                        "tx:begin",
+                        "load:counter-13",
+                        "create",
+                        "save",
+                        "publish",
+                        "audit",
+                        "tx:end");
         assertThat(record.status()).isEqualTo(CommandStatus.ACCEPTED);
         assertThat(store.records).contains(record);
     }
@@ -189,37 +236,48 @@ class CommandAgentTest {
     @DisplayName("拦截器在锁与事务之外，且只执行一次")
     void interceptorWrapsLockAndTransaction() {
         List<String> inner = trace;
-        CommandInterceptor<String> interceptor = invocation -> {
-            inner.add("interceptor:enter");
-            try {
-                return invocation.proceed();
-            } finally {
-                inner.add("interceptor:exit");
-            }
-        };
-        CounterAgent agent = agent("counter-4", CommandAgent.Options.<String>defaults()
-                .withLockProvider(new RecordingLock(trace))
-                .withTransactionRunner(transactionRunner)
-                .withInterceptors(List.of(interceptor)));
+        CommandInterceptor<String> interceptor =
+                invocation -> {
+                    inner.add("interceptor:enter");
+                    try {
+                        return invocation.proceed();
+                    } finally {
+                        inner.add("interceptor:exit");
+                    }
+                };
+        CounterAgent agent =
+                agent(
+                        "counter-4",
+                        CommandAgent.Options.<String>defaults()
+                                .withLockProvider(new RecordingLock(trace))
+                                .withTransactionRunner(transactionRunner)
+                                .withInterceptors(List.of(interceptor)));
 
         run(agent, new Increment("counter-4"));
 
-        assertThat(trace).containsExactly(
-                "interceptor:enter",
-                "lock:acquire:test.counter:counter-4",
-                "tx:begin",
-                "load:counter-4", "create", "save", "publish",
-                "tx:end",
-                "lock:release",
-                "interceptor:exit");
+        assertThat(trace)
+                .containsExactly(
+                        "interceptor:enter",
+                        "lock:acquire:test.counter:counter-4",
+                        "tx:begin",
+                        "load:counter-4",
+                        "create",
+                        "save",
+                        "publish",
+                        "tx:end",
+                        "lock:release",
+                        "interceptor:exit");
     }
 
     @Test
     @DisplayName("拦截器短路：不加载、不加锁、不发布（幂等命中）")
     void interceptorCanShortCircuit() {
         CommandInterceptor<String> idempotent = invocation -> invocation.aggregateId();
-        CounterAgent agent = agent("counter-5", CommandAgent.Options.<String>defaults()
-                .withInterceptors(List.of(idempotent)));
+        CounterAgent agent =
+                agent(
+                        "counter-5",
+                        CommandAgent.Options.<String>defaults()
+                                .withInterceptors(List.of(idempotent)));
 
         assertThatThrownBy(() -> run(agent, new Increment("counter-5")))
                 .isInstanceOf(IllegalStateException.class)
@@ -232,30 +290,40 @@ class CommandAgentTest {
     @Test
     @DisplayName("并发冲突：重新加载并重新处理，只发布一次，拦截器不重复进入")
     void conflictRetriesWithoutDuplicatingPublish() {
-        CommandInterceptor<String> interceptor = invocation -> {
-            trace.add("interceptor");
-            return invocation.proceed();
-        };
-        CounterAgent agent = agent("counter-6", CommandAgent.Options.<String>defaults()
-                .withLockProvider(new RecordingLock(trace))
-                .withTransactionRunner(transactionRunner)
-                .withInterceptors(List.of(interceptor)));
+        CommandInterceptor<String> interceptor =
+                invocation -> {
+                    trace.add("interceptor");
+                    return invocation.proceed();
+                };
+        CounterAgent agent =
+                agent(
+                        "counter-6",
+                        CommandAgent.Options.<String>defaults()
+                                .withLockProvider(new RecordingLock(trace))
+                                .withTransactionRunner(transactionRunner)
+                                .withInterceptors(List.of(interceptor)));
         repository.conflictsRemaining = 1;
 
         run(agent, new Increment("counter-6"));
 
-        assertThat(trace).containsExactly(
-                "interceptor",
-                "lock:acquire:test.counter:counter-6",
-                "tx:begin",
-                "load:counter-6", "create", "save",
-                "tx:end",
-                "lock:release",
-                "lock:acquire:test.counter:counter-6",
-                "tx:begin",
-                "load:counter-6", "create", "save", "publish",
-                "tx:end",
-                "lock:release");
+        assertThat(trace)
+                .containsExactly(
+                        "interceptor",
+                        "lock:acquire:test.counter:counter-6",
+                        "tx:begin",
+                        "load:counter-6",
+                        "create",
+                        "save",
+                        "tx:end",
+                        "lock:release",
+                        "lock:acquire:test.counter:counter-6",
+                        "tx:begin",
+                        "load:counter-6",
+                        "create",
+                        "save",
+                        "publish",
+                        "tx:end",
+                        "lock:release");
         assertThat(publisher.published).hasSize(1);
         assertThat(repository.loadedValue("counter-6")).isEqualTo(1);
     }
@@ -265,15 +333,20 @@ class CommandAgentTest {
     void busyLockFailsFast() {
         RecordingLock lock = new RecordingLock(trace);
         lock.busy = true;
-        CounterAgent agent = agent("counter-7", CommandAgent.Options.<String>defaults()
-                .withLockProvider(lock)
-                .withTransactionRunner(transactionRunner));
+        CounterAgent agent =
+                agent(
+                        "counter-7",
+                        CommandAgent.Options.<String>defaults()
+                                .withLockProvider(lock)
+                                .withTransactionRunner(transactionRunner));
 
         assertThatThrownBy(() -> run(agent, new Increment("counter-7")))
-                .isInstanceOfSatisfying(LockException.class, e -> {
-                    assertThat(e.getErrorCode()).isEqualTo(LockErrorCode.LOCK_BUSY);
-                    assertThat(e.isRetryable()).isTrue();
-                });
+                .isInstanceOfSatisfying(
+                        LockException.class,
+                        e -> {
+                            assertThat(e.getErrorCode()).isEqualTo(LockErrorCode.LOCK_BUSY);
+                            assertThat(e.isRetryable()).isTrue();
+                        });
 
         assertThat(trace).containsExactly("lock:acquire:test.counter:counter-7");
         assertThat(publisher.published).isEmpty();
@@ -282,14 +355,20 @@ class CommandAgentTest {
     @Test
     @DisplayName("重试耗尽：抛并发冲突，从未发布")
     void exhaustedRetriesNeverPublish() {
-        CounterAgent agent = agent("counter-8", CommandAgent.Options.<String>defaults()
-                .withTransactionRunner(transactionRunner)
-                .withMaxAttempts(2));
+        CounterAgent agent =
+                agent(
+                        "counter-8",
+                        CommandAgent.Options.<String>defaults()
+                                .withTransactionRunner(transactionRunner)
+                                .withMaxAttempts(2));
         repository.conflictsRemaining = 5;
 
         assertThatThrownBy(() -> run(agent, new Increment("counter-8")))
-                .isInstanceOfSatisfying(CqrsException.class, e ->
-                        assertThat(e.getErrorCode()).isEqualTo(CqrsErrorCode.CONCURRENCY_CONFLICT));
+                .isInstanceOfSatisfying(
+                        CqrsException.class,
+                        e ->
+                                assertThat(e.getErrorCode())
+                                        .isEqualTo(CqrsErrorCode.CONCURRENCY_CONFLICT));
 
         assertThat(publisher.published).isEmpty();
         assertThat(trace.stream().filter("tx:end"::equals)).hasSize(2);
@@ -300,20 +379,27 @@ class CommandAgentTest {
     void releaseHappensWhenPublishFails() {
         RecordingLock lock = new RecordingLock(trace);
         publisher.failOnPublish = true;
-        CounterAgent agent = agent("counter-9", CommandAgent.Options.<String>defaults()
-                .withLockProvider(lock)
-                .withTransactionRunner(transactionRunner));
+        CounterAgent agent =
+                agent(
+                        "counter-9",
+                        CommandAgent.Options.<String>defaults()
+                                .withLockProvider(lock)
+                                .withTransactionRunner(transactionRunner));
 
         assertThatThrownBy(() -> run(agent, new Increment("counter-9")))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("broker down");
 
-        assertThat(trace).containsExactly(
-                "lock:acquire:test.counter:counter-9",
-                "tx:begin",
-                "load:counter-9", "create", "save", "publish",
-                "tx:end",
-                "lock:release");
+        assertThat(trace)
+                .containsExactly(
+                        "lock:acquire:test.counter:counter-9",
+                        "tx:begin",
+                        "load:counter-9",
+                        "create",
+                        "save",
+                        "publish",
+                        "tx:end",
+                        "lock:release");
     }
 
     private CounterAgent agent(String id, CommandAgent.Options<String> options) {
@@ -321,8 +407,8 @@ class CommandAgentTest {
     }
 
     private CounterAgent agent(String id, CommandAgent.Options<String> options, boolean creates) {
-        return new CounterAgent(repository, publisher, IdCodecs.strings(), options, id, creates,
-                trace);
+        return new CounterAgent(
+                repository, publisher, IdCodecs.strings(), options, id, creates, trace);
     }
 
     private static CommandRecord run(CounterAgent agent, Increment command) {
@@ -332,15 +418,24 @@ class CommandAgentTest {
         return agent.executeWithin(command, context);
     }
 
-    private static AgentInvocation invocation(String targetRef,
-                                              CommandRegistration registration,
-                                              CommandStore store) {
-        return new AgentInvocation(targetRef,
-                CommandRecord.pending(UUID.randomUUID(), "test.counter.increment",
-                        java.time.Instant.parse("2026-11-07T09:00:00Z"), ISSUER,
-                        Map.of("counter_id", targetRef), "k-" + UUID.randomUUID(),
-                        "a".repeat(64), java.time.Instant.parse("2026-11-07T09:00:00Z")),
-                SCHEMA, registration, ScopePredicate.all(), JSON, store);
+    private static AgentInvocation invocation(
+            String targetRef, CommandRegistration registration, CommandStore store) {
+        return new AgentInvocation(
+                targetRef,
+                CommandRecord.pending(
+                        UUID.randomUUID(),
+                        "test.counter.increment",
+                        java.time.Instant.parse("2026-11-07T09:00:00Z"),
+                        ISSUER,
+                        Map.of("counter_id", targetRef),
+                        "k-" + UUID.randomUUID(),
+                        "a".repeat(64),
+                        java.time.Instant.parse("2026-11-07T09:00:00Z")),
+                SCHEMA,
+                registration,
+                ScopePredicate.all(),
+                JSON,
+                store);
     }
 
     // ---------------------------------------------------------------- fixtures
@@ -353,8 +448,7 @@ class CommandAgentTest {
     }
 
     @EventType("test.counter.incremented")
-    record Incremented(String counterId) implements DomainEvent {
-    }
+    record Incremented(String counterId) implements DomainEvent {}
 
     static final class Counter extends AbstractAggregateRoot<String>
             implements EventApplier<Incremented> {
@@ -396,8 +490,8 @@ class CommandAgentTest {
         }
 
         @Override
-        public cn.byteforce.seedj.domain.AppendRequest decide(Increment command,
-                                                             CommandContext ctx) {
+        public cn.byteforce.seedj.domain.AppendRequest decide(
+                Increment command, CommandContext ctx) {
             throw new UnsupportedOperationException("not used by agent tests");
         }
     }
@@ -408,9 +502,14 @@ class CommandAgentTest {
 
         private final List<String> trace;
 
-        CounterAgent(Repository<Counter, String> repository, EventPublisher publisher,
-                     IdCodec<String> codec, CommandAgent.Options<String> options,
-                     String expectedId, boolean creates, List<String> trace) {
+        CounterAgent(
+                Repository<Counter, String> repository,
+                EventPublisher publisher,
+                IdCodec<String> codec,
+                CommandAgent.Options<String> options,
+                String expectedId,
+                boolean creates,
+                List<String> trace) {
             super(repository, publisher, codec, options);
             this.creates = creates;
             this.trace = trace;
@@ -468,7 +567,8 @@ class CommandAgentTest {
             trace.add("save");
             if (conflictsRemaining > 0) {
                 conflictsRemaining--;
-                throw new CqrsException(CqrsErrorCode.CONCURRENCY_CONFLICT,
+                throw new CqrsException(
+                        CqrsErrorCode.CONCURRENCY_CONFLICT,
                         "simulated conflict on " + aggregate.getId());
             }
             List<DomainEvent> history =

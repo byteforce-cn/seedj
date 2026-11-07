@@ -10,8 +10,8 @@ import org.springframework.beans.factory.ObjectProvider;
 /**
  * 默认 outbox 写入实现：把记录交给当前可用的 {@link OutboxStore}。
  *
- * <p>store 用 {@link ObjectProvider} 延迟解析，避免 bean 注册顺序影响装配。
- * 没有 store 时在 append 阶段报 {@code STORE_UNAVAILABLE}，不静默丢弃。
+ * <p>store 用 {@link ObjectProvider} 延迟解析，避免 bean 注册顺序影响装配。 没有 store 时在 append 阶段报 {@code
+ * STORE_UNAVAILABLE}，不静默丢弃。
  */
 public class DefaultOutboxWriter implements OutboxWriter {
 
@@ -25,7 +25,8 @@ public class DefaultOutboxWriter implements OutboxWriter {
     public void append(OutboxRecord record) {
         OutboxStore store = stores.getIfAvailable();
         if (store == null) {
-            throw new OutboxException(OutboxErrorCode.STORE_UNAVAILABLE,
+            throw new OutboxException(
+                    OutboxErrorCode.STORE_UNAVAILABLE,
                     "no OutboxStore bean; add an outbox implementation or disable seedj.outbox");
         }
         store.append(record);

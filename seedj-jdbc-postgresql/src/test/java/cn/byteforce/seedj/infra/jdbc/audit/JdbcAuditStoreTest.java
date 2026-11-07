@@ -1,5 +1,8 @@
 package cn.byteforce.seedj.infra.jdbc.audit;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import cn.byteforce.seedj.audit.AuditAppendRequest;
 import cn.byteforce.seedj.audit.AuditChain;
 import cn.byteforce.seedj.audit.AuditEntry;
@@ -9,6 +12,10 @@ import cn.byteforce.seedj.audit.AuditVerifier;
 import cn.byteforce.seedj.audit.CanonicalHasher;
 import cn.byteforce.seedj.core.clock.Clocks;
 import cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -23,17 +30,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicLong;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
-/**
- * 审计链在真实 PostgreSQL 上的事务与连续性契约。
- */
+/** 审计链在真实 PostgreSQL 上的事务与连续性契约。 */
 @Testcontainers
 class JdbcAuditStoreTest {
 
@@ -55,20 +52,23 @@ class JdbcAuditStoreTest {
 
     @BeforeAll
     static void initialize() {
-        DriverManagerDataSource dataSource = new DriverManagerDataSource(
-                POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
+        DriverManagerDataSource dataSource =
+                new DriverManagerDataSource(
+                        POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
         jdbcTemplate = new JdbcTemplate(dataSource);
         new AuditSchemaCapability(new JdbcMigrationRunner(dataSource)).initialize();
         transaction = new TransactionTemplate(new DataSourceTransactionManager(dataSource));
         store = new JdbcAuditStore(jdbcTemplate);
-        chain = new AuditChain<>(store, Clocks.system(), head -> {
-        }, () -> "audit-" + IDS.incrementAndGet());
+        chain =
+                new AuditChain<>(
+                        store, Clocks.system(), head -> {}, () -> "audit-" + IDS.incrementAndGet());
     }
 
     @BeforeEach
     void reset() {
         jdbcTemplate.execute("TRUNCATE audit_entry");
-        jdbcTemplate.update("UPDATE audit_head SET sequence = 0, last_hash = ?",
+        jdbcTemplate.update(
+                "UPDATE audit_head SET sequence = 0, last_hash = ?",
                 CanonicalHasher.GENESIS_PREV_HASH);
     }
 
@@ -88,10 +88,14 @@ class JdbcAuditStoreTest {
     @Test
     @DisplayName("回滚后没有条目、序号不消耗、链头不动")
     void rollbackLeavesNoTrace() {
-        assertThatThrownBy(() -> transaction.executeWithoutResult(status -> {
-            chain.append(request("e-2"));
-            throw new IllegalStateException("rollback");
-        })).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(
+                        () ->
+                                transaction.executeWithoutResult(
+                                        status -> {
+                                            chain.append(request("e-2"));
+                                            throw new IllegalStateException("rollback");
+                                        }))
+                .isInstanceOf(IllegalStateException.class);
 
         assertThat(store.loadAll()).isEmpty();
         assertThat(store.head().getSequence()).isZero();
@@ -161,44 +165,52 @@ class JdbcAuditStoreTest {
     }
 
     private static int column(String name) {
-        Integer count = jdbcTemplate.queryForObject(
-                "SELECT count(*) FROM information_schema.columns "
-                        + "WHERE table_name = 'audit_entry' AND column_name = ?",
-                Integer.class, name);
+        Integer count =
+                jdbcTemplate.queryForObject(
+                        "SELECT count(*) FROM information_schema.columns "
+                                + "WHERE table_name = 'audit_entry' AND column_name = ?",
+                        Integer.class,
+                        name);
         return count == null ? 0 : count;
     }
 
     private static int rule(String name) {
-        Integer count = jdbcTemplate.queryForObject(
-                "SELECT count(*) FROM pg_rules WHERE tablename = 'audit_entry' AND rulename = ?",
-                Integer.class, name);
+        Integer count =
+                jdbcTemplate.queryForObject(
+                        "SELECT count(*) FROM pg_rules WHERE tablename = 'audit_entry' AND rulename = ?",
+                        Integer.class,
+                        name);
         return count == null ? 0 : count;
     }
 
     private static int constraint(String name) {
-        Integer count = jdbcTemplate.queryForObject(
-                "SELECT count(*) FROM pg_constraint WHERE conname = ?",
-                Integer.class, name);
+        Integer count =
+                jdbcTemplate.queryForObject(
+                        "SELECT count(*) FROM pg_constraint WHERE conname = ?",
+                        Integer.class,
+                        name);
         return count == null ? 0 : count;
     }
 
     private static AuditEvent event(String id, String name) {
-        return new AuditEvent(UUID.fromString(id), "employee.onboarded",
+        return new AuditEvent(
+                UUID.fromString(id),
+                "employee.onboarded",
                 JSON.readTree("{\"name\":\"" + name + "\"}"));
     }
 
-    private static AuditAppendRequest<String> withEvents(String resourceId,
-                                                         List<AuditEvent> events) {
+    private static AuditAppendRequest<String> withEvents(
+            String resourceId, List<AuditEvent> events) {
         ObjectNode payload = JSON.createObjectNode();
         payload.put("command_id", UUID.randomUUID().toString());
         var ids = payload.putArray("event_ids");
         events.forEach(event -> ids.add(event.id().toString()));
-        return new AuditAppendRequest<>("employee.onboarded", "alice", "employee", resourceId,
-                payload, events);
+        return new AuditAppendRequest<>(
+                "employee.onboarded", "alice", "employee", resourceId, payload, events);
     }
 
     private static AuditAppendRequest<String> request(String resourceId) {
-        return new AuditAppendRequest<>("employee.onboarded", "alice", "employee", resourceId,
-                null);
+        return new AuditAppendRequest<>(
+                "employee.onboarded", "alice", "employee", resourceId, null);
     }
 }

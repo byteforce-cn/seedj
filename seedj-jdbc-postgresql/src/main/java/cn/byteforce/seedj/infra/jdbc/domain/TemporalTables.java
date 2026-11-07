@@ -40,8 +40,8 @@ public final class TemporalTables {
     public TemporalTable require(String objectType) {
         TemporalTable table = byType.get(objectType);
         if (table == null) {
-            throw new IllegalArgumentException("unknown object type: " + objectType
-                    + " (known: " + byType.keySet() + ")");
+            throw new IllegalArgumentException(
+                    "unknown object type: " + objectType + " (known: " + byType.keySet() + ")");
         }
         return table;
     }

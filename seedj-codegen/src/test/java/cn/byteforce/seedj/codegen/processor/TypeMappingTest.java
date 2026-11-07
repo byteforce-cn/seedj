@@ -15,8 +15,7 @@ class TypeMappingTest {
         assertThat(TypeMapping.infer("java.lang.String", false)).isEqualTo(FieldType.TEXT);
         assertThat(TypeMapping.infer("int", false)).isEqualTo(FieldType.INTEGER);
         assertThat(TypeMapping.infer("java.lang.Long", false)).isEqualTo(FieldType.LONG);
-        assertThat(TypeMapping.infer("java.math.BigDecimal", false))
-                .isEqualTo(FieldType.DECIMAL);
+        assertThat(TypeMapping.infer("java.math.BigDecimal", false)).isEqualTo(FieldType.DECIMAL);
         assertThat(TypeMapping.infer("boolean", false)).isEqualTo(FieldType.BOOLEAN);
         assertThat(TypeMapping.infer("java.time.LocalDate", false)).isEqualTo(FieldType.DATE);
         assertThat(TypeMapping.infer("java.time.Instant", false)).isEqualTo(FieldType.TIMESTAMP);

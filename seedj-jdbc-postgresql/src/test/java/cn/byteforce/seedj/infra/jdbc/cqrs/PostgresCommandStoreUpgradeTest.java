@@ -1,8 +1,14 @@
 package cn.byteforce.seedj.infra.jdbc.cqrs;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import cn.byteforce.seedj.cqrs.CommandRecord;
 import cn.byteforce.seedj.cqrs.CommandStatus;
 import cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner;
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -12,17 +18,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import java.time.Instant;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
-/**
- * V1 → V2 升级证据：旧行（locator 非空、target_ref 为 null）仍可读，
- * 新行可以用 target_ref 代替 locator。
- */
+/** V1 → V2 升级证据：旧行（locator 非空、target_ref 为 null）仍可读， 新行可以用 target_ref 代替 locator。 */
 @Testcontainers
 class PostgresCommandStoreUpgradeTest {
 
@@ -37,11 +33,10 @@ class PostgresCommandStoreUpgradeTest {
                     .withUsername("seedj")
                     .withPassword("seedj");
 
-    private static final UUID LEGACY_ID = UUID.fromString(
-            "018f2e3a-1234-7000-8000-0000000000a1");
+    private static final UUID LEGACY_ID = UUID.fromString("018f2e3a-1234-7000-8000-0000000000a1");
 
-    private static final UUID LEGACY_LOCATOR = UUID.fromString(
-            "018f2e3a-1234-7000-8000-0000000000a2");
+    private static final UUID LEGACY_LOCATOR =
+            UUID.fromString("018f2e3a-1234-7000-8000-0000000000a2");
 
     private static JdbcTemplate jdbc;
 
@@ -49,23 +44,28 @@ class PostgresCommandStoreUpgradeTest {
 
     @BeforeAll
     static void initialize() {
-        DriverManagerDataSource dataSource = new DriverManagerDataSource(
-                POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
+        DriverManagerDataSource dataSource =
+                new DriverManagerDataSource(
+                        POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
         jdbc = new JdbcTemplate(dataSource);
         JdbcMigrationRunner runner = new JdbcMigrationRunner(dataSource);
         new CommandSchemaCapability(runner, List.of(CommandMigrations.v1())).initialize();
         // 升级前的库：V1 表结构下写入一行，再由 V2 的 CHECK 校验约束。
-        jdbc.update("""
+        jdbc.update(
+                """
                 INSERT INTO command_record
                     (id, type, issued_at, issuer, payload, idempotency_key,
                      payload_fingerprint, status, rejection_code, rejection_reason,
                      event_ids, locator, version, created_at, lease_until)
                 VALUES (?, 'probe.command', now(), ?, '{}'::jsonb, 'k-v1', ?, 'accepted',
                         NULL, NULL, '[]'::jsonb, ?, 1, now(), now() + interval '60 seconds')
-                """, LEGACY_ID, UUID.fromString("018f2e3a-1234-7000-8000-0000000000a3"),
-                FINGERPRINT, LEGACY_LOCATOR);
-        new CommandSchemaCapability(runner, List.of(CommandMigrations.v1(),
-                CommandMigrations.v2())).initialize();
+                """,
+                LEGACY_ID,
+                UUID.fromString("018f2e3a-1234-7000-8000-0000000000a3"),
+                FINGERPRINT,
+                LEGACY_LOCATOR);
+        new CommandSchemaCapability(runner, List.of(CommandMigrations.v1(), CommandMigrations.v2()))
+                .initialize();
         store = new PostgresCommandStore(jdbc);
     }
 
@@ -77,8 +77,16 @@ class PostgresCommandStoreUpgradeTest {
         assertThat(legacy.targetRef()).isNull();
         assertThat(legacy.status()).isEqualTo(CommandStatus.ACCEPTED);
 
-        CommandRecord pending = CommandRecord.pending(UUID.randomUUID(), "probe.command", NOW,
-                UUID.randomUUID(), Map.of("name", "Alice"), "k-v2", FINGERPRINT, NOW);
+        CommandRecord pending =
+                CommandRecord.pending(
+                        UUID.randomUUID(),
+                        "probe.command",
+                        NOW,
+                        UUID.randomUUID(),
+                        Map.of("name", "Alice"),
+                        "k-v2",
+                        FINGERPRINT,
+                        NOW);
         assertThat(store.insert(pending)).isTrue();
         store.complete(pending.accepted("emp-1", 1L, List.of()));
 

@@ -1,16 +1,15 @@
 package cn.byteforce.seedj.starter.iam.web;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.InsufficientAuthenticationException;
-
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /** RFC 6750 §3.1：ID Token 被当作 Bearer 使用时返回 invalid_token，且不缓存错误。 */
 class IamBearerTokenEntryPointTest {
@@ -22,8 +21,8 @@ class IamBearerTokenEntryPointTest {
         MockHttpServletRequest request = bearer(jwt("{\"alg\":\"RS256\",\"typ\":\"JWT\"}"));
         MockHttpServletResponse response = new MockHttpServletResponse();
 
-        entryPoint.commence(request, response,
-                new InsufficientAuthenticationException("no access token"));
+        entryPoint.commence(
+                request, response, new InsufficientAuthenticationException("no access token"));
 
         assertThat(response.getStatus()).isEqualTo(401);
         assertThat(response.getContentType()).isEqualTo("application/json");
@@ -103,7 +102,9 @@ class IamBearerTokenEntryPointTest {
     private static String jwt(String headerJson) {
         Base64.Encoder encoder = Base64.getUrlEncoder().withoutPadding();
         return encoder.encodeToString(headerJson.getBytes(StandardCharsets.UTF_8))
-                + "." + encoder.encodeToString("{\"sub\":\"alice\"}".getBytes(StandardCharsets.UTF_8))
-                + "." + encoder.encodeToString("signature".getBytes(StandardCharsets.UTF_8));
+                + "."
+                + encoder.encodeToString("{\"sub\":\"alice\"}".getBytes(StandardCharsets.UTF_8))
+                + "."
+                + encoder.encodeToString("signature".getBytes(StandardCharsets.UTF_8));
     }
 }

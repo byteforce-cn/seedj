@@ -1,24 +1,22 @@
 package cn.byteforce.seedj.lock;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.time.Duration;
+import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.time.Duration;
-import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 /**
  * {@link LockProvider} 契约测试套件。
  *
- * <p>只断言语义，不碰物理实现：同一键互斥、不同键独立、释放可重入、租约到期可重入、
- * 非法入参显式失败。实现方只需要提供 {@link #newProvider()}。
+ * <p>只断言语义，不碰物理实现：同一键互斥、不同键独立、释放可重入、租约到期可重入、 非法入参显式失败。实现方只需要提供 {@link #newProvider()}。
  *
- * <p>租约到期用例使用真实时间（{@value #SHORT_TTL_MS}ms + 等待），因为真实 provider
- * （Redis / 数据库）无法伪造时钟；实现自己的时钟测试请放到各自的测试类里。
+ * <p>租约到期用例使用真实时间（{@value #SHORT_TTL_MS}ms + 等待），因为真实 provider （Redis /
+ * 数据库）无法伪造时钟；实现自己的时钟测试请放到各自的测试类里。
  */
 public abstract class LockProviderContractTest {
 
@@ -93,25 +91,30 @@ public abstract class LockProviderContractTest {
         provider.tryAcquire("order:1", Duration.ofSeconds(30)).orElseThrow();
 
         assertThatThrownBy(() -> provider.acquire("order:1", Duration.ofSeconds(30)))
-                .isInstanceOfSatisfying(LockException.class, e -> {
-                    assertThat(e.getErrorCode()).isEqualTo(LockErrorCode.LOCK_BUSY);
-                    assertThat(e.isRetryable()).isTrue();
-                });
+                .isInstanceOfSatisfying(
+                        LockException.class,
+                        e -> {
+                            assertThat(e.getErrorCode()).isEqualTo(LockErrorCode.LOCK_BUSY);
+                            assertThat(e.isRetryable()).isTrue();
+                        });
     }
 
     @Test
     @DisplayName("空白键与非法租约显式失败")
     void rejectsInvalidInput() {
         assertThatThrownBy(() -> provider.tryAcquire(" ", Duration.ofSeconds(1)))
-                .isInstanceOfSatisfying(LockException.class, e ->
-                        assertThat(e.getErrorCode()).isEqualTo(LockErrorCode.INVALID_KEY));
+                .isInstanceOfSatisfying(
+                        LockException.class,
+                        e -> assertThat(e.getErrorCode()).isEqualTo(LockErrorCode.INVALID_KEY));
 
         assertThatThrownBy(() -> provider.tryAcquire("order:1", Duration.ZERO))
-                .isInstanceOfSatisfying(LockException.class, e ->
-                        assertThat(e.getErrorCode()).isEqualTo(LockErrorCode.INVALID_TTL));
+                .isInstanceOfSatisfying(
+                        LockException.class,
+                        e -> assertThat(e.getErrorCode()).isEqualTo(LockErrorCode.INVALID_TTL));
 
         assertThatThrownBy(() -> provider.tryAcquire("order:1", Duration.ofSeconds(-1)))
-                .isInstanceOfSatisfying(LockException.class, e ->
-                        assertThat(e.getErrorCode()).isEqualTo(LockErrorCode.INVALID_TTL));
+                .isInstanceOfSatisfying(
+                        LockException.class,
+                        e -> assertThat(e.getErrorCode()).isEqualTo(LockErrorCode.INVALID_TTL));
     }
 }

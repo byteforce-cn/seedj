@@ -15,13 +15,21 @@ public class JdbcIamAuditSink implements SecurityAuditSink {
 
     @Override
     public void record(SecurityAuditEvent event) {
-        jdbc.update("""
+        jdbc.update(
+                """
                 INSERT INTO iam_audit
                     (id, tenant_id, actor_id, action, resource_type, resource_id,
                      outcome, reason, occurred_at, details)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb)
-                """, event.id(), event.tenantId(), event.actorId(), event.action(),
-                event.resourceType(), event.resourceId(), event.outcome(), event.reason(),
+                """,
+                event.id(),
+                event.tenantId(),
+                event.actorId(),
+                event.action(),
+                event.resourceType(),
+                event.resourceId(),
+                event.outcome(),
+                event.reason(),
                 java.sql.Timestamp.from(event.occurredAt()),
                 IamJdbcJson.map(event.details()));
     }

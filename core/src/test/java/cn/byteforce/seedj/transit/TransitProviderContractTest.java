@@ -1,15 +1,14 @@
 package cn.byteforce.seedj.transit;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.nio.charset.StandardCharsets;
+import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Transit 契约测试套件。新 provider 只需 {@code extends} 本类并实现 {@link #newProvider()}。
@@ -37,8 +36,10 @@ public abstract class TransitProviderContractTest {
     @Test
     @DisplayName("createKey 同名同参幂等")
     void createKeyIsIdempotent() {
-        KeyInfo first = provider.keyAdmin().createKey(CreateKeyRequest.of("k1", KeyType.AES256_GCM96));
-        KeyInfo second = provider.keyAdmin().createKey(CreateKeyRequest.of("k1", KeyType.AES256_GCM96));
+        KeyInfo first =
+                provider.keyAdmin().createKey(CreateKeyRequest.of("k1", KeyType.AES256_GCM96));
+        KeyInfo second =
+                provider.keyAdmin().createKey(CreateKeyRequest.of("k1", KeyType.AES256_GCM96));
 
         assertThat(second.getLatestVersion()).isEqualTo(first.getLatestVersion());
     }
@@ -48,7 +49,10 @@ public abstract class TransitProviderContractTest {
     void createKeyConflict() {
         provider.keyAdmin().createKey(CreateKeyRequest.of("k1", KeyType.AES256_GCM96));
 
-        assertThatThrownBy(() -> provider.keyAdmin().createKey(CreateKeyRequest.of("k1", KeyType.AES128_GCM96)))
+        assertThatThrownBy(
+                        () ->
+                                provider.keyAdmin()
+                                        .createKey(CreateKeyRequest.of("k1", KeyType.AES128_GCM96)))
                 .isInstanceOf(TransitException.class)
                 .extracting(e -> ((TransitException) e).getErrorCode())
                 .isEqualTo(TransitErrorCode.KEY_ALREADY_EXISTS);
@@ -78,7 +82,8 @@ public abstract class TransitProviderContractTest {
 
         assertThat(provider.keyAdmin().readKey("k1").getLatestVersion()).isEqualTo(2);
         assertThat(fresh.getKeyVersion()).isEqualTo(2);
-        assertThat(provider.crypto().decrypt(DecryptRequest.of("k1", old.getValue()))).isEqualTo("before");
+        assertThat(provider.crypto().decrypt(DecryptRequest.of("k1", old.getValue())))
+                .isEqualTo("before");
     }
 
     @Test
@@ -88,17 +93,21 @@ public abstract class TransitProviderContractTest {
         Ciphertext old = provider.crypto().encrypt(EncryptRequest.of("k1", "payload"));
         provider.keyAdmin().rotateKey("k1");
 
-        Ciphertext rewrapped = provider.crypto().rewrap(new RewrapRequest("k1", old.getValue(), null));
+        Ciphertext rewrapped =
+                provider.crypto().rewrap(new RewrapRequest("k1", old.getValue(), null));
 
         assertThat(rewrapped.getKeyVersion()).isEqualTo(2);
-        assertThat(provider.crypto().decrypt(DecryptRequest.of("k1", rewrapped.getValue()))).isEqualTo("payload");
+        assertThat(provider.crypto().decrypt(DecryptRequest.of("k1", rewrapped.getValue())))
+                .isEqualTo("payload");
     }
 
     @Test
     @DisplayName("derived key 必须带 context；非 derived key 不允许带 context")
     void contextRules() {
-        provider.keyAdmin().createKey(new CreateKeyRequest("derived", KeyType.AES256_GCM96,
-                true, null, null, null));
+        provider.keyAdmin()
+                .createKey(
+                        new CreateKeyRequest(
+                                "derived", KeyType.AES256_GCM96, true, null, null, null));
         provider.keyAdmin().createKey(CreateKeyRequest.of("plain", KeyType.AES256_GCM96));
 
         assertThatThrownBy(() -> provider.crypto().encrypt(EncryptRequest.of("derived", "x")))
@@ -106,14 +115,20 @@ public abstract class TransitProviderContractTest {
                 .extracting(e -> ((TransitException) e).getErrorCode())
                 .isEqualTo(TransitErrorCode.INVALID_CONTEXT);
 
-        assertThatThrownBy(() -> provider.crypto().encrypt(
-                new EncryptRequest("plain", "x", "aGVsbG8=", null)))
+        assertThatThrownBy(
+                        () ->
+                                provider.crypto()
+                                        .encrypt(
+                                                new EncryptRequest("plain", "x", "aGVsbG8=", null)))
                 .isInstanceOf(TransitException.class)
                 .extracting(e -> ((TransitException) e).getErrorCode())
                 .isEqualTo(TransitErrorCode.INVALID_CONTEXT);
 
-        Ciphertext ct = provider.crypto().encrypt(new EncryptRequest("derived", "x", "aGVsbG8=", null));
-        assertThat(provider.crypto().decrypt(new DecryptRequest("derived", ct.getValue(), "aGVsbG8=")))
+        Ciphertext ct =
+                provider.crypto().encrypt(new EncryptRequest("derived", "x", "aGVsbG8=", null));
+        assertThat(
+                        provider.crypto()
+                                .decrypt(new DecryptRequest("derived", ct.getValue(), "aGVsbG8=")))
                 .isEqualTo("x");
     }
 
@@ -122,15 +137,24 @@ public abstract class TransitProviderContractTest {
     void batchPerItemErrors() {
         provider.keyAdmin().createKey(CreateKeyRequest.of("k1", KeyType.AES256_GCM96));
 
-        List<BatchResult<Ciphertext>> results = provider.crypto().encryptBatch(
-                new BatchEncryptRequest("k1", List.of(
-                        new BatchItem("ok", "ref-1", null, null),
-                        new BatchItem("ok2", "ref-2", null, null)), null, null));
+        List<BatchResult<Ciphertext>> results =
+                provider.crypto()
+                        .encryptBatch(
+                                new BatchEncryptRequest(
+                                        "k1",
+                                        List.of(
+                                                new BatchItem("ok", "ref-1", null, null),
+                                                new BatchItem("ok2", "ref-2", null, null)),
+                                        null,
+                                        null));
 
-        assertThat(results).hasSize(2).allSatisfy(r -> {
-            assertThat(r.getErrorCode()).isNull();
-            assertThat(r.getValue()).isNotNull();
-        });
+        assertThat(results)
+                .hasSize(2)
+                .allSatisfy(
+                        r -> {
+                            assertThat(r.getErrorCode()).isNull();
+                            assertThat(r.getValue()).isNotNull();
+                        });
     }
 
     @Test
@@ -151,14 +175,30 @@ public abstract class TransitProviderContractTest {
         provider.keyAdmin().createKey(CreateKeyRequest.of("mac", KeyType.HMAC));
 
         Signature signature = provider.signer().sign(new SignRequest("rsa", "data", null, null));
-        assertThat(provider.signer().verify(new VerifyRequest("rsa", "data",
-                signature.getValue(), null, null))).isTrue();
-        assertThat(provider.signer().verify(new VerifyRequest("rsa", "tampered",
-                signature.getValue(), null, null))).isFalse();
+        assertThat(
+                        provider.signer()
+                                .verify(
+                                        new VerifyRequest(
+                                                "rsa", "data", signature.getValue(), null, null)))
+                .isTrue();
+        assertThat(
+                        provider.signer()
+                                .verify(
+                                        new VerifyRequest(
+                                                "rsa",
+                                                "tampered",
+                                                signature.getValue(),
+                                                null,
+                                                null)))
+                .isFalse();
 
         MacResult mac = provider.mac().hmac(new HmacRequest("mac", "data", null, null));
-        assertThat(provider.mac().verifyHmac(new VerifyHmacRequest("mac", "data",
-                mac.getValue(), null, null))).isTrue();
+        assertThat(
+                        provider.mac()
+                                .verifyHmac(
+                                        new VerifyHmacRequest(
+                                                "mac", "data", mac.getValue(), null, null)))
+                .isTrue();
     }
 
     @Test
@@ -201,11 +241,12 @@ public abstract class TransitProviderContractTest {
     void dataKey() {
         provider.keyAdmin().createKey(CreateKeyRequest.of("k1", KeyType.AES256_GCM96));
 
-        DataKey dataKey = provider.crypto().generateDataKey(
-                new DataKeyRequest("k1", null, null, true));
+        DataKey dataKey =
+                provider.crypto().generateDataKey(new DataKeyRequest("k1", null, null, true));
 
-        String unwrapped = provider.crypto().decrypt(
-                DecryptRequest.of("k1", dataKey.getCiphertextKey().getValue()));
+        String unwrapped =
+                provider.crypto()
+                        .decrypt(DecryptRequest.of("k1", dataKey.getCiphertextKey().getValue()));
         assertThat(java.util.Base64.getDecoder().decode(unwrapped))
                 .isEqualTo(dataKey.usePlaintextKey());
     }
@@ -218,7 +259,10 @@ public abstract class TransitProviderContractTest {
 
         Ciphertext ct = provider.crypto().encrypt(EncryptRequest.of("k1", text));
 
-        assertThat(provider.crypto().decrypt(DecryptRequest.of("k1", ct.getValue()))
-                .getBytes(StandardCharsets.UTF_8)).isEqualTo(text.getBytes(StandardCharsets.UTF_8));
+        assertThat(
+                        provider.crypto()
+                                .decrypt(DecryptRequest.of("k1", ct.getValue()))
+                                .getBytes(StandardCharsets.UTF_8))
+                .isEqualTo(text.getBytes(StandardCharsets.UTF_8));
     }
 }

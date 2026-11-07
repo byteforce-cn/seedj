@@ -1,19 +1,17 @@
 package cn.byteforce.seedj.cqrs;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
-import java.util.UUID;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.util.UUID;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
 /**
  * 标识契约：流键可解析、codec 可往返、非法输入必须显式失败。
  *
- * <p>这里测的是"边界语义"，不是实现细节：{@code canonical()} 的文本要能被切分回
- * 类型与标识；codec 的失败必须抛 {@link CqrsException}，不能返回 {@code null}
- * 或静默降级——否则错误会推迟到某个消费者把两条流当成一条时才暴露。
+ * <p>这里测的是"边界语义"，不是实现细节：{@code canonical()} 的文本要能被切分回 类型与标识；codec 的失败必须抛 {@link CqrsException}，不能返回
+ * {@code null} 或静默降级——否则错误会推迟到某个消费者把两条流当成一条时才暴露。
  */
 class IdContractTest {
 
@@ -34,15 +32,17 @@ class IdContractTest {
     @DisplayName("类型名含 ':' 直接失败，守卫流键可解析性")
     void rejectsAmbiguousAggregateType() {
         assertThatThrownBy(() -> StreamId.of("hr:employee", 1L))
-                .isInstanceOfSatisfying(CqrsException.class, e ->
-                        assertThat(e.getErrorCode()).isEqualTo(CqrsErrorCode.INVALID_STREAM_ID));
+                .isInstanceOfSatisfying(
+                        CqrsException.class,
+                        e ->
+                                assertThat(e.getErrorCode())
+                                        .isEqualTo(CqrsErrorCode.INVALID_STREAM_ID));
     }
 
     @Test
     @DisplayName("空类型名与 null 标识直接失败")
     void rejectsBlankTypeAndNullId() {
-        assertThatThrownBy(() -> StreamId.of(" ", 1L))
-                .isInstanceOf(CqrsException.class);
+        assertThatThrownBy(() -> StreamId.of(" ", 1L)).isInstanceOf(CqrsException.class);
         assertThatThrownBy(() -> StreamId.of("hr.employee", null))
                 .isInstanceOf(NullPointerException.class);
     }
@@ -63,13 +63,16 @@ class IdContractTest {
     @DisplayName("非法文本抛 INVALID_ID，不返回 null")
     void rejectsMalformedText() {
         assertThatThrownBy(() -> IdCodecs.longs().decode("12x"))
-                .isInstanceOfSatisfying(CqrsException.class, e ->
-                        assertThat(e.getErrorCode()).isEqualTo(CqrsErrorCode.INVALID_ID));
+                .isInstanceOfSatisfying(
+                        CqrsException.class,
+                        e -> assertThat(e.getErrorCode()).isEqualTo(CqrsErrorCode.INVALID_ID));
         assertThatThrownBy(() -> IdCodecs.uuids().decode("not-a-uuid"))
-                .isInstanceOfSatisfying(CqrsException.class, e ->
-                        assertThat(e.getErrorCode()).isEqualTo(CqrsErrorCode.INVALID_ID));
+                .isInstanceOfSatisfying(
+                        CqrsException.class,
+                        e -> assertThat(e.getErrorCode()).isEqualTo(CqrsErrorCode.INVALID_ID));
         assertThatThrownBy(() -> IdCodecs.strings().encode(""))
-                .isInstanceOfSatisfying(CqrsException.class, e ->
-                        assertThat(e.getErrorCode()).isEqualTo(CqrsErrorCode.INVALID_ID));
+                .isInstanceOfSatisfying(
+                        CqrsException.class,
+                        e -> assertThat(e.getErrorCode()).isEqualTo(CqrsErrorCode.INVALID_ID));
     }
 }

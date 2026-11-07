@@ -5,8 +5,7 @@ import cn.byteforce.seedj.core.InfrastructureException;
 /**
  * Transit 操作的异常。
  *
- * <p>调用方应基于 {@link #getErrorCode()} / {@code category()} / {@code isRetryable()}
- * 分支，而不是解析 message。
+ * <p>调用方应基于 {@link #getErrorCode()} / {@code category()} / {@code isRetryable()} 分支，而不是解析 message。
  */
 public class TransitException extends InfrastructureException {
 
@@ -17,8 +16,8 @@ public class TransitException extends InfrastructureException {
         this.errorCode = errorCode;
     }
 
-    public TransitException(TransitErrorCode errorCode, String message, boolean retryable,
-                            Throwable cause) {
+    public TransitException(
+            TransitErrorCode errorCode, String message, boolean retryable, Throwable cause) {
         super(errorCode, message, cause, retryable);
         this.errorCode = errorCode;
     }

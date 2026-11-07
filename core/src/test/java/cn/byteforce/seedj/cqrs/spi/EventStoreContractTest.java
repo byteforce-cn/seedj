@@ -1,25 +1,23 @@
 package cn.byteforce.seedj.cqrs.spi;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import cn.byteforce.seedj.cqrs.CqrsErrorCode;
 import cn.byteforce.seedj.cqrs.CqrsException;
 import cn.byteforce.seedj.cqrs.EventStream;
 import cn.byteforce.seedj.cqrs.StreamId;
 import cn.byteforce.seedj.domain.event.DomainEvent;
 import cn.byteforce.seedj.domain.event.EventType;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 /**
  * {@link EventStore} 契约测试套件。
  *
- * <p>实现方只需要提供 {@link #newStore()}：每个用例拿到一个空存储。
- * 这条契约的要点是"读全量历史 + 期望版本 CAS"，与序列化格式、列类型无关，
+ * <p>实现方只需要提供 {@link #newStore()}：每个用例拿到一个空存储。 这条契约的要点是"读全量历史 + 期望版本 CAS"，与序列化格式、列类型无关，
  * 所以测试只断言语义，不碰物理实现。
  *
  * @author ByteForce
@@ -67,8 +65,9 @@ public abstract class EventStoreContractTest {
         EventStream<String> result = store.read(stream);
 
         assertThat(result.version()).isEqualTo(3);
-        assertThat(result.events()).containsExactly(
-                new Created("o-1"), new Confirmed("o-1"), new Renamed("o-1", "new"));
+        assertThat(result.events())
+                .containsExactly(
+                        new Created("o-1"), new Confirmed("o-1"), new Renamed("o-1", "new"));
     }
 
     @Test
@@ -77,8 +76,11 @@ public abstract class EventStoreContractTest {
         store.append(stream, 0, List.of(new Created("o-1")));
 
         assertThatThrownBy(() -> store.append(stream, 0, List.of(new Confirmed("o-1"))))
-                .isInstanceOfSatisfying(CqrsException.class, e ->
-                        assertThat(e.getErrorCode()).isEqualTo(CqrsErrorCode.CONCURRENCY_CONFLICT));
+                .isInstanceOfSatisfying(
+                        CqrsException.class,
+                        e ->
+                                assertThat(e.getErrorCode())
+                                        .isEqualTo(CqrsErrorCode.CONCURRENCY_CONFLICT));
 
         assertThat(store.read(stream).events()).containsExactly(new Created("o-1"));
     }
@@ -121,14 +123,11 @@ public abstract class EventStoreContractTest {
     }
 
     @EventType("test.order.created")
-    public record Created(String orderId) implements DomainEvent {
-    }
+    public record Created(String orderId) implements DomainEvent {}
 
     @EventType("test.order.confirmed")
-    public record Confirmed(String orderId) implements DomainEvent {
-    }
+    public record Confirmed(String orderId) implements DomainEvent {}
 
     @EventType("test.order.renamed")
-    public record Renamed(String orderId, String name) implements DomainEvent {
-    }
+    public record Renamed(String orderId, String name) implements DomainEvent {}
 }

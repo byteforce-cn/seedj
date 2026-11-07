@@ -4,15 +4,15 @@ import cn.byteforce.seedj.transit.KeyType;
 import cn.byteforce.seedj.transit.SignatureAlgorithm;
 import cn.byteforce.seedj.transit.TransitErrorCode;
 import cn.byteforce.seedj.transit.TransitException;
-import javax.crypto.KeyGenerator;
-import javax.crypto.Mac;
-import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.spec.ECGenParameterSpec;
 import java.util.Arrays;
 import java.util.Base64;
+import javax.crypto.KeyGenerator;
+import javax.crypto.Mac;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 
 /** BouncyCastle 密钥材料构造与算法映射：无状态，供 provider 与内部实现共用。 */
 final class BcTransitKeys {
@@ -20,7 +20,8 @@ final class BcTransitKeys {
     static KeyMaterial requireVersion(StoredKey entry, int version) {
         KeyMaterial material = entry.versions().get(version);
         if (material == null) {
-            throw new TransitException(TransitErrorCode.VERSION_NOT_FOUND, "Version not found: " + version, null);
+            throw new TransitException(
+                    TransitErrorCode.VERSION_NOT_FOUND, "Version not found: " + version, null);
         }
         return material;
     }
@@ -44,28 +45,31 @@ final class BcTransitKeys {
         } catch (TransitException e) {
             throw e;
         } catch (Exception e) {
-            throw new TransitException(TransitErrorCode.INVALID_CONFIGURATION,
-                    "生成密钥材料失败: " + type, e);
+            throw new TransitException(
+                    TransitErrorCode.INVALID_CONFIGURATION, "生成密钥材料失败: " + type, e);
         }
     }
 
     static SecretKey secretKey(StoredKey entry, int version, String context) throws Exception {
         KeyMaterial material = requireVersion(entry, version);
         if (!material.isSymmetric()) {
-            throw new TransitException(TransitErrorCode.TYPE_MISMATCH, "Key is not symmetric", null);
+            throw new TransitException(
+                    TransitErrorCode.TYPE_MISMATCH, "Key is not symmetric", null);
         }
         SecretKey baseKey = material.toSecretKey();
 
         if (!entry.derived()) {
             if (context != null) {
-                throw new TransitException(TransitErrorCode.INVALID_CONTEXT,
-                        "Context provided but key is not derived", null);
+                throw new TransitException(
+                        TransitErrorCode.INVALID_CONTEXT,
+                        "Context provided but key is not derived",
+                        null);
             }
             return baseKey;
         }
         if (context == null) {
-            throw new TransitException(TransitErrorCode.INVALID_CONTEXT,
-                    "Key is derived, context is required", null);
+            throw new TransitException(
+                    TransitErrorCode.INVALID_CONTEXT, "Key is derived, context is required", null);
         }
 
         Mac mac = Mac.getInstance("HmacSHA256", "BC");
@@ -89,8 +93,10 @@ final class BcTransitKeys {
         if (type.name().startsWith("ECDSA")) {
             return SignatureAlgorithm.SHA256_WITH_ECDSA;
         }
-        throw new TransitException(TransitErrorCode.UNSUPPORTED_ALGORITHM,
-                "Cannot infer signature algorithm for: " + type, null);
+        throw new TransitException(
+                TransitErrorCode.UNSUPPORTED_ALGORITHM,
+                "Cannot infer signature algorithm for: " + type,
+                null);
     }
 
     static String mapSignatureAlgorithm(SignatureAlgorithm alg) {

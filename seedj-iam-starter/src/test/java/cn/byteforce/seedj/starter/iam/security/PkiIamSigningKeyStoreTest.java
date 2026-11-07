@@ -1,15 +1,12 @@
 package cn.byteforce.seedj.starter.iam.security;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.when;
+
 import cn.byteforce.seedj.iam.IamSigningKey;
 import cn.byteforce.seedj.pki.PkiProvider;
 import cn.byteforce.seedj.pki.PkiProvider.IssuedCertificate;
-import org.bouncycastle.asn1.x500.X500Name;
-import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
-import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
-import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
-import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
-
 import java.math.BigInteger;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -18,10 +15,12 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.when;
+import org.bouncycastle.asn1.x500.X500Name;
+import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
+import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
+import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 class PkiIamSigningKeyStoreTest {
 
@@ -41,7 +40,9 @@ class PkiIamSigningKeyStoreTest {
         assertThat(active.canSign()).isTrue();
         assertThat(active.retiredAt()).isNull();
         assertThat(active.privateJwk()).contains("\"kty\":\"RSA\"").contains("\"d\":");
-        assertThat(active.publicJwk()).contains("\"kty\":\"RSA\"").contains("\"n\":")
+        assertThat(active.publicJwk())
+                .contains("\"kty\":\"RSA\"")
+                .contains("\"n\":")
                 .doesNotContain("\"d\":");
         assertThat(store.keys()).containsExactly(active);
     }
@@ -64,12 +65,25 @@ class PkiIamSigningKeyStoreTest {
         Instant notBefore = Instant.now().minus(1, ChronoUnit.HOURS);
         Instant notAfter = notBefore.plus(365, ChronoUnit.DAYS);
         X500Name subject = new X500Name("CN=iam-jwt-signer");
-        X509Certificate certificate = new JcaX509CertificateConverter().getCertificate(
-                new JcaX509v3CertificateBuilder(subject, new BigInteger(serial),
-                        Date.from(notBefore), Date.from(notAfter), subject, keyPair.getPublic())
-                        .build(new JcaContentSignerBuilder("SHA256withRSA")
-                                .build(keyPair.getPrivate())));
-        return new IssuedCertificate(certificate, List.of(certificate), keyPair.getPrivate(),
-                serial, notBefore, notAfter);
+        X509Certificate certificate =
+                new JcaX509CertificateConverter()
+                        .getCertificate(
+                                new JcaX509v3CertificateBuilder(
+                                                subject,
+                                                new BigInteger(serial),
+                                                Date.from(notBefore),
+                                                Date.from(notAfter),
+                                                subject,
+                                                keyPair.getPublic())
+                                        .build(
+                                                new JcaContentSignerBuilder("SHA256withRSA")
+                                                        .build(keyPair.getPrivate())));
+        return new IssuedCertificate(
+                certificate,
+                List.of(certificate),
+                keyPair.getPrivate(),
+                serial,
+                notBefore,
+                notAfter);
     }
 }

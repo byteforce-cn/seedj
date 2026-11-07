@@ -1,7 +1,7 @@
 package cn.byteforce.seedj.workflow.spi;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -9,13 +9,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
-/**
- * 模型外壳：标识、请求、能力声明、查询与 Provider 默认实现。
- */
+/** 模型外壳：标识、请求、能力声明、查询与 Provider 默认实现。 */
 class WorkflowModelDefaultsTest {
 
     private static final Instant NOW = Instant.parse("2026-02-01T08:00:00Z");
@@ -71,8 +68,8 @@ class WorkflowModelDefaultsTest {
         assertThat(RetryPolicy.noRetry().maxAttempts()).isEqualTo(1);
         assertThat(RetryPolicy.noRetry().multiplier()).isEqualTo(1.0);
 
-        assertThatThrownBy(() -> new RetryPolicy(0, Duration.ofSeconds(1),
-                Duration.ofSeconds(1), 1.0))
+        assertThatThrownBy(
+                        () -> new RetryPolicy(0, Duration.ofSeconds(1), Duration.ofSeconds(1), 1.0))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("maxAttempts");
         assertThatThrownBy(() -> new RetryPolicy(1, Duration.ZERO, Duration.ofSeconds(1), 1.0))
@@ -80,12 +77,12 @@ class WorkflowModelDefaultsTest {
                 .hasMessageContaining("initialBackoff");
         assertThatThrownBy(() -> new RetryPolicy(1, null, Duration.ofSeconds(1), 1.0))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new RetryPolicy(1, Duration.ofSeconds(5),
-                Duration.ofSeconds(4), 1.0))
+        assertThatThrownBy(
+                        () -> new RetryPolicy(1, Duration.ofSeconds(5), Duration.ofSeconds(4), 1.0))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("maxBackoff");
-        assertThatThrownBy(() -> new RetryPolicy(1, Duration.ofSeconds(1),
-                Duration.ofSeconds(1), 0.5))
+        assertThatThrownBy(
+                        () -> new RetryPolicy(1, Duration.ofSeconds(1), Duration.ofSeconds(1), 0.5))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("multiplier");
     }
@@ -93,8 +90,17 @@ class WorkflowModelDefaultsTest {
     @Test
     @DisplayName("TaskQuery：limit 为正，pendingFor/completedBy 互斥")
     void taskQuery() {
-        TaskQuery query = new TaskQuery(INSTANCE, "u-1", null, null, "review",
-                HumanTaskStatus.PENDING, NOW, 20, null);
+        TaskQuery query =
+                new TaskQuery(
+                        INSTANCE,
+                        "u-1",
+                        null,
+                        null,
+                        "review",
+                        HumanTaskStatus.PENDING,
+                        NOW,
+                        20,
+                        null);
 
         assertThat(query.instanceId()).isEqualTo(INSTANCE);
         assertThat(query.pendingFor()).isEqualTo("u-1");
@@ -109,8 +115,8 @@ class WorkflowModelDefaultsTest {
         assertThatThrownBy(() -> new TaskQuery(null, null, null, null, null, null, null, 0, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("limit");
-        assertThatThrownBy(() -> new TaskQuery(null, "u-1", "u-2", null, null, null, null, 10,
-                null))
+        assertThatThrownBy(
+                        () -> new TaskQuery(null, "u-1", "u-2", null, null, null, null, 10, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("mutually exclusive");
     }
@@ -118,8 +124,9 @@ class WorkflowModelDefaultsTest {
     @Test
     @DisplayName("WorkflowSearchQuery：limit 必须为正")
     void searchQuery() {
-        WorkflowSearchQuery query = new WorkflowSearchQuery(DEFINITION, WorkflowStatus.RUNNING,
-                NOW, NOW, 50, "cursor-1");
+        WorkflowSearchQuery query =
+                new WorkflowSearchQuery(
+                        DEFINITION, WorkflowStatus.RUNNING, NOW, NOW, 50, "cursor-1");
 
         assertThat(query.definitionId()).isEqualTo(DEFINITION);
         assertThat(query.status()).isEqualTo(WorkflowStatus.RUNNING);
@@ -136,8 +143,8 @@ class WorkflowModelDefaultsTest {
     @Test
     @DisplayName("StartWorkflowRequest：变量归一化为空 map")
     void startWorkflowRequest() {
-        StartWorkflowRequest request = new StartWorkflowRequest(INSTANCE, DEFINITION, null,
-                "u-1", null);
+        StartWorkflowRequest request =
+                new StartWorkflowRequest(INSTANCE, DEFINITION, null, "u-1", null);
 
         assertThat(request.instanceId()).isEqualTo(INSTANCE);
         assertThat(request.definitionId()).isEqualTo(DEFINITION);
@@ -156,7 +163,8 @@ class WorkflowModelDefaultsTest {
     @Test
     @DisplayName("取消与终止请求：实例必填，终止原因必填")
     void cancelAndTerminateRequests() {
-        CancelWorkflowRequest cancel = new CancelWorkflowRequest(INSTANCE, "no longer needed", true);
+        CancelWorkflowRequest cancel =
+                new CancelWorkflowRequest(INSTANCE, "no longer needed", true);
         assertThat(cancel.instanceId()).isEqualTo(INSTANCE);
         assertThat(cancel.reason()).isEqualTo("no longer needed");
         assertThat(cancel.compensate()).isTrue();
@@ -176,8 +184,8 @@ class WorkflowModelDefaultsTest {
     @Test
     @DisplayName("WorkflowFailure / WorkflowHistoryEvent：details 与 attributes 归一化")
     void failureAndHistoryEvent() {
-        WorkflowFailure failure = new WorkflowFailure("timeout", "step timed out", true,
-                "review", null);
+        WorkflowFailure failure =
+                new WorkflowFailure("timeout", "step timed out", true, "review", null);
         assertThat(failure.errorType()).isEqualTo("timeout");
         assertThat(failure.errorMessage()).isEqualTo("step timed out");
         assertThat(failure.retryable()).isTrue();
@@ -186,8 +194,8 @@ class WorkflowModelDefaultsTest {
         assertThatThrownBy(() -> new WorkflowFailure(null, null, false, null, null))
                 .isInstanceOf(NullPointerException.class);
 
-        WorkflowHistoryEvent event = new WorkflowHistoryEvent("e-1", "TASK_CREATED", "review",
-                "t-1", null, NOW, null);
+        WorkflowHistoryEvent event =
+                new WorkflowHistoryEvent("e-1", "TASK_CREATED", "review", "t-1", null, NOW, null);
         assertThat(event.eventId()).isEqualTo("e-1");
         assertThat(event.eventType()).isEqualTo("TASK_CREATED");
         assertThat(event.stepName()).isEqualTo("review");
@@ -200,10 +208,22 @@ class WorkflowModelDefaultsTest {
     @Test
     @DisplayName("WorkflowDefinition / WorkflowInstance：集合归一化，core 字段必填")
     void definitionAndInstance() {
-        StepDefinition step = new StepDefinition("review", StepKind.ACTIVITY, Duration.ofMinutes(5),
-                RetryPolicy.noRetry(), null, null);
-        WorkflowDefinition definition = new WorkflowDefinition(DEFINITION, VERSION, List.of(step),
-                Duration.ofMinutes(5), Duration.ofDays(1), null);
+        StepDefinition step =
+                new StepDefinition(
+                        "review",
+                        StepKind.ACTIVITY,
+                        Duration.ofMinutes(5),
+                        RetryPolicy.noRetry(),
+                        null,
+                        null);
+        WorkflowDefinition definition =
+                new WorkflowDefinition(
+                        DEFINITION,
+                        VERSION,
+                        List.of(step),
+                        Duration.ofMinutes(5),
+                        Duration.ofDays(1),
+                        null);
 
         assertThat(definition.id()).isEqualTo(DEFINITION);
         assertThat(definition.version()).isEqualTo(VERSION);
@@ -215,8 +235,20 @@ class WorkflowModelDefaultsTest {
         assertThatThrownBy(() -> new WorkflowDefinition(DEFINITION, null, null, null, null, null))
                 .isInstanceOf(NullPointerException.class);
 
-        WorkflowInstance instance = new WorkflowInstance(INSTANCE, DEFINITION, VERSION,
-                WorkflowStatus.RUNNING, "review", null, "u-1", NOW, NOW, null, null, null);
+        WorkflowInstance instance =
+                new WorkflowInstance(
+                        INSTANCE,
+                        DEFINITION,
+                        VERSION,
+                        WorkflowStatus.RUNNING,
+                        "review",
+                        null,
+                        "u-1",
+                        NOW,
+                        NOW,
+                        null,
+                        null,
+                        null);
 
         assertThat(instance.id()).isEqualTo(INSTANCE);
         assertThat(instance.definitionId()).isEqualTo(DEFINITION);
@@ -229,25 +261,78 @@ class WorkflowModelDefaultsTest {
         assertThat(instance.failure()).isNull();
         assertThat(instance.completedAt()).isNull();
 
-        assertThatThrownBy(() -> new WorkflowInstance(null, DEFINITION, VERSION,
-                WorkflowStatus.RUNNING, null, null, "u-1", NOW, NOW, null, null, null))
+        assertThatThrownBy(
+                        () ->
+                                new WorkflowInstance(
+                                        null,
+                                        DEFINITION,
+                                        VERSION,
+                                        WorkflowStatus.RUNNING,
+                                        null,
+                                        null,
+                                        "u-1",
+                                        NOW,
+                                        NOW,
+                                        null,
+                                        null,
+                                        null))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new WorkflowInstance(INSTANCE, null, VERSION,
-                WorkflowStatus.RUNNING, null, null, "u-1", NOW, NOW, null, null, null))
+        assertThatThrownBy(
+                        () ->
+                                new WorkflowInstance(
+                                        INSTANCE,
+                                        null,
+                                        VERSION,
+                                        WorkflowStatus.RUNNING,
+                                        null,
+                                        null,
+                                        "u-1",
+                                        NOW,
+                                        NOW,
+                                        null,
+                                        null,
+                                        null))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new WorkflowInstance(INSTANCE, DEFINITION, null,
-                WorkflowStatus.RUNNING, null, null, "u-1", NOW, NOW, null, null, null))
+        assertThatThrownBy(
+                        () ->
+                                new WorkflowInstance(
+                                        INSTANCE,
+                                        DEFINITION,
+                                        null,
+                                        WorkflowStatus.RUNNING,
+                                        null,
+                                        null,
+                                        "u-1",
+                                        NOW,
+                                        NOW,
+                                        null,
+                                        null,
+                                        null))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new WorkflowInstance(INSTANCE, DEFINITION, VERSION,
-                null, null, null, "u-1", NOW, NOW, null, null, null))
+        assertThatThrownBy(
+                        () ->
+                                new WorkflowInstance(
+                                        INSTANCE,
+                                        DEFINITION,
+                                        VERSION,
+                                        null,
+                                        null,
+                                        null,
+                                        "u-1",
+                                        NOW,
+                                        NOW,
+                                        null,
+                                        null,
+                                        null))
                 .isInstanceOf(NullPointerException.class);
     }
 
     @Test
     @DisplayName("ParticipantResolutionContext：固定字段全部必填，variables 归一化")
     void participantResolutionContext() {
-        ParticipantResolutionContext context = new ParticipantResolutionContext(
-                "users-by-role", INSTANCE, DEFINITION, VERSION, "review", null, NOW);
+        ParticipantResolutionContext context =
+                new ParticipantResolutionContext(
+                        "users-by-role", INSTANCE, DEFINITION, VERSION, "review", null, NOW);
 
         assertThat(context.expression()).isEqualTo("users-by-role");
         assertThat(context.instanceId()).isEqualTo(INSTANCE);
@@ -257,23 +342,39 @@ class WorkflowModelDefaultsTest {
         assertThat(context.variables()).isEmpty();
         assertThat(context.resolvedAt()).isEqualTo(NOW);
 
-        assertThatThrownBy(() -> new ParticipantResolutionContext(null, INSTANCE, DEFINITION,
-                VERSION, "review", null, NOW)).isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new ParticipantResolutionContext("e", null, DEFINITION,
-                VERSION, "review", null, NOW)).isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new ParticipantResolutionContext("e", INSTANCE, null,
-                VERSION, "review", null, NOW)).isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new ParticipantResolutionContext("e", INSTANCE, DEFINITION,
-                null, "review", null, NOW)).isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new ParticipantResolutionContext("e", INSTANCE, DEFINITION,
-                VERSION, null, null, NOW)).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(
+                        () ->
+                                new ParticipantResolutionContext(
+                                        null, INSTANCE, DEFINITION, VERSION, "review", null, NOW))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(
+                        () ->
+                                new ParticipantResolutionContext(
+                                        "e", null, DEFINITION, VERSION, "review", null, NOW))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(
+                        () ->
+                                new ParticipantResolutionContext(
+                                        "e", INSTANCE, null, VERSION, "review", null, NOW))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(
+                        () ->
+                                new ParticipantResolutionContext(
+                                        "e", INSTANCE, DEFINITION, null, "review", null, NOW))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(
+                        () ->
+                                new ParticipantResolutionContext(
+                                        "e", INSTANCE, DEFINITION, VERSION, null, null, NOW))
+                .isInstanceOf(NullPointerException.class);
     }
 
     @Test
     @DisplayName("StepDefinition：WAIT_SIGNAL 必须声明信号名，其它类型不得声明")
     void stepDefinitionWaitSignal() {
-        StepDefinition wait = StepDefinition.waitSignal("wait-payment", "payment-received",
-                Duration.ofHours(1), List.of("review"));
+        StepDefinition wait =
+                StepDefinition.waitSignal(
+                        "wait-payment", "payment-received", Duration.ofHours(1), List.of("review"));
 
         assertThat(wait.stepName()).isEqualTo("wait-payment");
         assertThat(wait.kind()).isEqualTo(StepKind.WAIT_SIGNAL);
@@ -282,36 +383,93 @@ class WorkflowModelDefaultsTest {
         assertThat(wait.retryPolicy()).isEqualTo(RetryPolicy.noRetry());
         assertThat(wait.humanTask()).isNull();
 
-        assertThatThrownBy(() -> new StepDefinition("wait", StepKind.WAIT_SIGNAL,
-                Duration.ofHours(1), RetryPolicy.noRetry(), List.of(), Map.of(), null, " "))
+        assertThatThrownBy(
+                        () ->
+                                new StepDefinition(
+                                        "wait",
+                                        StepKind.WAIT_SIGNAL,
+                                        Duration.ofHours(1),
+                                        RetryPolicy.noRetry(),
+                                        List.of(),
+                                        Map.of(),
+                                        null,
+                                        " "))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("waitSignalName");
-        assertThatThrownBy(() -> new StepDefinition("wait", StepKind.WAIT_SIGNAL,
-                Duration.ofHours(1), RetryPolicy.noRetry(), List.of(), Map.of(), null, null))
+        assertThatThrownBy(
+                        () ->
+                                new StepDefinition(
+                                        "wait",
+                                        StepKind.WAIT_SIGNAL,
+                                        Duration.ofHours(1),
+                                        RetryPolicy.noRetry(),
+                                        List.of(),
+                                        Map.of(),
+                                        null,
+                                        null))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new StepDefinition("act", StepKind.ACTIVITY,
-                Duration.ofHours(1), RetryPolicy.noRetry(), List.of(), Map.of(), null,
-                "payment-received"))
+        assertThatThrownBy(
+                        () ->
+                                new StepDefinition(
+                                        "act",
+                                        StepKind.ACTIVITY,
+                                        Duration.ofHours(1),
+                                        RetryPolicy.noRetry(),
+                                        List.of(),
+                                        Map.of(),
+                                        null,
+                                        "payment-received"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("waitSignalName");
-        assertThatThrownBy(() -> new StepDefinition(null, StepKind.ACTIVITY, null,
-                RetryPolicy.noRetry(), null, null))
+        assertThatThrownBy(
+                        () ->
+                                new StepDefinition(
+                                        null,
+                                        StepKind.ACTIVITY,
+                                        null,
+                                        RetryPolicy.noRetry(),
+                                        null,
+                                        null))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new StepDefinition("act", null, null,
-                RetryPolicy.noRetry(), null, null))
+        assertThatThrownBy(
+                        () ->
+                                new StepDefinition(
+                                        "act", null, null, RetryPolicy.noRetry(), null, null))
                 .isInstanceOf(NullPointerException.class);
     }
 
     @Test
     @DisplayName("StepDefinition：无 timeout 时 dueIn 不参与比较")
     void stepDefinitionAllowsDueInWithoutTimeout() {
-        HumanTaskSpec spec = new HumanTaskSpec(
-                List.of(new ParticipantSpec(ParticipantType.USER, "u-1", Map.of())),
-                new AllApprove(), null, null, null, null, false, null, false, false, false,
-                false, false, false, Duration.ofDays(2), null);
+        HumanTaskSpec spec =
+                new HumanTaskSpec(
+                        List.of(new ParticipantSpec(ParticipantType.USER, "u-1", Map.of())),
+                        new AllApprove(),
+                        null,
+                        null,
+                        null,
+                        null,
+                        false,
+                        null,
+                        false,
+                        false,
+                        false,
+                        false,
+                        false,
+                        false,
+                        Duration.ofDays(2),
+                        null);
 
-        StepDefinition step = new StepDefinition("review", StepKind.HUMAN_TASK, null,
-                RetryPolicy.noRetry(), null, null, spec, null);
+        StepDefinition step =
+                new StepDefinition(
+                        "review",
+                        StepKind.HUMAN_TASK,
+                        null,
+                        RetryPolicy.noRetry(),
+                        null,
+                        null,
+                        spec,
+                        null);
 
         assertThat(step.humanTask()).isSameAs(spec);
         assertThat(step.dependsOn()).isEmpty();
@@ -371,21 +529,25 @@ class WorkflowModelDefaultsTest {
         assertThat(new WorkflowStateConflictException("m", cause)).hasCause(cause);
         assertThat(new ParticipantResolutionException("m", cause)).hasCause(cause);
 
-        assertThat(List.of(new WorkflowTimeoutException("m"),
-                new WorkflowNotFoundException("m"),
-                new WorkflowDefinitionNotFoundException("m"),
-                new AssigneeNotAllowedException("m"),
-                new HumanTaskNotFoundException("m"),
-                new HumanTaskStateConflictException("m"),
-                new RejectTargetNotAllowedException("m"),
-                new WithdrawNotAllowedException("m"),
-                new WorkflowVersionConflictException("m"),
-                new WorkflowProviderException("m"),
-                new WorkflowStateConflictException("m"),
-                new ParticipantResolutionException("m")))
-                .allSatisfy(error -> assertThat(error)
-                        .isInstanceOf(WorkflowException.class)
-                        .hasMessage("m"));
+        assertThat(
+                        List.of(
+                                new WorkflowTimeoutException("m"),
+                                new WorkflowNotFoundException("m"),
+                                new WorkflowDefinitionNotFoundException("m"),
+                                new AssigneeNotAllowedException("m"),
+                                new HumanTaskNotFoundException("m"),
+                                new HumanTaskStateConflictException("m"),
+                                new RejectTargetNotAllowedException("m"),
+                                new WithdrawNotAllowedException("m"),
+                                new WorkflowVersionConflictException("m"),
+                                new WorkflowProviderException("m"),
+                                new WorkflowStateConflictException("m"),
+                                new ParticipantResolutionException("m")))
+                .allSatisfy(
+                        error ->
+                                assertThat(error)
+                                        .isInstanceOf(WorkflowException.class)
+                                        .hasMessage("m"));
     }
 
     @Test
@@ -405,12 +567,11 @@ class WorkflowModelDefaultsTest {
     private static final class MinimalProvider implements WorkflowProvider {
 
         @Override
-        public void register(WorkflowDefinition definition) {
-        }
+        public void register(WorkflowDefinition definition) {}
 
         @Override
-        public Optional<WorkflowDefinition> findDefinition(WorkflowDefinitionId id,
-                                                          WorkflowDefinitionVersion version) {
+        public Optional<WorkflowDefinition> findDefinition(
+                WorkflowDefinitionId id, WorkflowDefinitionVersion version) {
             return Optional.empty();
         }
 
@@ -460,36 +621,67 @@ class WorkflowModelDefaultsTest {
         }
 
         @Override
-        public void close() {
-        }
+        public void close() {}
     }
 
     @Test
     @DisplayName("WorkflowStatus / AssignmentStatus / StepKind 取值稳定")
     void enumValues() {
-        assertThat(WorkflowStatus.values()).containsExactly(WorkflowStatus.PENDING,
-                WorkflowStatus.RUNNING, WorkflowStatus.WAITING, WorkflowStatus.COMPENSATING,
-                WorkflowStatus.COMPLETED, WorkflowStatus.FAILED, WorkflowStatus.CANCELLED,
-                WorkflowStatus.TERMINATED);
-        assertThat(AssignmentStatus.values()).containsExactly(AssignmentStatus.PENDING,
-                AssignmentStatus.COMPLETED, AssignmentStatus.SUSPENDED, AssignmentStatus.CANCELLED,
-                AssignmentStatus.TRANSFERRED, AssignmentStatus.DELEGATED);
-        assertThat(StepKind.values()).containsExactly(StepKind.ACTIVITY, StepKind.HUMAN_TASK,
-                StepKind.WAIT_SIGNAL, StepKind.COMPENSATION);
-        assertThat(ParticipantType.values()).containsExactly(ParticipantType.USER,
-                ParticipantType.ROLE, ParticipantType.GROUP, ParticipantType.DEPARTMENT,
-                ParticipantType.EXPRESSION);
+        assertThat(WorkflowStatus.values())
+                .containsExactly(
+                        WorkflowStatus.PENDING,
+                        WorkflowStatus.RUNNING,
+                        WorkflowStatus.WAITING,
+                        WorkflowStatus.COMPENSATING,
+                        WorkflowStatus.COMPLETED,
+                        WorkflowStatus.FAILED,
+                        WorkflowStatus.CANCELLED,
+                        WorkflowStatus.TERMINATED);
+        assertThat(AssignmentStatus.values())
+                .containsExactly(
+                        AssignmentStatus.PENDING,
+                        AssignmentStatus.COMPLETED,
+                        AssignmentStatus.SUSPENDED,
+                        AssignmentStatus.CANCELLED,
+                        AssignmentStatus.TRANSFERRED,
+                        AssignmentStatus.DELEGATED);
+        assertThat(StepKind.values())
+                .containsExactly(
+                        StepKind.ACTIVITY,
+                        StepKind.HUMAN_TASK,
+                        StepKind.WAIT_SIGNAL,
+                        StepKind.COMPENSATION);
+        assertThat(ParticipantType.values())
+                .containsExactly(
+                        ParticipantType.USER,
+                        ParticipantType.ROLE,
+                        ParticipantType.GROUP,
+                        ParticipantType.DEPARTMENT,
+                        ParticipantType.EXPRESSION);
         assertThat(HumanTaskStatus.valueOf("WITHDRAWN")).isEqualTo(HumanTaskStatus.WITHDRAWN);
     }
 
     @Test
     @DisplayName("HumanTaskSpec：拒绝目标与表单 schema 归一化为空集合")
     void humanTaskSpecDefaults() {
-        HumanTaskSpec spec = new HumanTaskSpec(
-                List.of(new ParticipantSpec(ParticipantType.USER, "u-1", Map.of())),
-                new AnyApprove(), null, null, "leave-form", null, true,
-                Set.of(AddAssigneePosition.AFTER), true, true, false, true, true, true, null,
-                null);
+        HumanTaskSpec spec =
+                new HumanTaskSpec(
+                        List.of(new ParticipantSpec(ParticipantType.USER, "u-1", Map.of())),
+                        new AnyApprove(),
+                        null,
+                        null,
+                        "leave-form",
+                        null,
+                        true,
+                        Set.of(AddAssigneePosition.AFTER),
+                        true,
+                        true,
+                        false,
+                        true,
+                        true,
+                        true,
+                        null,
+                        null);
 
         assertThat(spec.rejectCompletion()).isInstanceOf(AnyRejectTerminates.class);
         assertThat(spec.rejectTargets()).isEmpty();
@@ -502,25 +694,77 @@ class WorkflowModelDefaultsTest {
     @Test
     @DisplayName("HumanTaskSpec：签名/驳回计数不得超过参与者数量")
     void humanTaskSpecRejectCount() {
-        List<ParticipantSpec> assignees = List.of(
-                new ParticipantSpec(ParticipantType.USER, "u-1", Map.of()));
+        List<ParticipantSpec> assignees =
+                List.of(new ParticipantSpec(ParticipantType.USER, "u-1", Map.of()));
 
-        assertThatThrownBy(() -> new HumanTaskSpec(assignees, new AllApprove(),
-                new AtLeastRejects(2), null, null, null, false, null, false, false, false,
-                false, false, false, null, null))
+        assertThatThrownBy(
+                        () ->
+                                new HumanTaskSpec(
+                                        assignees,
+                                        new AllApprove(),
+                                        new AtLeastRejects(2),
+                                        null,
+                                        null,
+                                        null,
+                                        false,
+                                        null,
+                                        false,
+                                        false,
+                                        false,
+                                        false,
+                                        false,
+                                        false,
+                                        null,
+                                        null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("AtLeastRejects");
-        assertThatThrownBy(() -> new HumanTaskSpec(List.of(), new AllApprove(), null, null,
-                null, null, false, null, false, false, false, false, false, false, null, null))
+        assertThatThrownBy(
+                        () ->
+                                new HumanTaskSpec(
+                                        List.of(),
+                                        new AllApprove(),
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        false,
+                                        null,
+                                        false,
+                                        false,
+                                        false,
+                                        false,
+                                        false,
+                                        false,
+                                        null,
+                                        null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("assignees");
-        assertThatThrownBy(() -> new HumanTaskSpec(assignees, new AllApprove(), null, null,
-                null, null, false, null, false, false, false, false, false, false,
-                Duration.ZERO, null))
+        assertThatThrownBy(
+                        () ->
+                                new HumanTaskSpec(
+                                        assignees,
+                                        new AllApprove(),
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        false,
+                                        null,
+                                        false,
+                                        false,
+                                        false,
+                                        false,
+                                        false,
+                                        false,
+                                        Duration.ZERO,
+                                        null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("dueIn");
-        assertThatThrownBy(() -> new HumanTaskSpec(null, null, null, null, null, null, false,
-                null, false, false, false, false, false, false, null, null))
+        assertThatThrownBy(
+                        () ->
+                                new HumanTaskSpec(
+                                        null, null, null, null, null, null, false, null, false,
+                                        false, false, false, false, false, null, null))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessageContaining("signCompletion");
     }

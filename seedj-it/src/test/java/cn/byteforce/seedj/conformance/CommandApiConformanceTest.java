@@ -17,31 +17,27 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 /**
- * 命令目录门禁：运行期 {@code CommandCatalog} 与 {@code config/conformance/commands.yaml}
- * 必须一一对应。
+ * 命令目录门禁：运行期 {@code CommandCatalog} 与 {@code config/conformance/commands.yaml} 必须一一对应。
  *
- * <p>YAML 是评审可见的登记表；catalog 是真正执行的注册表。只改代码不改登记表、或只改
- * 登记表不改代码，都会在测试里失败。</p>
+ * <p>YAML 是评审可见的登记表；catalog 是真正执行的注册表。只改代码不改登记表、或只改 登记表不改代码，都会在测试里失败。
  */
-@SpringBootTest(classes = HrServer.class,
+@SpringBootTest(
+        classes = HrServer.class,
         webEnvironment = SpringBootTest.WebEnvironment.MOCK,
         properties = "spring.profiles.active=local")
 class CommandApiConformanceTest {
 
-    private static final Path ROOT = NamingGuardTest.repoRoot(
-            Path.of(System.getProperty("user.dir")));
+    private static final Path ROOT =
+            NamingGuardTest.repoRoot(Path.of(System.getProperty("user.dir")));
 
     private static final Path REGISTRY = ROOT.resolve("config/conformance/commands.yaml");
 
-    @Autowired
-    private CommandCatalog catalog;
+    @Autowired private CommandCatalog catalog;
 
     @Test
     @DisplayName("命令目录与 commands.yaml 完全一致")
     void catalogMatchesRegistry() throws IOException {
-        assertThat(Files.isRegularFile(REGISTRY))
-                .as("%s 不存在；先登记命令再提交", REGISTRY)
-                .isTrue();
+        assertThat(Files.isRegularFile(REGISTRY)).as("%s 不存在；先登记命令再提交", REGISTRY).isTrue();
 
         Map<String, Map<String, String>> registered = parse(Files.readAllLines(REGISTRY));
         List<CommandDescriptor> descriptors = catalog.descriptors();

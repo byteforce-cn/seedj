@@ -7,9 +7,8 @@ import java.util.Objects;
 /**
  * 按逻辑字段名索引的派生字段注册表。
  *
- * <p>业务代码只认识 schema 里的逻辑名（例如 {@code id_number_hash}），不直接注入多个
- * {@link DerivedField} bean——后者在存在多个派生字段时会产生注入歧义，也让命令代理与
- * 具体密钥实现耦合。</p>
+ * <p>业务代码只认识 schema 里的逻辑名（例如 {@code id_number_hash}），不直接注入多个 {@link DerivedField}
+ * bean——后者在存在多个派生字段时会产生注入歧义，也让命令代理与 具体密钥实现耦合。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -26,12 +25,13 @@ public final class DerivedFieldRegistry {
     public DerivedFieldRegistry(Map<String, DerivedField> derivedFields) {
         Objects.requireNonNull(derivedFields, "derivedFields");
         Map<String, DerivedField> copy = new LinkedHashMap<>();
-        derivedFields.forEach((name, field) -> {
-            if (name == null || name.isBlank()) {
-                throw new IllegalArgumentException("derived field name is required");
-            }
-            copy.put(name, Objects.requireNonNull(field, "derived field " + name));
-        });
+        derivedFields.forEach(
+                (name, field) -> {
+                    if (name == null || name.isBlank()) {
+                        throw new IllegalArgumentException("derived field name is required");
+                    }
+                    copy.put(name, Objects.requireNonNull(field, "derived field " + name));
+                });
         this.byName = Map.copyOf(copy);
     }
 
@@ -44,8 +44,8 @@ public final class DerivedFieldRegistry {
     public DerivedField require(String name) {
         DerivedField field = byName.get(name);
         if (field == null) {
-            throw new IllegalArgumentException("unknown derived field: " + name
-                    + " (known: " + byName.keySet() + ")");
+            throw new IllegalArgumentException(
+                    "unknown derived field: " + name + " (known: " + byName.keySet() + ")");
         }
         return field;
     }

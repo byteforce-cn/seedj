@@ -1,26 +1,26 @@
 package cn.byteforce.seedj.infra.jdbc.domain;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import cn.byteforce.seedj.domain.FieldType;
 import cn.byteforce.seedj.domain.ObjectSchema;
 import cn.byteforce.seedj.domain.ScopePredicate;
-import org.junit.jupiter.api.Test;
-
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import org.junit.jupiter.api.Test;
 
 class ScopeSqlTest {
 
     private static TemporalTable table() {
-        ObjectSchema schema = ObjectSchema.builder("probe", "probe_object")
-                .field("org_unit_id", FieldType.TEXT)
-                .field("status", FieldType.TEXT)
-                .field("salary", FieldType.DECIMAL)
-                .field("hire_date", FieldType.DATE)
-                .build();
+        ObjectSchema schema =
+                ObjectSchema.builder("probe", "probe_object")
+                        .field("org_unit_id", FieldType.TEXT)
+                        .field("status", FieldType.TEXT)
+                        .field("salary", FieldType.DECIMAL)
+                        .field("hire_date", FieldType.DATE)
+                        .build();
         return TemporalTable.from(schema);
     }
 
@@ -34,8 +34,7 @@ class ScopeSqlTest {
 
     @Test
     void inUsesPlaceholdersAndCoerces() {
-        var clause = ScopeSql.compile(
-                ScopePredicate.in("salary", List.of("1.5", "2.5")), table());
+        var clause = ScopeSql.compile(ScopePredicate.in("salary", List.of("1.5", "2.5")), table());
 
         assertThat(clause.sql()).isEqualTo("salary IN (?, ?)");
         assertThat(clause.args()).containsExactly(new BigDecimal("1.5"), new BigDecimal("2.5"));
@@ -50,8 +49,9 @@ class ScopeSqlTest {
 
     @Test
     void notUsesIsNotTrue() {
-        var clause = ScopeSql.compile(ScopePredicate.not(
-                ScopePredicate.eq("org_unit_id", "D01")), table());
+        var clause =
+                ScopeSql.compile(
+                        ScopePredicate.not(ScopePredicate.eq("org_unit_id", "D01")), table());
 
         assertThat(clause.sql()).isEqualTo("(org_unit_id = ?) IS NOT TRUE");
         assertThat(clause.args()).containsExactly("D01");
@@ -66,12 +66,10 @@ class ScopeSqlTest {
 
     @Test
     void unknownFieldIsRejected() {
-        assertThatThrownBy(() -> ScopeSql.compile(
-                ScopePredicate.eq("missing", "x"), table()))
+        assertThatThrownBy(() -> ScopeSql.compile(ScopePredicate.eq("missing", "x"), table()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("missing");
-        assertThatThrownBy(() -> ScopeSql.compile(
-                ScopePredicate.notNull("missing"), table()))
+        assertThatThrownBy(() -> ScopeSql.compile(ScopePredicate.notNull("missing"), table()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("missing");
     }
@@ -84,15 +82,21 @@ class ScopeSqlTest {
 
     @Test
     void andOrUseParentheses() {
-        var and = ScopeSql.compile(ScopePredicate.and(
-                ScopePredicate.eq("status", "ACTIVE"),
-                ScopePredicate.eq("org_unit_id", "D01")), table());
+        var and =
+                ScopeSql.compile(
+                        ScopePredicate.and(
+                                ScopePredicate.eq("status", "ACTIVE"),
+                                ScopePredicate.eq("org_unit_id", "D01")),
+                        table());
         assertThat(and.sql()).isEqualTo("(status = ? AND org_unit_id = ?)");
         assertThat(and.args()).containsExactly("ACTIVE", "D01");
 
-        var or = ScopeSql.compile(ScopePredicate.or(
-                ScopePredicate.eq("status", "ACTIVE"),
-                ScopePredicate.eq("status", "PENDING")), table());
+        var or =
+                ScopeSql.compile(
+                        ScopePredicate.or(
+                                ScopePredicate.eq("status", "ACTIVE"),
+                                ScopePredicate.eq("status", "PENDING")),
+                        table());
         assertThat(or.sql()).isEqualTo("(status = ? OR status = ?)");
     }
 

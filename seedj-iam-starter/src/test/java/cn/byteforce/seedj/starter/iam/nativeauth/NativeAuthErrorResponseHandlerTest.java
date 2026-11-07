@@ -1,5 +1,8 @@
 package cn.byteforce.seedj.starter.iam.nativeauth;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
@@ -7,10 +10,6 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2Error;
-
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /** native-auth 失败响应：MFA 挑战体与非 MFA 错误委派。 */
 class NativeAuthErrorResponseHandlerTest {
@@ -22,7 +21,9 @@ class NativeAuthErrorResponseHandlerTest {
     void mfaRequiredWritesChallengeBody() throws Exception {
         MockHttpServletResponse response = new MockHttpServletResponse();
 
-        handler.onAuthenticationFailure(new MockHttpServletRequest(), response,
+        handler.onAuthenticationFailure(
+                new MockHttpServletRequest(),
+                response,
                 new NativeAuthMfaRequiredException("mfa-token-1", List.of("totp", "recovery")));
 
         assertThat(response.getStatus()).isEqualTo(400);
@@ -40,9 +41,11 @@ class NativeAuthErrorResponseHandlerTest {
     void otherFailuresDelegateToOAuth2Handler() throws Exception {
         MockHttpServletResponse response = new MockHttpServletResponse();
 
-        handler.onAuthenticationFailure(new MockHttpServletRequest(), response,
-                new OAuth2AuthenticationException(new OAuth2Error("invalid_grant",
-                        "invalid credentials", null)));
+        handler.onAuthenticationFailure(
+                new MockHttpServletRequest(),
+                response,
+                new OAuth2AuthenticationException(
+                        new OAuth2Error("invalid_grant", "invalid credentials", null)));
 
         assertThat(response.getStatus()).isEqualTo(400);
         assertThat(response.getContentAsString()).contains("invalid_grant");

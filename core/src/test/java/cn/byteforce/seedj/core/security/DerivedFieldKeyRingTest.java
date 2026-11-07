@@ -13,8 +13,8 @@ class DerivedFieldKeyRingTest {
     @Test
     @DisplayName("缺少 SEEDJ_FIELD_HASH_KEYS：fromEnvironment 启动期失败，不回退测试密钥")
     void fromEnvironmentFailsWithoutKeys() {
-        Assumptions.assumeTrue(System.getenv(DerivedFieldKeyRing.ENVIRONMENT_KEY) == null,
-                "环境已注入密钥，跳过缺失场景");
+        Assumptions.assumeTrue(
+                System.getenv(DerivedFieldKeyRing.ENVIRONMENT_KEY) == null, "环境已注入密钥，跳过缺失场景");
 
         assertThatThrownBy(DerivedFieldKeyRing::fromEnvironment)
                 .isInstanceOf(IllegalStateException.class)
@@ -33,8 +33,7 @@ class DerivedFieldKeyRingTest {
     @Test
     @DisplayName("空密钥列表失败")
     void emptyKeysFail() {
-        assertThatThrownBy(DerivedFieldKeyRing::new)
-                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(DerivedFieldKeyRing::new).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> DerivedFieldKeyRing.forTests(" "))
                 .isInstanceOf(IllegalArgumentException.class);
     }

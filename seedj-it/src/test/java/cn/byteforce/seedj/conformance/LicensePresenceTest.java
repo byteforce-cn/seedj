@@ -1,8 +1,6 @@
 package cn.byteforce.seedj.conformance;
 
-import org.junit.jupiter.api.Assumptions;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -12,20 +10,19 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.jar.JarFile;
 import java.util.stream.Stream;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
 /**
  * 许可交付门禁：仓库必须声明 Apache-2.0，且交付制品必须把许可文本带进 {@code META-INF}。
  *
- * <p>仓库根断言 {@code LICENSE}、{@code NOTICE} 存在且非空；打包断言以
- * {@code seedj-server/hr} 的制件为样本（根 POM 的 {@code copy-license-notice} 执行把它拷入
- * {@code META-INF}）。样本 jar 由 {@code package} 生成，单独跑测试时通常不存在，因此用
- * {@link Assumptions#assumeTrue} 跳过而不是伪造失败：干净树上的门禁不能依赖构建顺序。</p>
+ * <p>仓库根断言 {@code LICENSE}、{@code NOTICE} 存在且非空；打包断言以 {@code seedj-server/hr} 的制件为样本（根 POM 的 {@code
+ * copy-license-notice} 执行把它拷入 {@code META-INF}）。样本 jar 由 {@code package} 生成，单独跑测试时通常不存在，因此用 {@link
+ * Assumptions#assumeTrue} 跳过而不是伪造失败：干净树上的门禁不能依赖构建顺序。
  *
  * <p>比 {@code LICENSE}/{@code NOTICE} 更旧的 jar 是引入许可之前的旧产物，同样跳过：它无法
- * 证明当前交付会携带许可，断言它只会把“忘了重新打包”误报成许可交付缺陷。只有新于许可文本的
- * 制品才作为证据被硬断言。</p>
+ * 证明当前交付会携带许可，断言它只会把“忘了重新打包”误报成许可交付缺陷。只有新于许可文本的 制品才作为证据被硬断言。
  */
 class LicensePresenceTest {
 
@@ -42,18 +39,13 @@ class LicensePresenceTest {
     void repositoryRootCarriesLicenseAndNotice() throws IOException {
         for (String name : REQUIRED_FILES) {
             Path file = ROOT.resolve(name);
-            assertThat(Files.isRegularFile(file))
-                    .as("仓库根必须存在 %s", name)
-                    .isTrue();
-            assertThat(Files.readString(file).isBlank())
-                    .as("%s 不得为空占位", name)
-                    .isFalse();
+            assertThat(Files.isRegularFile(file)).as("仓库根必须存在 %s", name).isTrue();
+            assertThat(Files.readString(file).isBlank()).as("%s 不得为空占位", name).isFalse();
         }
 
         assertThat(Files.readString(ROOT.resolve("LICENSE")))
                 .contains("Apache License", "Version 2.0");
-        assertThat(Files.readString(ROOT.resolve("NOTICE")))
-                .contains("Byteforce Seedj");
+        assertThat(Files.readString(ROOT.resolve("NOTICE"))).contains("Byteforce Seedj");
     }
 
     @Test

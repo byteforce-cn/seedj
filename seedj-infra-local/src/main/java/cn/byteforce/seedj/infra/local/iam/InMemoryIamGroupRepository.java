@@ -6,7 +6,6 @@ import cn.byteforce.seedj.iam.IamGroup;
 import cn.byteforce.seedj.iam.IamGroupQuery;
 import cn.byteforce.seedj.iam.IamPage;
 import cn.byteforce.seedj.iam.spi.IamGroupRepository;
-
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -51,12 +50,16 @@ public class InMemoryIamGroupRepository implements IamGroupRepository {
 
     @Override
     public synchronized IamGroup create(IamGroup group) {
-        boolean duplicate = groups.values().stream()
-                .anyMatch(existing -> existing.tenantId().equals(group.tenantId())
-                        && existing.displayName().equalsIgnoreCase(group.displayName()));
+        boolean duplicate =
+                groups.values().stream()
+                        .anyMatch(
+                                existing ->
+                                        existing.tenantId().equals(group.tenantId())
+                                                && existing.displayName()
+                                                        .equalsIgnoreCase(group.displayName()));
         if (duplicate || groups.containsKey(group.id())) {
-            throw new IamException(IamErrorCode.GROUP_CONFLICT,
-                    "group already exists: " + group.displayName());
+            throw new IamException(
+                    IamErrorCode.GROUP_CONFLICT, "group already exists: " + group.displayName());
         }
         groups.put(group.id(), group);
         return group;
@@ -69,16 +72,20 @@ public class InMemoryIamGroupRepository implements IamGroupRepository {
             throw new IamException(IamErrorCode.GROUP_NOT_FOUND, "group not found: " + group.id());
         }
         if (current.version() != group.version()) {
-            throw new IamException(IamErrorCode.CONFLICT,
-                    "group version conflict: expected " + current.version());
+            throw new IamException(
+                    IamErrorCode.CONFLICT, "group version conflict: expected " + current.version());
         }
-        boolean duplicate = groups.values().stream()
-                .anyMatch(existing -> !existing.id().equals(group.id())
-                        && existing.tenantId().equals(group.tenantId())
-                        && existing.displayName().equalsIgnoreCase(group.displayName()));
+        boolean duplicate =
+                groups.values().stream()
+                        .anyMatch(
+                                existing ->
+                                        !existing.id().equals(group.id())
+                                                && existing.tenantId().equals(group.tenantId())
+                                                && existing.displayName()
+                                                        .equalsIgnoreCase(group.displayName()));
         if (duplicate) {
-            throw new IamException(IamErrorCode.GROUP_CONFLICT,
-                    "group already exists: " + group.displayName());
+            throw new IamException(
+                    IamErrorCode.GROUP_CONFLICT, "group already exists: " + group.displayName());
         }
         IamGroup updated = group.withVersion(group.version() + 1, Instant.now());
         groups.put(group.id(), updated);
@@ -115,9 +122,17 @@ public class InMemoryIamGroupRepository implements IamGroupRepository {
         }
         Set<String> members = group.mutableMembers();
         if (members.add(userId)) {
-            groups.put(groupId, new IamGroup(group.id(), group.tenantId(), group.displayName(),
-                    group.externalId(), members, group.version() + 1, group.createdAt(),
-                    Instant.now()));
+            groups.put(
+                    groupId,
+                    new IamGroup(
+                            group.id(),
+                            group.tenantId(),
+                            group.displayName(),
+                            group.externalId(),
+                            members,
+                            group.version() + 1,
+                            group.createdAt(),
+                            Instant.now()));
         }
     }
 
@@ -129,9 +144,17 @@ public class InMemoryIamGroupRepository implements IamGroupRepository {
         }
         Set<String> members = group.mutableMembers();
         if (members.remove(userId)) {
-            groups.put(groupId, new IamGroup(group.id(), group.tenantId(), group.displayName(),
-                    group.externalId(), members, group.version() + 1, group.createdAt(),
-                    Instant.now()));
+            groups.put(
+                    groupId,
+                    new IamGroup(
+                            group.id(),
+                            group.tenantId(),
+                            group.displayName(),
+                            group.externalId(),
+                            members,
+                            group.version() + 1,
+                            group.createdAt(),
+                            Instant.now()));
         }
     }
 

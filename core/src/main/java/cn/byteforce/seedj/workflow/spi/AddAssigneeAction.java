@@ -5,10 +5,15 @@ import java.util.List;
 import java.util.Objects;
 
 /** 加签；{@code position} 必须同时被任务规格与 Provider 能力允许。 */
-public record AddAssigneeAction(String actionId, TaskId taskId, String operator,
-                                List<ParticipantSpec> newAssignees,
-                                AddAssigneePosition position,
-                                String reason, Instant occurredAt) implements WorkflowAction {
+public record AddAssigneeAction(
+        String actionId,
+        TaskId taskId,
+        String operator,
+        List<ParticipantSpec> newAssignees,
+        AddAssigneePosition position,
+        String reason,
+        Instant occurredAt)
+        implements WorkflowAction {
     public AddAssigneeAction {
         Objects.requireNonNull(actionId, "actionId cannot be null");
         Objects.requireNonNull(taskId, "taskId cannot be null");

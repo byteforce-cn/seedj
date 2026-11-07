@@ -7,7 +7,6 @@ package cn.byteforce.seedj.iam.authz;
  * @since 1.0.0
  */
 public enum SodScope {
-
     SAME_DEPARTMENT("department"),
     SAME_ORGANIZATION("organization"),
     SAME_WAREHOUSE("warehouse");
