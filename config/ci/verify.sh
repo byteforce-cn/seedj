@@ -22,4 +22,11 @@ fi
 bash config/ci/check-coverage.sh
 ./mvnw $MAVEN_FLAGS -B spotless:check
 
+# eis 固定版本工作副本存在时，契约对拍是硬门禁；本地没有 EIS_ROOT 时由测试自身跳过。
+if [[ -n "${EIS_ROOT:-}" ]]; then
+    ./mvnw $MAVEN_FLAGS -B -pl seedj-it -am test \
+        -Dtest=EisContractAlignmentTest -Dsurefire.failIfNoSpecifiedTests=false \
+        -Deis.root="$EIS_ROOT"
+fi
+
 echo "verify: OK"
