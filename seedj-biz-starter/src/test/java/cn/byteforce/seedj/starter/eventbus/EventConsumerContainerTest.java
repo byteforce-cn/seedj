@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
@@ -244,8 +245,27 @@ class EventConsumerContainerTest {
         assertThat(failure.errorType()).isEqualTo(InfrastructureException.class.getName());
         assertThat(failure.errorMessage()).isEqualTo("backend down");
         assertThat(metrics.retriedCount).hasValue(1);
+        assertThat(metrics.failedNonRetryableCount).hasValue(0);
         assertThat(store.acked).isEmpty();
         assertThat(store.deadLettered).isEmpty();
+    }
+
+    @Test
+    @DisplayName("异步包装异常先解包，再按内部异常判定可重试性")
+    void unwrapsAsyncWrapper() {
+        FakeStore store = new FakeStore();
+        store.enqueue(received("delivery-1", "billing", 1, Map.of()));
+
+        EventConsumerContainer container = start(stubs(store, serializer(),
+                new FailingSubscriber(new CompletionException(new InfrastructureException(
+                        EventBusErrorCode.CONSUMER_FAILED, "backend down")))));
+
+        container.pollAll();
+
+        awaitUntil(() -> store.retried.size() == 1);
+        DeliveryFailure failure = store.failures.get(0);
+        assertThat(failure.errorType()).isEqualTo(InfrastructureException.class.getName());
+        assertThat(failure.retryable()).isTrue();
     }
 
     @Test
@@ -659,6 +679,7 @@ class EventConsumerContainerTest {
 
         final AtomicInteger consumedCount = new AtomicInteger();
         final AtomicInteger retriedCount = new AtomicInteger();
+        final AtomicInteger failedNonRetryableCount = new AtomicInteger();
         final AtomicInteger deadLetteredCount = new AtomicInteger();
         final AtomicInteger pollFailedCount = new AtomicInteger();
 
@@ -669,9 +690,7 @@ class EventConsumerContainerTest {
 
         @Override
         public void consumerFailed(boolean retryable) {
-            if (retryable) {
-                retriedCount.incrementAndGet();
-            }
+            (retryable ? retriedCount : failedNonRetryableCount).incrementAndGet();
         }
 
         @Override
@@ -745,7 +764,7 @@ class EventConsumerContainerTest {
     static final class FlakyStore implements EventConsumerStore {
 
         private final String failingGroup;
-        private final FakeStore delegate = new FakeStore();
+        private final ConcurrentLinkedQueue<ReceivedEvent> queue = new ConcurrentLinkedQueue<>();
         final List<PollRequest> polls = new CopyOnWriteArrayList<>();
         final List<ReceivedEvent> acked = new CopyOnWriteArrayList<>();
 
@@ -754,7 +773,7 @@ class EventConsumerContainerTest {
         }
 
         void enqueue(ReceivedEvent event) {
-            delegate.enqueue(event);
+            queue.add(event);
         }
 
         @Override
@@ -765,7 +784,7 @@ class EventConsumerContainerTest {
             }
             List<ReceivedEvent> batch = new ArrayList<>();
             for (int i = 0; i < request.limit(); i++) {
-                ReceivedEvent next = delegate.next();
+                ReceivedEvent next = queue.poll();
                 if (next == null) {
                     break;
                 }
@@ -806,10 +825,6 @@ class EventConsumerContainerTest {
 
         void enqueue(ReceivedEvent event) {
             queue.add(event);
-        }
-
-        ReceivedEvent next() {
-            return queue.poll();
         }
 
         @Override
