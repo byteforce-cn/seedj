@@ -88,6 +88,23 @@ class ScopePredicatesTest {
         assertThat(ScopePredicates.matches(row, ScopePredicate.or(A, C), schema)).isTrue();
     }
 
+    @Test
+    @DisplayName("Map 版本与 TemporalRow 版本语义一致")
+    void matchesMapVersion() {
+        ObjectSchema schema = ObjectSchema.builder("employee", "hr_employee")
+                .field("org_unit_id", FieldType.TEXT)
+                .field("name", FieldType.TEXT)
+                .build();
+        Map<String, Object> fields = Map.of("org_unit_id", "D01", "name", "张三");
+
+        assertThat(ScopePredicates.matches(fields, ScopePredicate.eq("org_unit_id", "D01"),
+                schema)).isTrue();
+        assertThat(ScopePredicates.matches(fields,
+                ScopePredicate.not(ScopePredicate.eq("org_unit_id", "D02")), schema)).isTrue();
+        assertThat(ScopePredicates.matches(Map.of("name", "张三"),
+                ScopePredicate.notNull("org_unit_id"), schema)).isFalse();
+    }
+
     private static ObjectVersion version() {
         return new ObjectVersion(ID, 1, NOW, null, NOW, null, ID, NOW, null, null);
     }
