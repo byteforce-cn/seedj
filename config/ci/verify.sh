@@ -22,6 +22,11 @@ fi
 bash config/ci/check-coverage.sh
 ./mvnw $MAVEN_FLAGS -B spotless:check
 
+# 授权负例是默认切片：SoD/ABAC 与字段 masking 必须在命令/读路径上固定。
+./mvnw $MAVEN_FLAGS -B -pl seedj-it -am test \
+    -Dtest=CommandAuthorizationIT,FieldMaskingIT \
+    -Dsurefire.failIfNoSpecifiedTests=false
+
 # eis 固定版本工作副本存在时，契约对拍是硬门禁；本地没有 EIS_ROOT 时由测试自身跳过。
 if [[ -n "${EIS_ROOT:-}" ]]; then
     ./mvnw $MAVEN_FLAGS -B -pl seedj-it -am test \
