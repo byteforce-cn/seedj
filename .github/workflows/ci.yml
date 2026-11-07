@@ -20,7 +20,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: resolve eis ref
@@ -32,17 +32,17 @@ jobs:
             tag=*) echo "ref=${pin#tag=}" >> "$GITHUB_OUTPUT" ;;
             *) echo "invalid config/conformance/eis-ref.txt: $pin" >&2; exit 1 ;;
           esac
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: ${{ github.repository_owner }}/eis
           ref: ${{ steps.eis.outputs.ref }}
           path: .eis
           token: ${{ secrets.EIS_READ_TOKEN || github.token }}
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "21"
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.m2/repository
           key: m2-${{ hashFiles('**/pom.xml') }}
@@ -63,7 +63,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: resolve eis ref
         id: eis
         run: |
@@ -73,17 +73,17 @@ jobs:
             tag=*) echo "ref=${pin#tag=}" >> "$GITHUB_OUTPUT" ;;
             *) echo "invalid config/conformance/eis-ref.txt: $pin" >&2; exit 1 ;;
           esac
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: ${{ github.repository_owner }}/eis
           ref: ${{ steps.eis.outputs.ref }}
           path: .eis
           token: ${{ secrets.EIS_READ_TOKEN || github.token }}
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "21"
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.m2/repository
           key: m2-${{ hashFiles('**/pom.xml') }}
@@ -103,12 +103,12 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "21"
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.m2/repository
           key: m2-${{ hashFiles('**/pom.xml') }}
@@ -123,7 +123,7 @@ jobs:
           bash config/ci/verify.sh
           bash config/ci/dependency-check.sh
           bash config/ci/release.sh
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: seedj-sbom
           path: "**/target/seedj-sbom.json"
@@ -136,8 +136,8 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 20
           cache: npm
