@@ -282,6 +282,9 @@ class PolicyScopeCompilerTest {
                 .isEqualTo(ScopePredicate.all());
         assertThat(constantEqualsSubject(admin, "roles", "nobody"))
                 .isEqualTo(ScopePredicate.none());
+        assertThat(constantCompare(admin, PolicyComparisonOperator.EQ,
+                PolicyOperand.literal("admin"), PolicyOperand.subject("roles")))
+                .isEqualTo(ScopePredicate.all());
     }
 
     @Test
@@ -504,8 +507,13 @@ class PolicyScopeCompilerTest {
 
     private ScopePredicate constantCompare(PolicyComparisonOperator operator,
                                            PolicyOperand left, PolicyOperand right) {
+        return constantCompare(caller(), operator, left, right);
+    }
+
+    private ScopePredicate constantCompare(Caller caller, PolicyComparisonOperator operator,
+                                           PolicyOperand left, PolicyOperand right) {
         return compiler(List.of(allow("p1", compare(left, operator, right))))
-                .compile("employee", caller(), ScopeContext.empty());
+                .compile("employee", caller, ScopeContext.empty());
     }
 
     private static final class FakePolicies implements IamPolicyRepository {
