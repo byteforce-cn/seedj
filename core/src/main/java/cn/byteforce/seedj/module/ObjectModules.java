@@ -3,6 +3,7 @@ package cn.byteforce.seedj.module;
 import cn.byteforce.seedj.core.security.ScopeKey;
 import cn.byteforce.seedj.core.security.ScopeKeyCatalog;
 import cn.byteforce.seedj.core.utils.FieldNames;
+import cn.byteforce.seedj.cqrs.CommandAgent;
 import cn.byteforce.seedj.cqrs.CommandDescriptor;
 import cn.byteforce.seedj.cqrs.CommandHandler;
 import cn.byteforce.seedj.cqrs.CommandPayloadRedactor;
@@ -118,9 +119,24 @@ public final class ObjectModules {
                     throw new IllegalArgumentException(
                             "command " + command.type + " must declare a permission");
                 }
-                if (command.handler == null) {
-                    throw new IllegalArgumentException(
-                            "command " + command.type + " must declare a handler");
+                if ((command.handler == null) == (command.agent == null)) {
+                    throw new IllegalArgumentException("command " + command.type
+                            + " must declare exactly one of handler or agent");
+                }
+                if (command.agent != null && !command.payloadType.equals(
+                        command.agent.commandType())) {
+                    throw new IllegalArgumentException("command " + command.type
+                            + " payload type " + command.payloadType.getName()
+                            + " does not match agent command type "
+                            + command.agent.commandType().getName());
+                }
+                boolean creates = command.createsDeclared
+                        ? command.creates
+                        : command.agent != null && command.agent.isCreateCommand();
+                if (command.agent != null && command.createsDeclared
+                        && command.creates != command.agent.isCreateCommand()) {
+                    throw new IllegalArgumentException("command " + command.type
+                            + " creates flag does not match agent");
                 }
                 requirePayloadFields(command, schema);
                 CommandDescriptor descriptor = CommandDescriptor.builder()
@@ -133,11 +149,14 @@ public final class ObjectModules {
                         .build();
                 declarations.add(new CommandDeclaration(object.objectType, command.type,
                         command.payloadType, command.permission, command.handler,
-                        command.creates, command.emits, command.commandFields,
+                        command.agent, creates, command.emits, command.commandFields,
                         command.redactedFields));
-                registrations.add(new CommandRegistration(descriptor, command.handler, schema,
-                        command.commandFields, command.redactedFields, command.emits,
-                        command.creates));
+                registrations.add(command.agent == null
+                        ? new CommandRegistration(descriptor, command.handler, schema,
+                                command.commandFields, command.redactedFields, command.emits,
+                                creates)
+                        : CommandRegistration.eventSourced(descriptor, command.agent, schema,
+                                command.commandFields, command.redactedFields, command.emits));
             }
             for (QuerySpec query : object.queries) {
                 ObjectSchema fieldSchema = schema;
@@ -469,7 +488,11 @@ public final class ObjectModules {
 
         private CommandHandler<?> handler;
 
+        private CommandAgent<?, ?, ?> agent;
+
         private boolean creates;
+
+        private boolean createsDeclared;
 
         private List<String> emits = List.of();
 
@@ -498,12 +521,24 @@ public final class ObjectModules {
         }
 
         /**
+         * 声明为事件溯源命令：执行模型由 agent 提供，handler 必须为空。
+         *
+         * @param value 命令代理
+         * @return 本命令
+         */
+        public CommandSpec agent(CommandAgent<?, ?, ?> value) {
+            this.agent = value;
+            return this;
+        }
+
+        /**
          * 声明为创建型命令：运行时在对象已存在时失败关闭，避免重复创建或误把更新当创建。
          *
          * @return 本命令
          */
         public CommandSpec creates() {
             this.creates = true;
+            this.createsDeclared = true;
             return this;
         }
 
