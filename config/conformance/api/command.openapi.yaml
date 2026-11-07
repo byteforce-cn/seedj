@@ -132,7 +132,7 @@ components:
         version:
           type: integer
           minimum: 1
-          description: locator 对应对象的版本（每次写 +1）
+          description: locator 或 target_ref 对应对象的版本（每次写 +1）
 
     CommandRejected:
       type: object

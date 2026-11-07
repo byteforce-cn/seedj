@@ -37,6 +37,12 @@ class PostgresCommandStoreUpgradeTest {
                     .withUsername("seedj")
                     .withPassword("seedj");
 
+    private static final UUID LEGACY_ID = UUID.fromString(
+            "018f2e3a-1234-7000-8000-0000000000a1");
+
+    private static final UUID LEGACY_LOCATOR = UUID.fromString(
+            "018f2e3a-1234-7000-8000-0000000000a2");
+
     private static JdbcTemplate jdbc;
 
     private static PostgresCommandStore store;
@@ -48,6 +54,16 @@ class PostgresCommandStoreUpgradeTest {
         jdbc = new JdbcTemplate(dataSource);
         JdbcMigrationRunner runner = new JdbcMigrationRunner(dataSource);
         new CommandSchemaCapability(runner, List.of(CommandMigrations.v1())).initialize();
+        // 升级前的库：V1 表结构下写入一行，再由 V2 的 CHECK 校验约束。
+        jdbc.update("""
+                INSERT INTO command_record
+                    (id, type, issued_at, issuer, payload, idempotency_key,
+                     payload_fingerprint, status, rejection_code, rejection_reason,
+                     event_ids, locator, version, created_at, lease_until)
+                VALUES (?, 'probe.command', now(), ?, '{}'::jsonb, 'k-v1', ?, 'accepted',
+                        NULL, NULL, '[]'::jsonb, ?, 1, now(), now() + interval '60 seconds')
+                """, LEGACY_ID, UUID.fromString("018f2e3a-1234-7000-8000-0000000000a3"),
+                FINGERPRINT, LEGACY_LOCATOR);
         new CommandSchemaCapability(runner, List.of(CommandMigrations.v1(),
                 CommandMigrations.v2())).initialize();
         store = new PostgresCommandStore(jdbc);
@@ -56,19 +72,8 @@ class PostgresCommandStoreUpgradeTest {
     @Test
     @DisplayName("V1 的 accepted 行在 V2 后仍可读，新行可写 target_ref")
     void upgradeKeepsOldRowsAndAcceptsTargetRef() {
-        UUID legacyId = UUID.randomUUID();
-        UUID locator = UUID.randomUUID();
-        jdbc.update("""
-                INSERT INTO command_record
-                    (id, type, issued_at, issuer, payload, idempotency_key,
-                     payload_fingerprint, status, rejection_code, rejection_reason,
-                     event_ids, locator, version, created_at, lease_until)
-                VALUES (?, 'probe.command', now(), ?, '{}'::jsonb, 'k-v1', ?, 'accepted',
-                        NULL, NULL, '[]'::jsonb, ?, 1, now(), now() + interval '60 seconds')
-                """, legacyId, UUID.randomUUID(), FINGERPRINT, locator);
-
-        CommandRecord legacy = store.find(legacyId).orElseThrow();
-        assertThat(legacy.locator()).isEqualTo(locator);
+        CommandRecord legacy = store.find(LEGACY_ID).orElseThrow();
+        assertThat(legacy.locator()).isEqualTo(LEGACY_LOCATOR);
         assertThat(legacy.targetRef()).isNull();
         assertThat(legacy.status()).isEqualTo(CommandStatus.ACCEPTED);
 
