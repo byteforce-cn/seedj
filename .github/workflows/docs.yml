@@ -21,10 +21,10 @@ jobs:
     outputs:
       pages: ${{ steps.pages.outcome == 'success' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - name: install
         run: npm ci
@@ -35,14 +35,14 @@ jobs:
       - name: nav
         run: npm run docs:nav
       - id: pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
         continue-on-error: true
       - name: pages missing
         if: steps.pages.outcome != 'success'
         run: |
           echo "::warning::Pages 未启用，本次跳过部署：Settings → Pages → Source 选择 GitHub Actions。"
       - if: steps.pages.outcome == 'success'
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: docs/.vitepress/dist
 
@@ -56,4 +56,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
