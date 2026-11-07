@@ -65,6 +65,42 @@ class CommandRecordTest {
     }
 
     @Test
+    @DisplayName("accepted 记录可以用 target_ref 代替 locator")
+    void acceptedWithTargetRef() {
+        CommandRecord record = pending().accepted("emp-1", 2L, List.of());
+
+        assertThat(record.locator()).isNull();
+        assertThat(record.targetRef()).isEqualTo("emp-1");
+        assertThat(record.version()).isEqualTo(2L);
+    }
+
+    @Test
+    @DisplayName("accepted 恰好要求 locator 或 target_ref 之一")
+    void acceptedRequiresExactlyOneTarget() {
+        assertThatThrownBy(() -> new CommandRecord(ID, "hr.employee.onboard", NOW, ISSUER,
+                Map.of(), "key-1", FINGERPRINT, CommandStatus.ACCEPTED, null, null,
+                List.of(), LOCATOR, 1L, "emp-1", NOW, NOW))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("exactly one");
+        assertThatThrownBy(() -> new CommandRecord(ID, "hr.employee.onboard", NOW, ISSUER,
+                Map.of(), "key-1", FINGERPRINT, CommandStatus.ACCEPTED, null, null,
+                List.of(), null, 1L, null, NOW, NOW))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("exactly one");
+    }
+
+    @Test
+    @DisplayName("target_ref 最长 255 且不得空白")
+    void targetRefIsBounded() {
+        assertThatThrownBy(() -> pending().accepted(" ", 1L, List.of()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("targetRef");
+        assertThatThrownBy(() -> pending().accepted("x".repeat(256), 1L, List.of()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("255");
+    }
+
+    @Test
     @DisplayName("rejected 记录必须有 code 与 reason，线格式为小写")
     void rejectedRequiresCodeAndReasonAndWireNamesAreLowercase() {
         CommandRecord record = pending().rejected(ContractErrorCode.TEMPORAL_VIOLATION, "bad range");
