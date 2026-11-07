@@ -15,13 +15,46 @@ export default defineConfig({
   themeConfig: {
     nav: [
       { text: "指南", link: "/guide/" },
+      { text: "命令契约", link: "/guide/command-contract" },
+      { text: "测试", link: "/guide/testing" },
+      { text: "兼容性", link: "/guide/api-compatibility" },
       { text: "GitHub", link: "https://github.com/byteforce-cn/seedj" },
     ],
     sidebar: {
       "/guide/": [
         {
           text: "开始",
-          items: [{ text: "指南索引", link: "/guide/" }],
+          items: [
+            { text: "指南索引", link: "/guide/" },
+            { text: "快速开始", link: "/guide/quickstart" },
+            { text: "概念与术语", link: "/guide/concepts" },
+          ],
+        },
+        {
+          text: "业务开发",
+          items: [
+            { text: "业务开发手册", link: "/guide/cookbook" },
+            { text: "命令契约", link: "/guide/command-contract" },
+            { text: "读模型", link: "/guide/read-model" },
+            { text: "错误目录", link: "/guide/errors" },
+            { text: "测试", link: "/guide/testing" },
+          ],
+        },
+        {
+          text: "装配与集成",
+          items: [
+            { text: "业务装配", link: "/guide/biz-starter" },
+            { text: "IAM 装配", link: "/guide/iam-starter" },
+            { text: "基础设施 SPI", link: "/guide/spi" },
+          ],
+        },
+        {
+          text: "边界与决策",
+          items: [
+            { text: "决策指南", link: "/guide/decision-guide" },
+            { text: "API 兼容性", link: "/guide/api-compatibility" },
+            { text: "安全", link: "/guide/security" },
+          ],
         },
       ],
     },

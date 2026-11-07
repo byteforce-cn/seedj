@@ -8,10 +8,10 @@ hero:
   actions:
     - theme: brand
       text: 5 分钟跑起来
-      link: /guide/
+      link: /guide/quickstart
     - theme: alt
       text: 业务开发手册
-      link: /guide/
+      link: /guide/cookbook
     - theme: alt
       text: GitHub
       link: https://github.com/byteforce-cn/seedj
