@@ -122,4 +122,21 @@ class CommandDescriptorTest {
         return new Caller("u-2", "bob", "default", Set.of(), Set.of("hr.employee.read"),
                 Set.of(), Set.of("pwd"), Caller.DEFAULT_ACR, Map.of());
     }
+
+    @Test
+    @DisplayName("空白类型被拒绝，validator 与 redactor 缺省为无操作实现")
+    void descriptorDefaults() {
+        assertThatThrownBy(() -> new CommandDescriptor(" ", "employee", Map.class, null, null,
+                null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("command type is required");
+
+        CommandDescriptor descriptor = new CommandDescriptor("hr.employee.create", "employee",
+                Map.class, "hr.employee.write", null, null);
+
+        assertThatCode(() -> descriptor.validator().validate(Map.of()))
+                .doesNotThrowAnyException();
+        assertThat(descriptor.redactor().redact(Map.of("password", "x")))
+                .containsEntry("password", "x");
+    }
 }

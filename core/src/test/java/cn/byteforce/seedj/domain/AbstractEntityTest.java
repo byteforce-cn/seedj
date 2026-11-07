@@ -69,4 +69,14 @@ class AbstractEntityTest {
                 .isInstanceOf(NullPointerException.class)
                 .hasMessageContaining("entity id must not be null");
     }
+
+    @Test
+    @DisplayName("同一实例恒等")
+    void reflexiveEquality() {
+        Order order = new Order(7L);
+
+        assertThat(order).isSameAs(order);
+        assertThat(order.equals(order)).isTrue();
+        assertThat(order.hashCode()).isEqualTo(new Order(7L).hashCode());
+    }
 }

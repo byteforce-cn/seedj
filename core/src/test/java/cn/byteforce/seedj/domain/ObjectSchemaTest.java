@@ -126,4 +126,42 @@ class ObjectSchemaTest {
                 .hasMessageContaining("duplicate objectType");
         assertThat(ObjectSchemaRegistry.empty().all()).isEmpty();
     }
+
+    @Test
+    @DisplayName("表名、字段查询与必填/可排序字段集合")
+    void accessorsAndDerivedFieldSets() {
+        ObjectSchema schema = ObjectSchema.builder("employee", "hr_employee")
+                .required("employee_no", FieldType.TEXT)
+                .filterable("org_unit_id", FieldType.TEXT)
+                .field(FieldDefinition.of("status", FieldType.TEXT).withSortable())
+                .build();
+
+        assertThat(schema.tableName()).isEqualTo("hr_employee");
+        assertThat(schema.field("employee_no")).isPresent();
+        assertThat(schema.field(null)).isEmpty();
+        assertThat(schema.field("missing")).isEmpty();
+        assertThatThrownBy(() -> schema.requireField("missing"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("unknown field: missing");
+        assertThat(schema.requiredFields()).containsExactly("employee_no");
+        assertThat(schema.sortableFields()).containsExactly("status");
+        assertThat(schema.filterableFields()).containsExactly("org_unit_id");
+        assertThat(schema.validate(Map.of("employee_no", "E-1"))).containsEntry("employee_no",
+                "E-1");
+        assertThat(schema.fieldNames()).containsExactly("employee_no", "org_unit_id", "status");
+    }
+
+    @Test
+    @DisplayName("注册表空查找与未知类型 require 失败")
+    void registryLookupGuards() {
+        ObjectSchemaRegistry registry = new ObjectSchemaRegistry(List.of(EMPLOYEE));
+
+        assertThat(registry.find(null)).isEmpty();
+        assertThat(registry.types()).containsExactly("employee");
+        assertThat(registry.all()).containsExactly(EMPLOYEE);
+        assertThatThrownBy(() -> registry.require("missing"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("unknown object type: missing")
+                .hasMessageContaining("employee");
+    }
 }
