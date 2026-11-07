@@ -1,7 +1,11 @@
 package cn.byteforce.seedj.starter.iam.read;
 
+import cn.byteforce.seedj.core.clock.Clock;
+import cn.byteforce.seedj.core.clock.Clocks;
 import cn.byteforce.seedj.iam.spi.IamPolicyDecisionPoint;
 import cn.byteforce.seedj.iam.spi.IamPolicyRepository;
+import cn.byteforce.seedj.security.AuthorizationDecisionPoint;
+import org.springframework.beans.factory.ObjectProvider;
 import cn.byteforce.seedj.module.ObjectModuleRegistry;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -38,9 +42,11 @@ public class ReadPolicyAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public IamFieldPolicyResolver iamFieldPolicyResolver(IamPolicyDecisionPoint pdp,
+    public IamFieldPolicyResolver iamFieldPolicyResolver(AuthorizationDecisionPoint decisions,
+                                                         ObjectProvider<Clock> clock,
                                                          ObjectModuleRegistry modules) {
-        return new IamFieldPolicyResolver(pdp, modules);
+        return new IamFieldPolicyResolver(decisions, clock.getIfAvailable(Clocks::system),
+                modules);
     }
 
     @Bean

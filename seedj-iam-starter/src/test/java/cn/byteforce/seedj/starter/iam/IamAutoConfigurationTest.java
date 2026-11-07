@@ -46,6 +46,10 @@ class IamAutoConfigurationTest {
             assertThat(context).hasSingleBean(IamUserRepository.class);
             assertThat(context).hasSingleBean(IamIdentityService.class);
             assertThat(context).hasSingleBean(IamTotpService.class);
+            assertThat(context.getBean(
+                            cn.byteforce.seedj.security.AuthorizationDecisionPoint.class))
+                    .isInstanceOf(cn.byteforce.seedj.starter.iam.abac
+                            .CompositeAuthorizationDecisionPoint.class);
             RegisteredClientRepository clients = context.getBean(RegisteredClientRepository.class);
             assertThat(clients.findByClientId("default-client")).isNotNull();
             assertThat(clients.findByClientId("native-app")).isNotNull();

@@ -10,6 +10,10 @@ import cn.byteforce.seedj.core.security.Caller;
 import cn.byteforce.seedj.core.security.CallerProvider;
 import cn.byteforce.seedj.iam.IamErrorCode;
 import cn.byteforce.seedj.iam.IamException;
+import cn.byteforce.seedj.security.AuthorizationDecision;
+import cn.byteforce.seedj.security.AuthorizationDecisionPoint;
+import cn.byteforce.seedj.security.AuthorizationRequest;
+import cn.byteforce.seedj.security.AuthorizationSubject;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -23,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Instant;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 授权契约 HTTP 面：/resolve、/check、/principals/{id}/attributes。
@@ -40,11 +45,33 @@ public class IamAuthorizationController {
 
     private final IamContractAuthorizationService service;
 
+    private final AuthorizationDecisionPoint decisions;
+
     private final ObjectProvider<CallerProvider> callers;
 
+    /**
+     * 兼容旧装配：/check 使用契约服务本身作为决策点。
+     *
+     * @param service 契约服务
+     * @param callers 当前调用方
+     */
     public IamAuthorizationController(IamContractAuthorizationService service,
                                       ObjectProvider<CallerProvider> callers) {
+        this(service, service, callers);
+    }
+
+    /**
+     * 构造控制器。
+     *
+     * @param service   契约服务（/resolve 与属性端点）
+     * @param decisions 唯一授权决策点（/check）
+     * @param callers   当前调用方
+     */
+    public IamAuthorizationController(IamContractAuthorizationService service,
+                                      AuthorizationDecisionPoint decisions,
+                                      ObjectProvider<CallerProvider> callers) {
         this.service = service;
+        this.decisions = decisions;
         this.callers = callers;
     }
 
@@ -86,10 +113,28 @@ public class IamAuthorizationController {
         IamAuthorizationDtos.AttributeContext context = request.attributes();
         Map<String, Object> provided = context == null ? null : context.snapshot();
         AttributeState state = context == null ? null : parseState(context.attributeState());
-        IamCheckResult result = service.check(request.principal(), request.permission(),
+        boolean resourceAware = request.resourceType() != null
+                || request.resourceId() != null
+                || (request.resourceAttributes() != null
+                        && !request.resourceAttributes().isEmpty());
+        if (!resourceAware) {
+            IamCheckResult result = service.check(request.principal(), request.permission(),
+                    request.asOf(), null, provided, state);
+            return new IamAuthorizationDtos.CheckResponse(result.allowed(), result.reason(),
+                    result.reasonCode(), result.attributeState().wireName());
+        }
+        AuthorizationDecision decision = decisions.decide(new AuthorizationRequest(
+                new AuthorizationSubject(request.principal(), request.principal(), "default",
+                        Set.of(), Set.of(), Set.of(), Set.of(), "", Map.of()),
+                request.permission(),
+                request.resourceType() == null ? "permission" : request.resourceType(),
+                request.resourceId(),
+                request.resourceAttributes() == null ? Map.of() : request.resourceAttributes(),
+                request.asOf(), Map.of()));
+        IamCheckResult attributes = service.check(request.principal(), request.permission(),
                 request.asOf(), null, provided, state);
-        return new IamAuthorizationDtos.CheckResponse(result.allowed(), result.reason(),
-                result.reasonCode(), result.attributeState().wireName());
+        return new IamAuthorizationDtos.CheckResponse(decision.allowed(), decision.reason(),
+                decision.reasonCode(), attributes.attributeState().wireName());
     }
 
     /**

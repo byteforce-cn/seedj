@@ -21,6 +21,9 @@ import cn.byteforce.seedj.iam.authz.SodRuleSet;
 
 import cn.byteforce.seedj.iam.IamRole;
 import cn.byteforce.seedj.iam.spi.IamAuthorizationRepository;
+import cn.byteforce.seedj.security.AuthorizationDecision;
+import cn.byteforce.seedj.security.AuthorizationDecisionPoint;
+import cn.byteforce.seedj.security.AuthorizationRequest;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -40,7 +43,7 @@ import java.util.Set;
  * @author ByteForce
  * @since 1.0.0
  */
-public final class IamContractAuthorizationService {
+public final class IamContractAuthorizationService implements AuthorizationDecisionPoint {
 
     private final IamBindingStore bindings;
 
@@ -82,6 +85,24 @@ public final class IamContractAuthorizationService {
         }
         this.conditions = Map.copyOf(declared);
         this.sodRules = ruleSet == null ? List.of() : ruleSet.rules();
+    }
+
+    /**
+     * 决策点入口：把授权请求映射为 04 授权契约检查。
+     *
+     * @param request 授权请求
+     * @return 决策
+     */
+    @Override
+    public AuthorizationDecision decide(AuthorizationRequest request) {
+        IamCheckResult result = check(request.subject().id(), request.action(),
+                request.asOf(), null, null, null);
+        if (result.allowed()) {
+            return new AuthorizationDecision(true, null, result.reason(),
+                    result.reasonCode());
+        }
+        return AuthorizationDecision.deny(result.reasonCode(), result.reason(),
+                result.attributeState().wireName());
     }
 
     /**

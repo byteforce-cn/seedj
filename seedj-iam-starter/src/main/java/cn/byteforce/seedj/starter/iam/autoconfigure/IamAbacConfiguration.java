@@ -14,7 +14,6 @@ import cn.byteforce.seedj.iam.spi.IamUserRepository;
 import cn.byteforce.seedj.id.IdGenerator;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.context.annotation.Primary;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
@@ -42,7 +41,6 @@ public class IamAbacConfiguration {
     }
 
     @Bean
-    @Primary
     @ConditionalOnMissingBean(name = "iamPolicyDecisionPoint")
     public IamPolicyDecisionPoint iamPolicyDecisionPoint(
             IamPolicyRepository policies,
@@ -55,7 +53,8 @@ public class IamAbacConfiguration {
     @Bean(name = "iam")
     @ConditionalOnMissingBean(name = "iam")
     public IamAuthorizationFacade iamAuthorizationFacade(
-            IamPolicyDecisionPoint policyDecisionPoint, IamUserRepository users,
+            @Qualifier("iamPolicyDecisionPoint") IamPolicyDecisionPoint policyDecisionPoint,
+            IamUserRepository users,
             IamAuthorizationService authorization, IamProperties properties) {
         return new IamAuthorizationFacade(policyDecisionPoint, users, authorization, properties);
     }

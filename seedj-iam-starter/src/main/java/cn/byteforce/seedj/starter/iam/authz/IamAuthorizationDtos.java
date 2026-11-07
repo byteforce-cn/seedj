@@ -25,7 +25,24 @@ public final class IamAuthorizationDtos {
 
     public record CheckRequest(String principal, String permission,
                                @JsonProperty("as_of") Instant asOf,
-                               AttributeContext attributes) {
+                               AttributeContext attributes,
+                               @JsonProperty("resource_type") String resourceType,
+                               @JsonProperty("resource_id") String resourceId,
+                               @JsonProperty("resource_attributes")
+                               Map<String, Object> resourceAttributes) {
+
+        /**
+         * 兼容旧请求：没有资源上下文。
+         *
+         * @param principal  主体
+         * @param permission 权限
+         * @param asOf       业务时点
+         * @param attributes 属性上下文
+         */
+        public CheckRequest(String principal, String permission, Instant asOf,
+                            AttributeContext attributes) {
+            this(principal, permission, asOf, attributes, null, null, null);
+        }
     }
 
     public record AttributeContext(@JsonProperty("as_of") Instant asOf, String source,

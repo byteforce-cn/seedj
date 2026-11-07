@@ -9,6 +9,8 @@ import cn.byteforce.seedj.iam.PolicyOperand;
 import cn.byteforce.seedj.iam.spi.IamPolicyDecisionPoint;
 import cn.byteforce.seedj.iam.spi.IamPolicyRepository;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamPolicyRepository;
+import cn.byteforce.seedj.security.AuthorizationDecision;
+import cn.byteforce.seedj.security.AuthorizationDecisionPoint;
 import cn.byteforce.seedj.module.ObjectModuleRegistry;
 import cn.byteforce.seedj.module.ObjectModules;
 import org.junit.jupiter.api.DisplayName;
@@ -34,6 +36,8 @@ class ReadPolicyAutoConfigurationTest {
         runner.withUserConfiguration(RegistryConfiguration.class)
                 .withBean(IamPolicyRepository.class, InMemoryIamPolicyRepository::new)
                 .withBean(IamPolicyDecisionPoint.class, ReadPolicyAutoConfigurationTest::denyAll)
+                .withBean(AuthorizationDecisionPoint.class,
+                        () -> request -> AuthorizationDecision.deny("no", "no", null))
                 .run(context -> {
                     assertThat(context).hasNotFailed();
                     assertThat(context).hasSingleBean(PolicyScopeCompiler.class);
@@ -60,6 +64,8 @@ class ReadPolicyAutoConfigurationTest {
         runner.withUserConfiguration(CustomCompilerConfiguration.class)
                 .withBean(IamPolicyRepository.class, InMemoryIamPolicyRepository::new)
                 .withBean(IamPolicyDecisionPoint.class, ReadPolicyAutoConfigurationTest::denyAll)
+                .withBean(AuthorizationDecisionPoint.class,
+                        () -> request -> AuthorizationDecision.deny("no", "no", null))
                 .run(context -> {
                     assertThat(context).hasNotFailed();
                     assertThat(context.getBean(PolicyScopeCompiler.class))
@@ -80,6 +86,8 @@ class ReadPolicyAutoConfigurationTest {
         runner.withUserConfiguration(RegistryConfiguration.class)
                 .withBean(IamPolicyRepository.class, () -> policies)
                 .withBean(IamPolicyDecisionPoint.class, ReadPolicyAutoConfigurationTest::denyAll)
+                .withBean(AuthorizationDecisionPoint.class,
+                        () -> request -> AuthorizationDecision.deny("no", "no", null))
                 .run(context -> {
                     assertThat(context).hasFailed();
                     assertThat(context.getStartupFailure())

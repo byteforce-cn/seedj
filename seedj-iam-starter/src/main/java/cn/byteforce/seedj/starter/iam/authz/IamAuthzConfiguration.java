@@ -10,13 +10,17 @@ import cn.byteforce.seedj.infra.jdbc.iam.JdbcIamBindingStore;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamAttributeSource;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamBindingStore;
 import cn.byteforce.seedj.iam.spi.IamAuthorizationRepository;
+import cn.byteforce.seedj.iam.spi.IamPolicyDecisionPoint;
 import cn.byteforce.seedj.core.security.CallerProvider;
+import cn.byteforce.seedj.security.AuthorizationDecisionPoint;
+import cn.byteforce.seedj.starter.iam.abac.CompositeAuthorizationDecisionPoint;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.List;
@@ -86,11 +90,31 @@ public class IamAuthzConfiguration {
                 ruleSet);
     }
 
+    /**
+     * 唯一授权决策点：命令、读路径与 /check 共用。
+     *
+     * @param contract 04 授权契约服务
+     * @param policies ABAC 策略引擎（可能未启用）
+     * @return 组合决策点
+     */
+    @Bean
+    @Primary
+    @ConditionalOnMissingBean(value = AuthorizationDecisionPoint.class,
+            ignored = IamContractAuthorizationService.class)
+    public AuthorizationDecisionPoint authorizationDecisionPoint(
+            IamContractAuthorizationService contract,
+            @org.springframework.beans.factory.annotation.Qualifier("iamPolicyDecisionPoint")
+            ObjectProvider<IamPolicyDecisionPoint> policies) {
+        return new CompositeAuthorizationDecisionPoint(contract,
+                policies.getIfAvailable());
+    }
+
     @Bean
     @ConditionalOnMissingBean
     public IamAuthorizationController iamAuthorizationController(
             IamContractAuthorizationService service,
+            AuthorizationDecisionPoint decisions,
             ObjectProvider<CallerProvider> callers) {
-        return new IamAuthorizationController(service, callers);
+        return new IamAuthorizationController(service, decisions, callers);
     }
 }
