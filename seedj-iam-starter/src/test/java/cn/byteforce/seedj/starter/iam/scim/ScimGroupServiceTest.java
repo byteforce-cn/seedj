@@ -186,6 +186,18 @@ class ScimGroupServiceTest {
     }
 
     @Test
+    void patchReplacesExternalId() {
+        Map<String, Object> created = service.create(Map.of("displayName", "sales",
+                "externalId", "ext-1"));
+        String id = String.valueOf(created.get("id"));
+
+        Map<String, Object> patched = service.patch(id, Map.of("Operations", List.of(Map.of(
+                "op", "replace", "path", "externalId", "value", "ext-2"))), null);
+
+        assertThat(patched).containsEntry("externalId", "ext-2");
+    }
+
+    @Test
     void patchRemovesExternalId() {
         Map<String, Object> created = service.create(Map.of("displayName", "sales",
                 "externalId", "ext-1"));

@@ -106,6 +106,20 @@ class IamTotpServiceTest {
     }
 
     @Test
+    void confirmTwiceIsRejectedAfterTheFirstSuccess() {
+        String code = TotpGenerator.generate(
+                Base32.decode(service.enroll(alice.id()).secret()), clock.instant(), 6, 30,
+                TotpAlgorithm.SHA1);
+        service.confirm(alice.id(), code);
+
+        assertThatThrownBy(() -> service.confirm(alice.id(), code))
+                .isInstanceOf(IamException.class)
+                .hasMessageContaining("already enabled")
+                .extracting(exception -> ((IamException) exception).getCode())
+                .isEqualTo(cn.byteforce.seedj.iam.IamErrorCode.TOTP_ALREADY_ENROLLED);
+    }
+
+    @Test
     void confirmRequiresAnEnrollmentAndAValidCode() {
         assertThatThrownBy(() -> service.confirm(alice.id(), "123456"))
                 .isInstanceOf(IamException.class)
@@ -189,6 +203,11 @@ class IamTotpServiceTest {
         service.verifyRecoveryCode(alice.id(), codes.get(0));
         assertThat(service.status(alice.id()).recoveryCodesRemaining()).isEqualTo(2);
         assertThatThrownBy(() -> service.verifyRecoveryCode(alice.id(), "INVALID-CODE"))
+                .isInstanceOf(IamException.class)
+                .hasMessage("invalid recovery code")
+                .extracting(exception -> ((IamException) exception).getCode())
+                .isEqualTo(cn.byteforce.seedj.iam.IamErrorCode.RECOVERY_CODE_INVALID);
+        assertThatThrownBy(() -> service.verifyRecoveryCode(alice.id(), null))
                 .isInstanceOf(IamException.class)
                 .hasMessage("invalid recovery code");
     }

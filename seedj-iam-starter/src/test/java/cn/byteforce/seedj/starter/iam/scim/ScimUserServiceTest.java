@@ -262,6 +262,18 @@ class ScimUserServiceTest {
     }
 
     @Test
+    void patchFamilyNameOnlyDerivesDisplayName() {
+        Map<String, Object> created = service.create(Map.of("userName", "alice"));
+        String id = String.valueOf(created.get("id"));
+
+        Map<String, Object> patched = service.patch(id, Map.of("Operations", List.of(
+                Map.of("op", "replace", "path", "name.familyName", "value", "Ng"))), null);
+
+        assertThat(patched.get("displayName")).isEqualTo("Ng");
+        assertThat(patched.get("name")).asInstanceOf(MAP).containsEntry("familyName", "Ng");
+    }
+
+    @Test
     void patchAcceptsNameObjectPathAndEmptyEmailList() {
         Map<String, Object> created = service.create(Map.of("userName", "alice"));
         String id = String.valueOf(created.get("id"));
