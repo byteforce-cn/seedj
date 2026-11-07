@@ -83,14 +83,15 @@ public class IamPolicyAdminController {
         if (name == null || name.isBlank()) {
             throw new IamException(IamErrorCode.POLICY_INVALID, "policy name is required");
         }
-        IamPolicyEffect effect = IamPolicyEffect.valueOf(string(body.getOrDefault("effect",
-                current == null ? "DENY" : current.effect().name())).toUpperCase());
-        int priority = body.containsKey("priority") ? ((Number) body.get("priority")).intValue()
-                : current == null ? 0 : current.priority();
-        java.util.Set<String> actions = strings(body.getOrDefault("actions",
-                current == null ? List.of() : current.actions()));
-        java.util.Set<String> resources = strings(body.getOrDefault("resources",
-                current == null ? List.of() : current.resources()));
+        IamPolicyEffect effect = effect(string(body.getOrDefault("effect",
+                current == null ? "DENY" : current.effect().name())));
+        int priority = priority(body, current);
+        java.util.Set<String> actions = body.containsKey("actions")
+                ? strings(body.get("actions"))
+                : current == null ? java.util.Set.of() : current.actions();
+        java.util.Set<String> resources = body.containsKey("resources")
+                ? strings(body.get("resources"))
+                : current == null ? java.util.Set.of() : current.resources();
         PolicyCondition condition;
         if (body.containsKey("condition")) {
             try {
@@ -131,6 +132,27 @@ public class IamPolicyAdminController {
 
     private static String string(Object value) {
         return value == null ? null : String.valueOf(value);
+    }
+
+    private static IamPolicyEffect effect(String value) {
+        try {
+            return IamPolicyEffect.valueOf(value == null ? "DENY" : value.toUpperCase());
+        } catch (IllegalArgumentException error) {
+            throw new IamException(IamErrorCode.POLICY_INVALID,
+                    "invalid policy effect: " + value);
+        }
+    }
+
+    private static int priority(Map<String, Object> body, IamPolicy current) {
+        if (!body.containsKey("priority")) {
+            return current == null ? 0 : current.priority();
+        }
+        Object value = body.get("priority");
+        if (!(value instanceof Number number)) {
+            throw new IamException(IamErrorCode.POLICY_INVALID,
+                    "policy priority must be a number");
+        }
+        return number.intValue();
     }
 
     private static java.util.Set<String> strings(Object value) {

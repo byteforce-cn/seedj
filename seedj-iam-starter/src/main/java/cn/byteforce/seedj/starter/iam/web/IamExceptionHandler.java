@@ -28,8 +28,10 @@ public class IamExceptionHandler {
                     MFA_CHALLENGE_EXPIRED, MFA_CHALLENGE_LOCKED, SCIM_UNAUTHORIZED ->
                     HttpStatus.UNAUTHORIZED;
             case FORBIDDEN -> HttpStatus.FORBIDDEN;
-            case USER_NOT_FOUND, GROUP_NOT_FOUND, ROLE_NOT_FOUND, POLICY_NOT_FOUND ->
-                    HttpStatus.NOT_FOUND;
+            case USER_NOT_FOUND, GROUP_NOT_FOUND, ROLE_NOT_FOUND, POLICY_NOT_FOUND,
+                    NOT_FOUND, PERMISSION_NOT_FOUND -> HttpStatus.NOT_FOUND;
+            case NATIVE_AUTH_INVALID_CLIENT -> HttpStatus.UNAUTHORIZED;
+            case RATE_LIMITED -> HttpStatus.TOO_MANY_REQUESTS;
             case USER_CONFLICT, GROUP_CONFLICT, ROLE_CONFLICT, CONFLICT, SCIM_CONFLICT ->
                     HttpStatus.CONFLICT;
             case SCIM_PRECONDITION_FAILED -> HttpStatus.PRECONDITION_FAILED;

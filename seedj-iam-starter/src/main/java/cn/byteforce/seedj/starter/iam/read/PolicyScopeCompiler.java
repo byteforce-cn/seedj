@@ -320,6 +320,17 @@ public final class PolicyScopeCompiler {
         if (left == null || right == null) {
             return left == right;
         }
+        if (left instanceof Collection<?> leftValues
+                && right instanceof Collection<?> rightValues) {
+            return leftValues.size() == rightValues.size()
+                    && leftValues.containsAll(rightValues);
+        }
+        if (left instanceof Collection<?> leftValues) {
+            return leftValues.stream().anyMatch(value -> equal(value, right));
+        }
+        if (right instanceof Collection<?> rightValues) {
+            return rightValues.stream().anyMatch(value -> equal(left, value));
+        }
         if (left instanceof Number l && right instanceof Number r) {
             return new BigDecimal(l.toString()).compareTo(new BigDecimal(r.toString())) == 0;
         }

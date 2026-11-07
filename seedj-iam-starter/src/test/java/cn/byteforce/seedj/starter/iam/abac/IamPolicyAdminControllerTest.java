@@ -102,15 +102,17 @@ class IamPolicyAdminControllerTest {
     }
 
     @Test
-    @DisplayName("create 未知 effect 直接抛 IllegalArgumentException")
+    @DisplayName("create 未知 effect 报 POLICY_INVALID 而不是裸 IllegalArgumentException")
     void createRejectsUnknownEffect() {
         assertThatThrownBy(() -> controller.create(body("bad-effect", Map.of(
                 "name", "bad-effect",
                 "effect", "sometimes",
                 "actions", List.of("read"),
                 "resources", List.of("employee")))))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("SOMETIMES");
+                .isInstanceOfSatisfying(IamException.class, exception -> {
+                    assertThat(exception.getCode()).isEqualTo(IamErrorCode.POLICY_INVALID);
+                    assertThat(exception.getMessage()).contains("invalid policy effect");
+                });
     }
 
     @Test
@@ -136,6 +138,44 @@ class IamPolicyAdminControllerTest {
         assertThat(updated.get("enabled")).isEqualTo(false);
         assertThat((List<Object>) updated.get("actions")).containsExactly("read");
         assertThat(policies.findById("test-1").orElseThrow().enabled()).isFalse();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    @DisplayName("update 省略 actions/resources 时保留原值")
+    void updateKeepsOmittedCollections() {
+        controller.create(body("allow-active", Map.of(
+                "actions", List.of("read"),
+                "resources", List.of("employee"))));
+
+        Map<String, Object> updated = controller.update("test-1", Map.of("name", "renamed"));
+
+        assertThat(updated.get("name")).isEqualTo("renamed");
+        assertThat((List<Object>) updated.get("actions")).containsExactly("read");
+        assertThat((List<Object>) updated.get("resources")).containsExactly("employee");
+        assertThat(policies.findById("test-1").orElseThrow().actions()).containsExactly("read");
+    }
+
+    @Test
+    @DisplayName("非法 effect / priority 报 POLICY_INVALID")
+    void invalidEffectAndPriorityArePolicyInvalid() {
+        assertThatThrownBy(() -> controller.create(body("bad-effect", Map.of(
+                "effect", "SUPER",
+                "actions", List.of("read"),
+                "resources", List.of("employee")))))
+                .isInstanceOfSatisfying(IamException.class, exception -> {
+                    assertThat(exception.getCode()).isEqualTo(IamErrorCode.POLICY_INVALID);
+                    assertThat(exception.getMessage()).contains("invalid policy effect");
+                });
+
+        assertThatThrownBy(() -> controller.create(body("bad-priority", Map.of(
+                "priority", "high",
+                "actions", List.of("read"),
+                "resources", List.of("employee")))))
+                .isInstanceOfSatisfying(IamException.class, exception -> {
+                    assertThat(exception.getCode()).isEqualTo(IamErrorCode.POLICY_INVALID);
+                    assertThat(exception.getMessage()).contains("priority must be a number");
+                });
     }
 
     @Test

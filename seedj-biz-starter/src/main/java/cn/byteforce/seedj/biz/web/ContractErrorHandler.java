@@ -5,6 +5,7 @@ import cn.byteforce.seedj.core.exception.ApiError;
 import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;
 import cn.byteforce.seedj.cqrs.CqrsException;
+import cn.byteforce.seedj.lock.LockException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.Ordered;
@@ -116,6 +117,38 @@ public class ContractErrorHandler {
             details.put("parameter", mismatch.getName());
         }
         return response(ContractErrorCode.INVALID_PAYLOAD, message, details);
+    }
+
+    /**
+     * 锁冲突/锁服务故障 → 可重试的 409（带 {@code Retry-After}）或 503。
+     *
+     * <p>{@code LOCK_BUSY} 表示同对象已有命令在执行，调用方退避后重试即可；
+     * 不得落进通用基础设施 503，否则调用方会把可重试冲突当成依赖故障。</p>
+     *
+     * @param error 锁异常
+     * @return 409/503/500 信封
+     */
+    @ExceptionHandler(LockException.class)
+    public ResponseEntity<ApiError> handleLock(LockException error) {
+        return switch (error.getErrorCode()) {
+            case LOCK_BUSY -> {
+                HttpHeaders headers = new HttpHeaders();
+                headers.set(HttpHeaders.RETRY_AFTER, "1");
+                yield new ResponseEntity<>(new ApiError(
+                        ContractErrorCode.VERSION_CONFLICT.getCode(), "resource busy",
+                        Map.of("reason_code", "LOCK-BUSY")), headers, HttpStatus.CONFLICT);
+            }
+            case PROVIDER_UNAVAILABLE -> response(ContractErrorCode.UNAVAILABLE, "unavailable",
+                    Map.of("reason_code", "LOCK-PROVIDER-UNAVAILABLE"));
+            default -> {
+                String traceId = UUID.randomUUID().toString();
+                log.error("seedj: lock internal error traceId={} code={}", traceId,
+                        error.getErrorCode(), error);
+                yield response(ContractErrorCode.INTERNAL_ERROR, "internal error",
+                        Map.of("traceId", traceId,
+                                "reason_code", "LOCK-" + error.getErrorCode().name()));
+            }
+        };
     }
 
     /**

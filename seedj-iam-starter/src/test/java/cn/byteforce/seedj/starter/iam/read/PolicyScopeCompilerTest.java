@@ -271,6 +271,20 @@ class PolicyScopeCompilerTest {
     }
 
     @Test
+    void collectionSubjectAttributeEqualsScalarMeansMembership() {
+        Caller admin = new Caller("u-1", "alice", "default", Set.of("admin"),
+                Set.of("hr.read"), Set.of("g1"), Set.of("pwd"),
+                "urn:seedj:acr:pwd", Map.of());
+
+        assertThat(constantEqualsSubject(admin, "roles", "admin"))
+                .isEqualTo(ScopePredicate.all());
+        assertThat(constantEqualsSubject(admin, "permissions", "hr.read"))
+                .isEqualTo(ScopePredicate.all());
+        assertThat(constantEqualsSubject(admin, "roles", "nobody"))
+                .isEqualTo(ScopePredicate.none());
+    }
+
+    @Test
     void subjectValueBecomesPredicateConstant() {
         ScopePredicate predicate = compiler(List.of(allow("p1", compare(
                 PolicyOperand.subject("username"), PolicyComparisonOperator.EQ,
@@ -473,6 +487,12 @@ class PolicyScopeCompilerTest {
                 PolicyOperand.literal("anything"))).isEqualTo(ScopePredicate.none());
         assertThat(constantCompare(PolicyComparisonOperator.NE, PolicyOperand.subject("missing"),
                 PolicyOperand.literal("anything"))).isEqualTo(ScopePredicate.all());
+    }
+
+    private ScopePredicate constantEqualsSubject(Caller caller, String path, Object value) {
+        return compiler(List.of(allow("p1", compare(PolicyOperand.subject(path),
+                PolicyComparisonOperator.EQ, PolicyOperand.literal(value)))))
+                .compile("employee", caller, ScopeContext.empty());
     }
 
     private boolean constantEqualsSubject(String path, Object value) {

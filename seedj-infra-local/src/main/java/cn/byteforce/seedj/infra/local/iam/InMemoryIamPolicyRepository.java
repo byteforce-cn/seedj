@@ -25,9 +25,12 @@ public class InMemoryIamPolicyRepository implements IamPolicyRepository {
                     cn.byteforce.seedj.iam.IamErrorCode.CONFLICT,
                     "policy version conflict: expected " + current.version());
         }
-        policies.put(policy.id(), policy);
-        bumpEpoch(policy.tenantId());
-        return policy;
+        IamPolicy saved = current == null ? policy : new IamPolicy(policy.id(), policy.tenantId(),
+                policy.name(), policy.effect(), policy.priority(), policy.actions(),
+                policy.resources(), policy.condition(), policy.enabled(), current.version() + 1);
+        policies.put(saved.id(), saved);
+        bumpEpoch(saved.tenantId());
+        return saved;
     }
 
     @Override

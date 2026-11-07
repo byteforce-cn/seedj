@@ -97,7 +97,8 @@ final class HybridClockImpl implements HybridClock {
     }
 
     private void persistIfNeeded() {
-        if (physicalMicros - lastPersistedMicros < PERSIST_THRESHOLD_MICROS) {
+        if (lastPersistedMicros != Long.MIN_VALUE
+                && physicalMicros - lastPersistedMicros < PERSIST_THRESHOLD_MICROS) {
             return;
         }
         try {
