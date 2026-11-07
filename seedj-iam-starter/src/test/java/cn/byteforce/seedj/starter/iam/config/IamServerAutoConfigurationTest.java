@@ -18,6 +18,7 @@ import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 import java.util.Base64;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -136,6 +137,19 @@ class IamServerAutoConfigurationTest {
     }
 
     @Test
+    void failsTheJwksEndpointWhenTheStoredKeyIsNotParsable() {
+        runner.withBean(cn.byteforce.seedj.iam.spi.IamSigningKeyStore.class,
+                        () -> new CorruptSigningKeyStore())
+                .run(context -> {
+                    MockMvc mvc = mvc(context);
+
+                    assertThatThrownBy(() -> mvc.perform(get("/oauth2/jwks")))
+                            .isInstanceOf(IllegalStateException.class)
+                            .hasMessageContaining("invalid stored JWK for kid kid-corrupt");
+                });
+    }
+
+    @Test
     void reportsClientErrorsWithoutBasicChallenge() {
         runner.run(context -> {
             MockMvc mvc = mvc(context);
@@ -206,6 +220,29 @@ class IamServerAutoConfigurationTest {
         return MockMvcBuilders.webAppContextSetup((WebApplicationContext) context)
                 .addFilters(securityFilterChain)
                 .build();
+    }
+
+    /** Signing key store with an unparsable JWK payload. */
+    static class CorruptSigningKeyStore implements cn.byteforce.seedj.iam.spi.IamSigningKeyStore {
+
+        private final cn.byteforce.seedj.iam.IamSigningKey key =
+                new cn.byteforce.seedj.iam.IamSigningKey("kid-corrupt", "RS256", "not-a-jwk",
+                        "not-a-jwk", true, java.time.Instant.now(), null);
+
+        @Override
+        public cn.byteforce.seedj.iam.IamSigningKey activeKey() {
+            return key;
+        }
+
+        @Override
+        public java.util.List<cn.byteforce.seedj.iam.IamSigningKey> keys() {
+            return java.util.List.of(key);
+        }
+
+        @Override
+        public cn.byteforce.seedj.iam.IamSigningKey rotate() {
+            return key;
+        }
     }
 
     @EnableIamServer
