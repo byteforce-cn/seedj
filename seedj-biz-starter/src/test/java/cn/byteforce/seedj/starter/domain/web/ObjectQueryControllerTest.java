@@ -156,6 +156,101 @@ class ObjectQueryControllerTest {
     }
 
     @Test
+    @DisplayName("注入片段：400，不进 SQL")
+    void injectionShapedFilterIs400() throws Exception {
+        seed("alice", T0);
+
+        mvc.perform(get("/objects/probe")
+                        .queryParam("name", "active' OR 1=1--"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("EIS-400-001"));
+    }
+
+    @Test
+    @DisplayName("未知过滤操作符：400")
+    void unknownFilterOperatorIs400() throws Exception {
+        mvc.perform(get("/objects/probe").queryParam("name__bogus", "x"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("EIS-400-001"));
+    }
+
+    @Test
+    @DisplayName("in 过滤 + keyset 游标翻页")
+    void inFilterAndCursor() throws Exception {
+        seed("a", T0);
+        seed("b", T0);
+        seed("c", T0);
+
+        String first = mvc.perform(get("/objects/probe")
+                        .queryParam("name__in", "a,c")
+                        .queryParam("sort", "name")
+                        .queryParam("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(2))
+                .andExpect(jsonPath("$.items[0].data.name").value("a"))
+                .andExpect(jsonPath("$.next_cursor").isNotEmpty())
+                .andReturn().getResponse().getContentAsString();
+        String cursor = com.jayway.jsonpath.JsonPath.read(first, "$.next_cursor");
+
+        mvc.perform(get("/objects/probe")
+                        .queryParam("name__in", "a,c")
+                        .queryParam("sort", "name")
+                        .queryParam("size", "1")
+                        .queryParam("cursor", cursor))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].data.name").value("c"))
+                .andExpect(jsonPath("$.next_cursor").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("比较/区间/like 操作符")
+    void comparisonOperators() throws Exception {
+        seed("a", T0);
+        seed("b", T0);
+        seed("c", T0);
+
+        mvc.perform(get("/objects/probe").queryParam("name__eq", "a"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(1));
+        mvc.perform(get("/objects/probe").queryParam("name__ne", "a"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(2));
+        mvc.perform(get("/objects/probe").queryParam("name__gt", "a"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(2));
+        mvc.perform(get("/objects/probe").queryParam("name__gte", "b"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(2));
+        mvc.perform(get("/objects/probe").queryParam("name__lt", "c"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(2));
+        mvc.perform(get("/objects/probe").queryParam("name__lte", "b"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(2));
+        mvc.perform(get("/objects/probe").queryParam("name__between", "a,c"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(3));
+        mvc.perform(get("/objects/probe").queryParam("name__like", "a%"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(1));
+    }
+
+    @Test
+    @DisplayName("过滤器参数错误：between 数量、空值、方向、游标、控制字符")
+    void invalidFilterParameters() throws Exception {
+        mvc.perform(get("/objects/probe").queryParam("name__between", "a"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(get("/objects/probe").queryParam("name__in", " , "))
+                .andExpect(status().isBadRequest());
+        mvc.perform(get("/objects/probe").queryParam("direction", "sideways"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(get("/objects/probe").queryParam("cursor", "bad"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(get("/objects/probe").queryParam("name", "a\u0001b"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("非法排序字段：400")
+    void invalidSortIs400() throws Exception {
+        mvc.perform(get("/objects/probe").queryParam("sort", "missing"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("EIS-400-001"));
+    }
+
+    @Test
     @DisplayName("非法时点：400 契约信封")
     void invalidTimestampIs400() throws Exception {
         mvc.perform(get("/objects/probe/" + ID).queryParam("as_of", "not-a-time"))

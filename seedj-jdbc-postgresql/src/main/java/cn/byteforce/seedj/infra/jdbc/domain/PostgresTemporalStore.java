@@ -9,7 +9,9 @@ import cn.byteforce.seedj.domain.ObjectVersion;
 import cn.byteforce.seedj.domain.Sealing;
 import cn.byteforce.seedj.domain.TemporalQuery;
 import cn.byteforce.seedj.domain.Page;
+import cn.byteforce.seedj.domain.PageCursor;
 import cn.byteforce.seedj.domain.ScopePredicate;
+import cn.byteforce.seedj.domain.TemporalFilter;
 import cn.byteforce.seedj.domain.TemporalRow;
 import cn.byteforce.seedj.domain.TemporalSearch;
 import cn.byteforce.seedj.domain.TemporalStore;
@@ -138,22 +140,33 @@ public final class PostgresTemporalStore implements TemporalStore {
         Objects.requireNonNull(search, "search");
         Objects.requireNonNull(scope, "scope");
         TemporalTable table = tables.require(search.objectType());
-        List<Object> selectedArgs = new ArrayList<>();
-        StringBuilder selected = new StringBuilder(" WHERE 1 = 1");
+        if (search.sortField() != null
+                && !table.sortableColumns().contains(search.sortField())) {
+            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
+                    "unknown or non-sortable field: " + search.sortField());
+        }
 
-        if (search.asOf() != null) {
-            selected.append(" AND valid_from <= ? AND (valid_to IS NULL OR valid_to > ?)");
-            selectedArgs.add(timestamp(search.asOf()));
-            selectedArgs.add(timestamp(search.asOf()));
+        List<Object> baseArgs = new ArrayList<>();
+        String base;
+        if (search.asOf() == null && search.recordedAsOf() == null) {
+            // 当前视图快路径：superseded_at IS NULL 命中 uq_*_current，不再 DISTINCT ON 全表。
+            base = "SELECT * FROM " + table.tableName() + " WHERE superseded_at IS NULL";
+        } else {
+            StringBuilder selected = new StringBuilder(" WHERE 1 = 1");
+            if (search.asOf() != null) {
+                selected.append(" AND valid_from <= ? AND (valid_to IS NULL OR valid_to > ?)");
+                baseArgs.add(timestamp(search.asOf()));
+                baseArgs.add(timestamp(search.asOf()));
+            }
+            if (search.recordedAsOf() != null) {
+                selected.append(" AND recorded_at <= ?")
+                        .append(" AND (superseded_at IS NULL OR superseded_at > ?)");
+                baseArgs.add(timestamp(search.recordedAsOf()));
+                baseArgs.add(timestamp(search.recordedAsOf()));
+            }
+            base = "SELECT DISTINCT ON (id) * FROM " + table.tableName() + selected
+                    + " ORDER BY id, version DESC";
         }
-        if (search.recordedAsOf() != null) {
-            selected.append(" AND recorded_at <= ?")
-                    .append(" AND (superseded_at IS NULL OR superseded_at > ?)");
-            selectedArgs.add(timestamp(search.recordedAsOf()));
-            selectedArgs.add(timestamp(search.recordedAsOf()));
-        }
-        String latestPerId = "SELECT DISTINCT ON (id) * FROM " + table.tableName()
-                + selected + " ORDER BY id, version DESC";
 
         List<Object> outerArgs = new ArrayList<>();
         StringBuilder outer = new StringBuilder(" WHERE 1 = 1");
@@ -161,38 +174,152 @@ public final class PostgresTemporalStore implements TemporalStore {
         outer.append(" AND (").append(scoped.sql()).append(")");
         outerArgs.addAll(scoped.args());
         search.equals().forEach((field, value) -> {
-            if (!table.filterableColumns().contains(field)) {
-                throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
-                        "unknown or non-filterable field: " + field);
-            }
-            Object coerced = table.fieldTypes().containsKey(field)
-                    ? table.fieldTypes().get(field).coerce(value) : value;
             outer.append(" AND ").append(field).append(" = ?");
-            outerArgs.add(TemporalValues.toJdbc(table.fieldTypes().get(field), coerced));
+            outerArgs.add(filterValue(table, field, value));
         });
-        if (search.sortField() != null
-                && !table.sortableColumns().contains(search.sortField())) {
-            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
-                    "unknown or non-sortable field: " + search.sortField());
+        for (TemporalFilter filter : search.filters()) {
+            outer.append(" AND (").append(filterSql(filter, table, outerArgs)).append(')');
+        }
+        String sort = search.sortField() == null ? "t.id" : "t." + search.sortField();
+        if (search.cursor() != null) {
+            appendCursor(outer, outerArgs, search, table);
         }
 
-        List<Object> args = new ArrayList<>(selectedArgs);
+        List<Object> args = new ArrayList<>(baseArgs);
         args.addAll(outerArgs);
-        Long total = jdbc.queryForObject("SELECT COUNT(*) FROM (" + latestPerId + ") t"
+        Long total = jdbc.queryForObject("SELECT COUNT(*) FROM (" + base + ") t"
                 + outer, Long.class, args.toArray());
-        String sort = search.sortField() == null ? "t.id" : "t." + search.sortField();
-        String sql = "SELECT * FROM (" + latestPerId + ") t" + outer
+        String sql = "SELECT * FROM (" + base + ") t" + outer
                 + " ORDER BY " + sort + " " + search.direction()
                 + ", t.id LIMIT ? OFFSET ?";
         List<Object> pageArgs = new ArrayList<>(args);
-        pageArgs.add(search.page().size());
+        pageArgs.add(search.page().size() + 1);
         pageArgs.add(search.page().offset());
 
-        List<TemporalRow> items = jdbc.queryForList(sql, pageArgs.toArray()).stream()
+        List<TemporalRow> fetched = jdbc.queryForList(sql, pageArgs.toArray()).stream()
                 .map(row -> toRow(table, row))
                 .toList();
+        boolean hasMore = fetched.size() > search.page().size();
+        List<TemporalRow> items = hasMore
+                ? List.copyOf(fetched.subList(0, search.page().size())) : fetched;
+        PageCursor next = hasMore && !items.isEmpty()
+                ? cursorOf(items.get(items.size() - 1), search.sortField()) : null;
         return new Page<>(items, total == null ? 0 : total, search.page().page(),
-                search.page().size());
+                search.page().size(), next);
+    }
+
+    private static void appendCursor(StringBuilder outer, List<Object> args,
+                                     TemporalSearch search, TemporalTable table) {
+        PageCursor cursor = search.cursor();
+        String operator = search.direction() == cn.byteforce.seedj.domain.SortDirection.DESC
+                ? "<" : ">";
+        if (search.sortField() == null) {
+            outer.append(" AND t.id ").append(operator).append(" ?");
+            args.add(cursor.id());
+            return;
+        }
+        Object value = filterValue(table, search.sortField(), cursor.sortValue());
+        outer.append(" AND (t.").append(search.sortField()).append(' ').append(operator)
+                .append(" ? OR (t.").append(search.sortField()).append(" = ? AND t.id ")
+                .append(operator).append(" ?))");
+        args.add(value);
+        args.add(value);
+        args.add(cursor.id());
+    }
+
+    private static PageCursor cursorOf(TemporalRow row, String sortField) {
+        if (sortField == null) {
+            return new PageCursor(null, null, row.version().id());
+        }
+        Object value = row.fields().get(sortField);
+        return value == null ? null : new PageCursor(sortField, value, row.version().id());
+    }
+
+    private static String filterSql(TemporalFilter filter, TemporalTable table,
+                                    List<Object> args) {
+        return switch (filter) {
+            case TemporalFilter.Eq eq -> {
+                args.add(filterValue(table, eq.field(), eq.value()));
+                yield eq.field() + " = ?";
+            }
+            case TemporalFilter.Ne ne -> {
+                args.add(filterValue(table, ne.field(), ne.value()));
+                yield ne.field() + " <> ?";
+            }
+            case TemporalFilter.In in -> {
+                if (in.values().isEmpty()) {
+                    yield "1 = 0";
+                }
+                StringBuilder sql = new StringBuilder(in.field()).append(" IN (");
+                for (int i = 0; i < in.values().size(); i++) {
+                    if (i > 0) {
+                        sql.append(", ");
+                    }
+                    sql.append('?');
+                    args.add(filterValue(table, in.field(), in.values().get(i)));
+                }
+                yield sql.append(')').toString();
+            }
+            case TemporalFilter.Gt gt -> {
+                args.add(filterValue(table, gt.field(), gt.value()));
+                yield gt.field() + " > ?";
+            }
+            case TemporalFilter.Gte gte -> {
+                args.add(filterValue(table, gte.field(), gte.value()));
+                yield gte.field() + " >= ?";
+            }
+            case TemporalFilter.Lt lt -> {
+                args.add(filterValue(table, lt.field(), lt.value()));
+                yield lt.field() + " < ?";
+            }
+            case TemporalFilter.Lte lte -> {
+                args.add(filterValue(table, lte.field(), lte.value()));
+                yield lte.field() + " <= ?";
+            }
+            case TemporalFilter.Between between -> {
+                args.add(filterValue(table, between.field(), between.lower()));
+                args.add(filterValue(table, between.field(), between.upper()));
+                yield between.field() + " BETWEEN ? AND ?";
+            }
+            case TemporalFilter.Like like -> {
+                args.add(like.pattern());
+                yield like.field() + " LIKE ?";
+            }
+            case TemporalFilter.And and -> {
+                StringBuilder sql = new StringBuilder("(");
+                for (int i = 0; i < and.parts().size(); i++) {
+                    if (i > 0) {
+                        sql.append(" AND ");
+                    }
+                    sql.append('(').append(filterSql(and.parts().get(i), table, args)).append(')');
+                }
+                yield sql.append(')').toString();
+            }
+            case TemporalFilter.Or or -> {
+                StringBuilder sql = new StringBuilder("(");
+                for (int i = 0; i < or.parts().size(); i++) {
+                    if (i > 0) {
+                        sql.append(" OR ");
+                    }
+                    sql.append('(').append(filterSql(or.parts().get(i), table, args)).append(')');
+                }
+                yield sql.append(')').toString();
+            }
+            case TemporalFilter.Not not -> "NOT ("
+                    + filterSql(not.part(), table, args) + ")";
+        };
+    }
+
+    private static Object filterValue(TemporalTable table, String field, Object value) {
+        if (!table.filterableColumns().contains(field)) {
+            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
+                    "unknown or non-filterable field: " + field);
+        }
+        if (!table.fieldTypes().containsKey(field)) {
+            return value;
+        }
+        Object coerced = table.fieldTypes().get(field).coerce(value);
+        return TemporalValues.toJdbc(table.fieldTypes().get(field), coerced);
     }
 
     @Override

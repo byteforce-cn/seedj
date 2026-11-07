@@ -35,6 +35,15 @@ public record TemporalQuery(Instant asOf, Instant recordedAsOf, Long minVersion)
         return new TemporalQuery(null, null, null);
     }
 
+    /**
+     * 本查询对应的视图。
+     *
+     * @return {@link TemporalView#CURRENT} 或 {@link TemporalView#AS_OF}
+     */
+    public TemporalView view() {
+        return TemporalView.of(this);
+    }
+
     private static Instant micros(Instant instant) {
         return instant == null ? null : instant.truncatedTo(ChronoUnit.MICROS);
     }

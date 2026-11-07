@@ -12,6 +12,9 @@ import java.util.regex.Pattern;
 /**
  * 可审阅的自定义查询：单条 SELECT、命名参数、字段白名单、排序与分页。
  *
+ * <p><b>报表专用</b>：普通列表页必须使用 {@code TemporalSearch}（过滤器 + keyset），
+ * 不得为了省事把页面查询塞进本类型。</p>
+ *
  * <p>SQL 由业务声明并随代码评审，网关只做三件事：把命名参数绑定为位置参数、在子查询外层
  * 注入行范围谓词、按 schema 的字段策略脱敏与审计。业务代码不再需要 {@code JdbcTemplate}
  * 绕过权限与脱敏。</p>
@@ -46,6 +49,14 @@ public record QuerySpec(String objectType, String sql, Set<String> fields,
         }
         if (normalized.contains(";") || normalized.contains("--") || normalized.contains("/*")) {
             throw invalid("query must not contain statement separators or comments");
+        }
+        // UNION 无法可靠注入行范围与字段策略；报表需要合并结果时拆成两次 reviewed 查询。
+        // JOIN 允许，但 scope 字段必须出现在投影里（ReadGateway 会校验），且 joined
+        // 对象必须属于已声明 schema；这部分由评审与负例共同保证。
+        String lower = normalized.toLowerCase(java.util.Locale.ROOT);
+        if (lower.contains(" union ")) {
+            throw invalid("report query must not use union;"
+                    + " split it into reviewed queries or use TemporalSearch");
         }
         fields = copy(fields, "fields");
         if (fields.isEmpty()) {

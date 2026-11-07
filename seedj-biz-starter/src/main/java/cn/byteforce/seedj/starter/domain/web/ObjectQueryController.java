@@ -5,8 +5,10 @@ import cn.byteforce.seedj.core.exception.ContractException;
 import cn.byteforce.seedj.core.security.Caller;
 import cn.byteforce.seedj.core.security.CallerProvider;
 import cn.byteforce.seedj.domain.Page;
+import cn.byteforce.seedj.domain.PageCursor;
 import cn.byteforce.seedj.domain.PageRequest;
 import cn.byteforce.seedj.domain.SortDirection;
+import cn.byteforce.seedj.domain.TemporalFilter;
 import cn.byteforce.seedj.domain.TemporalQuery;
 import cn.byteforce.seedj.domain.TemporalRow;
 import cn.byteforce.seedj.domain.TemporalSearch;
@@ -18,7 +20,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -37,7 +41,10 @@ import java.util.UUID;
 public final class ObjectQueryController {
 
     private static final Set<String> RESERVED_PARAMETERS = Set.of(
-            "page", "size", "sort", "direction", "as_of", "recorded_as_of");
+            "page", "size", "sort", "direction", "as_of", "recorded_as_of", "cursor");
+
+    private static final List<String> INJECTION_MARKERS = List.of("'", "\"", ";", "--", "/*",
+            "*/");
 
     private final ReadGateway gateway;
 
@@ -85,7 +92,11 @@ public final class ObjectQueryController {
     }
 
     /**
-     * 列表查询：等值过滤 + 分页 + 排序 + 时点。
+     * 列表查询：受限过滤器（{@code field__op=...}）+ keyset 分页 + 排序 + 时点。
+     *
+     * <p>普通 {@code field=value} 保持等值兼容；{@code field__in=v1,v2}、
+     * {@code field__gte=...}、{@code field__between=a,b}、{@code field__like=...}
+     * 等只在 schema 声明为 filterable 时生效。含引号/分号/注释片段的值直接 400。</p>
      *
      * @param objectType 对象类型
      * @param params     查询参数
@@ -94,21 +105,96 @@ public final class ObjectQueryController {
     @GetMapping("/objects/{objectType}")
     public ObjectPageResponse list(@PathVariable String objectType,
                                    @RequestParam Map<String, String> params) {
-        Map<String, Object> filters = new LinkedHashMap<>();
+        Map<String, Object> equals = new LinkedHashMap<>();
+        List<TemporalFilter> filters = new ArrayList<>();
         params.forEach((name, value) -> {
-            if (!RESERVED_PARAMETERS.contains(name)) {
-                filters.put(name, value);
+            if (RESERVED_PARAMETERS.contains(name)) {
+                return;
             }
+            rejectInjection(name, value);
+            int separator = name.indexOf("__");
+            if (separator < 0) {
+                equals.put(name, value);
+                return;
+            }
+            String field = name.substring(0, separator);
+            String op = name.substring(separator + 2);
+            filters.add(filter(field, op, value));
         });
         PageRequest page = new PageRequest(intParam(params, "page", 1),
                 intParam(params, "size", 20));
+        PageCursor cursor = params.containsKey("cursor")
+                ? PageCursor.parse(params.get("cursor")) : null;
+        String sort = params.get("sort");
+        if ((sort == null || sort.isBlank()) && cursor != null) {
+            sort = cursor.sortField();
+        }
         Page<TemporalRow> result = gateway.search(objectType,
-                new TemporalSearch(objectType, filters,
+                new TemporalSearch(objectType, equals, filters,
                         parse(params.get("as_of"), "as_of"),
                         parse(params.get("recorded_as_of"), "recorded_as_of"), null,
-                        params.get("sort"), direction(params.get("direction")), page),
+                        sort, direction(params.get("direction")), page, cursor),
                 caller());
         return ObjectPageResponse.from(result, row -> row);
+    }
+
+    private static TemporalFilter filter(String field, String op, String value) {
+        return switch (op) {
+            case "eq" -> new TemporalFilter.Eq(field, value);
+            case "ne" -> new TemporalFilter.Ne(field, value);
+            case "in" -> new TemporalFilter.In(field, csv(value));
+            case "gt" -> new TemporalFilter.Gt(field, value);
+            case "gte" -> new TemporalFilter.Gte(field, value);
+            case "lt" -> new TemporalFilter.Lt(field, value);
+            case "lte" -> new TemporalFilter.Lte(field, value);
+            case "between" -> {
+                List<String> bounds = csv(value);
+                if (bounds.size() != 2) {
+                    throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
+                            "between requires exactly two values: " + field);
+                }
+                yield new TemporalFilter.Between(field, bounds.get(0), bounds.get(1));
+            }
+            case "like" -> new TemporalFilter.Like(field, value);
+            default -> throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
+                    "unknown filter operator: " + op);
+        };
+    }
+
+    private static List<String> csv(String value) {
+        if (value == null || value.isBlank()) {
+            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
+                    "filter value is required");
+        }
+        List<String> values = new ArrayList<>();
+        for (String part : value.split(",", -1)) {
+            if (!part.isBlank()) {
+                values.add(part.trim());
+            }
+        }
+        if (values.isEmpty()) {
+            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
+                    "filter value is required");
+        }
+        return values;
+    }
+
+    private static void rejectInjection(String name, String value) {
+        if (value == null) {
+            return;
+        }
+        for (String marker : INJECTION_MARKERS) {
+            if (value.contains(marker)) {
+                throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
+                        "illegal characters in filter " + name);
+            }
+        }
+        for (int i = 0; i < value.length(); i++) {
+            if (Character.isISOControl(value.charAt(i))) {
+                throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
+                        "illegal characters in filter " + name);
+            }
+        }
     }
 
     private Caller caller() {

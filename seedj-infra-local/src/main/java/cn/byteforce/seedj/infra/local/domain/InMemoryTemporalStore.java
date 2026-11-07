@@ -11,7 +11,9 @@ import cn.byteforce.seedj.domain.ObjectVersion;
 import cn.byteforce.seedj.domain.Page;
 import cn.byteforce.seedj.domain.ScopePredicate;
 import cn.byteforce.seedj.domain.ScopePredicates;
+import cn.byteforce.seedj.domain.PageCursor;
 import cn.byteforce.seedj.domain.SortDirection;
+import cn.byteforce.seedj.domain.TemporalFilter;
 import cn.byteforce.seedj.domain.TemporalSearch;
 import cn.byteforce.seedj.domain.Sealing;
 import cn.byteforce.seedj.domain.TemporalQuery;
@@ -131,6 +133,10 @@ public final class InMemoryTemporalStore implements TemporalStore {
         ObjectSchema schema = schemas.find(search.objectType()).orElse(null);
         Map<String, Object> filters = typedFilters(search, schema);
         String sortField = typedSortField(search.sortField(), schema);
+        if (!search.filters().isEmpty()) {
+            requireSchema(search.objectType(), schema);
+            requireFilterable(search.filters(), schema);
+        }
 
         List<TemporalRow> matched = new ArrayList<>();
         rows.forEach((key, versions) -> {
@@ -144,16 +150,26 @@ public final class InMemoryTemporalStore implements TemporalStore {
                         .max(Comparator.comparingLong(row -> row.version().version()))
                         .filter(row -> matchesScope(row, scope))
                         .filter(row -> matchesFilters(row, filters))
+                        .filter(row -> matchesFilters(row, search.filters(), schema))
                         .ifPresent(matched::add);
             }
         });
         matched.sort(comparator(sortField, search.direction()));
-
         long total = matched.size();
-        int from = (int) Math.min(search.page().offset(), total);
-        int to = Math.min(from + search.page().size(), matched.size());
-        return new Page<>(matched.subList(from, to), total, search.page().page(),
-                search.page().size());
+        List<TemporalRow> visible = matched;
+        if (search.cursor() != null) {
+            visible = matched.stream()
+                    .filter(row -> afterCursor(row, search.cursor(), sortField,
+                            search.direction(), schema))
+                    .toList();
+        }
+        int from = (int) Math.min(search.page().offset(), visible.size());
+        int to = Math.min(from + search.page().size(), visible.size());
+        boolean hasMore = to < visible.size();
+        List<TemporalRow> items = List.copyOf(visible.subList(from, to));
+        PageCursor next = hasMore && !items.isEmpty()
+                ? cursorOf(items.get(items.size() - 1), sortField) : null;
+        return new Page<>(items, total, search.page().page(), search.page().size(), next);
     }
 
     private Map<String, Object> typedFilters(TemporalSearch search, ObjectSchema schema) {
@@ -199,6 +215,155 @@ public final class InMemoryTemporalStore implements TemporalStore {
             }
         }
         return true;
+    }
+
+    private static boolean matchesFilters(TemporalRow row, java.util.List<TemporalFilter> filters,
+                                          ObjectSchema schema) {
+        for (TemporalFilter filter : filters) {
+            if (!matchesFilter(row.fields(), filter, schema)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean matchesFilter(Map<String, Object> fields, TemporalFilter filter,
+                                         ObjectSchema schema) {
+        return switch (filter) {
+            case TemporalFilter.Eq eq -> {
+                Object value = typed(schema, eq.field(), eq.value());
+                yield value != null && Objects.equals(fields.get(eq.field()), value);
+            }
+            case TemporalFilter.Ne ne -> {
+                Object value = typed(schema, ne.field(), ne.value());
+                Object actual = fields.get(ne.field());
+                yield value != null && actual != null && !Objects.equals(actual, value);
+            }
+            case TemporalFilter.In in -> {
+                Object actual = fields.get(in.field());
+                if (actual == null || in.values().isEmpty()) {
+                    yield false;
+                }
+                yield in.values().stream().map(value -> typed(schema, in.field(), value))
+                        .anyMatch(actual::equals);
+            }
+            case TemporalFilter.Gt gt -> compare(fields, gt.field(), gt.value(), schema) > 0;
+            case TemporalFilter.Gte gte -> compare(fields, gte.field(), gte.value(), schema) >= 0;
+            case TemporalFilter.Lt lt -> compare(fields, lt.field(), lt.value(), schema) < 0;
+            case TemporalFilter.Lte lte -> compare(fields, lte.field(), lte.value(), schema) <= 0;
+            case TemporalFilter.Between between -> {
+                Object actual = fields.get(between.field());
+                if (actual == null) {
+                    yield false;
+                }
+                Object lower = typed(schema, between.field(), between.lower());
+                Object upper = typed(schema, between.field(), between.upper());
+                yield compare(actual, lower) >= 0 && compare(actual, upper) <= 0;
+            }
+            case TemporalFilter.Like like -> {
+                Object actual = fields.get(like.field());
+                yield actual != null && likePattern(like.pattern())
+                        .matcher(String.valueOf(actual)).matches();
+            }
+            case TemporalFilter.And and -> and.parts().stream()
+                    .allMatch(part -> matchesFilter(fields, part, schema));
+            case TemporalFilter.Or or -> or.parts().stream()
+                    .anyMatch(part -> matchesFilter(fields, part, schema));
+            case TemporalFilter.Not not -> !matchesFilter(fields, not.part(), schema);
+        };
+    }
+
+    private static int compare(Map<String, Object> fields, String field, Object expected,
+                               ObjectSchema schema) {
+        Object actual = fields.get(field);
+        if (actual == null) {
+            return -1;
+        }
+        return compare(actual, typed(schema, field, expected));
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static int compare(Object left, Object right) {
+        if (left == null || right == null) {
+            return left == null ? (right == null ? 0 : -1) : 1;
+        }
+        if (left instanceof Comparable comparable && left.getClass().isInstance(right)) {
+            return comparable.compareTo(right);
+        }
+        return String.valueOf(left).compareTo(String.valueOf(right));
+    }
+
+    private static Object typed(ObjectSchema schema, String field, Object value) {
+        return schema.requireField(field).type().coerce(value);
+    }
+
+    private static java.util.regex.Pattern likePattern(String pattern) {
+        StringBuilder regex = new StringBuilder("^");
+        for (char c : pattern.toCharArray()) {
+            switch (c) {
+                case '%' -> regex.append(".*");
+                case '_' -> regex.append('.');
+                case '\\' -> regex.append("\\\\");
+                default -> regex.append(java.util.regex.Pattern.quote(String.valueOf(c)));
+            }
+        }
+        return java.util.regex.Pattern.compile(regex.append('$').toString(),
+                java.util.regex.Pattern.DOTALL);
+    }
+
+    private static void requireFilterable(java.util.List<TemporalFilter> filters,
+                                          ObjectSchema schema) {
+        for (TemporalFilter filter : filters) {
+            switch (filter) {
+                case TemporalFilter.Eq eq -> requireFilterable(eq.field(), schema);
+                case TemporalFilter.Ne ne -> requireFilterable(ne.field(), schema);
+                case TemporalFilter.In in -> requireFilterable(in.field(), schema);
+                case TemporalFilter.Gt gt -> requireFilterable(gt.field(), schema);
+                case TemporalFilter.Gte gte -> requireFilterable(gte.field(), schema);
+                case TemporalFilter.Lt lt -> requireFilterable(lt.field(), schema);
+                case TemporalFilter.Lte lte -> requireFilterable(lte.field(), schema);
+                case TemporalFilter.Between between -> requireFilterable(between.field(), schema);
+                case TemporalFilter.Like like -> requireFilterable(like.field(), schema);
+                case TemporalFilter.And and -> requireFilterable(and.parts(), schema);
+                case TemporalFilter.Or or -> requireFilterable(or.parts(), schema);
+                case TemporalFilter.Not not -> requireFilterable(java.util.List.of(not.part()), schema);
+            }
+        }
+    }
+
+    private static void requireFilterable(String field, ObjectSchema schema) {
+        if (!schema.filterableFields().contains(field)) {
+            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
+                    "unknown or non-filterable field: " + field);
+        }
+    }
+
+    private static boolean afterCursor(TemporalRow row, PageCursor cursor, String sortField,
+                                       SortDirection direction, ObjectSchema schema) {
+        if (sortField == null) {
+            int idCompare = row.version().id().compareTo(cursor.id());
+            return direction == SortDirection.DESC ? idCompare < 0 : idCompare > 0;
+        }
+        Object actual = row.fields().get(sortField);
+        Object expected = cursor.sortValue() == null ? null
+                : schema.requireField(sortField).type().coerce(cursor.sortValue());
+        if (actual == null || expected == null) {
+            return false;
+        }
+        int valueCompare = compare(actual, expected);
+        if (valueCompare == 0) {
+            int idCompare = row.version().id().compareTo(cursor.id());
+            return direction == SortDirection.DESC ? idCompare < 0 : idCompare > 0;
+        }
+        return direction == SortDirection.DESC ? valueCompare < 0 : valueCompare > 0;
+    }
+
+    private static PageCursor cursorOf(TemporalRow row, String sortField) {
+        if (sortField == null) {
+            return new PageCursor(null, null, row.version().id());
+        }
+        Object value = row.fields().get(sortField);
+        return value == null ? null : new PageCursor(sortField, value, row.version().id());
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})

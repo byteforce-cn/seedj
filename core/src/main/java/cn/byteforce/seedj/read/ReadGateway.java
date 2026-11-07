@@ -203,7 +203,8 @@ public final class ReadGateway {
                 .toList();
         audit(ReadAccessEvent.Operation.SEARCH, model, caller, search.equals(), List.of(),
                 scope, policy);
-        return new Page<>(items, page.total(), page.page(), page.size());
+        return new Page<>(items, page.total(), page.page(), page.size(),
+                page.nextCursor());
     }
 
     /**

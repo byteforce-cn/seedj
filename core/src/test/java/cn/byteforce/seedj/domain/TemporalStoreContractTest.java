@@ -11,6 +11,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -79,6 +80,146 @@ public abstract class TemporalStoreContractTest {
         clock().set(now);
         return store().append(AppendRequest.correction(TYPE, id, validFrom, null, ACTOR, fields))
                 .appended();
+    }
+
+
+    private static TemporalSearch search(List<TemporalFilter> filters, String sort,
+                                         PageCursor cursor, PageRequest page) {
+        return new TemporalSearch(TYPE, Map.of(), filters, null, null, null, sort,
+                SortDirection.ASC, page, cursor);
+    }
+
+    private Page<TemporalRow> run(List<TemporalFilter> filters) {
+        return store().search(search(filters, "name", null, new PageRequest(1, 50)), ALL);
+    }
+
+    @Test
+    @DisplayName("过滤器：eq/in/range/and/or/not")
+    void filtersCoverDeclaredFields() {
+        seedWith(UUID.randomUUID(), Map.of("name", "alice", "status", "active",
+                "hire_date", LocalDate.of(2026, 1, 1)), T0);
+        seedWith(UUID.randomUUID(), Map.of("name", "bob", "status", "terminated",
+                "hire_date", LocalDate.of(2026, 6, 1)), T0);
+        seedWith(UUID.randomUUID(), Map.of("name", "carol", "status", "active",
+                "hire_date", LocalDate.of(2026, 12, 1)), T0);
+
+        assertThat(run(List.of(new TemporalFilter.Eq("status", "active"))).items())
+                .extracting(row -> row.fields().get("name"))
+                .containsExactly("alice", "carol");
+        assertThat(run(List.of(new TemporalFilter.In("status",
+                List.of("terminated", "active")))).items()).hasSize(3);
+        assertThat(run(List.of(new TemporalFilter.Between("hire_date",
+                LocalDate.of(2026, 2, 1), LocalDate.of(2026, 11, 1)))).items())
+                .extracting(row -> row.fields().get("name"))
+                .containsExactly("bob");
+        TemporalFilter activeWithLateHire = new TemporalFilter.And(List.of(
+                new TemporalFilter.Eq("status", "active"),
+                new TemporalFilter.Gt("hire_date", LocalDate.of(2026, 6, 1))));
+        assertThat(run(List.of(activeWithLateHire)).items())
+                .extracting(row -> row.fields().get("name"))
+                .containsExactly("carol");
+        TemporalFilter aliceOrBob = new TemporalFilter.Or(List.of(
+                new TemporalFilter.Eq("name", "alice"),
+                new TemporalFilter.Eq("name", "bob")));
+        assertThat(run(List.of(aliceOrBob)).items()).hasSize(2);
+        assertThat(run(List.of(new TemporalFilter.Not(
+                new TemporalFilter.Like("name", "a%")))).items())
+                .extracting(row -> row.fields().get("name"))
+                .containsExactly("bob", "carol");
+    }
+
+    @Test
+    @DisplayName("LIKE 使用 SQL 通配符而不是拼接 SQL")
+    void likeUsesSqlWildcards() {
+        seed("alice", T0);
+        seedWith(UUID.randomUUID(), Map.of("name", "bob"), T0);
+
+        assertThat(run(List.of(new TemporalFilter.Like("name", "a%"))).items()).hasSize(1);
+        assertThat(run(List.of(new TemporalFilter.Like("name", "_ob"))).items()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("未声明/不可过滤字段被拒绝")
+    void unknownFilterFieldIsRejected() {
+        seed("alice", T0);
+
+        assertThatThrownBy(() -> run(List.of(new TemporalFilter.Eq("secret", "x"))))
+                .isInstanceOfSatisfying(ContractException.class, error ->
+                        assertThat(error.code()).isEqualTo(ContractErrorCode.INVALID_PAYLOAD));
+        assertThatThrownBy(() -> run(List.of(new TemporalFilter.Eq("missing", "x"))))
+                .isInstanceOf(ContractException.class);
+    }
+
+    @Test
+    @DisplayName("keyset 翻页无重复无遗漏，并与 offset 结果一致")
+    void keysetPaginatesWithoutDuplicatesOrGaps() {
+        List<UUID> ids = new ArrayList<>();
+        for (String name : List.of("a", "b", "c", "d", "e")) {
+            UUID id = UUID.randomUUID();
+            ids.add(id);
+            seedWith(id, Map.of("name", name), T0);
+        }
+
+        List<UUID> viaCursor = new ArrayList<>();
+        PageCursor cursor = null;
+        do {
+            Page<TemporalRow> page = store().search(
+                    search(List.of(), "name", cursor, new PageRequest(1, 2)), ALL);
+            page.items().forEach(row -> viaCursor.add(row.version().id()));
+            cursor = page.nextCursor();
+            if (page.items().isEmpty()) {
+                break;
+            }
+        } while (cursor != null);
+
+        List<UUID> viaOffset = new ArrayList<>();
+        for (int page = 1; page <= 3; page++) {
+            store().search(search(List.of(), "name", null, new PageRequest(page, 2)), ALL)
+                    .items().forEach(row -> viaOffset.add(row.version().id()));
+        }
+
+        assertThat(viaCursor).hasSize(5).doesNotHaveDuplicates();
+        assertThat(viaCursor).containsExactlyElementsOf(viaOffset);
+    }
+
+    @Test
+    @DisplayName("游标排序字段必须与 sort 一致")
+    void cursorSortFieldMustMatch() {
+        PageCursor cursor = new PageCursor("name", "b", UUID.randomUUID());
+        assertThatThrownBy(() -> new TemporalSearch(TYPE, Map.of(), List.of(), null, null,
+                null, "status", SortDirection.ASC, PageRequest.defaults(), cursor))
+                .isInstanceOfSatisfying(ContractException.class, error ->
+                        assertThat(error.code()).isEqualTo(ContractErrorCode.INVALID_PAYLOAD));
+    }
+
+    @Test
+    @DisplayName("游标多页结果与 offset 一致（含过滤）")
+    void filteredKeysetMatchesOffset() {
+        for (int i = 0; i < 6; i++) {
+            seedWith(UUID.randomUUID(), Map.of("name", "n" + i,
+                    "status", i % 2 == 0 ? "active" : "terminated"), T0);
+        }
+        List<TemporalFilter> filters = List.of(new TemporalFilter.Eq("status", "active"));
+
+        List<UUID> viaCursor = new ArrayList<>();
+        PageCursor cursor = null;
+        while (true) {
+            Page<TemporalRow> page = store().search(
+                    search(filters, "name", cursor, new PageRequest(1, 2)), ALL);
+            page.items().forEach(row -> viaCursor.add(row.version().id()));
+            cursor = page.nextCursor();
+            if (cursor == null || page.items().isEmpty()) {
+                break;
+            }
+        }
+
+        List<UUID> viaOffset = new ArrayList<>();
+        for (int page = 1; page <= 3; page++) {
+            store().search(search(filters, "name", null, new PageRequest(page, 2)), ALL)
+                    .items().forEach(row -> viaOffset.add(row.version().id()));
+        }
+        assertThat(viaCursor).hasSize(3).doesNotHaveDuplicates();
+        assertThat(viaCursor).containsExactlyElementsOf(viaOffset);
     }
 
     @Test

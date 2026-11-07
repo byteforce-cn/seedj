@@ -94,6 +94,12 @@ class QuerySpecTest {
                         assertThat(error.reason()).contains("default sort"));
     }
 
+    @Test
+    @DisplayName("报表查询禁止 UNION；JOIN 仍由 reviewed SQL + scope 投影约束")
+    void rejectsUnion() {
+        assertInvalid("SELECT a FROM t UNION SELECT a FROM u", Set.of("a"), "union");
+    }
+
     private static void assertInvalid(String sql, Set<String> fields, String hint) {
         assertThatThrownBy(() -> new QuerySpec("employee", sql, fields, Set.of(),
                 List.of(fields.iterator().next()), fields.iterator().next()))
