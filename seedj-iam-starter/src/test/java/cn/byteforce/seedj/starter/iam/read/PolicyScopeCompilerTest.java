@@ -463,6 +463,18 @@ class PolicyScopeCompilerTest {
         compiler(List.of(write, otherResource)).validateAll();
     }
 
+    @Test
+    void missingConstantBecomesNone() {
+        assertThat(compiler(List.of(allow("p1", compare(PolicyOperand.resource("status"),
+                PolicyComparisonOperator.EQ, PolicyOperand.subject("missing")))))
+                .compile("employee", caller(), ScopeContext.empty()))
+                .isEqualTo(ScopePredicate.none());
+        assertThat(constantCompare(PolicyComparisonOperator.EQ, PolicyOperand.subject("missing"),
+                PolicyOperand.literal("anything"))).isEqualTo(ScopePredicate.none());
+        assertThat(constantCompare(PolicyComparisonOperator.NE, PolicyOperand.subject("missing"),
+                PolicyOperand.literal("anything"))).isEqualTo(ScopePredicate.all());
+    }
+
     private boolean constantEqualsSubject(String path, Object value) {
         return compiler(List.of(allow("p1", compare(PolicyOperand.subject(path),
                 PolicyComparisonOperator.EQ, PolicyOperand.literal(value)))))

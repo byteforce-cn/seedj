@@ -97,6 +97,21 @@ class IamRbacAdminControllerTest {
     }
 
     @Test
+    @DisplayName("updateRole 空请求体保留全部字段")
+    void updateRoleWithEmptyBodyKeepsAllFields() {
+        repository.createRole(IamRole.create("r-1", "default", "approver", "审批人", "描述",
+                "r-parent", false));
+
+        Map<String, Object> updated = controller.updateRole("r-1", Map.of());
+
+        assertThat(updated).containsEntry("code", "approver")
+                .containsEntry("name", "审批人")
+                .containsEntry("description", "描述")
+                .containsEntry("parentId", "r-parent")
+                .containsEntry("version", 1L);
+    }
+
+    @Test
     @DisplayName("updateRole 未知角色报 ROLE_NOT_FOUND")
     void updateUnknownRoleFails() {
         assertThatThrownBy(() -> controller.updateRole("missing", Map.of("name", "x")))

@@ -276,6 +276,33 @@ class IamAuthorizationControllerTest {
         }
     }
 
+    @Test
+    @DisplayName("iam.attributes.read 同样可读属性，缺省 attribute_state 视为 fresh")
+    void iamAttributesPermissionAndDefaultState() {
+        Caller iamService = new Caller("svc", "svc", "default", Set.of(),
+                Set.of("iam.attributes.read"), Set.of(), Set.of("pwd"), Caller.DEFAULT_ACR,
+                Map.of());
+        IamContractAuthorizationService service = new IamContractAuthorizationService(bindings,
+                roles, attributes, List.of(new IamPermissionCondition(
+                        "purchase.request.approve", new IamCondition("all", List.of(
+                                new IamConditionTerm("primary_position.grade",
+                                        IamConditionOperator.IN, List.of("P5")))))),
+                SodRuleSet.defaults());
+        IamAuthorizationController controller = new IamAuthorizationController(service,
+                callerProvider(iamService));
+
+        org.springframework.http.ResponseEntity<?> response = controller.attributes("worker",
+                OCT15, null);
+        IamAuthorizationDtos.CheckResponse check = controller.check(
+                new IamAuthorizationDtos.CheckRequest("away", "purchase.request.approve",
+                        OCT15, new IamAuthorizationDtos.AttributeContext(OCT15, "caller",
+                                null, Map.of("primary_position", Map.of("grade", "P5")))));
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        assertThat(check.allowed()).isTrue();
+        assertThat(check.attributeState()).isEqualTo("fresh");
+    }
+
     private static Caller serviceCaller() {
         return new Caller("svc", "svc", "default", Set.of(), Set.of("hr.attributes.read"),
                 Set.of(), Set.of("pwd"), Caller.DEFAULT_ACR, Map.of());

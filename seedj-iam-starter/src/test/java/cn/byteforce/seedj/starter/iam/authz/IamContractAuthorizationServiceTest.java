@@ -256,6 +256,20 @@ class IamContractAuthorizationServiceTest {
     }
 
     @Test
+    @DisplayName("代理作用域不匹配时忽略代理授权")
+    void proxyScopeMismatchIsIgnored() {
+        IamContractAuthorizationService service = service(List.of());
+
+        IamResolution matched = service.resolve("agent", OCT15, null,
+                Map.of("department", "D001"));
+        IamResolution mismatched = service.resolve("agent", OCT15, null,
+                Map.of("department", "D002"));
+
+        assertThat(matched.roles()).contains("approver");
+        assertThat(mismatched.roles()).isEmpty();
+    }
+
+    @Test
     @DisplayName("系统时点过滤：recorded_as_of 之前的绑定才生效")
     void recordedAsOfFiltersBindings() {
         IamContractAuthorizationService service = service(List.of());

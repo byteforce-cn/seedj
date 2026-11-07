@@ -47,7 +47,6 @@ import java.time.Instant;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -385,6 +384,18 @@ class NativeAuthAuthenticationProviderTest {
         assertThat(errorCode(() -> provider.authenticate(new NativeAuthAuthenticationToken(
                 clientPrincipal(client), client, "alice", "alice-password", "mfa-2",
                 "123456", "device-9", null, null, Set.of())))).isEqualTo("invalid_grant");
+    }
+
+    @Test
+    @DisplayName("密码阶段携带过期挑战令牌：mfa_invalid")
+    void passwordStageRejectsInvalidChallenge() {
+        when(totp.isEnabled("u-1")).thenReturn(true);
+        when(challenges.require("mfa-expired")).thenThrow(
+                new IamException(IamErrorCode.MFA_CHALLENGE_EXPIRED, "mfa_token expired"));
+
+        assertThat(errorCode(() -> provider.authenticate(new NativeAuthAuthenticationToken(
+                clientPrincipal(client), client, "alice", "alice-password", "mfa-expired",
+                "123456", "device-1", null, null, Set.of())))).isEqualTo("mfa_invalid");
     }
 
     @Test
