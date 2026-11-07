@@ -67,6 +67,17 @@ class AppendRequestTest {
     }
 
     @Test
+    @DisplayName("AppendResult 把 null superseded 归一化为 empty")
+    void appendResultNormalisesNullSuperseded() {
+        ObjectVersion version = new ObjectVersion(ID, 1, NOW, null, NOW, null, ACTOR, NOW, null,
+                null);
+        TemporalRow row = new TemporalRow("employee", version, Map.of("employee_no", "E-1"));
+
+        assertThat(new AppendResult(row, null).superseded()).isEmpty();
+        assertThat(new AppendResult(row, java.util.Optional.of(row)).superseded()).contains(row);
+    }
+
+    @Test
     @DisplayName("ObjectVersion 版本号必须 >= 1，superseded_at 必须晚于 recorded_at")
     void objectVersionGuards() {
         assertThatThrownBy(() -> new ObjectVersion(ID, 0, NOW, null, NOW, null, ACTOR, NOW, null,
