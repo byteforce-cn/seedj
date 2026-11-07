@@ -120,7 +120,11 @@ class DocsBoundaryTest {
             return false;
         }
         String rel = root.relativize(path).toString().replace('\\', '/');
-        if (rel.equals(SELF) || rel.contains("/.vitepress/") || rel.startsWith(".vitepress/")) {
+        // 隐藏目录是工具与外部工作副本（.git、.eis、.vitepress、.idea…），不属于公开树。
+        if (rel.startsWith(".") && !rel.startsWith(".github/")) {
+            return false;
+        }
+        if (rel.equals(SELF)) {
             return false;
         }
         if (rel.startsWith("docs/")) {
