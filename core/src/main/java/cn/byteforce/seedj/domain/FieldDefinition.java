@@ -1,6 +1,7 @@
 package cn.byteforce.seedj.domain;
 
 import java.util.Objects;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
@@ -23,12 +24,14 @@ import java.util.regex.Pattern;
  * @param indexed      是否生成当前状态部分索引
  * @param privacy      隐私层级；{@code null} 归一为 {@link Privacy#PUBLIC}
  * @param masker       打码器；{@code null} 表示无默认打码规则
+ * @param constraints  值域约束（enum/pattern/length/precision/unique）
  * @author ByteForce
  * @since 1.0.0
  */
 public record FieldDefinition(String name, FieldType type, boolean required, boolean writeOnly,
                               boolean eventVisible, boolean filterable, boolean sortable,
-                              boolean indexed, Privacy privacy, Masker masker) {
+                              boolean indexed, Privacy privacy, Masker masker,
+                              Constraints constraints) {
 
     private static final Pattern IDENTIFIER = Pattern.compile("^[a-z][a-z0-9_]*$");
 
@@ -38,6 +41,7 @@ public record FieldDefinition(String name, FieldType type, boolean required, boo
         }
         type = Objects.requireNonNull(type, "type");
         privacy = privacy == null ? Privacy.PUBLIC : privacy;
+        constraints = constraints == null ? Constraints.NONE : constraints;
         if (writeOnly && eventVisible) {
             throw new IllegalArgumentException(
                     "field " + name + " cannot be writeOnly and eventVisible");
@@ -46,6 +50,45 @@ public record FieldDefinition(String name, FieldType type, boolean required, boo
             throw new IllegalArgumentException(
                     "field " + name + " is " + privacy + " and cannot be eventVisible");
         }
+        if (!constraints.enumValues().isEmpty() && type != FieldType.TEXT) {
+            throw new IllegalArgumentException(
+                    "field " + name + " declares enum values but is not TEXT");
+        }
+        if (constraints.pattern() != null && type != FieldType.TEXT) {
+            throw new IllegalArgumentException(
+                    "field " + name + " declares a pattern but is not TEXT");
+        }
+        if ((constraints.minLength() != null || constraints.maxLength() != null)
+                && type != FieldType.TEXT) {
+            throw new IllegalArgumentException(
+                    "field " + name + " declares length constraints but is not TEXT");
+        }
+        if ((constraints.precision() != null || constraints.scale() != null)
+                && type != FieldType.DECIMAL) {
+            throw new IllegalArgumentException(
+                    "field " + name + " declares precision/scale but is not DECIMAL");
+        }
+    }
+
+    /**
+     * 兼容旧装配：没有值域约束。
+     *
+     * @param name         字段名
+     * @param type         字段类型
+     * @param required     是否必填
+     * @param writeOnly    是否写入专用
+     * @param eventVisible 是否进入事件载荷
+     * @param filterable   是否可过滤
+     * @param sortable     是否可排序
+     * @param indexed      是否生成当前状态索引
+     * @param privacy      隐私层级
+     * @param masker       打码器
+     */
+    public FieldDefinition(String name, FieldType type, boolean required, boolean writeOnly,
+                           boolean eventVisible, boolean filterable, boolean sortable,
+                           boolean indexed, Privacy privacy, Masker masker) {
+        this(name, type, required, writeOnly, eventVisible, filterable, sortable, indexed,
+                privacy, masker, Constraints.NONE);
     }
 
     /**
@@ -57,7 +100,7 @@ public record FieldDefinition(String name, FieldType type, boolean required, boo
      */
     public static FieldDefinition of(String name, FieldType type) {
         return new FieldDefinition(name, type, false, false, true, false, false, false,
-                Privacy.PUBLIC, null);
+                Privacy.PUBLIC, null, Constraints.NONE);
     }
 
     /**
@@ -69,7 +112,7 @@ public record FieldDefinition(String name, FieldType type, boolean required, boo
      */
     public static FieldDefinition required(String name, FieldType type) {
         return new FieldDefinition(name, type, true, false, true, false, false, false,
-                Privacy.PUBLIC, null);
+                Privacy.PUBLIC, null, Constraints.NONE);
     }
 
     /**
@@ -81,7 +124,7 @@ public record FieldDefinition(String name, FieldType type, boolean required, boo
      */
     public static FieldDefinition writeOnly(String name, FieldType type) {
         return new FieldDefinition(name, type, false, true, false, false, false, false,
-                Privacy.PUBLIC, null);
+                Privacy.PUBLIC, null, Constraints.NONE);
     }
 
     /**
@@ -93,7 +136,7 @@ public record FieldDefinition(String name, FieldType type, boolean required, boo
      */
     public static FieldDefinition filterable(String name, FieldType type) {
         return new FieldDefinition(name, type, false, false, true, true, false, false,
-                Privacy.PUBLIC, null);
+                Privacy.PUBLIC, null, Constraints.NONE);
     }
 
     /**
@@ -103,7 +146,7 @@ public record FieldDefinition(String name, FieldType type, boolean required, boo
      */
     public FieldDefinition withRequired() {
         return new FieldDefinition(name, type, true, writeOnly, eventVisible, filterable,
-                sortable, indexed, privacy, masker);
+                sortable, indexed, privacy, masker, constraints);
     }
 
     /**
@@ -113,7 +156,7 @@ public record FieldDefinition(String name, FieldType type, boolean required, boo
      */
     public FieldDefinition withFilterable() {
         return new FieldDefinition(name, type, required, writeOnly, eventVisible, true,
-                sortable, indexed, privacy, masker);
+                sortable, indexed, privacy, masker, constraints);
     }
 
     /**
@@ -123,7 +166,7 @@ public record FieldDefinition(String name, FieldType type, boolean required, boo
      */
     public FieldDefinition withSortable() {
         return new FieldDefinition(name, type, required, writeOnly, eventVisible, filterable,
-                true, indexed, privacy, masker);
+                true, indexed, privacy, masker, constraints);
     }
 
     /**
@@ -133,7 +176,7 @@ public record FieldDefinition(String name, FieldType type, boolean required, boo
      */
     public FieldDefinition withIndexed() {
         return new FieldDefinition(name, type, required, writeOnly, eventVisible, filterable,
-                sortable, true, privacy, masker);
+                sortable, true, privacy, masker, constraints);
     }
 
     /**
@@ -144,7 +187,7 @@ public record FieldDefinition(String name, FieldType type, boolean required, boo
      */
     public FieldDefinition withPrivacy(Privacy value) {
         return new FieldDefinition(name, type, required, writeOnly, eventVisible, filterable,
-                sortable, indexed, value, masker);
+                sortable, indexed, value, masker, constraints);
     }
 
     /**
@@ -155,6 +198,68 @@ public record FieldDefinition(String name, FieldType type, boolean required, boo
      */
     public FieldDefinition withMasker(Masker value) {
         return new FieldDefinition(name, type, required, writeOnly, eventVisible, filterable,
-                sortable, indexed, privacy, value);
+                sortable, indexed, privacy, value, constraints);
+    }
+
+    /**
+     * 设置值域约束。
+     *
+     * @param value 约束
+     * @return 新声明
+     */
+    public FieldDefinition withConstraints(Constraints value) {
+        return new FieldDefinition(name, type, required, writeOnly, eventVisible, filterable,
+                sortable, indexed, privacy, masker, value);
+    }
+
+    /**
+     * 字段值域约束：由规范 Schema 的 enum/pattern/length/precision/unique 映射而来。
+     *
+     * <p>{@code unique} 是业务键唯一索引的声明（当前状态部分唯一索引），不是单行校验；
+     * 其余约束在 {@link ObjectSchema#validate} 中逐值校验。</p>
+     *
+     * @param enumValues 允许的取值；空集表示不限制
+     * @param pattern    JSON Schema 与 POSIX 兼容正则；{@code null} 表示不限制
+     * @param minLength  最小字符数；{@code null} 表示不限制
+     * @param maxLength  最大字符数；{@code null} 表示不限制
+     * @param unique     是否要求当前状态唯一（业务键）
+     * @param precision  十进制总位数；{@code null} 表示不限制
+     * @param scale      小数位数；{@code null} 表示不限制
+     * @author ByteForce
+     * @since 1.0.0
+     */
+    public record Constraints(Set<String> enumValues, String pattern, Integer minLength,
+                              Integer maxLength, boolean unique, Integer precision,
+                              Integer scale) {
+
+        /** 无约束。 */
+        public static final Constraints NONE = new Constraints(Set.of(), null, null, null, false,
+                null, null);
+
+        public Constraints {
+            enumValues = enumValues == null ? Set.of() : Set.copyOf(enumValues);
+            pattern = pattern == null || pattern.isBlank() ? null : pattern;
+            if (pattern != null) {
+                Pattern.compile(pattern);
+            }
+            if (minLength != null && minLength < 0) {
+                throw new IllegalArgumentException("minLength must be >= 0");
+            }
+            if (maxLength != null && maxLength < 0) {
+                throw new IllegalArgumentException("maxLength must be >= 0");
+            }
+            if (minLength != null && maxLength != null && minLength > maxLength) {
+                throw new IllegalArgumentException("minLength must be <= maxLength");
+            }
+            if (precision != null && precision < 1) {
+                throw new IllegalArgumentException("precision must be >= 1");
+            }
+            if (scale != null && scale < 0) {
+                throw new IllegalArgumentException("scale must be >= 0");
+            }
+            if (precision != null && scale != null && scale > precision) {
+                throw new IllegalArgumentException("scale must be <= precision");
+            }
+        }
     }
 }

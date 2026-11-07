@@ -3,6 +3,7 @@ package cn.byteforce.seedj.domain;
 import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -236,14 +237,59 @@ public final class ObjectSchema {
         Map<String, Object> typed = new LinkedHashMap<>();
         for (Map.Entry<String, Object> entry : input.entrySet()) {
             FieldDefinition field = byName.get(entry.getKey());
+            Object value;
             try {
-                typed.put(entry.getKey(), field.type().coerce(entry.getValue()));
+                value = field.type().coerce(entry.getValue());
             } catch (ContractException error) {
                 throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
                         "field " + entry.getKey() + ": " + error.reason());
             }
+            requireConstraints(field, value);
+            typed.put(entry.getKey(), value);
         }
         return typed;
+    }
+
+    private static void requireConstraints(FieldDefinition field, Object value) {
+        if (value == null) {
+            return;
+        }
+        FieldDefinition.Constraints constraints = field.constraints();
+        if (!constraints.enumValues().isEmpty()
+                && !constraints.enumValues().contains(String.valueOf(value))) {
+            throw invalidValue(field, "must be one of " + constraints.enumValues());
+        }
+        if (constraints.pattern() != null
+                && !Pattern.compile(constraints.pattern()).matcher(String.valueOf(value))
+                        .matches()) {
+            throw invalidValue(field, "must match " + constraints.pattern());
+        }
+        if (value instanceof CharSequence text) {
+            if (constraints.minLength() != null && text.length() < constraints.minLength()) {
+                throw invalidValue(field,
+                        "length must be >= " + constraints.minLength());
+            }
+            if (constraints.maxLength() != null && text.length() > constraints.maxLength()) {
+                throw invalidValue(field,
+                        "length must be <= " + constraints.maxLength());
+            }
+        }
+        if (value instanceof BigDecimal decimal) {
+            if (constraints.scale() != null && decimal.scale() > constraints.scale()) {
+                throw invalidValue(field,
+                        "scale must be <= " + constraints.scale());
+            }
+            if (constraints.precision() != null
+                    && decimal.precision() > constraints.precision()) {
+                throw invalidValue(field,
+                        "precision must be <= " + constraints.precision());
+            }
+        }
+    }
+
+    private static ContractException invalidValue(FieldDefinition field, String requirement) {
+        return new ContractException(ContractErrorCode.INVALID_PAYLOAD,
+                "field " + field.name() + " " + requirement);
     }
 
     private static String identifier(String value, String role) {
