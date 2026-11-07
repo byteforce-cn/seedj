@@ -1,6 +1,8 @@
 package cn.byteforce.seedj.demo.hr;
 
 import cn.byteforce.seedj.cqrs.CommandAudit;
+import cn.byteforce.seedj.cqrs.CommandCatalog;
+import cn.byteforce.seedj.cqrs.CommandRuntime;
 import cn.byteforce.seedj.starter.cqrs.wiring.CommandAgents;
 import cn.byteforce.seedj.starter.cqrs.wiring.CommandMetrics;
 import cn.byteforce.seedj.cqrs.QueryAgent;
@@ -47,6 +49,10 @@ class HrWiringTest {
         runner.run(context -> {
             assertThat(context).hasNotFailed();
             assertThat(context).hasSingleBean(OnboardingAgent.class);
+            assertThat(context).hasSingleBean(CommandRuntime.class);
+            assertThat(context).hasSingleBean(CommandCatalog.class);
+            assertThat(context.getBean(CommandCatalog.class)
+                    .find("hr.employee.onboard").orElseThrow().isEventSourced()).isTrue();
             assertThat(context).hasSingleBean(HrCommandService.class);
             assertThat(context).hasSingleBean(HrQueryService.class);
             assertThat(context).hasSingleBean(EmployeeRepository.class);
