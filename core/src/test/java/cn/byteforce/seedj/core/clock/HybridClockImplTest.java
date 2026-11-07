@@ -167,17 +167,18 @@ class HybridClockImplTest {
     }
 
     @Test
-    @DisplayName("未恢复状态时永不持久化：阈值哨兵 Long.MIN_VALUE 相减溢出（疑似缺陷）")
-    void freshClockNeverPersists() {
+    @DisplayName("未恢复状态的节点在首个时间戳后持久化，形成重启可恢复的起点")
+    void freshClockPersistsFirstTimestamp() {
         InMemoryStateStore store = new InMemoryStateStore();
         TestClock physical = new TestClock(T0);
         HybridClock clock = Clocks.hybrid(NODE, physical, store, null);
 
         clock.nowTimestamp();
+        assertThat(store.saved).containsExactly(new HybridTimestamp(micros(T0), 0));
+
         physical.advance(Duration.ofHours(1));
         clock.nowTimestamp();
-
-        assertThat(store.saved).isEmpty();
+        assertThat(store.saved).hasSize(2);
     }
 
     @Test

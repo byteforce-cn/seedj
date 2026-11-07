@@ -43,6 +43,19 @@ public abstract class IamPolicyRepositoryContractTest {
     }
 
     @Test
+    void updateIncrementsVersion() {
+        IamPolicy first = repository().save(IamPolicy.allow("p1", "default", "allow-read",
+                Set.of("read"), Set.of("employee"), null));
+        IamPolicy saved = repository().save(new IamPolicy("p1", "default", "allow-read",
+                IamPolicyEffect.ALLOW, 0, Set.of("read", "list"), Set.of("employee"),
+                PolicyCondition.Always.INSTANCE, true, first.version()));
+
+        assertThat(saved.version()).isEqualTo(first.version() + 1);
+        assertThat(repository().findById("p1").orElseThrow().version())
+                .isEqualTo(first.version() + 1);
+    }
+
+    @Test
     void findsOnlyEnabledPoliciesOfTenantOrderedByPriority() {
         repository().save(new IamPolicy("low", "default", "low", IamPolicyEffect.ALLOW, 1,
                 Set.of("read"), Set.of("employee"), PolicyCondition.Always.INSTANCE, true, 0));

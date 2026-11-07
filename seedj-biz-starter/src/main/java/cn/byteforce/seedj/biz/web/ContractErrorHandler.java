@@ -5,7 +5,6 @@ import cn.byteforce.seedj.core.exception.ApiError;
 import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;
 import cn.byteforce.seedj.cqrs.CqrsException;
-import cn.byteforce.seedj.lock.LockErrorCode;
 import cn.byteforce.seedj.lock.LockException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
