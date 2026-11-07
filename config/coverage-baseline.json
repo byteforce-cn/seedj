@@ -1,30 +1,30 @@
 {
   "core": {
-    "branch": 0.54,
-    "line": 0.66
+    "branch": 0.87,
+    "line": 0.93
   },
   "seedj-biz-starter": {
-    "branch": 0.51,
-    "line": 0.6
+    "branch": 0.73,
+    "line": 0.84
   },
   "seedj-codegen": {
-    "branch": 0.45,
-    "line": 0.65
+    "branch": 0.78,
+    "line": 0.89
   },
   "seedj-iam-starter": {
-    "branch": 0.5,
-    "line": 0.67
+    "branch": 0.86,
+    "line": 0.96
   },
   "seedj-infra-local": {
     "branch": 0.69,
     "line": 0.84
   },
   "seedj-jdbc-postgresql": {
-    "branch": 0.55,
-    "line": 0.73
+    "branch": 0.75,
+    "line": 0.88
   },
   "seedj-workflow-local": {
-    "branch": 0.52,
-    "line": 0.72
+    "branch": 0.57,
+    "line": 0.78
   }
 }

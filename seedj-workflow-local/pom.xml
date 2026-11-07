@@ -16,8 +16,8 @@
     <description>workflow SPI 的本地内存实现：与 seedj-infra-local 同定位的库模块，不启动 server、不产出可执行制品</description>
 
     <properties>
-        <seedj.coverage.line>0.72</seedj.coverage.line>
-        <seedj.coverage.branch>0.52</seedj.coverage.branch>
+        <seedj.coverage.line>0.78</seedj.coverage.line>
+        <seedj.coverage.branch>0.57</seedj.coverage.branch>
     </properties>
 
     <dependencies>
