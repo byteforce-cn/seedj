@@ -1,0 +1,10 @@
+{
+  "globs": ["docs/**/*.md", "*.md", ".github/**/*.md"],
+  "ignores": ["docs/.vitepress/**", "node_modules/**", "**/target/**"],
+  "config": {
+    "MD013": false,
+    "MD033": false,
+    "MD041": false,
+    "MD024": { "siblings_only": true }
+  }
+}

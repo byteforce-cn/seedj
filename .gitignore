@@ -21,3 +21,8 @@ target/
 # Maven Wrapper：本仓库使用 only-script 分发（见 .mvn/wrapper/maven-wrapper.properties），
 # 不提交 maven-wrapper.jar。若切换为 -Dtype=bin，按官方建议改为提交该 jar（而不是忽略它）。
 .mvn/wrapper/maven-wrapper.jar
+
+# 文档站
+node_modules/
+docs/.vitepress/dist/
+docs/.vitepress/cache/
