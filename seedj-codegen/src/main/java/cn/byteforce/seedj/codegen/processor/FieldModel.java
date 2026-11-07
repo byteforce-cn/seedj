@@ -11,6 +11,7 @@ import java.util.Objects;
  *
  * @param name       字段名
  * @param type       字段类型
+ * @param javaType   原 Java 类型（生成读视图用）
  * @param required   是否必填
  * @param writeOnly  是否写入专用
  * @param filterable 是否可过滤
@@ -21,13 +22,14 @@ import java.util.Objects;
  * @author ByteForce
  * @since 1.0.0
  */
-record FieldModel(String name, FieldType type, boolean required, boolean writeOnly,
-                  boolean filterable, boolean sortable, boolean indexed, Privacy privacy,
-                  MaskerName masker) {
+record FieldModel(String name, FieldType type, String javaType, boolean required,
+                  boolean writeOnly, boolean filterable, boolean sortable, boolean indexed,
+                  Privacy privacy, MaskerName masker) {
 
     FieldModel {
         Objects.requireNonNull(name, "name");
         Objects.requireNonNull(type, "type");
+        Objects.requireNonNull(javaType, "javaType");
         Objects.requireNonNull(privacy, "privacy");
         Objects.requireNonNull(masker, "masker");
     }

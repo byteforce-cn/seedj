@@ -44,7 +44,7 @@ public class HrEmployeeModule implements ObjectModuleConfigurer {
                     .emits("hr.employee.updated")
                     .commandField("employee_id")
                     .redactedCommandField("id_number")
-                .query(HrEmployeeView.class)
+                .query(HrEmployeeFields.view())
                     .path("/api/hr/employees")
                     .permission("hr.employee.read")
                     .sort("employee_no");

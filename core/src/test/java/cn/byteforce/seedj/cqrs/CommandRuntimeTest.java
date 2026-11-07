@@ -88,6 +88,39 @@ class CommandRuntimeTest {
     }
 
     @Test
+    void createsCommandRejectsExistingObjectBeforeDecide() {
+        CountingHandler handler = new CountingHandler("D01", false);
+        FakeCommands commands = new FakeCommands();
+        FakeObjects objects = new FakeObjects();
+        objects.seed(row("D01"));
+        CommandRuntime runtime = runtime(commands, objects, SNAKE);
+        CommandRegistration registration = new CommandRegistration(descriptor(), handler, SCHEMA,
+                Set.of(), Set.of(), List.of(), true);
+
+        assertThatThrownBy(() -> runtime.execute(submission(), registration, CALLER,
+                ScopePredicate.all()))
+                .isInstanceOfSatisfying(ContractException.class, error ->
+                        assertThat(error.code()).isEqualTo(ContractErrorCode.COMMAND_REJECTED));
+        assertThat(handler.decideCalls).isZero();
+        assertThat(commands.records).hasSize(1);
+        assertThat(commands.records.get(0).status()).isEqualTo(CommandStatus.REJECTED);
+    }
+
+    @Test
+    void createsCommandAcceptsMissingObject() {
+        CountingHandler handler = new CountingHandler("D01", false);
+        CommandRuntime runtime = runtime(new FakeCommands(), new FakeObjects(), SNAKE);
+        CommandRegistration registration = new CommandRegistration(descriptor(), handler, SCHEMA,
+                Set.of(), Set.of(), List.of(), true);
+
+        CommandReceipt receipt = runtime.execute(submission(), registration, CALLER,
+                ScopePredicate.all());
+
+        assertThat(receipt.status()).isEqualTo(CommandStatus.ACCEPTED);
+        assertThat(handler.decideCalls).isEqualTo(1);
+    }
+
+    @Test
     void replayDoesNotCallTargetId() {
         CountingHandler handler = new CountingHandler("D01", false);
         FakeCommands commands = new FakeCommands();

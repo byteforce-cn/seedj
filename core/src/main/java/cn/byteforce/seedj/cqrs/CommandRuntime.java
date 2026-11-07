@@ -118,6 +118,7 @@ public final class CommandRuntime {
                     CommandRecord accepted = options.transactionRunner().inTransaction(() -> {
                         Optional<TemporalRow> current = options.temporalStore()
                                 .current(objectType, targetId);
+                        requireCreateTargetMissing(registration, current, objectType, targetId);
                         requireWriteScope(current, writeScope, schema, objectType);
                         Instant appendNow = options.clock().now();
                         CommandContext context = new CommandContext(pending.id(), targetId,
@@ -243,6 +244,16 @@ public final class CommandRuntime {
                     "command target is required");
         }
         return targetId;
+    }
+
+    private static void requireCreateTargetMissing(CommandRegistration registration,
+                                                   Optional<TemporalRow> current,
+                                                   String objectType, UUID targetId) {
+        if (registration.creates() && current.isPresent()) {
+            throw new ContractException(ContractErrorCode.COMMAND_REJECTED,
+                    "object already exists: " + objectType + ":" + targetId,
+                    Map.of("object_type", objectType, "id", targetId.toString()), null);
+        }
     }
 
     private static void requireWriteScope(Optional<TemporalRow> current,

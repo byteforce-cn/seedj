@@ -1,6 +1,6 @@
 package cn.byteforce.seedj.starter.cqrs.wiring;
 
-import cn.byteforce.seedj.biz.autoconfigure.BizEnabledMarker;
+import cn.byteforce.seedj.starter.autoconfigure.BizEnabledMarker;
 import cn.byteforce.seedj.cqrs.CommandCatalog;
 import cn.byteforce.seedj.cqrs.CommandRuntime;
 import cn.byteforce.seedj.infra.local.cqrs.InMemoryCommandStore;
@@ -67,6 +67,27 @@ class TemporalCommandAutoConfigurationTest {
                     assertThat(context).hasSingleBean(CommandController.class);
                     assertThat(context).doesNotHaveBean(
                             cn.byteforce.seedj.starter.domain.web.ObjectQueryController.class);
+                });
+    }
+
+    @Test
+    @DisplayName("模块 schema 自动进入 ObjectSchemaRegistry，无需桥接 bean")
+    void moduleSchemasFeedObjectSchemaRegistry() {
+        new ApplicationContextRunner()
+                .withConfiguration(AutoConfigurations.of(TemporalCommandAutoConfiguration.class,
+                        ObjectModuleAutoConfiguration.class))
+                .withBean(BizEnabledMarker.class)
+                .withPropertyValues("spring.profiles.active=local",
+                        "seedj.command.degraded-mode=true")
+                .withBean(ObjectModuleConfigurer.class, () -> modules ->
+                        modules.object("probe", "probe_object")
+                                .readPermission("probe.read")
+                                .field("name", FieldType.TEXT))
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context.getBean(
+                                    cn.byteforce.seedj.domain.ObjectSchemaRegistry.class)
+                            .require("probe").fieldNames()).containsExactly("name");
                 });
     }
 

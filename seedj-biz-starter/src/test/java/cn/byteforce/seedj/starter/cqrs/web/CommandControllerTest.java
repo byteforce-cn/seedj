@@ -1,6 +1,6 @@
 package cn.byteforce.seedj.starter.cqrs.web;
 
-import cn.byteforce.seedj.biz.web.ContractErrorHandler;
+import cn.byteforce.seedj.starter.web.ContractErrorHandler;
 import cn.byteforce.seedj.core.clock.Clock;
 import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;

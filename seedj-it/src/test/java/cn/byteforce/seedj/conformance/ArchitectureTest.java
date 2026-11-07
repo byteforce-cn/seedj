@@ -40,7 +40,7 @@ class ArchitectureTest {
         assertNoDependencies(
                 "biz-does-not-depend-on-iam",
                 ModuleClassPath.classesOf("seedj-biz-starter"),
-                clazz -> clazz.getPackageName().startsWith("cn.byteforce.seedj.biz"),
+                clazz -> clazz.getPackageName().startsWith("cn.byteforce.seedj.starter"),
                 dependency -> dependency.getPackageName().startsWith("cn.byteforce.seedj.iam")
                                 || dependency.getPackageName().startsWith("cn.byteforce.seedj.starter.iam"));
     }

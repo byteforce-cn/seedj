@@ -25,7 +25,7 @@ import java.time.LocalDate;
  * @author ByteForce
  * @since 1.0.0
  */
-@SeedjObject(objectType = "employee", table = "hr_employee")
+@SeedjObject(objectType = "employee", table = "hr_employee", view = true)
 public record HrEmployeeFields(
         @SeedjField(required = true, filterable = true, sortable = true, indexed = true)
         String employeeNo,
@@ -53,5 +53,14 @@ public record HrEmployeeFields(
      */
     public static cn.byteforce.seedj.domain.ObjectSchema schema() {
         return HrEmployeeFieldsSchema.schema();
+    }
+
+    /**
+     * 生成的读视图类型（元字段 + 可读字段，自动排除 writeOnly）。
+     *
+     * @return 视图类型
+     */
+    public static Class<HrEmployeeFieldsView> view() {
+        return HrEmployeeFieldsView.class;
     }
 }

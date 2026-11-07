@@ -47,6 +47,7 @@ class ObjectModulesCommandTest {
         assertThat(registration.descriptor().type()).isEqualTo("hr.employee.create");
         assertThat(registration.descriptor().permission()).isEqualTo("hr.employee.write");
         assertThat(registration.handler()).isSameAs(HANDLER);
+        assertThat(registration.creates()).isTrue();
         assertThat(registry.commandDeclarations().get(0).creates()).isTrue();
         assertThat(registry.commandDeclarations().get(0).emits())
                 .containsExactly("hr.employee.created");

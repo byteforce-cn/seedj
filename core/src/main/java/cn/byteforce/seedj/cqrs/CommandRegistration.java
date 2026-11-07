@@ -18,12 +18,14 @@ import java.util.Set;
  * @param commandFields  命令专用、不在对象 schema 中的字段（如 {@code id_number}）
  * @param redactedFields 命令专用且不得落命令记录的字段（如原始证件号）
  * @param emits          声明的事件类型；为空表示不限制
+ * @param creates        是否为创建型命令：对象已存在时运行时失败关闭
  * @author ByteForce
  * @since 1.0.0
  */
 public record CommandRegistration(CommandDescriptor descriptor, CommandHandler<?> handler,
                                   ObjectSchema schema, Set<String> commandFields,
-                                  Set<String> redactedFields, List<String> emits) {
+                                  Set<String> redactedFields, List<String> emits,
+                                  boolean creates) {
 
     public CommandRegistration {
         descriptor = Objects.requireNonNull(descriptor, "descriptor");
@@ -59,7 +61,7 @@ public record CommandRegistration(CommandDescriptor descriptor, CommandHandler<?
      */
     public CommandRegistration(CommandDescriptor descriptor, CommandHandler<?> handler,
                                ObjectSchema schema) {
-        this(descriptor, handler, schema, Set.of(), Set.of(), List.of());
+        this(descriptor, handler, schema, Set.of(), Set.of(), List.of(), false);
     }
 
     /**
@@ -72,7 +74,7 @@ public record CommandRegistration(CommandDescriptor descriptor, CommandHandler<?
      */
     public CommandRegistration(CommandDescriptor descriptor, CommandHandler<?> handler,
                                ObjectSchema schema, Set<String> commandFields) {
-        this(descriptor, handler, schema, commandFields, Set.of(), List.of());
+        this(descriptor, handler, schema, commandFields, Set.of(), List.of(), false);
     }
 
     /**
@@ -87,6 +89,22 @@ public record CommandRegistration(CommandDescriptor descriptor, CommandHandler<?
     public CommandRegistration(CommandDescriptor descriptor, CommandHandler<?> handler,
                                ObjectSchema schema, Set<String> commandFields,
                                Set<String> redactedFields) {
-        this(descriptor, handler, schema, commandFields, redactedFields, List.of());
+        this(descriptor, handler, schema, commandFields, redactedFields, List.of(), false);
+    }
+
+    /**
+     * 声明事件类型但仍使用默认脱敏集合的注册项。
+     *
+     * @param descriptor    命令描述
+     * @param handler       处理器
+     * @param schema        对象 schema
+     * @param commandFields 命令专用字段
+     * @param redactedFields 命令专用且不得落命令记录的字段
+     * @param emits         声明的事件类型
+     */
+    public CommandRegistration(CommandDescriptor descriptor, CommandHandler<?> handler,
+                               ObjectSchema schema, Set<String> commandFields,
+                               Set<String> redactedFields, List<String> emits) {
+        this(descriptor, handler, schema, commandFields, redactedFields, emits, false);
     }
 }

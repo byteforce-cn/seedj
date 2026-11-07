@@ -52,7 +52,7 @@
         <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
     </Match>
     <Match>
-        <Class name="cn.byteforce.seedj.biz.security.JwtCallerProvider"/>
+        <Class name="cn.byteforce.seedj.starter.security.JwtCallerProvider"/>
         <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
     </Match>
 

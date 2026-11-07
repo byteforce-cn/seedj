@@ -33,7 +33,7 @@ class SeedjObjectProcessorTest {
             import cn.byteforce.seedj.domain.Privacy;
             import java.time.LocalDate;
 
-            @SeedjObject(objectType = "employee", table = "hr_employee")
+            @SeedjObject(objectType = "employee", table = "hr_employee", view = true)
             public record EmployeeFields(
                     @SeedjField(required = true, filterable = true, sortable = true,
                             indexed = true) String employeeNo,
@@ -59,6 +59,13 @@ class SeedjObjectProcessorTest {
         assertThat(source).contains("ObjectSchema.builder(\"employee\", \"hr_employee\")");
         assertThat(source).contains("employee_no");
         assertThat(source).contains("cn.byteforce.seedj.domain.Maskers.last4()");
+
+        Path view = generated.resolve("fixture/EmployeeFieldsView.java");
+        assertThat(view).isRegularFile();
+        String viewSource = Files.readString(view);
+        assertThat(viewSource).contains("public record EmployeeFieldsView(");
+        assertThat(viewSource).contains("String employeeNo");
+        assertThat(viewSource).doesNotContain("idNumberHash");
 
         Path openapi = classes.resolve("META-INF/seedj/openapi/employee.yaml");
         assertThat(openapi).isRegularFile();

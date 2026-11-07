@@ -111,6 +111,7 @@ public final class SeedjObjectProcessor extends AbstractProcessor {
                 valid = false;
                 continue;
             }
+            String javaType = javaTypeName(component);
             FieldType fieldType = fieldType(component);
             if (fieldType == null) {
                 error(component, "unsupported field type: " + component.asType()
@@ -122,6 +123,7 @@ public final class SeedjObjectProcessor extends AbstractProcessor {
             fields.add(new FieldModel(
                     name,
                     fieldType,
+                    javaType,
                     spec != null && spec.required(),
                     spec != null && spec.writeOnly(),
                     spec != null && spec.filterable(),
@@ -140,7 +142,19 @@ public final class SeedjObjectProcessor extends AbstractProcessor {
         String packageName = processingEnv.getElementUtils()
                 .getPackageOf(type).getQualifiedName().toString();
         return new ObjectModel(objectType, table, packageName, type.getSimpleName().toString(),
-                fields);
+                declaration.view(), fields);
+    }
+
+    private static String javaTypeName(RecordComponentElement component) {
+        TypeMirror mirror = component.asType();
+        if (mirror.getKind().isPrimitive()) {
+            return mirror.toString();
+        }
+        if (mirror.getKind() == TypeKind.DECLARED) {
+            return ((TypeElement) ((DeclaredType) mirror).asElement())
+                    .getQualifiedName().toString();
+        }
+        return mirror.toString();
     }
 
     private FieldType fieldType(RecordComponentElement component) {
@@ -174,12 +188,31 @@ public final class SeedjObjectProcessor extends AbstractProcessor {
                     + failure.getMessage());
             return;
         }
+        if (model.view()) {
+            writeView(origin, model);
+        }
         write(filer, origin, "META-INF/seedj/openapi/" + model.objectType() + ".yaml",
                 SchemaRenderer.openApi(model));
         write(filer, origin, "META-INF/seedj/ddl/" + model.table() + "-create.sql",
                 SchemaRenderer.createSql(model));
         write(filer, origin, "META-INF/seedj/ddl/" + model.table() + "-columns.sql",
                 SchemaRenderer.alterSql(model));
+    }
+
+    private void writeView(TypeElement origin, ObjectModel model) {
+        Filer filer = processingEnv.getFiler();
+        String qualified = model.packageName().isEmpty()
+                ? model.viewClassName()
+                : model.packageName() + "." + model.viewClassName();
+        try {
+            JavaFileObject source = filer.createSourceFile(qualified, origin);
+            try (Writer writer = source.openWriter()) {
+                writer.write(SchemaRenderer.viewSource(model));
+            }
+        } catch (IOException failure) {
+            error(origin, "cannot write generated view " + qualified + ": "
+                    + failure.getMessage());
+        }
     }
 
     private void write(Filer filer, Element origin, String path, String content) {

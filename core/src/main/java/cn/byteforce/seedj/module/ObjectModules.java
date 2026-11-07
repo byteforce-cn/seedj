@@ -136,7 +136,8 @@ public final class ObjectModules {
                         command.creates, command.emits, command.commandFields,
                         command.redactedFields));
                 registrations.add(new CommandRegistration(descriptor, command.handler, schema,
-                        command.commandFields, command.redactedFields, command.emits));
+                        command.commandFields, command.redactedFields, command.emits,
+                        command.creates));
             }
             for (QuerySpec query : object.queries) {
                 ObjectSchema fieldSchema = schema;
@@ -496,6 +497,11 @@ public final class ObjectModules {
             return this;
         }
 
+        /**
+         * 声明为创建型命令：运行时在对象已存在时失败关闭，避免重复创建或误把更新当创建。
+         *
+         * @return 本命令
+         */
         public CommandSpec creates() {
             this.creates = true;
             return this;

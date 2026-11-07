@@ -7,10 +7,8 @@ import cn.byteforce.seedj.core.security.ContextWriter;
 import cn.byteforce.seedj.core.security.DerivedField;
 import cn.byteforce.seedj.core.security.DerivedFieldKeyRing;
 import cn.byteforce.seedj.core.security.DerivedFieldRegistry;
-import cn.byteforce.seedj.domain.ObjectSchema;
 import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.infra.local.id.Uuid7IdGenerator;
-import cn.byteforce.seedj.module.ObjectModuleRegistry;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -32,17 +30,6 @@ import java.util.UUID;
  */
 @Configuration(proxyBeanMethods = false)
 public class HrEmployeeConfiguration {
-
-    /**
-     * 员工对象 schema：对象存储需要按类型取字段定义。
-     *
-     * @param registry 模块注册表
-     * @return schema
-     */
-    @Bean
-    public ObjectSchema hrEmployeeSchema(ObjectModuleRegistry registry) {
-        return registry.require("employee").schema();
-    }
 
     /**
      * 证件散列派生：优先 {@code seedj.security.derived-field-keys}，否则读环境变量。

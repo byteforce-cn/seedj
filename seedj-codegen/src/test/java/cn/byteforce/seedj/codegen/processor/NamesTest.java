@@ -17,4 +17,13 @@ class NamesTest {
         assertThat(Names.snakeCase("name")).isEqualTo("name");
         assertThat(Names.snakeCase("phone2")).isEqualTo("phone2");
     }
+
+    @Test
+    @DisplayName("snake_case 转 camelCase 用于生成视图组件")
+    void camelCase() {
+        assertThat(Names.camelCase("employee_no")).isEqualTo("employeeNo");
+        assertThat(Names.camelCase("org_unit_id")).isEqualTo("orgUnitId");
+        assertThat(Names.camelCase("id_number_hash")).isEqualTo("idNumberHash");
+        assertThat(Names.camelCase("name")).isEqualTo("name");
+    }
 }

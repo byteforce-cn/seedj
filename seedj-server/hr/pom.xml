@@ -31,6 +31,13 @@
         </dependency>
         <dependency>
             <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>seedj-infra-local</artifactId>
+            <version>${revision}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>cn.byteforce.seedj</groupId>
             <artifactId>seedj-jdbc-postgresql</artifactId>
         </dependency>
 
@@ -95,6 +102,7 @@
                     <!-- 生成代码不计覆盖率：审查看生成器与 record，不看生成结果 -->
                     <excludes>
                         <exclude>**/*Schema</exclude>
+                        <exclude>**/*View</exclude>
                     </excludes>
                 </configuration>
             </plugin>
