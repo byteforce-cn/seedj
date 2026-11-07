@@ -1,5 +1,6 @@
 package cn.byteforce.seedj.starter.iam.authz;
 
+import cn.byteforce.seedj.iam.authz.AttributeLookup;
 import cn.byteforce.seedj.iam.authz.AttributeSnapshot;
 import cn.byteforce.seedj.iam.authz.AttributeState;
 import cn.byteforce.seedj.iam.authz.IamBinding;
@@ -202,6 +203,128 @@ class IamContractAuthorizationServiceTest {
                 null, null).allowed()).isFalse();
         assertThat(service.check("worker", "purchase.request.approve.lead", SEP, null,
                 null, null).allowed()).isTrue();
+    }
+
+    @Test
+    @DisplayName("重复的权限条件声明在构造期失败")
+    void duplicateConditionFails() {
+        List<IamPermissionCondition> duplicated = List.of(
+                new IamPermissionCondition("purchase.request.approve", new IamCondition("all",
+                        List.of(new IamConditionTerm("primary_position.grade",
+                                IamConditionOperator.IN, List.of("P5"))))),
+                new IamPermissionCondition("purchase.request.approve", new IamCondition("any",
+                        List.of(new IamConditionTerm("primary_position.grade",
+                                IamConditionOperator.EQ, List.of("M2"))))));
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                () -> new IamContractAuthorizationService(bindings, roles, attributes,
+                        duplicated, SodRuleSet.defaults()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("duplicate condition for permission: "
+                        + "purchase.request.approve");
+    }
+
+    @Test
+    @DisplayName("无条件声明与空规则集都不影响解析")
+    void nullConditionsAndRuleSetResolve() {
+        IamContractAuthorizationService service = new IamContractAuthorizationService(bindings,
+                roles, attributes, null, null);
+
+        IamResolution resolution = service.resolve("requester", OCT15, null, Map.of());
+        IamCheckResult result = service.check("requester", "purchase.request.create", OCT15,
+                null, null, null);
+
+        assertThat(resolution.roles()).containsExactly("requester");
+        assertThat(resolution.sodWarnings()).isEmpty();
+        assertThat(result.allowed()).isTrue();
+    }
+
+    @Test
+    @DisplayName("作用域过滤：不匹配的绑定与代理都被排除")
+    void scopeFilterExcludesMismatchedBindings() {
+        IamContractAuthorizationService service = service(List.of());
+
+        IamResolution matched = service.resolve("worker", OCT15, null,
+                Map.of("department", "D001"));
+        IamResolution mismatched = service.resolve("worker", OCT15, null,
+                Map.of("department", "D999"));
+        IamResolution nullScope = service.resolve("worker", OCT15, null, null);
+
+        assertThat(matched.permissions()).contains("purchase.request.approve");
+        assertThat(mismatched.permissions()).isEmpty();
+        assertThat(nullScope.permissions()).contains("purchase.request.approve");
+    }
+
+    @Test
+    @DisplayName("系统时点过滤：recorded_as_of 之前的绑定才生效")
+    void recordedAsOfFiltersBindings() {
+        IamContractAuthorizationService service = service(List.of());
+
+        assertThat(service.resolve("requester", OCT15, Instant.parse("2025-12-31T00:00:00Z"),
+                Map.of()).permissions()).isEmpty();
+        assertThat(service.resolve("requester", OCT15, OCT15, Map.of()).permissions())
+                .containsExactly("purchase.request.create");
+    }
+
+    @Test
+    @DisplayName("调用方快照优先于属性源，状态缺省为 fresh")
+    void providedSnapshotIsUsedWithDefaultState() {
+        IamContractAuthorizationService service = service(conditions());
+
+        IamCheckResult allowed = service.check("worker", "purchase.request.approve", OCT15,
+                null, Map.of("primary_position", Map.of("grade", "P5")), null);
+        IamCheckResult denied = service.check("worker", "purchase.request.approve", OCT15,
+                null, Map.of("primary_position", Map.of("grade", "M2")), null);
+
+        assertThat(allowed.allowed()).isTrue();
+        assertThat(allowed.attributeState()).isEqualTo(AttributeState.FRESH);
+        assertThat(denied.allowed()).isFalse();
+        assertThat(denied.reasonCode()).isEqualTo("ATTRIBUTE_MISMATCH");
+    }
+
+    @Test
+    @DisplayName("调用方声明的快照状态非 fresh 时失败关闭")
+    void providedStateFailsClosed() {
+        IamContractAuthorizationService service = service(conditions());
+
+        assertThat(service.check("worker", "purchase.request.approve", OCT15, null, Map.of(),
+                AttributeState.STALE).reasonCode()).isEqualTo("ATTRIBUTE_STALE");
+        assertThat(service.check("worker", "purchase.request.approve", OCT15, null, Map.of(),
+                AttributeState.MISSING).reasonCode()).isEqualTo("ATTRIBUTE_MISSING");
+        assertThat(service.check("worker", "purchase.request.approve", OCT15, null, Map.of(),
+                AttributeState.SOURCE_UNAVAILABLE).reasonCode())
+                .isEqualTo("ATTRIBUTE_SOURCE_UNAVAILABLE");
+        IamCheckResult unexpected = service.check("worker", "purchase.request.approve", OCT15,
+                null, Map.of(), AttributeState.NOT_REQUIRED);
+        assertThat(unexpected.reasonCode()).isEqualTo("ATTRIBUTE_MISSING");
+        assertThat(unexpected.reason()).isEqualTo("attribute snapshot is not fresh");
+    }
+
+    @Test
+    @DisplayName("属性源返回 fresh 但无快照时条件按空属性失败")
+    void freshLookupWithoutSnapshotEvaluatesEmptyBody() {
+        IamContractAuthorizationService service = new IamContractAuthorizationService(bindings,
+                roles, (principal, asOf, recordedAsOf) ->
+                        new AttributeLookup(AttributeState.FRESH, null),
+                conditions(), SodRuleSet.defaults());
+
+        IamCheckResult result = service.check("worker", "purchase.request.approve", OCT15,
+                null, null, null);
+
+        assertThat(result.allowed()).isFalse();
+        assertThat(result.reasonCode()).isEqualTo("ATTRIBUTE_MISSING");
+        assertThat(result.attributeState()).isEqualTo(AttributeState.FRESH);
+    }
+
+    @Test
+    @DisplayName("attributes 直接返回属性源结果")
+    void attributesDelegatesToSource() {
+        IamContractAuthorizationService service = service(List.of());
+
+        AttributeLookup lookup = service.attributes("worker", OCT15, null);
+
+        assertThat(lookup.state()).isEqualTo(AttributeState.FRESH);
+        assertThat(lookup.snapshot().principal()).isEqualTo("worker");
     }
 
     private IamContractAuthorizationService service(List<IamPermissionCondition> conditions) {
