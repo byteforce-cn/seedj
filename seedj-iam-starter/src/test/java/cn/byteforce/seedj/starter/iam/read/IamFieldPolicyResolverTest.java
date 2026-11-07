@@ -124,6 +124,42 @@ class IamFieldPolicyResolverTest {
                         .containsEntry("classification", "SENSITIVE"));
     }
 
+    @Test
+    void maskedExplicitDenyIsHidden() {
+        IamFieldPolicyResolver resolver = new IamFieldPolicyResolver(
+                new StubPdp(request -> request.action().equals("read.masked")
+                        ? IamAuthorizationDecision.deny("denied", "deny-masked")
+                        : IamAuthorizationDecision.deny("no matching allow policy")),
+                registry());
+
+        FieldPolicy policy = resolver.resolve("employee", caller(), ScopeContext.empty());
+
+        assertThat(policy.fields().get("phone").action()).isEqualTo(HIDDEN);
+        assertThat(policy.fields().get("phone").policyId()).isEqualTo("deny-masked");
+    }
+
+    @Test
+    void supportsOnlyDeclaredObjectTypes() {
+        IamFieldPolicyResolver resolver = new IamFieldPolicyResolver(
+                new StubPdp(request -> IamAuthorizationDecision.deny("no matching allow policy")),
+                registry());
+
+        assertThat(resolver.supports("employee")).isTrue();
+        assertThat(resolver.supports("invoice")).isFalse();
+    }
+
+    @Test
+    void unknownObjectTypeFails() {
+        IamFieldPolicyResolver resolver = new IamFieldPolicyResolver(
+                new StubPdp(request -> IamAuthorizationDecision.deny("no matching allow policy")),
+                registry());
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                () -> resolver.resolve("invoice", caller(), ScopeContext.empty()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("unknown object type: invoice");
+    }
+
     private static final class StubPdp implements IamPolicyDecisionPoint {
 
         private final java.util.function.Function<IamAuthorizationRequest,
