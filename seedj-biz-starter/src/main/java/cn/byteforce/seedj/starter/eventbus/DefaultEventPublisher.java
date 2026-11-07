@@ -13,6 +13,8 @@ import cn.byteforce.seedj.outbox.OutboxWriter;
 import cn.byteforce.seedj.outbox.spi.OutboxStore;
 import org.springframework.beans.factory.ObjectProvider;
 
+import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.CompletionException;
 
 /**
@@ -54,12 +56,22 @@ public class DefaultEventPublisher implements EventPublisher {
 
     @Override
     public void publish(DomainEvent event) {
+        publish(event, idGenerator.id());
+    }
+
+    @Override
+    public void publish(DomainEvent event, UUID eventId) {
+        Objects.requireNonNull(eventId, "eventId");
+        publish(event, eventId.toString());
+    }
+
+    private void publish(DomainEvent event, String eventId) {
         EventPayloadSerializer payloadSerializer = serializer.getIfAvailable();
         if (payloadSerializer == null) {
             throw new EventBusException(EventBusErrorCode.NO_SERIALIZER,
                     "no EventPayloadSerializer bean; register one or add Jackson to the classpath");
         }
-        publish(EventMessage.from(idGenerator.id(), event, payloadSerializer.serialize(event)));
+        publish(EventMessage.from(eventId, event, payloadSerializer.serialize(event)));
     }
 
     @Override

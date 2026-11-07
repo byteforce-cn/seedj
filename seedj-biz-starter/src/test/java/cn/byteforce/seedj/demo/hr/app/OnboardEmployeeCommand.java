@@ -1,6 +1,7 @@
 package cn.byteforce.seedj.demo.hr.app;
 
 import cn.byteforce.seedj.cqrs.Command;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import cn.byteforce.seedj.demo.hr.domain.EmployeeId;
 
 import java.time.LocalDate;
@@ -23,12 +24,12 @@ import java.util.Objects;
  * @since 1.0.0
  */
 public record OnboardEmployeeCommand(
-        EmployeeId employeeId,
-        String employeeNo,
-        String name,
-        String department,
-        String position,
-        LocalDate hireDate) implements Command<EmployeeId> {
+        @JsonProperty("employee_id") EmployeeId employeeId,
+        @JsonProperty("employee_no") String employeeNo,
+        @JsonProperty("name") String name,
+        @JsonProperty("department") String department,
+        @JsonProperty("position") String position,
+        @JsonProperty("hire_date") LocalDate hireDate) implements Command<EmployeeId> {
 
     public OnboardEmployeeCommand {
         Objects.requireNonNull(employeeId, "employeeId");

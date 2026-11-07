@@ -94,10 +94,15 @@ public final class CommandRuntime {
         requireKnownPayloadFields(submission.payload(), schema, registration.commandFields());
         Object command = decode(submission.payload(), descriptor);
         validate(descriptor, command);
-        UUID targetId = requireTargetId(registration.handler(), command);
+        String targetRef = registration.isEventSourced()
+                ? requireAgentTarget(registration, command, submission)
+                : null;
+        UUID targetId = registration.isEventSourced()
+                ? null : requireTargetId(registration.handler(), command);
 
         Instant now = options.clock().now();
-        Map<String, Object> storedPayload = descriptor.redactor().redact(submission.payload());
+        Map<String, Object> storedPayload = storedPayload(submission.payload(), schema,
+                registration.redactedFields(), descriptor.redactor());
         CommandRecord pending = CommandRecord.pending(options.idGenerator().id(), submission.type(),
                 now, submission.issuer(), storedPayload, submission.idempotencyKey(),
                 fingerprint, now, now.plus(options.pendingLease()));
@@ -110,6 +115,46 @@ public final class CommandRuntime {
             return replayOrConflict(winner, fingerprint);
         }
 
+        if (registration.isEventSourced()) {
+            return executeEventSourced(registration, command, targetRef, pending, writeScope);
+        }
+        return executeTemporal(submission, registration, caller, writeScope, command,
+                objectType, targetId, pending);
+    }
+
+    private CommandReceipt executeEventSourced(CommandRegistration registration, Object command,
+                                               String targetRef, CommandRecord pending,
+                                               ScopePredicate writeScope) {
+        try {
+            AgentInvocation invocation = new AgentInvocation(targetRef, pending,
+                    registration.schema(), registration, writeScope, options.jsonMapper(),
+                    options.commandStore(), options.idGenerator());
+            CommandRecord accepted = registration.agent()
+                    .executeWithin((Command<?>) command, invocation);
+            return CommandReceipt.from(accepted);
+        } catch (CqrsException error) {
+            if (error.getErrorCode() == CqrsErrorCode.COMMAND_REJECTED) {
+                throw reject(pending, new ContractException(ContractErrorCode.COMMAND_REJECTED,
+                        error.getMessage()));
+            }
+            options.commandStore().abandon(pending.id());
+            throw error;
+        } catch (ContractException error) {
+            throw reject(pending, error);
+        } catch (IllegalArgumentException error) {
+            throw reject(pending, invalidPayload(error));
+        } catch (RuntimeException error) {
+            options.commandStore().abandon(pending.id());
+            throw error;
+        }
+    }
+
+    private CommandReceipt executeTemporal(CommandSubmission submission,
+                                           CommandRegistration registration, Caller caller,
+                                           ScopePredicate writeScope, Object command,
+                                           String objectType, UUID targetId,
+                                           CommandRecord pending) {
+        ObjectSchema schema = registration.schema();
         try {
             String lockKey = objectType + ':' + targetId;
             try (LockLease ignored = options.lockProvider().acquire(lockKey, options.lockTtl())) {
@@ -117,6 +162,7 @@ public final class CommandRuntime {
                     CommandRecord accepted = options.transactionRunner().inTransaction(() -> {
                         Optional<TemporalRow> current = options.temporalStore()
                                 .current(objectType, targetId);
+                        requireCreateTargetMissing(registration, current, objectType, targetId);
                         requireWriteScope(current, writeScope, schema, objectType);
                         Instant appendNow = options.clock().now();
                         CommandContext context = new CommandContext(pending.id(), targetId,
@@ -131,12 +177,15 @@ public final class CommandRuntime {
                         requireResultScope(request, writeScope, schema, appendNow,
                                 submission.issuer());
                         AppendResult result = options.temporalStore().append(request);
-                        List<CommandEvent> events = handler(registration).events(command, result,
-                                context);
+                        List<CommandEvent> events = handler(registration)
+                                .events(command, result, context);
+                        requireDeclaredEvents(events, registration.emits());
+                        events = filterEvents(events, schema);
                         List<UUID> eventIds = writeEvents(events);
                         CommandRecord record = pending.accepted(result.appended().version().id(),
                                 result.appended().version().version(), eventIds);
-                        options.temporalAudit().accepted(record, descriptor.objectType(), events);
+                        options.temporalAudit().accepted(record, registration.descriptor()
+                                .objectType(), events);
                         options.commandStore().complete(record);
                         return record;
                     });
@@ -226,6 +275,28 @@ public final class CommandRuntime {
         }
     }
 
+    private static String requireAgentTarget(CommandRegistration registration, Object command,
+                                             CommandSubmission submission) {
+        if (!submission.targets().isEmpty()) {
+            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
+                    "event-sourced commands must not declare targets");
+        }
+        String target;
+        try {
+            target = registration.agent().encodedTarget((Command<?>) command);
+        } catch (CqrsException error) {
+            throw invalidPayload(new IllegalArgumentException(error.getMessage(), error));
+        } catch (RuntimeException error) {
+            throw invalidPayload(error instanceof IllegalArgumentException invalid
+                    ? invalid : new IllegalArgumentException("command target is required", error));
+        }
+        if (target == null || target.isBlank() || target.length() > 255) {
+            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
+                    "command target is required and must be at most 255 characters");
+        }
+        return target;
+    }
+
     @SuppressWarnings("unchecked")
     private static UUID requireTargetId(CommandHandler<?> handler, Object command) {
         UUID targetId;
@@ -240,6 +311,16 @@ public final class CommandRuntime {
                     "command target is required");
         }
         return targetId;
+    }
+
+    private static void requireCreateTargetMissing(CommandRegistration registration,
+                                                   Optional<TemporalRow> current,
+                                                   String objectType, UUID targetId) {
+        if (registration.creates() && current.isPresent()) {
+            throw new ContractException(ContractErrorCode.COMMAND_REJECTED,
+                    "object already exists: " + objectType + ":" + targetId,
+                    Map.of("object_type", objectType, "id", targetId.toString()), null);
+        }
     }
 
     private static void requireWriteScope(Optional<TemporalRow> current,
@@ -282,6 +363,9 @@ public final class CommandRuntime {
         if (record.locator() != null) {
             result.put("locator", record.locator().toString());
         }
+        if (record.targetRef() != null) {
+            result.put("target_ref", record.targetRef());
+        }
         if (record.version() != null) {
             result.put("version", record.version());
         }
@@ -294,8 +378,46 @@ public final class CommandRuntime {
         return result;
     }
 
-    private List<UUID> writeEvents(List<CommandEvent> events) {
+    /**
+     * 写入命令记录前的载荷收敛：自定义 redactor 先执行，随后无条件剔除 schema writeOnly
+     * 与声明为 redacted 的命令专用字段。业务代码不需要为每条命令手工记住要删哪些键。
+     */
+    private static Map<String, Object> storedPayload(Map<String, Object> payload,
+                                                     ObjectSchema schema,
+                                                     Set<String> redactedFields,
+                                                     CommandPayloadRedactor redactor) {
+        Map<String, Object> redacted = new LinkedHashMap<>(redactor.redact(payload));
+        redacted.keySet().removeAll(schema.writeOnlyFields());
+        redacted.keySet().removeAll(redactedFields);
+        return redacted;
+    }
+
+    private static void requireDeclaredEvents(List<CommandEvent> events, List<String> emits) {
+        if (emits.isEmpty() || events == null) {
+            return;
+        }
+        for (CommandEvent event : events) {
+            if (!emits.contains(event.type())) {
+                throw new IllegalStateException(
+                        "undeclared command event: " + event.type() + "; declared " + emits);
+            }
+        }
+    }
+
+    private static List<CommandEvent> filterEvents(List<CommandEvent> events,
+                                                   ObjectSchema schema) {
         if (events == null || events.isEmpty()) {
+            return List.of();
+        }
+        List<CommandEvent> filtered = new ArrayList<>(events.size());
+        for (CommandEvent event : events) {
+            filtered.add(filterEvent(event, schema));
+        }
+        return List.copyOf(filtered);
+    }
+
+    private List<UUID> writeEvents(List<CommandEvent> events) {
+        if (events.isEmpty()) {
             return List.of();
         }
         Set<String> keys = new HashSet<>();
@@ -309,6 +431,16 @@ public final class CommandRuntime {
             eventIds.add(event.id());
         }
         return List.copyOf(eventIds);
+    }
+
+    private static CommandEvent filterEvent(CommandEvent event, ObjectSchema schema) {
+        Map<String, Object> filtered = schema.eventPayload(event.payload());
+        if (filtered.equals(event.payload())) {
+            return event;
+        }
+        return new CommandEvent(event.id(), event.type(), event.occurredAt(),
+                event.recordedAt(), event.actor(), event.subjects(), filtered,
+                event.idempotencyKey(), event.version());
     }
 
     private void writeOutbox(CommandEvent event) {

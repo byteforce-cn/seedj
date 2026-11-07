@@ -2,7 +2,7 @@ package cn.byteforce.seedj.module;
 
 import cn.byteforce.seedj.core.security.ScopeKey;
 import cn.byteforce.seedj.core.security.ScopeKeyCatalog;
-import cn.byteforce.seedj.cqrs.CommandDescriptor;
+import cn.byteforce.seedj.cqrs.CommandAgent;
 import cn.byteforce.seedj.cqrs.CommandHandler;
 import cn.byteforce.seedj.cqrs.CommandPayloadRedactor;
 import cn.byteforce.seedj.cqrs.CommandRegistration;
@@ -14,7 +14,6 @@ import cn.byteforce.seedj.domain.ObjectSchema;
 import cn.byteforce.seedj.domain.Privacy;
 import cn.byteforce.seedj.read.ReadModel;
 
-import java.lang.reflect.RecordComponent;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -109,32 +108,8 @@ public final class ObjectModules {
                     new ReadModel(object.objectType, schema, object.readPermission));
             keys.addAll(object.contextKeys);
             for (CommandSpec command : object.commands) {
-                if (!commandTypes.add(command.type)) {
-                    throw new IllegalArgumentException(
-                            "duplicate command type: " + command.type);
-                }
-                if (command.permission == null || command.permission.isBlank()) {
-                    throw new IllegalArgumentException(
-                            "command " + command.type + " must declare a permission");
-                }
-                if (command.handler == null) {
-                    throw new IllegalArgumentException(
-                            "command " + command.type + " must declare a handler");
-                }
-                requirePayloadFields(command, schema);
-                CommandDescriptor descriptor = CommandDescriptor.builder()
-                        .type(command.type)
-                        .objectType(object.objectType)
-                        .payloadType(command.payloadType)
-                        .permission(command.permission)
-                        .validator(command.validator)
-                        .redactor(command.redactor)
-                        .build();
-                declarations.add(new CommandDeclaration(object.objectType, command.type,
-                        command.payloadType, command.permission, command.handler,
-                        command.creates, command.emits, command.commandFields));
-                registrations.add(new CommandRegistration(descriptor, command.handler, schema,
-                        command.commandFields));
+                ObjectModuleCommands.register(command, object.objectType, schema, commandTypes,
+                        declarations, registrations);
             }
             for (QuerySpec query : object.queries) {
                 ObjectSchema fieldSchema = schema;
@@ -162,40 +137,6 @@ public final class ObjectModules {
         }
         return new ObjectModuleRegistry(models, queries, declarations, registrations,
                 ScopeKeyCatalog.of(keys));
-    }
-
-    private static void requirePayloadFields(CommandSpec command, ObjectSchema schema) {
-        if (!command.payloadType.isRecord()) {
-            throw new IllegalArgumentException(
-                    "command payload must be a record: " + command.payloadType.getName());
-        }
-        Set<String> allowed = new LinkedHashSet<>(command.commandFields);
-        for (FieldDefinition field : schema.fields()) {
-            allowed.add(field.name());
-        }
-        for (RecordComponent component : command.payloadType.getRecordComponents()) {
-            String field = snakeCase(component.getName());
-            if (!allowed.contains(field)) {
-                throw new IllegalArgumentException("command " + command.type
-                        + " payload field is not in schema: " + field);
-            }
-        }
-    }
-
-    private static String snakeCase(String camel) {
-        StringBuilder out = new StringBuilder(camel.length() + 4);
-        for (int i = 0; i < camel.length(); i++) {
-            char c = camel.charAt(i);
-            if (Character.isUpperCase(c)) {
-                if (i > 0) {
-                    out.append('_');
-                }
-                out.append(Character.toLowerCase(c));
-            } else {
-                out.append(c);
-            }
-        }
-        return out.toString();
     }
 
     /** 对象声明。 */
@@ -482,11 +423,17 @@ public final class ObjectModules {
 
         private CommandHandler<?> handler;
 
+        private CommandAgent<?, ?, ?> agent;
+
         private boolean creates;
+
+        private boolean createsDeclared;
 
         private List<String> emits = List.of();
 
         private final Set<String> commandFields = new LinkedHashSet<>();
+
+        private final Set<String> redactedFields = new LinkedHashSet<>();
 
         private CommandValidator validator = CommandValidator.none();
 
@@ -508,8 +455,25 @@ public final class ObjectModules {
             return this;
         }
 
+        /**
+         * 声明为事件溯源命令：执行模型由 agent 提供，handler 必须为空。
+         *
+         * @param value 命令代理
+         * @return 本命令
+         */
+        public CommandSpec agent(CommandAgent<?, ?, ?> value) {
+            this.agent = value;
+            return this;
+        }
+
+        /**
+         * 声明为创建型命令：运行时在对象已存在时失败关闭，避免重复创建或误把更新当创建。
+         *
+         * @return 本命令
+         */
         public CommandSpec creates() {
             this.creates = true;
+            this.createsDeclared = true;
             return this;
         }
 
@@ -523,6 +487,18 @@ public final class ObjectModules {
             return this;
         }
 
+        /**
+         * 声明一个命令专用、且不得落命令记录的敏感字段（如原始证件号）。
+         *
+         * @param field 字段名
+         * @return 本命令
+         */
+        public CommandSpec redactedCommandField(String field) {
+            this.commandFields.add(field);
+            this.redactedFields.add(field);
+            return this;
+        }
+
         public CommandSpec validator(CommandValidator value) {
             this.validator = value == null ? CommandValidator.none() : value;
             return this;
@@ -531,6 +507,54 @@ public final class ObjectModules {
         public CommandSpec redactor(CommandPayloadRedactor value) {
             this.redactor = value == null ? CommandPayloadRedactor.noop() : value;
             return this;
+        }
+
+        String type() {
+            return type;
+        }
+
+        Class<?> payloadType() {
+            return payloadType;
+        }
+
+        String permission() {
+            return permission;
+        }
+
+        CommandHandler<?> handler() {
+            return handler;
+        }
+
+        CommandAgent<?, ?, ?> agent() {
+            return agent;
+        }
+
+        boolean createsFlag() {
+            return creates;
+        }
+
+        boolean createsDeclared() {
+            return createsDeclared;
+        }
+
+        List<String> emits() {
+            return emits;
+        }
+
+        Set<String> commandFields() {
+            return commandFields;
+        }
+
+        Set<String> redactedFields() {
+            return redactedFields;
+        }
+
+        CommandValidator validator() {
+            return validator;
+        }
+
+        CommandPayloadRedactor redactor() {
+            return redactor;
         }
 
         /**

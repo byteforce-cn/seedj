@@ -1,5 +1,7 @@
 package cn.byteforce.seedj.demo.hr.domain;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+
 /**
  * 员工标识：业务值对象，而不是裸 {@code String}。
  *
@@ -19,6 +21,7 @@ public record EmployeeId(String value) {
         }
     }
 
+    @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
     public static EmployeeId of(String value) {
         return new EmployeeId(value);
     }

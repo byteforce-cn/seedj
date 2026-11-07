@@ -12,7 +12,6 @@ import cn.byteforce.seedj.domain.event.CommandEvent;
 
 import java.time.LocalDate;
 import java.time.ZoneOffset;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -80,14 +79,7 @@ public final class HrEmployeeUpdateHandler extends AbstractCommandHandler<HrEmpl
         if (command.idNumber() != null && command.idNumber().isBlank()) {
             throw reject(ContractErrorCode.INVALID_PAYLOAD, "id_number must not be blank");
         }
-        Map<String, Object> changes = new LinkedHashMap<>();
-        putIfPresent(changes, "name", command.name());
-        putIfPresent(changes, "employment_type", command.employmentType());
-        putIfPresent(changes, "work_location", command.workLocation());
-        putIfPresent(changes, "phone", command.phone());
-        putIfPresent(changes, "org_unit_id", command.orgUnitId());
-        putIfPresent(changes, "status", command.status());
-        putIfPresent(changes, "hire_date", command.hireDate());
+        Map<String, Object> changes = schemaFields(ctx, command);
         if (command.idNumber() != null && !command.idNumber().isBlank()) {
             changes.put(HrEmployeeCreateHandler.ID_NUMBER_HASH,
                     derived.require(HrEmployeeCreateHandler.ID_NUMBER_HASH)
@@ -99,8 +91,7 @@ public final class HrEmployeeUpdateHandler extends AbstractCommandHandler<HrEmpl
     @Override
     public List<CommandEvent> events(HrEmployeeUpdate command, AppendResult result,
                                      CommandContext ctx) {
-        return List.of(ctx.event("hr.employee.updated",
-                HrEmployeeEvents.payload(ctx.schema(), result.appended())));
+        return List.of(ctx.event("hr.employee.updated", result.appended().fields()));
     }
 
     private static boolean allowed(String current, String next) {
@@ -116,11 +107,5 @@ public final class HrEmployeeUpdateHandler extends AbstractCommandHandler<HrEmpl
 
     private static String string(Object value) {
         return value == null ? null : value.toString();
-    }
-
-    private static void putIfPresent(Map<String, Object> fields, String key, Object value) {
-        if (value != null) {
-            fields.put(key, value);
-        }
     }
 }

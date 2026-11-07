@@ -31,8 +31,9 @@ import java.util.regex.Pattern;
  * @param rejectionCode      拒绝码（仅拒绝态）
  * @param rejectionReason    拒绝原因（仅拒绝态）
  * @param eventIds           本次命令产生的事件 ID
- * @param locator            写入的聚合根 ID（仅接受态）
- * @param version            locator 对应的对象版本（仅接受态）
+ * @param locator            写入的聚合根 ID（仅接受态，与 {@code targetRef} 二选一）
+ * @param version            目标对象版本（仅接受态）
+ * @param targetRef          事件溯源命令的聚合标识文本（仅接受态，与 {@code locator} 二选一）
  * @param createdAt          记录创建时间
  * @param leaseUntil         PENDING 租约到期时间；终态保留原值
  * @author ByteForce
@@ -52,12 +53,42 @@ public record CommandRecord(
         List<UUID> eventIds,
         UUID locator,
         Long version,
+        String targetRef,
         Instant createdAt,
         Instant leaseUntil) {
 
     private static final Pattern TYPE = Pattern.compile("^[a-z][a-z0-9_.]*$");
 
     private static final Pattern FINGERPRINT = Pattern.compile("^[0-9a-f]{64}$");
+
+    /**
+     * 兼容既有装配：不使用事件溯源标识文本。
+     *
+     * @param id                 命令 ID
+     * @param type               命令类型
+     * @param issuedAt           签发时间
+     * @param issuer             发起者
+     * @param payload            载荷
+     * @param idempotencyKey     幂等键
+     * @param payloadFingerprint 载荷指纹
+     * @param status             状态
+     * @param rejectionCode      拒绝码
+     * @param rejectionReason    拒绝原因
+     * @param eventIds           事件 ID
+     * @param locator            聚合根 ID
+     * @param version            对象版本
+     * @param createdAt          记录创建时间
+     * @param leaseUntil         租约到期时间
+     */
+    public CommandRecord(UUID id, String type, Instant issuedAt, UUID issuer,
+                         Map<String, Object> payload, String idempotencyKey,
+                         String payloadFingerprint, CommandStatus status, String rejectionCode,
+                         String rejectionReason, List<UUID> eventIds, UUID locator, Long version,
+                         Instant createdAt, Instant leaseUntil) {
+        this(id, type, issuedAt, issuer, payload, idempotencyKey, payloadFingerprint, status,
+                rejectionCode, rejectionReason, eventIds, locator, version, null, createdAt,
+                leaseUntil);
+    }
 
     public CommandRecord {
         Objects.requireNonNull(id, "id");
@@ -85,18 +116,28 @@ public record CommandRecord(
         Map<String, Object> payloadCopy = new LinkedHashMap<>(payload);
         payload = Collections.unmodifiableMap(payloadCopy);
         eventIds = eventIds == null ? List.of() : List.copyOf(eventIds);
+        if (targetRef != null) {
+            if (targetRef.isBlank()) {
+                throw new IllegalArgumentException("targetRef must not be blank");
+            }
+            if (targetRef.length() > 255) {
+                throw new IllegalArgumentException("targetRef is longer than 255 characters");
+            }
+        }
 
         switch (status) {
             case PENDING -> {
-                requireTerminalFieldsAbsent(locator, version, rejectionCode, rejectionReason);
+                requireTerminalFieldsAbsent(locator, targetRef, version, rejectionCode,
+                        rejectionReason);
                 if (leaseUntil == null) {
                     throw new IllegalArgumentException(
                             "pending command requires a lease");
                 }
             }
             case ACCEPTED -> {
-                if (locator == null) {
-                    throw new IllegalArgumentException("accepted command requires a locator");
+                if ((locator == null) == (targetRef == null)) {
+                    throw new IllegalArgumentException(
+                            "accepted command requires exactly one of locator or target_ref");
                 }
                 if (version == null || version < 1) {
                     throw new IllegalArgumentException(
@@ -108,7 +149,7 @@ public record CommandRecord(
                 }
             }
             case REJECTED -> {
-                if (locator != null || version != null) {
+                if (locator != null || targetRef != null || version != null) {
                     throw new IllegalArgumentException(
                             "rejected command must not carry locator or version");
                 }
@@ -164,7 +205,7 @@ public record CommandRecord(
                                         String payloadFingerprint, Instant createdAt,
                                         Instant leaseUntil) {
         return new CommandRecord(id, type, issuedAt, issuer, payload, idempotencyKey,
-                payloadFingerprint, CommandStatus.PENDING, null, null, List.of(), null, null,
+                payloadFingerprint, CommandStatus.PENDING, null, null, List.of(), null, null, null,
                 createdAt, leaseUntil);
     }
 
@@ -179,7 +220,21 @@ public record CommandRecord(
     public CommandRecord accepted(UUID locator, long version, List<UUID> eventIds) {
         return new CommandRecord(id, type, issuedAt, issuer, payload, idempotencyKey,
                 payloadFingerprint, CommandStatus.ACCEPTED, null, null, eventIds, locator,
-                version, createdAt, leaseUntil);
+                version, null, createdAt, leaseUntil);
+    }
+
+    /**
+     * 转为接受终态，使用事件溯源命令的聚合标识文本。
+     *
+     * @param targetRef 聚合标识的规范文本（{@code IdCodec.encode}）
+     * @param version   聚合版本
+     * @param eventIds  产生的事件 ID
+     * @return 接受态记录
+     */
+    public CommandRecord accepted(String targetRef, long version, List<UUID> eventIds) {
+        return new CommandRecord(id, type, issuedAt, issuer, payload, idempotencyKey,
+                payloadFingerprint, CommandStatus.ACCEPTED, null, null, eventIds, null,
+                version, targetRef, createdAt, leaseUntil);
     }
 
     /**
@@ -193,7 +248,7 @@ public record CommandRecord(
         Objects.requireNonNull(code, "code");
         return new CommandRecord(id, type, issuedAt, issuer, payload, idempotencyKey,
                 payloadFingerprint, CommandStatus.REJECTED, code.getCode(), reason, List.of(),
-                null, null, createdAt, leaseUntil);
+                null, null, null, createdAt, leaseUntil);
     }
 
     /**
@@ -217,10 +272,10 @@ public record CommandRecord(
         return false;
     }
 
-    private static void requireTerminalFieldsAbsent(UUID locator, Long version,
+    private static void requireTerminalFieldsAbsent(UUID locator, String targetRef, Long version,
                                                     String rejectionCode,
                                                     String rejectionReason) {
-        if (locator != null || version != null) {
+        if (locator != null || targetRef != null || version != null) {
             throw new IllegalArgumentException("pending command must not carry locator or version");
         }
         if (rejectionCode != null || rejectionReason != null) {

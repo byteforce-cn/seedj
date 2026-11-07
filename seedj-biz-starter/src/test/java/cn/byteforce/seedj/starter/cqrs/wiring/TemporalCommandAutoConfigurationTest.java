@@ -1,6 +1,6 @@
 package cn.byteforce.seedj.starter.cqrs.wiring;
 
-import cn.byteforce.seedj.biz.autoconfigure.BizEnabledMarker;
+import cn.byteforce.seedj.starter.autoconfigure.BizEnabledMarker;
 import cn.byteforce.seedj.cqrs.CommandCatalog;
 import cn.byteforce.seedj.cqrs.CommandRuntime;
 import cn.byteforce.seedj.infra.local.cqrs.InMemoryCommandStore;
@@ -29,6 +29,7 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import javax.sql.DataSource;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -67,6 +68,27 @@ class TemporalCommandAutoConfigurationTest {
                     assertThat(context).hasSingleBean(CommandController.class);
                     assertThat(context).doesNotHaveBean(
                             cn.byteforce.seedj.starter.domain.web.ObjectQueryController.class);
+                });
+    }
+
+    @Test
+    @DisplayName("模块 schema 自动进入 ObjectSchemaRegistry，无需桥接 bean")
+    void moduleSchemasFeedObjectSchemaRegistry() {
+        new ApplicationContextRunner()
+                .withConfiguration(AutoConfigurations.of(TemporalCommandAutoConfiguration.class,
+                        ObjectModuleAutoConfiguration.class))
+                .withBean(BizEnabledMarker.class)
+                .withPropertyValues("spring.profiles.active=local",
+                        "seedj.command.degraded-mode=true")
+                .withBean(ObjectModuleConfigurer.class, () -> modules ->
+                        modules.object("probe", "probe_object")
+                                .readPermission("probe.read")
+                                .field("name", FieldType.TEXT))
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context.getBean(
+                                    cn.byteforce.seedj.domain.ObjectSchemaRegistry.class)
+                            .require("probe").fieldNames()).containsExactly("name");
                 });
     }
 
@@ -149,6 +171,22 @@ class TemporalCommandAutoConfigurationTest {
                 .withBean(JdbcTemplate.class, () -> mock(JdbcTemplate.class))
                 .run(context -> assertThat(context.getStartupFailure())
                         .hasMessageContaining("TemporalTables"));
+    }
+
+    @Test
+    @DisplayName("有 DataSource 时注册事件流迁移能力，可显式关闭")
+    void eventSchemaCapabilityFollowsSwitch() {
+        runner.withBean(DataSource.class, () -> mock(DataSource.class))
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context).hasBean("postgresEventSchemaCapability");
+                });
+        runner.withBean(DataSource.class, () -> mock(DataSource.class))
+                .withPropertyValues("seedj.event-store.enabled=false")
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context).doesNotHaveBean("postgresEventSchemaCapability");
+                });
     }
 
     @Test

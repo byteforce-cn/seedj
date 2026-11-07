@@ -102,12 +102,13 @@ components:
       description: |
         命令执行结果定位（ADR-0014）：
         - 命令响应只表达「命令执行结果」，**不得携带读模型投影**（业务字段/关联字段/计算字段一律由读接口返回）；
-        - 写聚合的命令必须返回 `locator` + `version`：`locator` = 聚合根 ID（单聚合命令）或流程实例 ID
-          （长流程命令）；`version` = `locator` 对应对象的版本（与 `01-data-contract/object.schema.json`
-          的 `version` 同一语义：每次写 +1）；
-        - 失败响应（400/409）不携带 `locator`/`version`；
-        - `locator + version` 是命令契约与查询契约之间唯一的桥：调用方据此读取/等待投影，而不是依赖
-          命令响应里的业务数据。
+        - 双时间轴默认路径返回 `locator` + `version`：`locator` = 聚合根 ID（单聚合命令）或流程实例 ID
+          （长流程命令）；事件溯源路径返回 `target_ref` + `version`：`target_ref` = 聚合标识的规范文本
+          （`IdCodec.encode`）。`locator` 与 `target_ref` 二选一，`version` 恒有，语义与
+          `01-data-contract/object.schema.json` 的 `version` 相同（每次写 +1）；
+        - 失败响应（400/409）不携带 `locator`/`target_ref`/`version`；
+        - `locator` 或 `target_ref` + `version` 是命令契约与查询契约之间唯一的桥：调用方据此读取/等待投影，
+          而不是依赖命令响应里的业务数据。
       properties:
         command_id:
           type: string
@@ -123,11 +124,15 @@ components:
         locator:
           type: string
           format: uuid
-          description: 聚合根 ID（单聚合命令）或流程实例 ID（长流程命令）
+          description: 聚合根 ID（单聚合命令）或流程实例 ID（长流程命令）；与 target_ref 二选一
+        target_ref:
+          type: string
+          maxLength: 255
+          description: 事件溯源命令的聚合标识文本；与 locator 二选一
         version:
           type: integer
           minimum: 1
-          description: locator 对应对象的版本（每次写 +1）
+          description: locator 或 target_ref 对应对象的版本（每次写 +1）
 
     CommandRejected:
       type: object
@@ -170,6 +175,10 @@ components:
           items:
             type: string
             format: uuid
+        target_ref:
+          type: string
+          maxLength: 255
+          description: 事件溯源命令的聚合标识文本（存在时）
         reason:
           type: string
         code:

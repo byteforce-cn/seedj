@@ -13,7 +13,6 @@ import cn.byteforce.seedj.id.IdGenerator;
 
 import java.time.LocalDate;
 import java.time.ZoneOffset;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -77,15 +76,14 @@ public final class HrEmployeeCreateHandler extends AbstractCommandHandler<HrEmpl
             throw reject(ContractErrorCode.COMMAND_REJECTED,
                     "unknown org_unit_id: " + orgUnitId);
         }
-        Map<String, Object> fields = new LinkedHashMap<>();
+        Map<String, Object> fields = schemaFields(ctx, command);
         fields.put("employee_no", "EMP-" + employeeNos.id());
-        fields.put("name", command.name());
         fields.put("status", "pending_onboarding");
-        putIfPresent(fields, "hire_date", command.hireDate());
-        putIfPresent(fields, "employment_type", command.employmentType());
-        putIfPresent(fields, "work_location", command.workLocation());
-        putIfPresent(fields, "phone", command.phone());
-        putIfPresent(fields, "org_unit_id", orgUnitId);
+        if (orgUnitId == null || orgUnitId.isBlank()) {
+            fields.remove("org_unit_id");
+        } else {
+            fields.put("org_unit_id", orgUnitId);
+        }
         if (command.idNumber() != null && !command.idNumber().isBlank()) {
             fields.put(ID_NUMBER_HASH,
                     derived.require(ID_NUMBER_HASH).derive(command.idNumber()));
@@ -99,29 +97,18 @@ public final class HrEmployeeCreateHandler extends AbstractCommandHandler<HrEmpl
     @Override
     public List<CommandEvent> events(HrEmployeeCreate command, AppendResult result,
                                      CommandContext ctx) {
-        return List.of(ctx.event("hr.employee.created",
-                HrEmployeeEvents.payload(ctx.schema(), result.appended())));
+        return List.of(ctx.event("hr.employee.created", result.appended().fields()));
     }
 
     private static String firstOrgUnit(CommandContext ctx) {
-        Object raw = ctx.caller().attributes().get("org_units");
-        if (raw instanceof java.util.Collection<?> values) {
-            return values.stream().filter(java.util.Objects::nonNull)
-                    .map(String::valueOf).findFirst().orElse(null);
-        }
-        return null;
+        List<String> units = HrScopeKeys.callerOrgUnits(ctx.caller());
+        return units.isEmpty() ? null : units.get(0);
     }
 
     private static void requireName(String name) {
         if (name == null || name.isBlank()) {
             throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
                     "name must not be blank");
-        }
-    }
-
-    private static void putIfPresent(Map<String, Object> fields, String key, Object value) {
-        if (value != null) {
-            fields.put(key, value);
         }
     }
 }

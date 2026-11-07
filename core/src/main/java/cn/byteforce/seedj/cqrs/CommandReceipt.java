@@ -14,7 +14,8 @@ import java.util.UUID;
  * @param commandId 命令 ID
  * @param status    命令状态
  * @param eventIds  产生的事件 ID
- * @param locator   写入的聚合根 ID（接受态）
+ * @param locator   写入的聚合根 ID（接受态，与 {@code targetRef} 二选一）
+ * @param targetRef 事件溯源命令的聚合标识文本（接受态，与 {@code locator} 二选一）
  * @param version   对象版本（接受态）
  * @param code      拒绝码（拒绝态）
  * @param reason    拒绝原因（拒绝态）
@@ -22,7 +23,24 @@ import java.util.UUID;
  * @since 1.0.0
  */
 public record CommandReceipt(UUID commandId, CommandStatus status, List<UUID> eventIds,
-                             UUID locator, Long version, String code, String reason) {
+                             UUID locator, String targetRef, Long version, String code,
+                             String reason) {
+
+    /**
+     * 兼容既有装配：不使用事件溯源标识文本。
+     *
+     * @param commandId 命令 ID
+     * @param status    状态
+     * @param eventIds  事件 ID
+     * @param locator   聚合根 ID
+     * @param version   对象版本
+     * @param code      拒绝码
+     * @param reason    拒绝原因
+     */
+    public CommandReceipt(UUID commandId, CommandStatus status, List<UUID> eventIds,
+                          UUID locator, Long version, String code, String reason) {
+        this(commandId, status, eventIds, locator, null, version, code, reason);
+    }
 
     public CommandReceipt {
         Objects.requireNonNull(commandId, "commandId");
@@ -30,15 +48,17 @@ public record CommandReceipt(UUID commandId, CommandStatus status, List<UUID> ev
         eventIds = eventIds == null ? List.of() : List.copyOf(eventIds);
         switch (status) {
             case PENDING -> {
-                if (locator != null || version != null || code != null || reason != null) {
+                if (locator != null || targetRef != null || version != null || code != null
+                        || reason != null) {
                     throw new IllegalArgumentException(
                             "pending receipt must not carry terminal fields");
                 }
             }
             case ACCEPTED -> {
-                if (locator == null || version == null || version < 1) {
+                if ((locator == null) == (targetRef == null) || version == null || version < 1) {
                     throw new IllegalArgumentException(
-                            "accepted receipt requires locator and version >= 1");
+                            "accepted receipt requires exactly one of locator or target_ref"
+                                    + " and version >= 1");
                 }
                 if (code != null || reason != null) {
                     throw new IllegalArgumentException(
@@ -46,7 +66,7 @@ public record CommandReceipt(UUID commandId, CommandStatus status, List<UUID> ev
                 }
             }
             case REJECTED -> {
-                if (locator != null || version != null) {
+                if (locator != null || targetRef != null || version != null) {
                     throw new IllegalArgumentException(
                             "rejected receipt must not carry locator or version");
                 }
@@ -68,7 +88,7 @@ public record CommandReceipt(UUID commandId, CommandStatus status, List<UUID> ev
     public static CommandReceipt from(CommandRecord record) {
         Objects.requireNonNull(record, "record");
         return new CommandReceipt(record.id(), record.status(), record.eventIds(),
-                record.locator(), record.version(), record.rejectionCode(),
+                record.locator(), record.targetRef(), record.version(), record.rejectionCode(),
                 record.rejectionReason());
     }
 }

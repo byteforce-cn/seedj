@@ -1,5 +1,5 @@
-cn.byteforce.seedj.biz.infrastructure.InfrastructureAutoConfiguration
-cn.byteforce.seedj.biz.security.BizSecurityAutoConfiguration
+cn.byteforce.seedj.starter.infrastructure.InfrastructureAutoConfiguration
+cn.byteforce.seedj.starter.security.BizSecurityAutoConfiguration
 cn.byteforce.seedj.starter.audit.AuditAutoConfiguration
 cn.byteforce.seedj.starter.cqrs.wiring.CommandAgentAutoConfiguration
 cn.byteforce.seedj.starter.eventbus.EventBusAutoConfiguration

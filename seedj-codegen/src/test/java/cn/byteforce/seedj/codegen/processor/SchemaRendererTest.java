@@ -13,16 +13,16 @@ import org.junit.jupiter.api.Test;
 class SchemaRendererTest {
 
     private static final ObjectModel MODEL = new ObjectModel(
-            "employee", "hr_employee", "fixture", "EmployeeFields",
+            "employee", "hr_employee", "fixture", "EmployeeFields", true,
             List.of(
-                    new FieldModel("employee_no", FieldType.TEXT, true, false, true, true, true,
-                            Privacy.PUBLIC, MaskerName.NONE),
-                    new FieldModel("phone", FieldType.TEXT, false, false, false, false, false,
-                            Privacy.SENSITIVE, MaskerName.LAST4),
-                    new FieldModel("id_number_hash", FieldType.TEXT, false, true, false, false,
-                            false, Privacy.PUBLIC, MaskerName.NONE),
-                    new FieldModel("hire_date", FieldType.DATE, false, false, false, false, false,
-                            Privacy.PUBLIC, MaskerName.NONE)));
+                    new FieldModel("employee_no", FieldType.TEXT, "String", true, false, true,
+                            true, true, Privacy.PUBLIC, MaskerName.NONE),
+                    new FieldModel("phone", FieldType.TEXT, "String", false, false, false, false,
+                            false, Privacy.SENSITIVE, MaskerName.LAST4),
+                    new FieldModel("id_number_hash", FieldType.TEXT, "String", false, true, false,
+                            false, false, Privacy.PUBLIC, MaskerName.NONE),
+                    new FieldModel("hire_date", FieldType.DATE, "java.time.LocalDate", false, false,
+                            false, false, false, Privacy.PUBLIC, MaskerName.NONE)));
 
     @Test
     @DisplayName("生成源码：包内可见、字段顺序与声明一致、打码器用运行时工厂")
@@ -37,6 +37,23 @@ class SchemaRendererTest {
         assertThat(source).contains("cn.byteforce.seedj.domain.Maskers.last4()");
         assertThat(source).contains("new FieldDefinition(\"id_number_hash\", FieldType.TEXT,"
                 + " false, true, false, false, false, false, Privacy.PUBLIC, null)");
+    }
+
+    @Test
+    @DisplayName("生成的读视图：元字段 + 可读字段，writeOnly 不出现")
+    void viewSource() {
+        String source = SchemaRenderer.viewSource(MODEL);
+
+        assertThat(source).contains("public record EmployeeFieldsView(");
+        assertThat(source).contains("@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)");
+        assertThat(source).contains("java.util.UUID id");
+        assertThat(source).contains("long version");
+        assertThat(source).contains("java.time.Instant validFrom");
+        assertThat(source).contains("java.time.Instant validTo");
+        assertThat(source).contains("String employeeNo");
+        assertThat(source).contains("String phone");
+        assertThat(source).contains("java.time.LocalDate hireDate");
+        assertThat(source).doesNotContain("idNumberHash");
     }
 
     @Test

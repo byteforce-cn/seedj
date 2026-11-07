@@ -28,6 +28,10 @@ seedj:
   biz:
     dev-auth:
       enabled: true
+      permissions: hr.employee.write,hr.employee.read
+      attributes:
+        org_units:
+          - D01
     cors:
       allowed-origins: http://localhost:3000
   security:

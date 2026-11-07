@@ -32,4 +32,25 @@ final class Names {
         }
         return out.toString().toLowerCase(Locale.ROOT);
     }
+
+    /**
+     * schema 的 snake_case → Java 组件 camelCase，用于生成读视图。
+     *
+     * @param snake snake_case 字段名
+     * @return camelCase 组件名
+     */
+    static String camelCase(String snake) {
+        StringBuilder out = new StringBuilder(snake.length());
+        boolean upper = false;
+        for (int i = 0; i < snake.length(); i++) {
+            char c = snake.charAt(i);
+            if (c == '_') {
+                upper = true;
+                continue;
+            }
+            out.append(upper ? Character.toUpperCase(c) : c);
+            upper = false;
+        }
+        return out.toString();
+    }
 }

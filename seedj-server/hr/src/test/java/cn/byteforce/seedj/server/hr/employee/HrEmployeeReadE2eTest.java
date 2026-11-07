@@ -146,7 +146,7 @@ class HrEmployeeReadE2eTest {
         var create = new HrEmployeeCreateHandler(() -> UUID.randomUUID(),
                 () -> "E-1", derived, orgUnits);
         var update = new HrEmployeeUpdateHandler(derived, orgUnits);
-        new HrEmployeeModule(create, update, payload -> payload).configure(modules);
+        new HrEmployeeModule(create, update).configure(modules);
         return modules.freeze();
     }
 }

@@ -2,6 +2,7 @@ package cn.byteforce.seedj.domain;
 
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -36,45 +37,61 @@ public final class ScopePredicates {
     public static boolean matches(TemporalRow row, ScopePredicate predicate,
                                   ObjectSchema schema) {
         Objects.requireNonNull(row, "row");
+        return matches(row.fields(), predicate, schema);
+    }
+
+    /**
+     * 在内存中求值一份字段快照：与 {@link #matches(TemporalRow, ScopePredicate, ObjectSchema)}
+     * 语义相同，供没有 {@link TemporalRow} 的事件溯源聚合复用。
+     *
+     * @param fields    字段名到值的映射
+     * @param predicate 谓词
+     * @param schema    对象 schema
+     * @return 命中为 {@code true}
+     */
+    public static boolean matches(Map<String, Object> fields, ScopePredicate predicate,
+                                  ObjectSchema schema) {
+        Objects.requireNonNull(fields, "fields");
         Objects.requireNonNull(predicate, "predicate");
         Objects.requireNonNull(schema, "schema");
         return switch (predicate) {
             case ScopePredicate.All ignored -> true;
             case ScopePredicate.None ignored -> false;
-            case ScopePredicate.Eq eq -> matchesEq(row, eq, schema);
-            case ScopePredicate.In in -> matchesIn(row, in, schema);
-            case ScopePredicate.NotNull notNull -> matchesNotNull(row, notNull, schema);
+            case ScopePredicate.Eq eq -> matchesEq(fields, eq, schema);
+            case ScopePredicate.In in -> matchesIn(fields, in, schema);
+            case ScopePredicate.NotNull notNull -> matchesNotNull(fields, notNull, schema);
             case ScopePredicate.And and -> and.parts().stream()
-                    .allMatch(part -> matches(row, part, schema));
+                    .allMatch(part -> matches(fields, part, schema));
             case ScopePredicate.Or or -> or.parts().stream()
-                    .anyMatch(part -> matches(row, part, schema));
-            case ScopePredicate.Not not -> !matches(row, not.part(), schema);
+                    .anyMatch(part -> matches(fields, part, schema));
+            case ScopePredicate.Not not -> !matches(fields, not.part(), schema);
         };
     }
 
-    private static boolean matchesEq(TemporalRow row, ScopePredicate.Eq eq,
+    private static boolean matchesEq(Map<String, Object> fields, ScopePredicate.Eq eq,
                                      ObjectSchema schema) {
         if (eq.value() == null) {
             return false;
         }
         Object expected = schema.requireField(eq.field()).type().coerce(eq.value());
-        return Objects.equals(row.fields().get(eq.field()), expected);
+        return Objects.equals(fields.get(eq.field()), expected);
     }
 
-    private static boolean matchesIn(TemporalRow row, ScopePredicate.In in,
+    private static boolean matchesIn(Map<String, Object> fields, ScopePredicate.In in,
                                      ObjectSchema schema) {
         FieldType type = schema.requireField(in.field()).type();
-        Object actual = row.fields().get(in.field());
+        Object actual = fields.get(in.field());
         if (actual == null || in.values().isEmpty()) {
             return false;
         }
         return in.values().stream().map(type::coerce).anyMatch(actual::equals);
     }
 
-    private static boolean matchesNotNull(TemporalRow row, ScopePredicate.NotNull notNull,
+    private static boolean matchesNotNull(Map<String, Object> fields,
+                                          ScopePredicate.NotNull notNull,
                                           ObjectSchema schema) {
         schema.requireField(notNull.field());
-        return row.fields().get(notNull.field()) != null;
+        return fields.get(notNull.field()) != null;
     }
 
     /**

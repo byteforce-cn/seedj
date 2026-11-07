@@ -3,8 +3,9 @@ package cn.byteforce.seedj.cqrs;
 /**
  * 一次命令执行（拦截器视角）。
  *
- * <p>{@link #proceed()} 继续执行后续拦截器与命令本身；不调用它就是短路
- * （幂等命中去重表直接返回标识、非法请求直接拒绝）。
+ * <p>{@link #proceed()} 继续执行后续拦截器与命令本身；不调用它就是短路。
+ * 在统一命令信封下，幂等与非法请求已在进入 agent 之前处理；agent 内的短路必须
+ * 已经留下终态命令记录，否则失败关闭（{@code IllegalStateException}）。
  *
  * @param <ID> 聚合标识类型
  * @author ByteForce

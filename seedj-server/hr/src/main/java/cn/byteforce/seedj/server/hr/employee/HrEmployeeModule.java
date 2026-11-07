@@ -1,9 +1,7 @@
 package cn.byteforce.seedj.server.hr.employee;
 
-import cn.byteforce.seedj.cqrs.CommandPayloadRedactor;
 import cn.byteforce.seedj.module.ObjectModuleConfigurer;
 import cn.byteforce.seedj.module.ObjectModules;
-import org.springframework.context.annotation.Configuration;
 
 /**
  * 员工实体的唯一读侧声明：schema、读权限、视图查询与组织范围 key。
@@ -11,27 +9,21 @@ import org.springframework.context.annotation.Configuration;
  * @author ByteForce
  * @since 1.0.0
  */
-@Configuration(proxyBeanMethods = false)
 public class HrEmployeeModule implements ObjectModuleConfigurer {
 
     private final HrEmployeeCreateHandler create;
 
     private final HrEmployeeUpdateHandler update;
 
-    private final CommandPayloadRedactor redactor;
-
     /**
      * 构造模块声明。
      *
-     * @param create   建档处理器
-     * @param update   更新处理器
-     * @param redactor 命令记录脱敏
+     * @param create 建档处理器
+     * @param update 更新处理器
      */
-    public HrEmployeeModule(HrEmployeeCreateHandler create, HrEmployeeUpdateHandler update,
-                            CommandPayloadRedactor redactor) {
+    public HrEmployeeModule(HrEmployeeCreateHandler create, HrEmployeeUpdateHandler update) {
         this.create = create;
         this.update = update;
-        this.redactor = redactor;
     }
 
     @Override
@@ -45,16 +37,14 @@ public class HrEmployeeModule implements ObjectModuleConfigurer {
                     .creates()
                     .handler(create)
                     .emits("hr.employee.created")
-                    .redactor(redactor)
-                    .commandField("id_number")
+                    .redactedCommandField("id_number")
                 .command("hr.employee.update", HrEmployeeUpdate.class)
                     .permission("hr.employee.write")
                     .handler(update)
                     .emits("hr.employee.updated")
-                    .redactor(redactor)
                     .commandField("employee_id")
-                    .commandField("id_number")
-                .query(HrEmployeeView.class)
+                    .redactedCommandField("id_number")
+                .query(HrEmployeeFields.view())
                     .path("/api/hr/employees")
                     .permission("hr.employee.read")
                     .sort("employee_no");

@@ -58,6 +58,25 @@ class CommandReceiptTest {
     }
 
     @Test
+    @DisplayName("accepted 回执可以只带 target_ref")
+    void acceptedReceiptCarriesTargetRef() {
+        CommandReceipt receipt = CommandReceipt.from(pending().accepted("emp-1", 1L, List.of()));
+
+        assertThat(receipt.locator()).isNull();
+        assertThat(receipt.targetRef()).isEqualTo("emp-1");
+        assertThat(receipt.version()).isEqualTo(1L);
+    }
+
+    @Test
+    @DisplayName("accepted 回执要求 locator 或 target_ref 恰好一个")
+    void acceptedReceiptRequiresExactlyOneTarget() {
+        assertThatThrownBy(() -> new CommandReceipt(ID, CommandStatus.ACCEPTED, List.of(),
+                null, null, 1L, null, null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("exactly one");
+    }
+
+    @Test
     @DisplayName("rejected 受理结果携带冻结错误码与原因")
     void rejectedReceiptCarriesCode() {
         CommandReceipt receipt = CommandReceipt.from(
@@ -79,11 +98,11 @@ class CommandReceiptTest {
         assertThatThrownBy(() -> new CommandReceipt(ID, CommandStatus.ACCEPTED, null, null, 1L,
                 null, null))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("accepted receipt requires locator");
+                .hasMessageContaining("exactly one of locator or target_ref");
         assertThatThrownBy(() -> new CommandReceipt(ID, CommandStatus.ACCEPTED, null, LOCATOR, 0L,
                 null, null))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("accepted receipt requires locator");
+                .hasMessageContaining("exactly one of locator or target_ref");
         assertThatThrownBy(() -> new CommandReceipt(ID, CommandStatus.ACCEPTED, null, LOCATOR, 1L,
                 "EIS-400-001", null))
                 .isInstanceOf(IllegalArgumentException.class)

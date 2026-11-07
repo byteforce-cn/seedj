@@ -104,6 +104,23 @@ class ObjectSchemaTest {
     }
 
     @Test
+    @DisplayName("事件载荷只保留 eventVisible 字段，未知字段失败关闭")
+    void eventPayloadFiltersWriteOnlyAndRejectsUnknown() {
+        Map<String, Object> payload = Map.of(
+                "employee_no", "E-1",
+                "id_number_hash", "secret",
+                "unknown", "x");
+
+        assertThatThrownBy(() -> EMPLOYEE.eventPayload(payload))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("unknown");
+
+        Map<String, Object> filtered = EMPLOYEE.eventPayload(
+                Map.of("employee_no", "E-1", "id_number_hash", "secret"));
+        assertThat(filtered).containsExactly(Map.entry("employee_no", "E-1"));
+    }
+
+    @Test
     @DisplayName("敏感字段不得进入事件白名单")
     void sensitiveFieldCannotBeEventVisible() {
         assertThatThrownBy(() -> ObjectSchema.builder("employee", "hr_employee")

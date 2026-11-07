@@ -51,6 +51,20 @@ class CallerTest {
     }
 
     @Test
+    @DisplayName("集合属性按字符串列表读取，缺失或标量返回空")
+    void attributeStringsReadsCollections() {
+        Caller caller = new Caller("u-1", "alice", "default", Set.of(), Set.of(), Set.of(),
+                Set.of(), Caller.DEFAULT_ACR,
+                Map.of("org_units", java.util.List.of("D01", "D02")));
+
+        assertThat(caller.attributeStrings("org_units")).containsExactly("D01", "D02");
+        assertThat(caller.attributeStrings("missing")).isEmpty();
+        assertThat(new Caller("u-1", "alice", "default", Set.of(), Set.of(), Set.of(),
+                Set.of(), Caller.DEFAULT_ACR, Map.of("org_units", "D01"))
+                .attributeStrings("org_units")).isEmpty();
+    }
+
+    @Test
     @DisplayName("空主体标识视为缺失")
     void blankIdIsAbsent() {
         Caller caller = new Caller("", "alice", "default", Set.of(), Set.of(), Set.of(),

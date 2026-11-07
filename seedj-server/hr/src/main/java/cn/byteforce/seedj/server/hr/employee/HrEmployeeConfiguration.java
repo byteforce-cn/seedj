@@ -7,25 +7,19 @@ import cn.byteforce.seedj.core.security.ContextWriter;
 import cn.byteforce.seedj.core.security.DerivedField;
 import cn.byteforce.seedj.core.security.DerivedFieldKeyRing;
 import cn.byteforce.seedj.core.security.DerivedFieldRegistry;
-import cn.byteforce.seedj.cqrs.CommandPayloadRedactor;
-import cn.byteforce.seedj.domain.ObjectSchema;
 import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.infra.local.id.Uuid7IdGenerator;
-import cn.byteforce.seedj.module.ObjectModuleRegistry;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import java.util.Collection;
-import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
 /**
- * HR 员工活样板装配：派生字段、脱敏、组织目录、请求事实与两个 handler。
+ * HR 员工活样板装配：派生字段、组织目录、请求事实与两个 handler。
  *
  * <p>字段只在 {@link HrEmployeeModule} 声明一次；schema 从冻结注册表取。</p>
  *
@@ -34,17 +28,6 @@ import java.util.UUID;
  */
 @Configuration(proxyBeanMethods = false)
 public class HrEmployeeConfiguration {
-
-    /**
-     * 员工对象 schema（来自冻结的模块声明）。
-     *
-     * @param registry 模块注册表
-     * @return schema
-     */
-    @Bean
-    public ObjectSchema hrEmployeeSchema(ObjectModuleRegistry registry) {
-        return registry.require("employee").schema();
-    }
 
     /**
      * 证件散列派生：优先 {@code seedj.security.derived-field-keys}，否则读环境变量。
@@ -72,21 +55,6 @@ public class HrEmployeeConfiguration {
             @Qualifier("hrIdNumberHash") DerivedField idNumberHash) {
         return new DerivedFieldRegistry(Map.of(HrEmployeeCreateHandler.ID_NUMBER_HASH,
                 idNumberHash));
-    }
-
-    /**
-     * 命令记录脱敏：原始证件号与派生散列都不落命令记录。
-     *
-     * @return 脱敏器
-     */
-    @Bean
-    public CommandPayloadRedactor hrPayloadRedactor() {
-        return payload -> {
-            Map<String, Object> redacted = new LinkedHashMap<>(payload);
-            redacted.remove("id_number");
-            redacted.remove("id_number_hash");
-            return redacted;
-        };
     }
 
     /**
@@ -124,12 +92,8 @@ public class HrEmployeeConfiguration {
      */
     @Bean
     public ContextWriter hrOrgUnitContextWriter() {
-        return (ContextSink sink, Caller caller) -> {
-            Object raw = caller.attributes().get("org_units");
-            List<String> units = raw instanceof Collection<?> values
-                    ? values.stream().map(String::valueOf).toList() : List.of();
-            sink.put(HrScopeKeys.ORG_UNITS, units);
-        };
+        return (ContextSink sink, Caller caller) ->
+                sink.put(HrScopeKeys.ORG_UNITS, HrScopeKeys.callerOrgUnits(caller));
     }
 
     /**
@@ -140,6 +104,19 @@ public class HrEmployeeConfiguration {
     @Bean
     public HrOrgUnitScopeResolver hrOrgUnitScopeResolver() {
         return new HrOrgUnitScopeResolver();
+    }
+
+    /**
+     * 员工模块声明：纯类，不依赖 Spring 容器，测试可直接 new。
+     *
+     * @param create 建档处理器
+     * @param update 更新处理器
+     * @return 模块声明
+     */
+    @Bean
+    public HrEmployeeModule hrEmployeeModule(HrEmployeeCreateHandler create,
+                                             HrEmployeeUpdateHandler update) {
+        return new HrEmployeeModule(create, update);
     }
 
     /**

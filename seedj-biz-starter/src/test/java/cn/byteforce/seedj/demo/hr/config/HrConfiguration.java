@@ -1,9 +1,24 @@
 package cn.byteforce.seedj.demo.hr.config;
 
+import cn.byteforce.seedj.core.clock.Clock;
+import cn.byteforce.seedj.core.clock.Clocks;
+import cn.byteforce.seedj.cqrs.CommandCatalog;
+import cn.byteforce.seedj.cqrs.CommandPolicy;
+import cn.byteforce.seedj.cqrs.CommandRuntime;
 import cn.byteforce.seedj.cqrs.IdCodec;
+import cn.byteforce.seedj.cqrs.TemporalCommandAudit;
+import cn.byteforce.seedj.cqrs.spi.CommandStore;
 import cn.byteforce.seedj.starter.cqrs.wiring.CommandAgents;
 import cn.byteforce.seedj.cqrs.QueryAgent;
+import cn.byteforce.seedj.domain.ScopePredicate;
+import cn.byteforce.seedj.domain.TemporalStore;
+import cn.byteforce.seedj.infra.local.cqrs.InMemoryCommandStore;
 import cn.byteforce.seedj.infra.local.cqrs.InMemoryEventStore;
+import cn.byteforce.seedj.infra.local.domain.InMemoryTemporalStore;
+import cn.byteforce.seedj.infra.local.id.Uuid7IdGenerator;
+import cn.byteforce.seedj.module.ObjectModuleRegistry;
+import cn.byteforce.seedj.module.ObjectModules;
+import cn.byteforce.seedj.outbox.OutboxWriter;
 import cn.byteforce.seedj.cqrs.spi.EventStore;
 import cn.byteforce.seedj.cqrs.spi.TransactionRunner;
 import cn.byteforce.seedj.lock.LockProvider;
@@ -24,9 +39,13 @@ import cn.byteforce.seedj.id.IdGenerator;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import tools.jackson.databind.json.JsonMapper;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * HR 模块装配。
@@ -95,6 +114,53 @@ public class HrConfiguration {
     }
 
     @Bean
+    public Clock hrClock() {
+        return Clocks.fixed(Instant.parse("2026-11-07T09:00:00Z"));
+    }
+
+    @Bean
+    public ObjectModuleRegistry hrObjectModuleRegistry(OnboardingAgent onboardingAgent) {
+        ObjectModules modules = ObjectModules.create();
+        new HrEmployeeModule(onboardingAgent).configure(modules);
+        return modules.freeze();
+    }
+
+    @Bean
+    public CommandStore hrCommandStore() {
+        return new InMemoryCommandStore();
+    }
+
+    @Bean
+    public TemporalStore hrTemporalStore(Clock hrClock) {
+        return new InMemoryTemporalStore(hrClock);
+    }
+
+    @Bean
+    public IdGenerator<UUID> hrCommandIds(Clock hrClock) {
+        return new Uuid7IdGenerator(hrClock);
+    }
+
+    @Bean
+    public CommandRuntime hrCommandRuntime(CommandStore hrCommandStore,
+                                           TemporalStore hrTemporalStore,
+                                           TransactionRunner transactionRunner,
+                                           LockProvider lockProvider, Clock hrClock,
+                                           IdGenerator<UUID> hrCommandIds) {
+        return new CommandRuntime(new CommandRuntime.Options(transactionRunner, lockProvider,
+                Duration.ofSeconds(30), hrClock, hrCommandIds, hrCommandStore,
+                hrTemporalStore, OutboxWriter.discard(), TemporalCommandAudit.noop(),
+                JsonMapper.builder().build()));
+    }
+
+    @Bean
+    public CommandCatalog hrCommandCatalog(ObjectModuleRegistry hrObjectModuleRegistry,
+                                           CommandRuntime hrCommandRuntime) {
+        return new CommandCatalog(hrObjectModuleRegistry.commands(),
+                CommandPolicy.permissions(), hrCommandRuntime,
+                (objectType, caller) -> ScopePredicate.all());
+    }
+
+    @Bean
     public OnboardingAgent onboardingAgent(EmployeeRepository employees,
                                            EventPublisher publisher,
                                            IdCodec<EmployeeId> employeeIdCodec,
@@ -103,9 +169,9 @@ public class HrConfiguration {
     }
 
     @Bean
-    public HrCommandService hrCommandService(OnboardingAgent onboardingAgent,
+    public HrCommandService hrCommandService(CommandCatalog hrCommandCatalog,
                                              IdGenerator<EmployeeId> employeeIdGenerator) {
-        return new HrCommandService(onboardingAgent, employeeIdGenerator);
+        return new HrCommandService(hrCommandCatalog, employeeIdGenerator);
     }
 
     @Bean
@@ -143,8 +209,7 @@ public class HrConfiguration {
     }
 
     @Bean
-    public HrEmployeeController hrEmployeeController(HrCommandService commands,
-                                                     HrQueryService queries) {
-        return new HrEmployeeController(commands, queries);
+    public HrEmployeeController hrEmployeeController(HrQueryService queries) {
+        return new HrEmployeeController(queries);
     }
 }

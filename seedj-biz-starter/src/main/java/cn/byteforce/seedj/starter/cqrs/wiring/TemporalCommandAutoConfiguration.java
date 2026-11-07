@@ -1,18 +1,19 @@
 package cn.byteforce.seedj.starter.cqrs.wiring;
 
-import cn.byteforce.seedj.biz.autoconfigure.BizEnabledMarker;
+import cn.byteforce.seedj.starter.autoconfigure.BizEnabledMarker;
 import cn.byteforce.seedj.core.InfrastructureCapability;
 import cn.byteforce.seedj.core.clock.Clock;
 import cn.byteforce.seedj.core.clock.Clocks;
 import cn.byteforce.seedj.core.security.CallerIdCodec;
 import cn.byteforce.seedj.core.security.CallerProvider;
-import cn.byteforce.seedj.biz.validation.BeanValidationCommandValidator;
+import cn.byteforce.seedj.starter.validation.BeanValidationCommandValidator;
 import cn.byteforce.seedj.cqrs.CommandCatalog;
 import cn.byteforce.seedj.cqrs.CommandPolicy;
 import cn.byteforce.seedj.cqrs.CommandValidator;
 import cn.byteforce.seedj.cqrs.CommandRuntime;
 import cn.byteforce.seedj.cqrs.TemporalCommandAudit;
 import cn.byteforce.seedj.infra.jdbc.cqrs.CommandSchemaCapability;
+import cn.byteforce.seedj.infra.jdbc.cqrs.EventSchemaCapability;
 import cn.byteforce.seedj.infra.jdbc.cqrs.PostgresCommandStore;
 import cn.byteforce.seedj.infra.local.cqrs.InMemoryCommandStore;
 import cn.byteforce.seedj.cqrs.spi.CommandStore;
@@ -49,7 +50,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import javax.sql.DataSource;
 import java.time.Duration;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -64,7 +67,7 @@ import java.util.UUID;
  * @since 1.0.0
  */
 @AutoConfiguration(
-        afterName = {"cn.byteforce.seedj.biz.security.BizSecurityAutoConfiguration",
+        afterName = {"cn.byteforce.seedj.starter.security.BizSecurityAutoConfiguration",
                 "cn.byteforce.seedj.starter.audit.AuditAutoConfiguration"},
         after = {DataSourceAutoConfiguration.class, JdbcTemplateAutoConfiguration.class})
 @ConditionalOnBean(BizEnabledMarker.class)
@@ -129,19 +132,36 @@ public class TemporalCommandAutoConfiguration {
     }
 
     /**
-     * 对象类型到物理表的注册表。
+     * 对象类型到字段声明的注册表。
      *
-     * @param tables 应用声明的对象表
+     * <p>字段先来自 {@link cn.byteforce.seedj.module.ObjectModuleRegistry}（业务声明），
+     * 再合并显式 {@link ObjectSchema} bean。同一对象类型出现两次直接失败：两份字段声明
+     * 会立刻漂移，宁可启动失败也不静默选一份。</p>
+     *
+     * @param modules 模块注册表
+     * @param schemas 显式 schema bean
      * @return 注册表
      */
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnProperty(prefix = "seedj.object", name = "enabled", havingValue = "true",
             matchIfMissing = true)
-    public ObjectSchemaRegistry objectSchemaRegistry(ObjectProvider<ObjectSchema> schemas) {
-        List<ObjectSchema> declared = schemas.orderedStream().toList();
+    public ObjectSchemaRegistry objectSchemaRegistry(
+            ObjectProvider<cn.byteforce.seedj.module.ObjectModuleRegistry> modules,
+            ObjectProvider<ObjectSchema> schemas) {
+        Map<String, ObjectSchema> declared = new LinkedHashMap<>();
+        modules.ifAvailable(registry -> registry.all().forEach(model ->
+                declared.put(model.objectType(), model.schema())));
+        schemas.orderedStream().forEach(schema -> {
+            ObjectSchema previous = declared.putIfAbsent(schema.objectType(), schema);
+            if (previous != null) {
+                throw new IllegalStateException("duplicate objectType across module declarations"
+                        + " and ObjectSchema beans: " + schema.objectType());
+            }
+        });
         return declared.isEmpty()
-                ? ObjectSchemaRegistry.empty() : new ObjectSchemaRegistry(declared);
+                ? ObjectSchemaRegistry.empty()
+                : new ObjectSchemaRegistry(List.copyOf(declared.values()));
     }
 
     /**
@@ -366,6 +386,27 @@ public class TemporalCommandAutoConfiguration {
         InfrastructureCapability postgresTemporalSchemaCapability(
                 DataSource dataSource, ObjectProvider<JdbcMigrationRunner> runners) {
             return new TemporalSchemaCapability(
+                    runners.getIfAvailable(() -> new JdbcMigrationRunner(dataSource)));
+        }
+    }
+
+    /**
+     * PostgreSQL 事件存储共享迁移：保证 {@code event_stream} 表存在。
+     */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass({JdbcTemplate.class, DataSource.class})
+    @ConditionalOnBean(DataSource.class)
+    @ConditionalOnProperty(prefix = "seedj.event-store", name = "enabled",
+            havingValue = "true", matchIfMissing = true)
+    static class EventSchemaConfiguration {
+
+        @Bean
+        @ConditionalOnMissingBean(name = "postgresEventSchemaCapability")
+        @ConditionalOnProperty(prefix = "seedj.event-store", name = "provider",
+                havingValue = "postgres", matchIfMissing = true)
+        InfrastructureCapability postgresEventSchemaCapability(
+                DataSource dataSource, ObjectProvider<JdbcMigrationRunner> runners) {
+            return new EventSchemaCapability(
                     runners.getIfAvailable(() -> new JdbcMigrationRunner(dataSource)));
         }
     }

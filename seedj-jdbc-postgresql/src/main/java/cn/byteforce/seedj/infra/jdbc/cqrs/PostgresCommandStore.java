@@ -71,8 +71,8 @@ public final class PostgresCommandStore implements CommandStore {
                 INSERT INTO command_record
                     (id, type, issued_at, issuer, payload, idempotency_key,
                      payload_fingerprint, status, rejection_code, rejection_reason,
-                     event_ids, locator, version, created_at, lease_until)
-                VALUES (?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?)
+                     event_ids, locator, version, target_ref, created_at, lease_until)
+                VALUES (?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?)
                 ON CONFLICT DO NOTHING
                 """,
                 record.id(),
@@ -88,6 +88,7 @@ public final class PostgresCommandStore implements CommandStore {
                 JSON.writeValueAsString(record.eventIds().stream().map(UUID::toString).toList()),
                 record.locator(),
                 record.version(),
+                record.targetRef(),
                 Timestamp.from(record.createdAt()),
                 Timestamp.from(record.leaseUntil()));
         return inserted == 1;
@@ -98,7 +99,7 @@ public final class PostgresCommandStore implements CommandStore {
         int updated = jdbc.update("""
                 UPDATE command_record
                 SET status = ?, rejection_code = ?, rejection_reason = ?,
-                    event_ids = ?::jsonb, locator = ?, version = ?
+                    event_ids = ?::jsonb, locator = ?, version = ?, target_ref = ?
                 WHERE id = ? AND status = 'pending'
                 """,
                 record.status().wireName(),
@@ -107,6 +108,7 @@ public final class PostgresCommandStore implements CommandStore {
                 JSON.writeValueAsString(record.eventIds().stream().map(UUID::toString).toList()),
                 record.locator(),
                 record.version(),
+                record.targetRef(),
                 record.id());
         if (updated == 1) {
             return;
@@ -150,6 +152,7 @@ public final class PostgresCommandStore implements CommandStore {
                 eventIds(rs.getString("event_ids")),
                 locator,
                 nullableVersion,
+                rs.getString("target_ref"),
                 instant(rs, "created_at"),
                 instant(rs, "lease_until"));
     }

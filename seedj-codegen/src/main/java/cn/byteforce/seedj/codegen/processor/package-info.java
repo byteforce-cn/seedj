@@ -1,5 +1,5 @@
 /**
- * 注解处理器实现：把 {@code @SeedjObject} record 渲染成 schema、OpenAPI 与迁移候选。
+ * 注解处理器实现：把 {@code @SeedjObject} record 渲染成 schema、OpenAPI、迁移候选与可选读视图。
  *
  * <p><b>职责</b>：只做编译期代码生成，不参与运行时；生成物落在
  * {@code target/generated-sources} 与 {@code META-INF/seedj}。</p>

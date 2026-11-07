@@ -38,6 +38,7 @@ class CommandRuntimeRedactionTest {
     private static final ObjectSchema SCHEMA = ObjectSchema.builder("probe", "probe_object")
             .field("name", FieldType.TEXT)
             .field("secret", FieldType.TEXT)
+            .writeOnly("token", FieldType.TEXT)
             .build();
 
     private final AtomicReference<Instant> now = new AtomicReference<>(
@@ -55,6 +56,8 @@ class CommandRuntimeRedactionTest {
     });
     private final CommandRegistration plain = registration("probe.plain",
             CommandPayloadRedactor.noop());
+    private final CommandRegistration redacted = registration("probe.redacted",
+            CommandPayloadRedactor.noop(), java.util.Set.of("target"));
 
     @Test
     @DisplayName("命令记录不含原始字段，重放仍命中幂等")
@@ -83,6 +86,34 @@ class CommandRuntimeRedactionTest {
     }
 
     @Test
+    @DisplayName("writeOnly 自动剔除；命令专用字段按声明决定是否落记录")
+    void writeOnlyIsAlwaysRedactedAndCommandFieldsAreExplicit() {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("target", ID.toString());
+        payload.put("secret", "keep-me");
+        payload.put("name", "Alice");
+        payload.put("token", "do-not-store");
+
+        runtime.execute(new CommandSubmission("probe.plain", payload, "k-5", List.of(ID),
+                ACTOR), plain, CALLER, ScopePredicate.all());
+        UUID second = UUID.fromString("018f2e3a-1234-7000-8000-000000000002");
+        payload.put("target", second.toString());
+        runtime.execute(new CommandSubmission("probe.redacted", payload, "k-6", List.of(second),
+                ACTOR), redacted, CALLER, ScopePredicate.all());
+
+        assertThat(commands.findByIdempotencyKey(ACTOR, "k-5")).get()
+                .satisfies(record -> assertThat(record.payload())
+                        .doesNotContainKey("token")
+                        .containsEntry("target", ID.toString())
+                        .containsEntry("secret", "keep-me")
+                        .containsEntry("name", "Alice"));
+        assertThat(commands.findByIdempotencyKey(ACTOR, "k-6")).get()
+                .satisfies(record -> assertThat(record.payload())
+                        .doesNotContainKeys("token", "target")
+                        .containsEntry("secret", "keep-me"));
+    }
+
+    @Test
     @DisplayName("两个注册项的 redactor 互不影响")
     void redactorsArePerRegistration() {
         runtime.execute(submission("probe.update", "k-3", "raw-3", ID), redacting, CALLER,
@@ -98,6 +129,11 @@ class CommandRuntimeRedactionTest {
     }
 
     private static CommandRegistration registration(String type, CommandPayloadRedactor redactor) {
+        return registration(type, redactor, java.util.Set.of());
+    }
+
+    private static CommandRegistration registration(String type, CommandPayloadRedactor redactor,
+                                                   java.util.Set<String> redactedFields) {
         CommandDescriptor descriptor = CommandDescriptor.builder()
                 .type(type)
                 .objectType("probe")
@@ -105,7 +141,7 @@ class CommandRuntimeRedactionTest {
                 .redactor(redactor)
                 .build();
         return new CommandRegistration(descriptor, new ProbeHandler(), SCHEMA,
-                java.util.Set.of("target"));
+                java.util.Set.of("target"), redactedFields);
     }
 
     private static CommandSubmission submission(String type, String key, String secret, UUID target) {

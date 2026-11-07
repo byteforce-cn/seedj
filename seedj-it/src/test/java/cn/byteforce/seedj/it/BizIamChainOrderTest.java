@@ -1,6 +1,6 @@
 package cn.byteforce.seedj.it;
 
-import cn.byteforce.seedj.biz.security.BizSecurityAutoConfiguration;
+import cn.byteforce.seedj.starter.security.BizSecurityAutoConfiguration;
 import cn.byteforce.seedj.starter.iam.config.IamServerAutoConfiguration;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
