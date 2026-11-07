@@ -81,7 +81,7 @@
         <japicmp-maven-plugin.version>0.26.3</japicmp-maven-plugin.version>
         <cyclonedx-maven-plugin.version>2.9.3</cyclonedx-maven-plugin.version>
         <spotbugs-maven-plugin.version>4.10.4.1</spotbugs-maven-plugin.version>
-        <dependency-check-maven-plugin.version>12.1.0</dependency-check-maven-plugin.version>
+        <dependency-check-maven-plugin.version>13.0.0</dependency-check-maven-plugin.version>
         <spotless-maven-plugin.version>3.11.0</spotless-maven-plugin.version>
         <google-java-format.version>1.22.0</google-java-format.version>
         <lombok.version>1.18.38</lombok.version>
