@@ -2,9 +2,7 @@ package cn.byteforce.seedj.module;
 
 import cn.byteforce.seedj.core.security.ScopeKey;
 import cn.byteforce.seedj.core.security.ScopeKeyCatalog;
-import cn.byteforce.seedj.core.utils.FieldNames;
 import cn.byteforce.seedj.cqrs.CommandAgent;
-import cn.byteforce.seedj.cqrs.CommandDescriptor;
 import cn.byteforce.seedj.cqrs.CommandHandler;
 import cn.byteforce.seedj.cqrs.CommandPayloadRedactor;
 import cn.byteforce.seedj.cqrs.CommandRegistration;
@@ -16,7 +14,6 @@ import cn.byteforce.seedj.domain.ObjectSchema;
 import cn.byteforce.seedj.domain.Privacy;
 import cn.byteforce.seedj.read.ReadModel;
 
-import java.lang.reflect.RecordComponent;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -111,52 +108,8 @@ public final class ObjectModules {
                     new ReadModel(object.objectType, schema, object.readPermission));
             keys.addAll(object.contextKeys);
             for (CommandSpec command : object.commands) {
-                if (!commandTypes.add(command.type)) {
-                    throw new IllegalArgumentException(
-                            "duplicate command type: " + command.type);
-                }
-                if (command.permission == null || command.permission.isBlank()) {
-                    throw new IllegalArgumentException(
-                            "command " + command.type + " must declare a permission");
-                }
-                if ((command.handler == null) == (command.agent == null)) {
-                    throw new IllegalArgumentException("command " + command.type
-                            + " must declare exactly one of handler or agent");
-                }
-                if (command.agent != null && !command.payloadType.equals(
-                        command.agent.commandType())) {
-                    throw new IllegalArgumentException("command " + command.type
-                            + " payload type " + command.payloadType.getName()
-                            + " does not match agent command type "
-                            + command.agent.commandType().getName());
-                }
-                boolean creates = command.createsDeclared
-                        ? command.creates
-                        : command.agent != null && command.agent.isCreateCommand();
-                if (command.agent != null && command.createsDeclared
-                        && command.creates != command.agent.isCreateCommand()) {
-                    throw new IllegalArgumentException("command " + command.type
-                            + " creates flag does not match agent");
-                }
-                requirePayloadFields(command, schema);
-                CommandDescriptor descriptor = CommandDescriptor.builder()
-                        .type(command.type)
-                        .objectType(object.objectType)
-                        .payloadType(command.payloadType)
-                        .permission(command.permission)
-                        .validator(command.validator)
-                        .redactor(command.redactor)
-                        .build();
-                declarations.add(new CommandDeclaration(object.objectType, command.type,
-                        command.payloadType, command.permission, command.handler,
-                        command.agent, creates, command.emits, command.commandFields,
-                        command.redactedFields));
-                registrations.add(command.agent == null
-                        ? new CommandRegistration(descriptor, command.handler, schema,
-                                command.commandFields, command.redactedFields, command.emits,
-                                creates)
-                        : CommandRegistration.eventSourced(descriptor, command.agent, schema,
-                                command.commandFields, command.redactedFields, command.emits));
+                ObjectModuleCommands.register(command, object.objectType, schema, commandTypes,
+                        declarations, registrations);
             }
             for (QuerySpec query : object.queries) {
                 ObjectSchema fieldSchema = schema;
@@ -184,24 +137,6 @@ public final class ObjectModules {
         }
         return new ObjectModuleRegistry(models, queries, declarations, registrations,
                 ScopeKeyCatalog.of(keys));
-    }
-
-    private static void requirePayloadFields(CommandSpec command, ObjectSchema schema) {
-        if (!command.payloadType.isRecord()) {
-            throw new IllegalArgumentException(
-                    "command payload must be a record: " + command.payloadType.getName());
-        }
-        Set<String> allowed = new LinkedHashSet<>(command.commandFields);
-        for (FieldDefinition field : schema.fields()) {
-            allowed.add(field.name());
-        }
-        for (RecordComponent component : command.payloadType.getRecordComponents()) {
-            String field = FieldNames.snakeCase(component.getName());
-            if (!allowed.contains(field)) {
-                throw new IllegalArgumentException("command " + command.type
-                        + " payload field is not in schema: " + field);
-            }
-        }
     }
 
     /** 对象声明。 */
@@ -572,6 +507,54 @@ public final class ObjectModules {
         public CommandSpec redactor(CommandPayloadRedactor value) {
             this.redactor = value == null ? CommandPayloadRedactor.noop() : value;
             return this;
+        }
+
+        String type() {
+            return type;
+        }
+
+        Class<?> payloadType() {
+            return payloadType;
+        }
+
+        String permission() {
+            return permission;
+        }
+
+        CommandHandler<?> handler() {
+            return handler;
+        }
+
+        CommandAgent<?, ?, ?> agent() {
+            return agent;
+        }
+
+        boolean createsFlag() {
+            return creates;
+        }
+
+        boolean createsDeclared() {
+            return createsDeclared;
+        }
+
+        List<String> emits() {
+            return emits;
+        }
+
+        Set<String> commandFields() {
+            return commandFields;
+        }
+
+        Set<String> redactedFields() {
+            return redactedFields;
+        }
+
+        CommandValidator validator() {
+            return validator;
+        }
+
+        CommandPayloadRedactor redactor() {
+            return redactor;
         }
 
         /**
