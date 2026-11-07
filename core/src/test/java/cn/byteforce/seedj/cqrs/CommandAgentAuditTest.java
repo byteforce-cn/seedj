@@ -2,21 +2,28 @@ package cn.byteforce.seedj.cqrs;
 
 import cn.byteforce.seedj.audit.AuditErrorCode;
 import cn.byteforce.seedj.audit.AuditException;
+import cn.byteforce.seedj.cqrs.spi.CommandStore;
 import cn.byteforce.seedj.cqrs.spi.TransactionRunner;
 import cn.byteforce.seedj.domain.AbstractAggregateRoot;
 import cn.byteforce.seedj.domain.Repository;
 import cn.byteforce.seedj.domain.event.DomainEvent;
+import cn.byteforce.seedj.domain.FieldType;
+import cn.byteforce.seedj.domain.ObjectSchema;
+import cn.byteforce.seedj.domain.ScopePredicate;
 import cn.byteforce.seedj.domain.event.EventApplier;
 import cn.byteforce.seedj.eventbus.EventMessage;
 import cn.byteforce.seedj.eventbus.EventPublisher;
 import cn.byteforce.seedj.lock.LockProvider;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -26,6 +33,20 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * rejected 只在业务拒绝时调用，且在事务外。
  */
 class CommandAgentAuditTest {
+
+    private static final UUID ISSUER = UUID.fromString("018f2e3a-0000-7000-8000-000000000001");
+
+    private static final JsonMapper JSON = JsonMapper.builder().build();
+
+    private static final ObjectSchema SCHEMA = ObjectSchema.builder("test_counter", "counter")
+            .field("counter_id", FieldType.TEXT)
+            .build();
+
+    private static final CommandRegistration REGISTRATION = new CommandRegistration(
+            CommandDescriptor.builder().type("test.counter.touch")
+                    .objectType("test_counter").payloadType(Cmd.class)
+                    .permission("test.counter.write").build(),
+            new NoopHandler(), SCHEMA);
 
     private final List<String> trace = new ArrayList<>();
 
@@ -59,7 +80,7 @@ class CommandAgentAuditTest {
             }
         };
 
-        agent(txAware).execute(new Cmd("a-1", Kind.OK));
+        run(agent(txAware), new Cmd("a-1", Kind.OK));
 
         assertThat(trace).containsExactly(
                 "tx:begin", "load:a-1", "save", "publish", "audit:accepted:a-1", "tx:end");
@@ -68,7 +89,7 @@ class CommandAgentAuditTest {
     @Test
     @DisplayName("命令抛技术异常时不写 accepted，也不写 rejected")
     void technicalFailureIsNotAudited() {
-        assertThatThrownBy(() -> agent(audit).execute(new Cmd("a-2", Kind.BOOM)))
+        assertThatThrownBy(() -> run(agent(audit), new Cmd("a-2", Kind.BOOM)))
                 .isInstanceOf(IllegalStateException.class);
 
         assertThat(audit.calls).isEmpty();
@@ -77,7 +98,7 @@ class CommandAgentAuditTest {
     @Test
     @DisplayName("业务拒绝走 rejected（事务外），不写 accepted")
     void businessRejectionIsAuditedOutsideTransaction() {
-        assertThatThrownBy(() -> agent(audit).execute(new Cmd("a-3", Kind.REJECT)))
+        assertThatThrownBy(() -> run(agent(audit), new Cmd("a-3", Kind.REJECT)))
                 .isInstanceOf(CqrsException.class);
 
         assertThat(audit.calls).containsExactly("rejected:a-3");
@@ -94,11 +115,35 @@ class CommandAgentAuditTest {
             }
         };
 
-        assertThatThrownBy(() -> agent(failing).execute(new Cmd("a-4", Kind.OK)))
+        assertThatThrownBy(() -> run(agent(failing), new Cmd("a-4", Kind.OK)))
                 .isInstanceOf(AuditException.class);
     }
 
+    private CommandRecord run(TestAgent agent, Cmd command) {
+        CommandRecord pending = CommandRecord.pending(UUID.randomUUID(), "test.counter.touch",
+                java.time.Instant.parse("2026-11-07T09:00:00Z"), ISSUER,
+                Map.of("counter_id", command.counterId()), "k-" + UUID.randomUUID(),
+                "a".repeat(64), java.time.Instant.parse("2026-11-07T09:00:00Z"));
+        CommandStore store = new CommandRuntimeTest.FakeCommands();
+        store.insert(pending);
+        return agent.executeWithin(command, new AgentInvocation(command.counterId(), pending,
+                SCHEMA, REGISTRATION, ScopePredicate.all(), JSON, store));
+    }
+
     // ---------------------------------------------------------------- fixtures
+
+    static final class NoopHandler implements CommandHandler<Cmd> {
+
+        @Override
+        public UUID targetId(Cmd command) {
+            return null;
+        }
+
+        @Override
+        public cn.byteforce.seedj.domain.AppendRequest decide(Cmd command, CommandContext ctx) {
+            throw new UnsupportedOperationException("not used by agent tests");
+        }
+    }
 
     enum Kind { OK, REJECT, BOOM }
 

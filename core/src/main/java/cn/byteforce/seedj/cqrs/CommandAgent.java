@@ -6,13 +6,17 @@ import cn.byteforce.seedj.lock.LockProvider;
 import cn.byteforce.seedj.domain.AbstractAggregateRoot;
 import cn.byteforce.seedj.domain.Repository;
 import cn.byteforce.seedj.domain.event.DomainEvent;
+import cn.byteforce.seedj.domain.event.EventTypeRegistry;
 import cn.byteforce.seedj.domain.exception.AggregateNotFoundException;
 import cn.byteforce.seedj.eventbus.EventPublisher;
 
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * 命令代理：一条命令的<b>正确执行顺序</b>由本类保证，业务方只实现三个纯函数。
@@ -136,6 +140,8 @@ public abstract class CommandAgent<C extends Command<ID>, T extends AbstractAggr
 
     private final Options<ID> options;
 
+    private final Class<C> commandType;
+
     protected CommandAgent(Repository<T, ID> repository, EventPublisher publisher,
                            IdCodec<ID> codec) {
         this(repository, publisher, codec, Options.defaults());
@@ -147,6 +153,63 @@ public abstract class CommandAgent<C extends Command<ID>, T extends AbstractAggr
         this.publisher = Objects.requireNonNull(publisher, "publisher");
         this.codec = Objects.requireNonNull(codec, "codec");
         this.options = Objects.requireNonNull(options, "options");
+        this.commandType = resolveCommandType(getClass());
+    }
+
+    /**
+     * 命令类型，沿泛型父类解析。装配期用它校验注册项载荷类型。
+     *
+     * @return 命令类型
+     */
+    public final Class<C> commandType() {
+        return commandType;
+    }
+
+    /**
+     * 是否为创建型命令。装配期用它对齐声明 DSL 的 {@code creates()}。
+     *
+     * @return {@code true} 表示流不存在时允许创建
+     */
+    public final boolean isCreateCommand() {
+        return createsOnEmpty();
+    }
+
+    /**
+     * 聚合标识的规范文本（锁键与命令记录的 {@code target_ref} 共用）。
+     *
+     * @param command 已解码命令
+     * @return {@code codec.encode(command.aggregateId())}
+     */
+    final String encodedTarget(Command<?> command) {
+        Objects.requireNonNull(command, "command");
+        @SuppressWarnings("unchecked")
+        Command<ID> typed = (Command<ID>) command;
+        return codec.encode(Objects.requireNonNull(typed.aggregateId(),
+                "command.aggregateId()"));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <C> Class<C> resolveCommandType(Class<?> agentType) {
+        Class<?> current = agentType;
+        while (current != null && current != Object.class) {
+            Type superType = current.getGenericSuperclass();
+            if (superType instanceof ParameterizedType parameterized
+                    && parameterized.getRawType() == CommandAgent.class) {
+                Type argument = parameterized.getActualTypeArguments()[0];
+                if (argument instanceof Class<?> clazz) {
+                    return (Class<C>) clazz;
+                }
+                if (argument instanceof ParameterizedType nested
+                        && nested.getRawType() instanceof Class<?> raw) {
+                    return (Class<C>) raw;
+                }
+                throw new IllegalStateException(
+                        "cannot resolve command type for " + agentType.getName());
+            }
+            current = current.getSuperclass();
+        }
+        throw new IllegalStateException(
+                "cannot resolve command type for " + agentType.getName());
     }
 
     /**
@@ -175,16 +238,28 @@ public abstract class CommandAgent<C extends Command<ID>, T extends AbstractAggr
     protected abstract void handle(T aggregate, C command);
 
     /**
-     * 执行命令。
+     * 在统一信封内执行一条已解码的命令。
      *
-     * @return 聚合标识
+     * <p>包内入口：只由 {@link CommandRuntime} 调用。业务事务、锁与重试仍由本类保证；
+     * 命令记录终态在同一事务内完成，审计在其之前。</p>
+     *
+     * @param command    已解码命令
+     * @param invocation 信封上下文
+     * @return 接受态命令记录
      * @throws CqrsException 锁被占用（{@code LOCK_BUSY}）或重试耗尽（{@code CONCURRENCY_CONFLICT}）
      */
-    public final ID execute(C command) {
-        Objects.requireNonNull(command, "command");
-        ID id = Objects.requireNonNull(command.aggregateId(), "command.aggregateId()");
+    @SuppressWarnings("unchecked")
+    final CommandRecord executeWithin(Command<?> command, AgentInvocation invocation) {
+        return dispatchWithin((C) command, invocation);
+    }
 
-        CommandInvocation<ID> invocation = new CommandInvocation<>() {
+    private CommandRecord dispatchWithin(C command, AgentInvocation invocation) {
+        Objects.requireNonNull(command, "command");
+        Objects.requireNonNull(invocation, "invocation");
+        ID id = Objects.requireNonNull(command.aggregateId(), "command.aggregateId()");
+        AtomicReference<CommandRecord> completed = new AtomicReference<>();
+
+        CommandInvocation<ID> leaf = new CommandInvocation<>() {
             @Override
             public Command<ID> command() {
                 return command;
@@ -197,15 +272,17 @@ public abstract class CommandAgent<C extends Command<ID>, T extends AbstractAggr
 
             @Override
             public ID proceed() {
-                return dispatch(command, id);
+                completed.set(dispatch(command, id, invocation));
+                return id;
             }
         };
 
+        CommandInvocation<ID> chain = leaf;
         List<CommandInterceptor<ID>> interceptors = options.interceptors();
         for (int i = interceptors.size() - 1; i >= 0; i--) {
             CommandInterceptor<ID> interceptor = interceptors.get(i);
-            CommandInvocation<ID> inner = invocation;
-            invocation = new CommandInvocation<>() {
+            CommandInvocation<ID> inner = chain;
+            chain = new CommandInvocation<>() {
                 @Override
                 public Command<ID> command() {
                     return inner.command();
@@ -222,14 +299,26 @@ public abstract class CommandAgent<C extends Command<ID>, T extends AbstractAggr
                 }
             };
         }
+
         try {
-            return invocation.proceed();
+            chain.proceed();
         } catch (RuntimeException e) {
             if (isBusinessRejection(e)) {
-                options.audit().rejected(command, codec.encode(id), e);
+                options.audit().rejected(command, invocation.targetRef(), e);
             }
             throw e;
         }
+
+        CommandRecord record = completed.get();
+        if (record == null) {
+            record = invocation.commandStore().find(invocation.pending().id()).orElse(null);
+        }
+        if (record == null || !record.isTerminal()) {
+            throw new IllegalStateException(
+                    "command interceptor short-circuited without a terminal record: "
+                            + invocation.pending().id());
+        }
+        return record;
     }
 
     /**
@@ -245,20 +334,29 @@ public abstract class CommandAgent<C extends Command<ID>, T extends AbstractAggr
         return error instanceof AggregateNotFoundException;
     }
 
-    private ID dispatch(C command, ID id) {
-        String lockKey = aggregateType() + ':' + codec.encode(id);
+    private CommandRecord dispatch(C command, ID id, AgentInvocation invocation) {
+        String lockKey = aggregateType() + ':' + invocation.targetRef();
 
         for (int attempt = 1; ; attempt++) {
             try (LockLease ignored = acquire(lockKey)) {
                 return options.transactionRunner().inTransaction(() -> {
-                    T aggregate = loadOrCreate(id, command);
+                    T aggregate = loadOrCreate(id, command, invocation);
+                    // 结果状态也要在写范围内：创建与更新共用同一条检查。
+                    AggregateScope.requireWithin(aggregate, invocation.writeScope(),
+                            invocation.schema());
                     // 先取事件再保存：save 成功后聚合会清空待提交列表。
                     List<DomainEvent> events = aggregate.peekDomainEvents();
+                    requireDeclaredEvents(events, invocation.registration().emits());
+                    EventVisibility.requireVisible(events, invocation.schema(),
+                            invocation.jsonMapper());
                     repository.save(aggregate);
                     events.forEach(publisher::publish);
-                    // 事务内最后一步：审计写失败 → 命令一起回滚。
-                    options.audit().accepted(command, codec.encode(id));
-                    return id;
+                    // 审计与终态都在事务内：任一失败都会让事件流一起回滚。
+                    options.audit().accepted(command, invocation.targetRef());
+                    CommandRecord accepted = invocation.pending().accepted(
+                            invocation.targetRef(), aggregate.version(), List.of());
+                    invocation.commandStore().complete(accepted);
+                    return accepted;
                 });
             } catch (CqrsException e) {
                 boolean retry = e.getErrorCode() == CqrsErrorCode.CONCURRENCY_CONFLICT
@@ -270,10 +368,13 @@ public abstract class CommandAgent<C extends Command<ID>, T extends AbstractAggr
         }
     }
 
-    private T loadOrCreate(ID id, C command) {
+    private T loadOrCreate(ID id, C command, AgentInvocation invocation) {
         Optional<T> existing = repository.load(id);
         if (existing.isPresent()) {
             T aggregate = existing.get();
+            // 修改型命令先检查当前状态；结果状态由 dispatch 再查一次。
+            AggregateScope.requireWithin(aggregate, invocation.writeScope(),
+                    invocation.schema());
             handle(aggregate, command);
             return aggregate;
         }
@@ -281,6 +382,19 @@ public abstract class CommandAgent<C extends Command<ID>, T extends AbstractAggr
             throw new AggregateNotFoundException(aggregateType(), id);
         }
         return create(id, command);
+    }
+
+    private static void requireDeclaredEvents(List<DomainEvent> events, List<String> emits) {
+        if (emits.isEmpty()) {
+            return;
+        }
+        for (DomainEvent event : events) {
+            String type = EventTypeRegistry.logicalName(event.getClass());
+            if (!emits.contains(type)) {
+                throw new IllegalStateException(
+                        "undeclared domain event: " + type + "; declared " + emits);
+            }
+        }
     }
 
     private LockLease acquire(String lockKey) {
