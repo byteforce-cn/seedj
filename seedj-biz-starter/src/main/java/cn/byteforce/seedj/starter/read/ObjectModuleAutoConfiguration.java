@@ -46,35 +46,41 @@ public class ObjectModuleAutoConfiguration {
      * 写范围：与读路径共用同一套行范围贡献者。
      *
      * @param registry 模块注册表
-     * @param scopes   行范围贡献者
+     * @param scopes 行范围贡献者
      * @return 写范围提供者
      */
     @Bean
     @ConditionalOnMissingBean
-    public WriteScopeProvider writeScopeProvider(ObjectModuleRegistry registry,
-                                                 ObjectProvider<DataScopeResolver> scopes) {
+    public WriteScopeProvider writeScopeProvider(
+            ObjectModuleRegistry registry, ObjectProvider<DataScopeResolver> scopes) {
         return (objectType, caller) -> {
             ScopeContext context = ScopeContextHolder.current().orElse(ScopeContext.empty());
-            return ScopeResolvers.resolve(objectType, caller, context,
-                    scopes.orderedStream().toList(), registry.require(objectType).schema());
+            return ScopeResolvers.resolve(
+                    objectType,
+                    caller,
+                    context,
+                    scopes.orderedStream().toList(),
+                    registry.require(objectType).schema());
         };
     }
 
     /**
      * 命令执行面注册表。
      *
-     * @param registry    模块注册表
-     * @param policy      命令授权策略
-     * @param runtime     命令运行时
+     * @param registry 模块注册表
+     * @param policy 命令授权策略
+     * @param runtime 命令运行时
      * @param writeScopes 写范围
      * @return 命令注册表
      */
     @Bean
     @ConditionalOnBean({CommandRuntime.class, CommandPolicy.class})
     @ConditionalOnMissingBean
-    public CommandCatalog commandCatalog(ObjectModuleRegistry registry, CommandPolicy policy,
-                                         CommandRuntime runtime,
-                                         WriteScopeProvider writeScopes) {
+    public CommandCatalog commandCatalog(
+            ObjectModuleRegistry registry,
+            CommandPolicy policy,
+            CommandRuntime runtime,
+            WriteScopeProvider writeScopes) {
         return new CommandCatalog(registry.commands(), policy, runtime, writeScopes);
     }
 }

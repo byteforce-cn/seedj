@@ -10,13 +10,9 @@ import java.util.function.Function;
  */
 interface TransitState {
 
-    /**
-     * 当前状态快照。调用方不得修改返回值。
-     */
+    /** 当前状态快照。调用方不得修改返回值。 */
     Map<String, StoredKey> snapshot();
 
-    /**
-     * 原子读-改-写：在锁内读取最新状态、应用变更并持久化。
-     */
+    /** 原子读-改-写：在锁内读取最新状态、应用变更并持久化。 */
     <T> T update(Function<Map<String, StoredKey>, T> mutation);
 }

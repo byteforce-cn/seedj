@@ -5,17 +5,15 @@ import java.util.Locale;
 /**
  * 命名转换：record 组件的 camelCase → schema 的 snake_case。
  *
- * <p>规则与 {@code ObjectModules} 的载荷字段推导保持一致：每个大写字母前插入下划线并转小写
- * （{@code orgUnitId → org_unit_id}）。保持一致比“更聪明的缩写处理”重要——命令载荷、
- * schema 与 HTTP 字段必须落在同一个名字上。</p>
+ * <p>规则与 {@code ObjectModules} 的载荷字段推导保持一致：每个大写字母前插入下划线并转小写 （{@code orgUnitId →
+ * org_unit_id}）。保持一致比“更聪明的缩写处理”重要——命令载荷、 schema 与 HTTP 字段必须落在同一个名字上。
  *
  * @author ByteForce
  * @since 1.0.0
  */
 final class Names {
 
-    private Names() {
-    }
+    private Names() {}
 
     static String snakeCase(String camel) {
         StringBuilder out = new StringBuilder(camel.length() + 4);

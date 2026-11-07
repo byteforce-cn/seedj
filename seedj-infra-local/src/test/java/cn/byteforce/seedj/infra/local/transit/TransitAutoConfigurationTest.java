@@ -1,5 +1,7 @@
 package cn.byteforce.seedj.infra.local.transit;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import cn.byteforce.seedj.transit.CreateKeyRequest;
 import cn.byteforce.seedj.transit.KeyType;
 import cn.byteforce.seedj.transit.TransitCrypto;
@@ -8,28 +10,27 @@ import cn.byteforce.seedj.transit.TransitMac;
 import cn.byteforce.seedj.transit.TransitOperation;
 import cn.byteforce.seedj.transit.TransitProvider;
 import cn.byteforce.seedj.transit.TransitSigner;
-
+import java.nio.file.Path;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
-import java.nio.file.Path;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
 class TransitAutoConfigurationTest {
 
-    private final ApplicationContextRunner runner = new ApplicationContextRunner()
-            .withConfiguration(AutoConfigurations.of(TransitAutoConfiguration.class));
+    private final ApplicationContextRunner runner =
+            new ApplicationContextRunner()
+                    .withConfiguration(AutoConfigurations.of(TransitAutoConfiguration.class));
 
     @Test
     @DisplayName("默认提供一个磁盘持久化的 TransitProvider")
     void providesTransitProvider() {
-        runner.run(context -> {
-            assertThat(context).hasSingleBean(TransitProvider.class);
-            assertThat(context.getBean(TransitProvider.class)).isInstanceOf(BcTransitProvider.class);
-        });
+        runner.run(
+                context -> {
+                    assertThat(context).hasSingleBean(TransitProvider.class);
+                    assertThat(context.getBean(TransitProvider.class))
+                            .isInstanceOf(BcTransitProvider.class);
+                });
     }
 
     @Test
@@ -42,34 +43,40 @@ class TransitAutoConfigurationTest {
     @Test
     @DisplayName("业务自定义 bean 优先")
     void userBeanWins() {
-        runner.withBean(TransitProvider.class, () -> new TransitProvider() {
-                    @Override
-                    public TransitCrypto crypto() {
-                        return null;
-                    }
+        runner.withBean(
+                        TransitProvider.class,
+                        () ->
+                                new TransitProvider() {
+                                    @Override
+                                    public TransitCrypto crypto() {
+                                        return null;
+                                    }
 
-                    @Override
-                    public TransitSigner signer() {
-                        return null;
-                    }
+                                    @Override
+                                    public TransitSigner signer() {
+                                        return null;
+                                    }
 
-                    @Override
-                    public TransitMac mac() {
-                        return null;
-                    }
+                                    @Override
+                                    public TransitMac mac() {
+                                        return null;
+                                    }
 
-                    @Override
-                    public TransitKeyAdmin keyAdmin() {
-                        return null;
-                    }
+                                    @Override
+                                    public TransitKeyAdmin keyAdmin() {
+                                        return null;
+                                    }
 
-                    @Override
-                    public boolean supports(KeyType keyType, TransitOperation operation) {
-                        return false;
-                    }
-                })
-                .run(context -> assertThat(context.getBean(TransitProvider.class))
-                        .isNotInstanceOf(BcTransitProvider.class));
+                                    @Override
+                                    public boolean supports(
+                                            KeyType keyType, TransitOperation operation) {
+                                        return false;
+                                    }
+                                })
+                .run(
+                        context ->
+                                assertThat(context.getBean(TransitProvider.class))
+                                        .isNotInstanceOf(BcTransitProvider.class));
     }
 
     @Test
@@ -77,13 +84,23 @@ class TransitAutoConfigurationTest {
     void stateFileIsShared(@org.junit.jupiter.api.io.TempDir Path dir) {
         String stateFile = dir.resolve("transit.properties").toString();
 
-        runner.withPropertyValues("seedj.transit.state-file=" + stateFile).run(first -> {
-            TransitProvider provider = first.getBean(TransitProvider.class);
-            provider.keyAdmin().createKey(CreateKeyRequest.of("shared", KeyType.AES256_GCM96));
+        runner.withPropertyValues("seedj.transit.state-file=" + stateFile)
+                .run(
+                        first -> {
+                            TransitProvider provider = first.getBean(TransitProvider.class);
+                            provider.keyAdmin()
+                                    .createKey(CreateKeyRequest.of("shared", KeyType.AES256_GCM96));
 
-            runner.withPropertyValues("seedj.transit.state-file=" + stateFile).run(second ->
-                    assertThat(second.getBean(TransitProvider.class).keyAdmin().readKey("shared"))
-                            .isNotNull());
-        });
+                            runner.withPropertyValues("seedj.transit.state-file=" + stateFile)
+                                    .run(
+                                            second ->
+                                                    assertThat(
+                                                                    second.getBean(
+                                                                                    TransitProvider
+                                                                                            .class)
+                                                                            .keyAdmin()
+                                                                            .readKey("shared"))
+                                                            .isNotNull());
+                        });
     }
 }

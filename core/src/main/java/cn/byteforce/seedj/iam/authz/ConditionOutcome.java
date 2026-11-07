@@ -3,9 +3,9 @@ package cn.byteforce.seedj.iam.authz;
 /**
  * 条件求值结果。
  *
- * @param matched    是否满足
+ * @param matched 是否满足
  * @param reasonCode 不满足时的原因码（ATTRIBUTE_MISSING / ATTRIBUTE_MISMATCH）
- * @param attribute  不满足时的属性路径
+ * @param attribute 不满足时的属性路径
  * @author ByteForce
  * @since 1.0.0
  */

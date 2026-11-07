@@ -1,35 +1,45 @@
 package cn.byteforce.seedj.infra.jdbc.cqrs;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import cn.byteforce.seedj.core.clock.TestClock;
 import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;
+import cn.byteforce.seedj.core.security.Caller;
+import cn.byteforce.seedj.cqrs.CommandContext;
 import cn.byteforce.seedj.cqrs.CommandDescriptor;
+import cn.byteforce.seedj.cqrs.CommandHandler;
 import cn.byteforce.seedj.cqrs.CommandReceipt;
 import cn.byteforce.seedj.cqrs.CommandRecord;
+import cn.byteforce.seedj.cqrs.CommandRegistration;
 import cn.byteforce.seedj.cqrs.CommandRuntime;
 import cn.byteforce.seedj.cqrs.CommandStatus;
 import cn.byteforce.seedj.cqrs.CommandSubmission;
-import cn.byteforce.seedj.cqrs.CommandContext;
-import cn.byteforce.seedj.cqrs.CommandHandler;
-import cn.byteforce.seedj.cqrs.CommandRegistration;
-import cn.byteforce.seedj.core.security.Caller;
+import cn.byteforce.seedj.cqrs.TemporalCommandAudit;
+import cn.byteforce.seedj.cqrs.spi.TransactionRunner;
+import cn.byteforce.seedj.domain.AppendRequest;
+import cn.byteforce.seedj.domain.AppendResult;
 import cn.byteforce.seedj.domain.FieldType;
 import cn.byteforce.seedj.domain.ObjectSchema;
 import cn.byteforce.seedj.domain.ScopePredicate;
-import cn.byteforce.seedj.cqrs.spi.TransactionRunner;
-import cn.byteforce.seedj.cqrs.TemporalCommandAudit;
-import cn.byteforce.seedj.outbox.OutboxWriter;
-import cn.byteforce.seedj.domain.AppendRequest;
-import cn.byteforce.seedj.domain.AppendResult;
 import cn.byteforce.seedj.domain.event.CommandEvent;
+import cn.byteforce.seedj.id.IdGenerator;
+import cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner;
 import cn.byteforce.seedj.infra.jdbc.domain.PostgresTemporalStore;
-import cn.byteforce.seedj.infra.jdbc.domain.TemporalTables;
 import cn.byteforce.seedj.infra.jdbc.domain.TemporalDdl;
 import cn.byteforce.seedj.infra.jdbc.domain.TemporalSchemaCapability;
 import cn.byteforce.seedj.infra.jdbc.domain.TemporalTable;
-import cn.byteforce.seedj.id.IdGenerator;
-import cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner;
+import cn.byteforce.seedj.infra.jdbc.domain.TemporalTables;
 import cn.byteforce.seedj.lock.LockProvider;
+import cn.byteforce.seedj.outbox.OutboxWriter;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -42,20 +52,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import java.time.Duration;
-import java.time.Instant;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.function.Supplier;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
-/**
- * 对象行与命令终态必须在同一个数据库事务内提交/回滚。
- */
+/** 对象行与命令终态必须在同一个数据库事务内提交/回滚。 */
 @Testcontainers
 class TemporalCommandTransactionTest {
 
@@ -84,40 +81,51 @@ class TemporalCommandTransactionTest {
 
     private static CommandRegistration registration;
 
-    private static final Caller CALLER = new Caller(ACTOR.toString(), "alice", "default",
-            null, null, null, null, null, null);
+    private static final Caller CALLER =
+            new Caller(ACTOR.toString(), "alice", "default", null, null, null, null, null, null);
 
     @BeforeAll
     static void initialize() {
-        DriverManagerDataSource dataSource = new DriverManagerDataSource(
-                POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
+        DriverManagerDataSource dataSource =
+                new DriverManagerDataSource(
+                        POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
         jdbc = new JdbcTemplate(dataSource);
         JdbcMigrationRunner runner = new JdbcMigrationRunner(dataSource);
         new TemporalSchemaCapability(runner).initialize();
         new CommandSchemaCapability(runner).initialize();
-        TemporalTable table = new TemporalTable("probe", "probe_object",
-                new LinkedHashMap<>(Map.of("name", "TEXT")));
+        TemporalTable table =
+                new TemporalTable(
+                        "probe", "probe_object", new LinkedHashMap<>(Map.of("name", "TEXT")));
         jdbc.execute(TemporalDdl.createTable(table));
 
         clock = new TestClock(T0);
         objects = new PostgresTemporalStore(jdbc, clock, new TemporalTables(List.of(table)));
         commands = new PostgresCommandStore(jdbc);
-        runtime = new CommandRuntime(new CommandRuntime.Options(
-                new SpringRunner(new TransactionTemplate(
-                        new DataSourceTransactionManager(dataSource))),
-                LockProvider.disabled(), Duration.ofSeconds(30), clock,
-                (IdGenerator<UUID>) UUID::randomUUID, commands, objects,
-                OutboxWriter.discard(), TemporalCommandAudit.noop()));
-        ObjectSchema schema = ObjectSchema.builder("probe", "probe_object")
-                .field("name", FieldType.TEXT)
-                .build();
-        CommandDescriptor descriptor = CommandDescriptor.builder()
-                .type("probe.update")
-                .objectType("probe")
-                .payloadType(ProbeCommand.class)
-                .build();
-        registration = new CommandRegistration(descriptor, new ProbeHandler(), schema,
-                java.util.Set.of("target", "fail"));
+        runtime =
+                new CommandRuntime(
+                        new CommandRuntime.Options(
+                                new SpringRunner(
+                                        new TransactionTemplate(
+                                                new DataSourceTransactionManager(dataSource))),
+                                LockProvider.disabled(),
+                                Duration.ofSeconds(30),
+                                clock,
+                                (IdGenerator<UUID>) UUID::randomUUID,
+                                commands,
+                                objects,
+                                OutboxWriter.discard(),
+                                TemporalCommandAudit.noop()));
+        ObjectSchema schema =
+                ObjectSchema.builder("probe", "probe_object").field("name", FieldType.TEXT).build();
+        CommandDescriptor descriptor =
+                CommandDescriptor.builder()
+                        .type("probe.update")
+                        .objectType("probe")
+                        .payloadType(ProbeCommand.class)
+                        .build();
+        registration =
+                new CommandRegistration(
+                        descriptor, new ProbeHandler(), schema, java.util.Set.of("target", "fail"));
     }
 
     @BeforeEach
@@ -129,22 +137,35 @@ class TemporalCommandTransactionTest {
     @Test
     @DisplayName("接受命令：对象行与 accepted 命令记录一起提交")
     void acceptedWritesObjectAndCommandInOneTransaction() {
-        CommandReceipt receipt = runtime.execute(submission("tx-1", "Alice", false), registration, CALLER,
-                ScopePredicate.all());
+        CommandReceipt receipt =
+                runtime.execute(
+                        submission("tx-1", "Alice", false),
+                        registration,
+                        CALLER,
+                        ScopePredicate.all());
 
         assertThat(receipt.status()).isEqualTo(CommandStatus.ACCEPTED);
         assertThat(count("probe_object")).isEqualTo(1);
-        assertThat(commands.find(receipt.commandId())).get()
+        assertThat(commands.find(receipt.commandId()))
+                .get()
                 .satisfies(record -> assertThat(record.status()).isEqualTo(CommandStatus.ACCEPTED));
     }
 
     @Test
     @DisplayName("追加后拒绝：对象行回滚，rejected 命令记录仍可查")
     void rejectedAfterAppendRollsBackObjectButKeepsRejectedCommand() {
-        assertThatThrownBy(() -> runtime.execute(submission("tx-2", "Bob", true), registration, CALLER,
-                ScopePredicate.all()))
-                .isInstanceOfSatisfying(ContractException.class, error ->
-                        assertThat(error.code()).isEqualTo(ContractErrorCode.TEMPORAL_VIOLATION));
+        assertThatThrownBy(
+                        () ->
+                                runtime.execute(
+                                        submission("tx-2", "Bob", true),
+                                        registration,
+                                        CALLER,
+                                        ScopePredicate.all()))
+                .isInstanceOfSatisfying(
+                        ContractException.class,
+                        error ->
+                                assertThat(error.code())
+                                        .isEqualTo(ContractErrorCode.TEMPORAL_VIOLATION));
 
         assertThat(count("probe_object")).isZero();
         CommandRecord record = commands.findByIdempotencyKey(ACTOR, "tx-2").orElseThrow();
@@ -155,19 +176,31 @@ class TemporalCommandTransactionTest {
     @Test
     @DisplayName("审计失败：对象行与命令终态一起回滚，命令键被释放")
     void auditFailureRollsBackObjectAndCommand() {
-        CommandRuntime failing = new CommandRuntime(new CommandRuntime.Options(
-                new SpringRunner(new TransactionTemplate(
-                        new DataSourceTransactionManager(jdbc.getDataSource()))),
-                LockProvider.disabled(), Duration.ofSeconds(30), clock,
-                (IdGenerator<UUID>) UUID::randomUUID, commands, objects,
-                OutboxWriter.discard(),
-                (record, objectType, events) -> {
-                    throw new IllegalStateException("audit down");
-                }));
+        CommandRuntime failing =
+                new CommandRuntime(
+                        new CommandRuntime.Options(
+                                new SpringRunner(
+                                        new TransactionTemplate(
+                                                new DataSourceTransactionManager(
+                                                        jdbc.getDataSource()))),
+                                LockProvider.disabled(),
+                                Duration.ofSeconds(30),
+                                clock,
+                                (IdGenerator<UUID>) UUID::randomUUID,
+                                commands,
+                                objects,
+                                OutboxWriter.discard(),
+                                (record, objectType, events) -> {
+                                    throw new IllegalStateException("audit down");
+                                }));
 
-
-        assertThatThrownBy(() -> failing.execute(submission("tx-audit", "Alice", false), registration, CALLER,
-                ScopePredicate.all()))
+        assertThatThrownBy(
+                        () ->
+                                failing.execute(
+                                        submission("tx-audit", "Alice", false),
+                                        registration,
+                                        CALLER,
+                                        ScopePredicate.all()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("audit down");
 
@@ -199,26 +232,25 @@ class TemporalCommandTransactionTest {
         public AppendRequest decide(ProbeCommand command, CommandContext ctx) {
             Map<String, Object> fields = Map.of("name", command.name());
             if (ctx.current().isPresent()) {
-                return AppendRequest.correction("probe", command.target(), ctx.now(), null,
-                        ctx.actor(), fields);
+                return AppendRequest.correction(
+                        "probe", command.target(), ctx.now(), null, ctx.actor(), fields);
             }
-            return AppendRequest.create("probe", command.target(), ctx.now(), null,
-                    ctx.actor(), fields);
+            return AppendRequest.create(
+                    "probe", command.target(), ctx.now(), null, ctx.actor(), fields);
         }
 
         @Override
-        public List<CommandEvent> events(ProbeCommand command, AppendResult result,
-                                         CommandContext ctx) {
+        public List<CommandEvent> events(
+                ProbeCommand command, AppendResult result, CommandContext ctx) {
             if (command.fail()) {
-                throw new ContractException(ContractErrorCode.TEMPORAL_VIOLATION,
-                        "failure after append");
+                throw new ContractException(
+                        ContractErrorCode.TEMPORAL_VIOLATION, "failure after append");
             }
             return List.of();
         }
     }
 
-    record ProbeCommand(UUID target, String name, boolean fail) {
-    }
+    record ProbeCommand(UUID target, String name, boolean fail) {}
 
     static final class SpringRunner implements TransactionRunner {
 

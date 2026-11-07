@@ -10,7 +10,6 @@ import cn.byteforce.seedj.domain.AppendRequest;
 import cn.byteforce.seedj.domain.AppendResult;
 import cn.byteforce.seedj.domain.event.CommandEvent;
 import cn.byteforce.seedj.id.IdGenerator;
-
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -41,11 +40,14 @@ public final class HrEmployeeCreateHandler extends AbstractCommandHandler<HrEmpl
      *
      * @param commandIds 目标对象 ID 生成器
      * @param employeeNos 工号生成器（返回已格式化的 {@code EMP-000001}）
-     * @param derived    派生字段
-     * @param orgUnits   组织单元目录
+     * @param derived 派生字段
+     * @param orgUnits 组织单元目录
      */
-    public HrEmployeeCreateHandler(IdGenerator<UUID> commandIds, IdGenerator<String> employeeNos,
-                                   DerivedFieldRegistry derived, OrgUnitDirectory orgUnits) {
+    public HrEmployeeCreateHandler(
+            IdGenerator<UUID> commandIds,
+            IdGenerator<String> employeeNos,
+            DerivedFieldRegistry derived,
+            OrgUnitDirectory orgUnits) {
         this.commandIds = commandIds;
         this.employeeNos = employeeNos;
         this.derived = derived;
@@ -67,16 +69,14 @@ public final class HrEmployeeCreateHandler extends AbstractCommandHandler<HrEmpl
             throw reject(ContractErrorCode.INVALID_PAYLOAD, "id_number must not be blank");
         }
         if (command.hireDate().isAfter(LocalDate.ofInstant(ctx.now(), ZoneOffset.UTC))) {
-            throw reject(ContractErrorCode.COMMAND_REJECTED,
-                    "hire_date must not be in the future");
+            throw reject(ContractErrorCode.COMMAND_REJECTED, "hire_date must not be in the future");
         }
         UUID orgUnitId = command.orgUnitId();
         if (orgUnitId == null) {
             orgUnitId = firstOrgUnit(ctx);
         }
         if (orgUnitId != null && !orgUnits.exists(orgUnitId)) {
-            throw reject(ContractErrorCode.COMMAND_REJECTED,
-                    "unknown org_unit_id: " + orgUnitId);
+            throw reject(ContractErrorCode.COMMAND_REJECTED, "unknown org_unit_id: " + orgUnitId);
         }
         Map<String, Object> fields = schemaFields(ctx, command);
         fields.put("employee_no", employeeNos.id());
@@ -87,17 +87,15 @@ public final class HrEmployeeCreateHandler extends AbstractCommandHandler<HrEmpl
             fields.put("org_unit_id", orgUnitId);
         }
         if (command.idNumber() != null && !command.idNumber().isBlank()) {
-            fields.put(ID_NUMBER_HASH,
-                    derived.require(ID_NUMBER_HASH).derive(command.idNumber()));
+            fields.put(ID_NUMBER_HASH, derived.require(ID_NUMBER_HASH).derive(command.idNumber()));
         }
-        java.time.Instant validFrom = command.hireDate().atStartOfDay(ZoneOffset.UTC)
-                .toInstant();
+        java.time.Instant validFrom = command.hireDate().atStartOfDay(ZoneOffset.UTC).toInstant();
         return create(ctx, validFrom, fields);
     }
 
     @Override
-    public List<CommandEvent> events(HrEmployeeCreate command, AppendResult result,
-                                     CommandContext ctx) {
+    public List<CommandEvent> events(
+            HrEmployeeCreate command, AppendResult result, CommandContext ctx) {
         return List.of(ctx.event("hr.employee.created", result.appended().fields()));
     }
 
@@ -114,8 +112,8 @@ public final class HrEmployeeCreateHandler extends AbstractCommandHandler<HrEmpl
 
     private static void requireName(String name) {
         if (name == null || name.isBlank()) {
-            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
-                    "name must not be blank");
+            throw new ContractException(
+                    ContractErrorCode.INVALID_PAYLOAD, "name must not be blank");
         }
     }
 }

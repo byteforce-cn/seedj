@@ -1,5 +1,7 @@
 package cn.byteforce.seedj.server.hr.employee;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import cn.byteforce.seedj.core.clock.Clock;
 import cn.byteforce.seedj.core.security.Caller;
 import cn.byteforce.seedj.core.security.ScopeContext;
@@ -19,21 +21,16 @@ import cn.byteforce.seedj.read.FieldPolicy;
 import cn.byteforce.seedj.read.FieldPolicyResolver;
 import cn.byteforce.seedj.read.ReadAuditSink;
 import cn.byteforce.seedj.read.ReadGateway;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-/**
- * HR 读面：组织范围、字段隐私与分页 total 的端到端语义。
- */
+/** HR 读面：组织范围、字段隐私与分页 total 的端到端语义。 */
 class HrEmployeeReadE2eTest {
 
     private static final Instant T0 = Instant.parse("2026-11-06T09:00:00Z");
@@ -46,8 +43,17 @@ class HrEmployeeReadE2eTest {
 
     private static final String ORG_C = "33333333-3333-3333-3333-333333333333";
 
-    private static final Caller MANAGER = new Caller("u-1", "manager", "default", Set.of(),
-            Set.of("hr.employee.read"), Set.of(), Set.of("pwd"), "urn:seedj:acr:pwd", Map.of());
+    private static final Caller MANAGER =
+            new Caller(
+                    "u-1",
+                    "manager",
+                    "default",
+                    Set.of(),
+                    Set.of("hr.employee.read"),
+                    Set.of(),
+                    Set.of("pwd"),
+                    "urn:seedj:acr:pwd",
+                    Map.of());
 
     private final AtomicReference<Instant> now = new AtomicReference<>(T0);
 
@@ -55,25 +61,38 @@ class HrEmployeeReadE2eTest {
 
     private final ObjectModuleRegistry registry = registry();
 
-    private final InMemoryTemporalStore store = new InMemoryTemporalStore(clock,
-            new ObjectSchemaRegistry(List.of(registry.require("employee").schema())));
+    private final InMemoryTemporalStore store =
+            new InMemoryTemporalStore(
+                    clock,
+                    new ObjectSchemaRegistry(List.of(registry.require("employee").schema())));
 
-    private final FieldPolicyResolver contactMasked = new FieldPolicyResolver() {
-        @Override
-        public boolean supports(String objectType) {
-            return "employee".equals(objectType);
-        }
+    private final FieldPolicyResolver contactMasked =
+            new FieldPolicyResolver() {
+                @Override
+                public boolean supports(String objectType) {
+                    return "employee".equals(objectType);
+                }
 
-        @Override
-        public FieldPolicy resolve(String objectType, Caller caller, ScopeContext context) {
-            return new FieldPolicy(Map.of("contact", new FieldAccess(
-                    FieldAccess.Action.MASKED, "hr.employee.contact.masked")));
-        }
-    };
+                @Override
+                public FieldPolicy resolve(String objectType, Caller caller, ScopeContext context) {
+                    return new FieldPolicy(
+                            Map.of(
+                                    "contact",
+                                    new FieldAccess(
+                                            FieldAccess.Action.MASKED,
+                                            "hr.employee.contact.masked")));
+                }
+            };
 
-    private final ReadGateway gateway = new ReadGateway(registry, store,
-            List.of(new HrOrgUnitScopeResolver()), List.of(contactMasked), ReadAuditSink.noop(),
-            clock, () -> UUID.randomUUID());
+    private final ReadGateway gateway =
+            new ReadGateway(
+                    registry,
+                    store,
+                    List.of(new HrOrgUnitScopeResolver()),
+                    List.of(contactMasked),
+                    ReadAuditSink.noop(),
+                    clock,
+                    () -> UUID.randomUUID());
 
     @BeforeEach
     void seed() {
@@ -132,27 +151,55 @@ class HrEmployeeReadE2eTest {
     }
 
     private Page<TemporalRow> search(List<String> units, PageRequest pageRequest) {
-        try (ScopeContextHolder.Scope ignored = ScopeContextHolder.open(
-                ScopeContext.of(Map.of("org.units", units)))) {
-            return gateway.search("employee", new TemporalSearch("employee", Map.of(),
-                    null, null, null, "employee_no", SortDirection.ASC, pageRequest), MANAGER);
+        try (ScopeContextHolder.Scope ignored =
+                ScopeContextHolder.open(ScopeContext.of(Map.of("org.units", units)))) {
+            return gateway.search(
+                    "employee",
+                    new TemporalSearch(
+                            "employee",
+                            Map.of(),
+                            null,
+                            null,
+                            null,
+                            "employee_no",
+                            SortDirection.ASC,
+                            pageRequest),
+                    MANAGER);
         }
     }
 
     private void seedRow(String unit, String contact, String hash) {
-        store.append(AppendRequest.create("employee", UUID.randomUUID(), T0, null, ACTOR,
-                Map.of("employee_no", "E-" + unit, "name", "Employee " + unit,
-                        "hire_date", java.time.LocalDate.of(2026, 10, 1),
-                        "status", "ACTIVE", "contact", contact, "id_number_hash", hash,
-                        "org_unit_id", UUID.fromString(unit))));
+        store.append(
+                AppendRequest.create(
+                        "employee",
+                        UUID.randomUUID(),
+                        T0,
+                        null,
+                        ACTOR,
+                        Map.of(
+                                "employee_no",
+                                "E-" + unit,
+                                "name",
+                                "Employee " + unit,
+                                "hire_date",
+                                java.time.LocalDate.of(2026, 10, 1),
+                                "status",
+                                "ACTIVE",
+                                "contact",
+                                contact,
+                                "id_number_hash",
+                                hash,
+                                "org_unit_id",
+                                UUID.fromString(unit))));
     }
 
     private static ObjectModuleRegistry registry() {
         ObjectModules modules = ObjectModules.create();
         var derived = new cn.byteforce.seedj.core.security.DerivedFieldRegistry(Map.of());
         var orgUnits = (OrgUnitDirectory) unit -> true;
-        var create = new HrEmployeeCreateHandler(() -> UUID.randomUUID(),
-                () -> "EMP-000001", derived, orgUnits);
+        var create =
+                new HrEmployeeCreateHandler(
+                        () -> UUID.randomUUID(), () -> "EMP-000001", derived, orgUnits);
         var update = new HrEmployeeUpdateHandler(derived, orgUnits);
         new HrEmployeeModule(create, update).configure(modules);
         return modules.freeze();

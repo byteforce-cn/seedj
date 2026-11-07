@@ -15,8 +15,8 @@ import org.junit.jupiter.api.Test;
 /**
  * 测试切片预算：不启动 Spring 的规则测试占比不得下降。
  *
- * <p>规则测试秒级完成、不依赖容器；{@code @SpringBootTest} 只用于 HTTP/安全/数据库契约。
- * 基线按「plain / (plain + spring)」比较，避免测试总数增长时指标被稀释。</p>
+ * <p>规则测试秒级完成、不依赖容器；{@code @SpringBootTest} 只用于 HTTP/安全/数据库契约。 基线按「plain / (plain +
+ * spring)」比较，避免测试总数增长时指标被稀释。
  */
 class TestSliceBudgetTest {
 
@@ -43,11 +43,13 @@ class TestSliceBudgetTest {
         int plainBaseline = intValue("tests.plainTestClasses");
 
         assertThat(plain * (springBaseline + plainBaseline))
-                .as("plain/spring 测试比 %d/%d 低于基线 %d/%d；补充不启 Spring 的规则测试",
+                .as(
+                        "plain/spring 测试比 %d/%d 低于基线 %d/%d；补充不启 Spring 的规则测试",
                         plain, spring, plainBaseline, springBaseline)
                 .isGreaterThanOrEqualTo(plainBaseline * (plain + spring));
         if (plain > plainBaseline) {
-            System.out.printf("cognitive-load: plain tests improved %d -> %d; tighten %s%n",
+            System.out.printf(
+                    "cognitive-load: plain tests improved %d -> %d; tighten %s%n",
                     plainBaseline, plain, "tests.plainTestClasses");
         }
     }

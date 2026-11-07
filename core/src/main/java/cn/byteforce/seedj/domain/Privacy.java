@@ -3,9 +3,9 @@ package cn.byteforce.seedj.domain;
 /**
  * 字段隐私层级：读投影的默认可见性由它决定，字段策略只能在此基础上收窄或按动作放宽。
  *
- * <p>顺序为 {@code PUBLIC < INTERNAL < SENSITIVE < RESTRICTED}。默认渲染：
- * {@code PUBLIC/INTERNAL → FULL}，{@code SENSITIVE/RESTRICTED → HIDDEN}；
- * 策略允许 {@code read.masked} 时敏感字段可降为打码，允许 {@code read} 时受限字段可完整读取。</p>
+ * <p>顺序为 {@code PUBLIC < INTERNAL < SENSITIVE < RESTRICTED}。默认渲染： {@code PUBLIC/INTERNAL →
+ * FULL}，{@code SENSITIVE/RESTRICTED → HIDDEN}； 策略允许 {@code read.masked} 时敏感字段可降为打码，允许 {@code read}
+ * 时受限字段可完整读取。
  *
  * @author ByteForce
  * @since 1.0.0

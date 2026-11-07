@@ -1,14 +1,13 @@
 package cn.byteforce.seedj.starter.iam.security;
 
-import cn.byteforce.seedj.starter.iam.IamProperties;
 import cn.byteforce.seedj.id.IdGenerator;
+import cn.byteforce.seedj.starter.iam.IamProperties;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
-
-import java.util.List;
 
 /** Inserts configured/demo clients if they are not already persisted. */
 public class IamClientBootstrapRunner implements SmartInitializingSingleton {
@@ -18,9 +17,10 @@ public class IamClientBootstrapRunner implements SmartInitializingSingleton {
     private final RegisteredClientRepository repository;
     private final List<RegisteredClient> clients;
 
-    public IamClientBootstrapRunner(RegisteredClientRepository repository,
-                                    IamProperties properties,
-                                    IdGenerator<String> idGenerator) {
+    public IamClientBootstrapRunner(
+            RegisteredClientRepository repository,
+            IamProperties properties,
+            IdGenerator<String> idGenerator) {
         this.repository = repository;
         this.clients = IamClientFactory.fromProperties(properties, idGenerator);
     }
@@ -28,8 +28,9 @@ public class IamClientBootstrapRunner implements SmartInitializingSingleton {
     @Override
     public void afterSingletonsInstantiated() {
         if (clients.isEmpty()) {
-            log.warn("no OAuth2 clients registered; set seedj.iam.clients or "
-                    + "seedj.iam.demo.enabled=true");
+            log.warn(
+                    "no OAuth2 clients registered; set seedj.iam.clients or "
+                            + "seedj.iam.demo.enabled=true");
             return;
         }
         for (RegisteredClient client : clients) {

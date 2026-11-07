@@ -1,8 +1,6 @@
 package cn.byteforce.seedj.core.clock;
 
-/**
- * 时钟实现的能力声明。业务只能依赖 provider 声明级别的保证。
- */
+/** 时钟实现的能力声明。业务只能依赖 provider 声明级别的保证。 */
 public enum ClockGuarantee {
 
     /** 单实例内相邻调用严格递增，跨实例无保证。 */

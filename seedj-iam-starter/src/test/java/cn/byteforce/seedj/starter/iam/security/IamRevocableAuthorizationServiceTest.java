@@ -1,6 +1,9 @@
 package cn.byteforce.seedj.starter.iam.security;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamTokenRevoker;
+import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
@@ -9,10 +12,6 @@ import org.springframework.security.oauth2.server.authorization.InMemoryOAuth2Au
 import org.springframework.security.oauth2.server.authorization.OAuth2Authorization;
 import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
-
-import java.time.Instant;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 class IamRevocableAuthorizationServiceTest {
 
@@ -59,8 +58,12 @@ class IamRevocableAuthorizationServiceTest {
     }
 
     private static OAuth2Authorization authorization(String principal) {
-        OAuth2AccessToken accessToken = new OAuth2AccessToken(OAuth2AccessToken.TokenType.BEARER,
-                "access-token", Instant.now(), Instant.now().plusSeconds(300));
+        OAuth2AccessToken accessToken =
+                new OAuth2AccessToken(
+                        OAuth2AccessToken.TokenType.BEARER,
+                        "access-token",
+                        Instant.now(),
+                        Instant.now().plusSeconds(300));
         return OAuth2Authorization.withRegisteredClient(client())
                 .id("a-1")
                 .principalName(principal)

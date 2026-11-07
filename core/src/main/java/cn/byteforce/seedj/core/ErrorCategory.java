@@ -3,8 +3,7 @@ package cn.byteforce.seedj.core;
 /**
  * 基础设施错误的分类，供调用方决定"重试 / 修参数 / 改配置"。
  *
- * <p>三个基础设施 SPI（pki / transit / eventbus / id）共用这一套分类，
- * 业务方只需写一次 {@code catch} 逻辑。
+ * <p>三个基础设施 SPI（pki / transit / eventbus / id）共用这一套分类， 业务方只需写一次 {@code catch} 逻辑。
  */
 public enum ErrorCategory {
 

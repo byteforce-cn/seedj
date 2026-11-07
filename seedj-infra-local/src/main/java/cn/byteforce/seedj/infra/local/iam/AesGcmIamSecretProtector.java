@@ -3,17 +3,16 @@ package cn.byteforce.seedj.infra.local.iam;
 import cn.byteforce.seedj.iam.IamErrorCode;
 import cn.byteforce.seedj.iam.IamException;
 import cn.byteforce.seedj.iam.spi.IamSecretProtector;
-
-import javax.crypto.Cipher;
-import javax.crypto.spec.GCMParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Base64;
+import javax.crypto.Cipher;
+import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 
 /**
- * AES-256-GCM protector for local/dev and single-process deployments. Production
- * multi-instance deployments should use the Transit/KMS protector instead.
+ * AES-256-GCM protector for local/dev and single-process deployments. Production multi-instance
+ * deployments should use the Transit/KMS protector instead.
  */
 public class AesGcmIamSecretProtector implements IamSecretProtector {
 
@@ -49,7 +48,12 @@ public class AesGcmIamSecretProtector implements IamSecretProtector {
             }
             byte[] ciphertext = cipher.doFinal(plaintext.getBytes(StandardCharsets.UTF_8));
             Base64.Encoder encoder = Base64.getUrlEncoder().withoutPadding();
-            return PREFIX + ":" + keyName + ":" + encoder.encodeToString(iv) + ":"
+            return PREFIX
+                    + ":"
+                    + keyName
+                    + ":"
+                    + encoder.encodeToString(iv)
+                    + ":"
                     + encoder.encodeToString(ciphertext);
         } catch (Exception e) {
             throw new IamException(IamErrorCode.STORE_UNAVAILABLE, "secret encryption failed", e);

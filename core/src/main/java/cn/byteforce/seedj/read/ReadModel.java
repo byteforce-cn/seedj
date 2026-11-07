@@ -1,14 +1,13 @@
 package cn.byteforce.seedj.read;
 
 import cn.byteforce.seedj.domain.ObjectSchema;
-
 import java.util.Objects;
 
 /**
  * 一个对象的读模型声明：对象 schema + 对象级读权限。
  *
- * @param objectType     对象类型
- * @param schema         字段声明
+ * @param objectType 对象类型
+ * @param schema 字段声明
  * @param readPermission 对象级读权限（不可为空）
  * @author ByteForce
  * @since 1.0.0

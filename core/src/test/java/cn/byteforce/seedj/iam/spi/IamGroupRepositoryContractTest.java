@@ -1,22 +1,19 @@
 package cn.byteforce.seedj.iam.spi;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import cn.byteforce.seedj.iam.IamErrorCode;
 import cn.byteforce.seedj.iam.IamException;
 import cn.byteforce.seedj.iam.IamGroup;
 import cn.byteforce.seedj.iam.IamGroupQuery;
 import cn.byteforce.seedj.iam.ScimComparisonOperator;
 import cn.byteforce.seedj.iam.ScimFilter;
-import org.junit.jupiter.api.Test;
-
 import java.time.Instant;
 import java.util.Set;
+import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
-/**
- * {@link IamGroupRepository} 契约测试套件：SCIM 组、成员关系与版本语义。
- */
+/** {@link IamGroupRepository} 契约测试套件：SCIM 组、成员关系与版本语义。 */
 public abstract class IamGroupRepositoryContractTest {
 
     protected abstract IamGroupRepository repository();
@@ -37,13 +34,27 @@ public abstract class IamGroupRepositoryContractTest {
     void rejectsDuplicateIdAndDisplayName() {
         repository().create(IamGroup.create("g1", "default", "Engineering", null, Set.of()));
 
-        assertThatThrownBy(() -> repository().create(
-                IamGroup.create("g1", "default", "Other", null, Set.of())))
-                .isInstanceOfSatisfying(IamException.class,
+        assertThatThrownBy(
+                        () ->
+                                repository()
+                                        .create(
+                                                IamGroup.create(
+                                                        "g1", "default", "Other", null, Set.of())))
+                .isInstanceOfSatisfying(
+                        IamException.class,
                         e -> assertThat(e.getCode()).isEqualTo(IamErrorCode.GROUP_CONFLICT));
-        assertThatThrownBy(() -> repository().create(
-                IamGroup.create("g2", "default", "ENGINEERING", null, Set.of())))
-                .isInstanceOfSatisfying(IamException.class,
+        assertThatThrownBy(
+                        () ->
+                                repository()
+                                        .create(
+                                                IamGroup.create(
+                                                        "g2",
+                                                        "default",
+                                                        "ENGINEERING",
+                                                        null,
+                                                        Set.of())))
+                .isInstanceOfSatisfying(
+                        IamException.class,
                         e -> assertThat(e.getCode()).isEqualTo(IamErrorCode.GROUP_CONFLICT));
     }
 
@@ -57,12 +68,15 @@ public abstract class IamGroupRepositoryContractTest {
 
     @Test
     void updateIncrementsVersion() {
-        IamGroup stored = repository().create(
-                IamGroup.create("g1", "default", "Engineering", null, Set.of()));
+        IamGroup stored =
+                repository()
+                        .create(IamGroup.create("g1", "default", "Engineering", null, Set.of()));
 
-        IamGroup updated = repository().update(stored
-                .withMembers(Set.of("u1", "u2"))
-                .withVersion(stored.version(), stored.updatedAt()));
+        IamGroup updated =
+                repository()
+                        .update(
+                                stored.withMembers(Set.of("u1", "u2"))
+                                        .withVersion(stored.version(), stored.updatedAt()));
 
         assertThat(updated.version()).isEqualTo(stored.version() + 1);
         assertThat(repository().findMemberIds("g1")).containsExactlyInAnyOrder("u1", "u2");
@@ -70,12 +84,14 @@ public abstract class IamGroupRepositoryContractTest {
 
     @Test
     void updateRejectsStaleVersion() {
-        IamGroup stored = repository().create(
-                IamGroup.create("g1", "default", "Engineering", null, Set.of()));
+        IamGroup stored =
+                repository()
+                        .create(IamGroup.create("g1", "default", "Engineering", null, Set.of()));
         repository().update(stored.withMembers(Set.of("u1")));
 
         assertThatThrownBy(() -> repository().update(stored.withMembers(Set.of("u2"))))
-                .isInstanceOfSatisfying(IamException.class,
+                .isInstanceOfSatisfying(
+                        IamException.class,
                         e -> assertThat(e.getCode()).isEqualTo(IamErrorCode.CONFLICT));
     }
 
@@ -84,7 +100,8 @@ public abstract class IamGroupRepositoryContractTest {
         IamGroup ghost = IamGroup.create("missing", "default", "Ghost", null, Set.of());
 
         assertThatThrownBy(() -> repository().update(ghost))
-                .isInstanceOfSatisfying(IamException.class,
+                .isInstanceOfSatisfying(
+                        IamException.class,
                         e -> assertThat(e.getCode()).isEqualTo(IamErrorCode.GROUP_NOT_FOUND));
     }
 
@@ -93,18 +110,28 @@ public abstract class IamGroupRepositoryContractTest {
         repository().create(IamGroup.create("g1", "default", "Engineering", null, Set.of()));
         IamGroup ops = repository().create(IamGroup.create("g2", "default", "Ops", null, Set.of()));
 
-        IamGroup renamed = new IamGroup(ops.id(), ops.tenantId(), "engineering", ops.externalId(),
-                ops.memberIds(), ops.version(), ops.createdAt(), ops.updatedAt());
+        IamGroup renamed =
+                new IamGroup(
+                        ops.id(),
+                        ops.tenantId(),
+                        "engineering",
+                        ops.externalId(),
+                        ops.memberIds(),
+                        ops.version(),
+                        ops.createdAt(),
+                        ops.updatedAt());
 
         assertThatThrownBy(() -> repository().update(renamed))
-                .isInstanceOfSatisfying(IamException.class,
+                .isInstanceOfSatisfying(
+                        IamException.class,
                         e -> assertThat(e.getCode()).isEqualTo(IamErrorCode.GROUP_CONFLICT));
     }
 
     @Test
     void membersCanBeAddedAndRemoved() {
-        IamGroup stored = repository().create(
-                IamGroup.create("g1", "default", "Engineering", null, Set.of()));
+        IamGroup stored =
+                repository()
+                        .create(IamGroup.create("g1", "default", "Engineering", null, Set.of()));
 
         repository().addMember("g1", "u1");
         repository().addMember("g1", "u1");
@@ -124,7 +151,8 @@ public abstract class IamGroupRepositoryContractTest {
     @Test
     void addingMemberToUnknownGroupFails() {
         assertThatThrownBy(() -> repository().addMember("missing", "u1"))
-                .isInstanceOfSatisfying(IamException.class,
+                .isInstanceOfSatisfying(
+                        IamException.class,
                         e -> assertThat(e.getCode()).isEqualTo(IamErrorCode.GROUP_NOT_FOUND));
     }
 

@@ -5,9 +5,8 @@ import cn.byteforce.seedj.iam.spi.IamAuthorizationRepositoryContractTest;
 import org.junit.jupiter.api.BeforeEach;
 
 /**
- * Runs the shared authorization repository contract against the PostgreSQL
- * store. Role inheritance and bindings are foreign-keyed, so the contract's
- * referenced ids are seeded as anchors.
+ * Runs the shared authorization repository contract against the PostgreSQL store. Role inheritance
+ * and bindings are foreign-keyed, so the contract's referenced ids are seeded as anchors.
  */
 class JdbcIamAuthorizationRepositoryContractTest extends IamAuthorizationRepositoryContractTest {
 

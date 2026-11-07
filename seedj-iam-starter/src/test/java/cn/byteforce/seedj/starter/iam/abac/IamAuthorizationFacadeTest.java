@@ -1,5 +1,8 @@
 package cn.byteforce.seedj.starter.iam.abac;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import cn.byteforce.seedj.core.security.Caller;
 import cn.byteforce.seedj.iam.IamAuthorizationDecision;
 import cn.byteforce.seedj.iam.IamAuthorizationRequest;
@@ -13,6 +16,10 @@ import cn.byteforce.seedj.infra.local.iam.InMemoryIamGroupRepository;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamUserRepository;
 import cn.byteforce.seedj.starter.iam.IamProperties;
 import cn.byteforce.seedj.starter.iam.identity.IamAuthorizationService;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -22,19 +29,12 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 /** SpEL 门面：调用方主体解析（用户库 / authorities / JWT 声明）与拒绝语义。 */
 class IamAuthorizationFacadeTest {
 
     private final InMemoryIamUserRepository users = new InMemoryIamUserRepository();
-    private final InMemoryIamAuthorizationRepository roles = new InMemoryIamAuthorizationRepository();
+    private final InMemoryIamAuthorizationRepository roles =
+            new InMemoryIamAuthorizationRepository();
     private final InMemoryIamGroupRepository groups = new InMemoryIamGroupRepository();
     private final RecordingPdp pdp = new RecordingPdp();
 
@@ -44,25 +44,35 @@ class IamAuthorizationFacadeTest {
     void setUp() {
         roles.createRole(IamRole.create("r-ops", "default", "ops", "运维", "", null, false));
         roles.grantPermission("r-ops", "order.read");
-        facade = new IamAuthorizationFacade(pdp, users,
-                new IamAuthorizationService(roles, groups, null), IamProperties.defaults());
+        facade =
+                new IamAuthorizationFacade(
+                        pdp,
+                        users,
+                        new IamAuthorizationService(roles, groups, null),
+                        IamProperties.defaults());
     }
 
     @Test
     @DisplayName("未认证（null authentication）直接 FORBIDDEN")
     void nullAuthenticationIsForbidden() {
         assertThatThrownBy(() -> facade.authorize(null, "order", "o-1", "read"))
-                .isInstanceOfSatisfying(IamException.class, exception -> {
-                    assertThat(exception.getCode()).isEqualTo(IamErrorCode.FORBIDDEN);
-                    assertThat(exception.getMessage()).isEqualTo("authentication required");
-                });
+                .isInstanceOfSatisfying(
+                        IamException.class,
+                        exception -> {
+                            assertThat(exception.getCode()).isEqualTo(IamErrorCode.FORBIDDEN);
+                            assertThat(exception.getMessage()).isEqualTo("authentication required");
+                        });
     }
 
     @Test
     @DisplayName("已知用户：主体取库内 id/角色/权限，属性来自用户档案")
     void knownUserUsesRepositoryAuthorization() {
-        IamUser user = users.create(IamUser.create("u-1", "default", "alice", "Alice", null, true)
-                .withProfile("Alice", "alice@example.com", Map.of("department", "D01")), "hash");
+        IamUser user =
+                users.create(
+                        IamUser.create("u-1", "default", "alice", "Alice", null, true)
+                                .withProfile(
+                                        "Alice", "alice@example.com", Map.of("department", "D01")),
+                        "hash");
         roles.assignRoleToUser(user.id(), "r-ops", Instant.now(), "test");
         pdp.decision = IamAuthorizationDecision.allow("allow-ops");
 
@@ -102,13 +112,19 @@ class IamAuthorizationFacadeTest {
     void unknownUserFallsBackToAuthorities() {
         pdp.decision = IamAuthorizationDecision.allow("allow-any");
 
-        facade.authorize(new UsernamePasswordAuthenticationToken("svc", "n/a", List.of(
-                new SimpleGrantedAuthority("ROLE_integration"),
-                new SimpleGrantedAuthority("PERM_order.read"),
-                new SimpleGrantedAuthority("GROUP_finance"),
-                new SimpleGrantedAuthority("AMR_totp"),
-                new SimpleGrantedAuthority("ACR_urn:seedj:acr:totp"))),
-                "order", "o-3", "read");
+        facade.authorize(
+                new UsernamePasswordAuthenticationToken(
+                        "svc",
+                        "n/a",
+                        List.of(
+                                new SimpleGrantedAuthority("ROLE_integration"),
+                                new SimpleGrantedAuthority("PERM_order.read"),
+                                new SimpleGrantedAuthority("GROUP_finance"),
+                                new SimpleGrantedAuthority("AMR_totp"),
+                                new SimpleGrantedAuthority("ACR_urn:seedj:acr:totp"))),
+                "order",
+                "o-3",
+                "read");
 
         IamAuthorizationRequest request = pdp.only();
         assertThat(request.subject().userId()).isEqualTo("svc");
@@ -126,22 +142,26 @@ class IamAuthorizationFacadeTest {
     @DisplayName("未知用户 + JWT：user_id 覆盖主体，声明并入角色/权限/组/属性")
     void jwtClaimsExtendSubject() {
         pdp.decision = IamAuthorizationDecision.allow("allow-any");
-        Jwt jwt = Jwt.withTokenValue("jwt-value")
-                .header("alg", "none")
-                .subject("bob")
-                .claim("user_id", "u-9")
-                .claim("roles", List.of("auditor"))
-                .claim("permissions", List.of("audit.read"))
-                .claim("groups", List.of("compliance"))
-                .claim("amr", List.of("pwd", "totp"))
-                .claim("acr", "urn:seedj:acr:totp")
-                .claim("tenant", "acme")
-                .issuedAt(Instant.now())
-                .expiresAt(Instant.now().plusSeconds(60))
-                .build();
+        Jwt jwt =
+                Jwt.withTokenValue("jwt-value")
+                        .header("alg", "none")
+                        .subject("bob")
+                        .claim("user_id", "u-9")
+                        .claim("roles", List.of("auditor"))
+                        .claim("permissions", List.of("audit.read"))
+                        .claim("groups", List.of("compliance"))
+                        .claim("amr", List.of("pwd", "totp"))
+                        .claim("acr", "urn:seedj:acr:totp")
+                        .claim("tenant", "acme")
+                        .issuedAt(Instant.now())
+                        .expiresAt(Instant.now().plusSeconds(60))
+                        .build();
 
-        facade.authorize(new JwtAuthenticationToken(jwt, List.of(
-                new SimpleGrantedAuthority("ROLE_reader"))), "order", "o-4", "read");
+        facade.authorize(
+                new JwtAuthenticationToken(jwt, List.of(new SimpleGrantedAuthority("ROLE_reader"))),
+                "order",
+                "o-4",
+                "read");
 
         IamAuthorizationRequest request = pdp.only();
         assertThat(request.subject().userId()).isEqualTo("u-9");
@@ -159,16 +179,19 @@ class IamAuthorizationFacadeTest {
     @Test
     @DisplayName("已知用户 + JWT：令牌声明合并进用户属性")
     void knownUserMergesJwtClaims() {
-        users.create(IamUser.create("u-3", "default", "carol", "Carol", null, true)
-                .withProfile("Carol", null, Map.of("department", "D02")), "hash");
+        users.create(
+                IamUser.create("u-3", "default", "carol", "Carol", null, true)
+                        .withProfile("Carol", null, Map.of("department", "D02")),
+                "hash");
         pdp.decision = IamAuthorizationDecision.allow("allow-any");
-        Jwt jwt = Jwt.withTokenValue("jwt-value")
-                .header("alg", "none")
-                .subject("carol")
-                .claim("scope", "openid")
-                .issuedAt(Instant.now())
-                .expiresAt(Instant.now().plusSeconds(60))
-                .build();
+        Jwt jwt =
+                Jwt.withTokenValue("jwt-value")
+                        .header("alg", "none")
+                        .subject("carol")
+                        .claim("scope", "openid")
+                        .issuedAt(Instant.now())
+                        .expiresAt(Instant.now().plusSeconds(60))
+                        .build();
 
         facade.authorize(new JwtAuthenticationToken(jwt), "order", "o-5", "read");
 
@@ -183,13 +206,20 @@ class IamAuthorizationFacadeTest {
     void requireThrowsOnlyWhenDenied() {
         pdp.decision = IamAuthorizationDecision.deny("no matching allow policy");
 
-        assertThatThrownBy(() -> facade.require(authentication("svc", "n/a"),
-                "invoice", "inv-1", "approve"))
-                .isInstanceOfSatisfying(IamException.class, exception -> {
-                    assertThat(exception.getCode()).isEqualTo(IamErrorCode.FORBIDDEN);
-                    assertThat(exception.getMessage())
-                            .isEqualTo("not authorized for approve on invoice/inv-1");
-                });
+        assertThatThrownBy(
+                        () ->
+                                facade.require(
+                                        authentication("svc", "n/a"),
+                                        "invoice",
+                                        "inv-1",
+                                        "approve"))
+                .isInstanceOfSatisfying(
+                        IamException.class,
+                        exception -> {
+                            assertThat(exception.getCode()).isEqualTo(IamErrorCode.FORBIDDEN);
+                            assertThat(exception.getMessage())
+                                    .isEqualTo("not authorized for approve on invoice/inv-1");
+                        });
 
         pdp.decision = IamAuthorizationDecision.allow("allow-invoice");
         facade.require(authentication("svc", "n/a"), "invoice", "inv-1", "approve");
@@ -218,5 +248,4 @@ class IamAuthorizationFacadeTest {
             return requests.get(0);
         }
     }
-
 }

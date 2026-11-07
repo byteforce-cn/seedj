@@ -13,9 +13,8 @@ import org.springframework.beans.factory.ObjectProvider;
 /**
  * 401/403 的安全审计：在执行点（过滤器 / 异常处理）记录，业务代码不参与。
  *
- * <p>审计失败绝不能改变响应结果：所有异常在这里吞掉并落 WARN。缺少
- * {@code SecurityAuditSink} / {@code IdGenerator} 时静默跳过（与
- * {@code AnnotationCommandAudit} 的降级策略一致）。</p>
+ * <p>审计失败绝不能改变响应结果：所有异常在这里吞掉并落 WARN。缺少 {@code SecurityAuditSink} / {@code IdGenerator} 时静默跳过（与
+ * {@code AnnotationCommandAudit} 的降级策略一致）。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -29,10 +28,11 @@ public class SecurityDenialAudit {
     private final CallerProvider callers;
     private final BizSecurityProperties properties;
 
-    public SecurityDenialAudit(ObjectProvider<SecurityAuditSink> sinks,
-                               ObjectProvider<IdGenerator<String>> idGenerators,
-                               CallerProvider callers,
-                               BizSecurityProperties properties) {
+    public SecurityDenialAudit(
+            ObjectProvider<SecurityAuditSink> sinks,
+            ObjectProvider<IdGenerator<String>> idGenerators,
+            CallerProvider callers,
+            BizSecurityProperties properties) {
         this.sinks = sinks;
         this.idGenerators = idGenerators;
         this.callers = callers;
@@ -51,12 +51,21 @@ public class SecurityDenialAudit {
                 return;
             }
             String method = request.getMethod() == null ? "unknown" : request.getMethod();
-            sink.record(SecurityAuditEvent.of(ids.id(), callers.find().orElse(null),
-                    "http." + method.toLowerCase(java.util.Locale.ROOT), "http",
-                    request.getRequestURI(), SecurityAuditEvent.OUTCOME_DENIED, code.name()));
+            sink.record(
+                    SecurityAuditEvent.of(
+                            ids.id(),
+                            callers.find().orElse(null),
+                            "http." + method.toLowerCase(java.util.Locale.ROOT),
+                            "http",
+                            request.getRequestURI(),
+                            SecurityAuditEvent.OUTCOME_DENIED,
+                            code.name()));
         } catch (RuntimeException e) {
-            log.warn("seedj security audit failed for {} {}", request.getMethod(),
-                    request.getRequestURI(), e);
+            log.warn(
+                    "seedj security audit failed for {} {}",
+                    request.getMethod(),
+                    request.getRequestURI(),
+                    e);
         }
     }
 }

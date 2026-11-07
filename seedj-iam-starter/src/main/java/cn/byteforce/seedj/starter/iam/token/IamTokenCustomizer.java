@@ -2,9 +2,13 @@ package cn.byteforce.seedj.starter.iam.token;
 
 import cn.byteforce.seedj.iam.IamSubjectAuthorization;
 import cn.byteforce.seedj.iam.IamUser;
+import cn.byteforce.seedj.iam.spi.IamUserRepository;
 import cn.byteforce.seedj.starter.iam.IamProperties;
 import cn.byteforce.seedj.starter.iam.identity.IamAuthorizationService;
-import cn.byteforce.seedj.iam.spi.IamUserRepository;
+import java.time.Instant;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.core.oidc.endpoint.OidcParameterNames;
@@ -12,14 +16,9 @@ import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
 import org.springframework.security.oauth2.server.authorization.token.JwtEncodingContext;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenCustomizer;
 
-import java.time.Instant;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Set;
-
 /**
- * Injects IAM claims into access tokens and ID tokens. Permissions are optional
- * because large permission sets belong behind introspection, not in every token.
+ * Injects IAM claims into access tokens and ID tokens. Permissions are optional because large
+ * permission sets belong behind introspection, not in every token.
  */
 public class IamTokenCustomizer implements OAuth2TokenCustomizer<JwtEncodingContext> {
 
@@ -28,8 +27,11 @@ public class IamTokenCustomizer implements OAuth2TokenCustomizer<JwtEncodingCont
     private final IamProperties properties;
     private final String tenantId;
 
-    public IamTokenCustomizer(IamUserRepository users, IamAuthorizationService authorization,
-                              IamProperties properties, String tenantId) {
+    public IamTokenCustomizer(
+            IamUserRepository users,
+            IamAuthorizationService authorization,
+            IamProperties properties,
+            String tenantId) {
         this.users = users;
         this.authorization = authorization;
         this.properties = properties;
@@ -38,8 +40,8 @@ public class IamTokenCustomizer implements OAuth2TokenCustomizer<JwtEncodingCont
 
     @Override
     public void customize(JwtEncodingContext context) {
-        boolean accessToken = OAuth2TokenType.ACCESS_TOKEN.getValue()
-                .equals(context.getTokenType().getValue());
+        boolean accessToken =
+                OAuth2TokenType.ACCESS_TOKEN.getValue().equals(context.getTokenType().getValue());
         boolean idToken = OidcParameterNames.ID_TOKEN.equals(context.getTokenType().getValue());
         if (!accessToken && !idToken) {
             return;
@@ -102,8 +104,10 @@ public class IamTokenCustomizer implements OAuth2TokenCustomizer<JwtEncodingCont
         context.getClaims().claim("amr", List.copyOf(amr));
         context.getClaims().claim("acr", acr == null ? "urn:seedj:acr:pwd" : acr);
         if (context.getClaims().build().getClaim("auth_time") == null) {
-            context.getClaims().claim("auth_time",
-                    java.util.Date.from(authTime == null ? Instant.now() : authTime));
+            context.getClaims()
+                    .claim(
+                            "auth_time",
+                            java.util.Date.from(authTime == null ? Instant.now() : authTime));
         }
 
         if (accessToken && context.getAuthorization() != null) {

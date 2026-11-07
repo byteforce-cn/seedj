@@ -3,7 +3,6 @@ package cn.byteforce.seedj.infra.local.transit;
 import cn.byteforce.seedj.transit.KeyType;
 import cn.byteforce.seedj.transit.TransitErrorCode;
 import cn.byteforce.seedj.transit.TransitException;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -25,6 +24,7 @@ import java.util.function.Function;
  * 基于 {@code Properties} 文件的密钥状态存储，多服务共享同一文件即可共享密钥。
  *
  * <p>文件格式（key 名称用 base64url 编码，避免名称里的点号与属性分隔符冲突）：
+ *
  * <pre>
  * key.&lt;b64url(name)&gt;.type=AES256_GCM96
  * key.&lt;b64url(name)&gt;.derived=false
@@ -39,12 +39,13 @@ import java.util.function.Function;
  * key.&lt;b64url(name)&gt;.v.2.alg=RSA
  * </pre>
  *
- * <p>并发控制与原子性同 {@code PkiStateFile}：同 JVM 用 {@link ReentrantLock}，
- * 跨进程用 {@link FileLock}；写操作在锁内"读—改—truncate—写—force"。
+ * <p>并发控制与原子性同 {@code PkiStateFile}：同 JVM 用 {@link ReentrantLock}， 跨进程用 {@link
+ * FileLock}；写操作在锁内"读—改—truncate—写—force"。
  */
 final class TransitStateFile {
 
-    private static final ConcurrentHashMap<Path, ReentrantLock> LOCAL_LOCKS = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<Path, ReentrantLock> LOCAL_LOCKS =
+            new ConcurrentHashMap<>();
 
     private static final String PREFIX = "key.";
     private static final String FILE_HEADER = "seedj Transit state";
@@ -68,8 +69,8 @@ final class TransitStateFile {
         try (FileChannel channel = FileChannel.open(file, StandardOpenOption.READ)) {
             return decode(readChannel(channel));
         } catch (IOException e) {
-            throw new TransitException(TransitErrorCode.INVALID_CONFIGURATION,
-                    "读取 Transit 状态文件失败: " + file, e);
+            throw new TransitException(
+                    TransitErrorCode.INVALID_CONFIGURATION, "读取 Transit 状态文件失败: " + file, e);
         } finally {
             localLock.unlock();
         }
@@ -79,17 +80,21 @@ final class TransitStateFile {
         prepareParentDirectory();
         ReentrantLock localLock = localLock();
         localLock.lock();
-        try (FileChannel channel = FileChannel.open(file,
-                StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE);
-             FileLock ignored = channel.lock()) {
+        try (FileChannel channel =
+                        FileChannel.open(
+                                file,
+                                StandardOpenOption.CREATE,
+                                StandardOpenOption.READ,
+                                StandardOpenOption.WRITE);
+                FileLock ignored = channel.lock()) {
 
             Map<String, StoredKey> state = decode(readChannel(channel));
             T result = mutation.apply(state);
             writeChannel(channel, encode(state));
             return result;
         } catch (IOException e) {
-            throw new TransitException(TransitErrorCode.INVALID_CONFIGURATION,
-                    "更新 Transit 状态文件失败: " + file, e);
+            throw new TransitException(
+                    TransitErrorCode.INVALID_CONFIGURATION, "更新 Transit 状态文件失败: " + file, e);
         } finally {
             localLock.unlock();
         }
@@ -98,38 +103,49 @@ final class TransitStateFile {
     // ==================== 编解码 ====================
 
     private static String nameKey(String name) {
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(
-                name.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        return Base64.getUrlEncoder()
+                .withoutPadding()
+                .encodeToString(name.getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 
     private static String decodeName(String encoded) {
-        return new String(Base64.getUrlDecoder().decode(encoded),
-                java.nio.charset.StandardCharsets.UTF_8);
+        return new String(
+                Base64.getUrlDecoder().decode(encoded), java.nio.charset.StandardCharsets.UTF_8);
     }
 
     private static Properties encode(Map<String, StoredKey> state) {
         Properties props = new Properties();
-        state.forEach((name, key) -> {
-            String base = PREFIX + nameKey(name) + ".";
-            props.setProperty(base + "type", key.type().name());
-            props.setProperty(base + "derived", Boolean.toString(key.derived()));
-            props.setProperty(base + "exportable", Boolean.toString(key.exportable()));
-            props.setProperty(base + "convergent", Boolean.toString(key.convergentEncryption()));
-            props.setProperty(base + "plaintextBackup", Boolean.toString(key.allowPlaintextBackup()));
-            props.setProperty(base + "latest", Integer.toString(key.latestVersion()));
-            props.setProperty(base + "minDec", Integer.toString(key.minDecryptionVersion()));
-            props.setProperty(base + "minEnc", Integer.toString(key.minEncryptionVersion()));
-            key.versions().forEach((version, material) -> {
-                String vBase = base + "v." + version + ".";
-                if (material.isSymmetric()) {
-                    props.setProperty(vBase + "secret", material.secretBase64());
-                } else {
-                    props.setProperty(vBase + "priv", material.privateBase64());
-                    props.setProperty(vBase + "pub", material.publicBase64());
-                }
-                props.setProperty(vBase + "alg", material.algorithm());
-            });
-        });
+        state.forEach(
+                (name, key) -> {
+                    String base = PREFIX + nameKey(name) + ".";
+                    props.setProperty(base + "type", key.type().name());
+                    props.setProperty(base + "derived", Boolean.toString(key.derived()));
+                    props.setProperty(base + "exportable", Boolean.toString(key.exportable()));
+                    props.setProperty(
+                            base + "convergent", Boolean.toString(key.convergentEncryption()));
+                    props.setProperty(
+                            base + "plaintextBackup", Boolean.toString(key.allowPlaintextBackup()));
+                    props.setProperty(base + "latest", Integer.toString(key.latestVersion()));
+                    props.setProperty(
+                            base + "minDec", Integer.toString(key.minDecryptionVersion()));
+                    props.setProperty(
+                            base + "minEnc", Integer.toString(key.minEncryptionVersion()));
+                    key.versions()
+                            .forEach(
+                                    (version, material) -> {
+                                        String vBase = base + "v." + version + ".";
+                                        if (material.isSymmetric()) {
+                                            props.setProperty(
+                                                    vBase + "secret", material.secretBase64());
+                                        } else {
+                                            props.setProperty(
+                                                    vBase + "priv", material.privateBase64());
+                                            props.setProperty(
+                                                    vBase + "pub", material.publicBase64());
+                                        }
+                                        props.setProperty(vBase + "alg", material.algorithm());
+                                    });
+                });
         return props;
     }
 
@@ -149,38 +165,56 @@ final class TransitStateFile {
         }
 
         Map<String, StoredKey> result = new LinkedHashMap<>();
-        grouped.forEach((encodedName, raw) -> {
-            String name = decodeName(encodedName);
-            KeyType type = KeyType.valueOf(raw.get("type"));
-            int latest = Integer.parseInt(raw.get("latest"));
-            Map<Integer, KeyMaterial> versions = new LinkedHashMap<>();
-            raw.forEach((prop, value) -> {
-                if (!prop.startsWith("v.") || !prop.endsWith(".alg")) {
-                    return;
-                }
-                int version = Integer.parseInt(prop.substring(2, prop.length() - 4));
-                String base = "v." + version + ".";
-                String algorithm = value;
-                if (raw.containsKey(base + "secret")) {
-                    versions.put(version, new KeyMaterial(
-                            Base64.getDecoder().decode(raw.get(base + "secret")),
-                            null, null, algorithm));
-                } else {
-                    versions.put(version, new KeyMaterial(null,
-                            Base64.getDecoder().decode(raw.get(base + "priv")),
-                            Base64.getDecoder().decode(raw.get(base + "pub")),
-                            algorithm));
-                }
-            });
-            result.put(name, new StoredKey(type,
-                    Boolean.parseBoolean(raw.get("derived")),
-                    Boolean.parseBoolean(raw.get("exportable")),
-                    Boolean.parseBoolean(raw.get("convergent")),
-                    Boolean.parseBoolean(raw.getOrDefault("plaintextBackup", "false")),
-                    Integer.parseInt(raw.get("minDec")),
-                    Integer.parseInt(raw.get("minEnc")),
-                    latest, versions));
-        });
+        grouped.forEach(
+                (encodedName, raw) -> {
+                    String name = decodeName(encodedName);
+                    KeyType type = KeyType.valueOf(raw.get("type"));
+                    int latest = Integer.parseInt(raw.get("latest"));
+                    Map<Integer, KeyMaterial> versions = new LinkedHashMap<>();
+                    raw.forEach(
+                            (prop, value) -> {
+                                if (!prop.startsWith("v.") || !prop.endsWith(".alg")) {
+                                    return;
+                                }
+                                int version =
+                                        Integer.parseInt(prop.substring(2, prop.length() - 4));
+                                String base = "v." + version + ".";
+                                String algorithm = value;
+                                if (raw.containsKey(base + "secret")) {
+                                    versions.put(
+                                            version,
+                                            new KeyMaterial(
+                                                    Base64.getDecoder()
+                                                            .decode(raw.get(base + "secret")),
+                                                    null,
+                                                    null,
+                                                    algorithm));
+                                } else {
+                                    versions.put(
+                                            version,
+                                            new KeyMaterial(
+                                                    null,
+                                                    Base64.getDecoder()
+                                                            .decode(raw.get(base + "priv")),
+                                                    Base64.getDecoder()
+                                                            .decode(raw.get(base + "pub")),
+                                                    algorithm));
+                                }
+                            });
+                    result.put(
+                            name,
+                            new StoredKey(
+                                    type,
+                                    Boolean.parseBoolean(raw.get("derived")),
+                                    Boolean.parseBoolean(raw.get("exportable")),
+                                    Boolean.parseBoolean(raw.get("convergent")),
+                                    Boolean.parseBoolean(
+                                            raw.getOrDefault("plaintextBackup", "false")),
+                                    Integer.parseInt(raw.get("minDec")),
+                                    Integer.parseInt(raw.get("minEnc")),
+                                    latest,
+                                    versions));
+                });
         return result;
     }
 
@@ -194,8 +228,8 @@ final class TransitStateFile {
         try {
             Files.createDirectories(parent);
         } catch (IOException e) {
-            throw new TransitException(TransitErrorCode.INVALID_CONFIGURATION,
-                    "创建 Transit 状态目录失败: " + parent, e);
+            throw new TransitException(
+                    TransitErrorCode.INVALID_CONFIGURATION, "创建 Transit 状态目录失败: " + parent, e);
         }
     }
 

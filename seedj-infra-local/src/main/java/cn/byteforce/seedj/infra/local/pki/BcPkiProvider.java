@@ -3,29 +3,11 @@ package cn.byteforce.seedj.infra.local.pki;
 import cn.byteforce.seedj.pki.PkiErrorCode;
 import cn.byteforce.seedj.pki.PkiException;
 import cn.byteforce.seedj.pki.PkiProvider;
-
 import cn.byteforce.seedj.pki.PkiProvider.CertificateRequest;
 import cn.byteforce.seedj.pki.PkiProvider.CertificateStatus;
 import cn.byteforce.seedj.pki.PkiProvider.CertificateUsage;
 import cn.byteforce.seedj.pki.PkiProvider.IssuedCertificate;
 import cn.byteforce.seedj.pki.PkiProvider.RevocationReason;
-import org.bouncycastle.asn1.x500.X500Name;
-import org.bouncycastle.asn1.x509.BasicConstraints;
-import org.bouncycastle.asn1.x509.ExtendedKeyUsage;
-import org.bouncycastle.asn1.x509.Extension;
-import org.bouncycastle.asn1.x509.GeneralName;
-import org.bouncycastle.asn1.x509.GeneralNames;
-import org.bouncycastle.asn1.x509.KeyPurposeId;
-import org.bouncycastle.asn1.x509.KeyUsage;
-import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
-import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
-import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
-
-import javax.net.ssl.KeyManager;
-import javax.net.ssl.KeyManagerFactory;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.TrustManagerFactory;
 import java.io.InputStream;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
@@ -50,16 +32,30 @@ import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 import java.util.regex.Pattern;
+import javax.net.ssl.KeyManager;
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.TrustManagerFactory;
+import org.bouncycastle.asn1.x500.X500Name;
+import org.bouncycastle.asn1.x509.BasicConstraints;
+import org.bouncycastle.asn1.x509.ExtendedKeyUsage;
+import org.bouncycastle.asn1.x509.Extension;
+import org.bouncycastle.asn1.x509.GeneralName;
+import org.bouncycastle.asn1.x509.GeneralNames;
+import org.bouncycastle.asn1.x509.KeyPurposeId;
+import org.bouncycastle.asn1.x509.KeyUsage;
+import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
+import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
+import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 
 /**
  * 基于 Bouncy Castle 的 PKI 提供者（内置/快速启动实现）。
  *
- * <p>确定性签发：CA 从 p12 固定加载、序列号由请求内容 + 公钥派生、notBefore 截断到秒。
- * 相同 {@link CertificateRequest} 与相同 keyPair 在所有实例上产生相同序列号与公钥 + EKU；
- * 配合共享的状态文件（{@link PkiStateFile}）交换签发/吊销与签名身份，多服务天然一致。
+ * <p>确定性签发：CA 从 p12 固定加载、序列号由请求内容 + 公钥派生、notBefore 截断到秒。 相同 {@link CertificateRequest} 与相同 keyPair
+ * 在所有实例上产生相同序列号与公钥 + EKU； 配合共享的状态文件（{@link PkiStateFile}）交换签发/吊销与签名身份，多服务天然一致。
  *
- * <p>序列号纳入公钥摘要，避免“相同 subject/usage 但不同 keyPair”产生相同 serial，
- * 进而导致 JWK {@code kid} 冲突。
+ * <p>序列号纳入公钥摘要，避免“相同 subject/usage 但不同 keyPair”产生相同 serial， 进而导致 JWK {@code kid} 冲突。
  */
 public class BcPkiProvider implements PkiProvider {
 
@@ -92,10 +88,12 @@ public class BcPkiProvider implements PkiProvider {
             if (caCertificate == null) {
                 throw new PkiException(PkiErrorCode.CA_UNAVAILABLE, "CA keystore 中找不到别名: " + alias);
             }
-            this.caKeyPair = new KeyPair(caCertificate.getPublicKey(),
-                    (PrivateKey) ks.getKey(alias, password));
+            this.caKeyPair =
+                    new KeyPair(
+                            caCertificate.getPublicKey(), (PrivateKey) ks.getKey(alias, password));
             // 直接用 DER 编码构建 X500Name，避免 getName() 往返导致 RDN 逆序
-            this.caName = X500Name.getInstance(caCertificate.getSubjectX500Principal().getEncoded());
+            this.caName =
+                    X500Name.getInstance(caCertificate.getSubjectX500Principal().getEncoded());
             this.stateFile = stateFile;
         } catch (PkiException e) {
             throw e;
@@ -115,12 +113,17 @@ public class BcPkiProvider implements PkiProvider {
             Duration validity = request.validity() != null ? request.validity() : DEFAULT_VALIDITY;
             Instant notAfter = notBefore.plus(validity);
 
-            CertificateUsage usage = request.usage() != null
-                    ? request.usage() : CertificateUsage.BOTH;
+            CertificateUsage usage =
+                    request.usage() != null ? request.usage() : CertificateUsage.BOTH;
 
-            JcaX509v3CertificateBuilder builder = new JcaX509v3CertificateBuilder(
-                    caName, serial, Date.from(notBefore), Date.from(notAfter),
-                    new X500Name(request.subject()), keyPair.getPublic());
+            JcaX509v3CertificateBuilder builder =
+                    new JcaX509v3CertificateBuilder(
+                            caName,
+                            serial,
+                            Date.from(notBefore),
+                            Date.from(notAfter),
+                            new X500Name(request.subject()),
+                            keyPair.getPublic());
 
             // BasicConstraints: 终端实体
             builder.addExtension(Extension.basicConstraints, true, new BasicConstraints(false));
@@ -134,10 +137,14 @@ public class BcPkiProvider implements PkiProvider {
 
             // ExtendedKeyUsage：SERVER / CLIENT 显式声明，BOTH 不声明（两端都可接受）
             if (usage == CertificateUsage.SERVER) {
-                builder.addExtension(Extension.extendedKeyUsage, false,
+                builder.addExtension(
+                        Extension.extendedKeyUsage,
+                        false,
                         new ExtendedKeyUsage(KeyPurposeId.id_kp_serverAuth));
             } else if (usage == CertificateUsage.CLIENT) {
-                builder.addExtension(Extension.extendedKeyUsage, false,
+                builder.addExtension(
+                        Extension.extendedKeyUsage,
+                        false,
                         new ExtendedKeyUsage(KeyPurposeId.id_kp_clientAuth));
             }
 
@@ -154,18 +161,25 @@ public class BcPkiProvider implements PkiProvider {
                 }
             }
             if (!sans.isEmpty()) {
-                builder.addExtension(Extension.subjectAlternativeName, false,
+                builder.addExtension(
+                        Extension.subjectAlternativeName,
+                        false,
                         new GeneralNames(sans.toArray(new GeneralName[0])));
             }
 
-            var signer = new JcaContentSignerBuilder(SIGNATURE_ALGORITHM)
-                    .build(caKeyPair.getPrivate());
-            X509Certificate cert = new JcaX509CertificateConverter()
-                    .getCertificate(builder.build(signer));
+            var signer =
+                    new JcaContentSignerBuilder(SIGNATURE_ALGORITHM).build(caKeyPair.getPrivate());
+            X509Certificate cert =
+                    new JcaX509CertificateConverter().getCertificate(builder.build(signer));
 
-            IssuedCertificate record = new IssuedCertificate(
-                    cert, List.of(cert, caCertificate),
-                    keyPair.getPrivate(), serial.toString(16), notBefore, notAfter);
+            IssuedCertificate record =
+                    new IssuedCertificate(
+                            cert,
+                            List.of(cert, caCertificate),
+                            keyPair.getPrivate(),
+                            serial.toString(16),
+                            notBefore,
+                            notAfter);
             stateFile.recordIssued(record);
             return record;
         } catch (Exception e) {
@@ -213,16 +227,24 @@ public class BcPkiProvider implements PkiProvider {
     }
 
     private IssuedCertificate issueSigningIdentity(String alias, KeyPair keyPair) {
-        IssuedCertificate issued = issue(new CertificateRequest(
-                "CN=" + alias + ",O=Byteforce",
-                List.of(), List.of(), SIGNING_VALIDITY, keyPair, CertificateUsage.BOTH));
+        IssuedCertificate issued =
+                issue(
+                        new CertificateRequest(
+                                "CN=" + alias + ",O=Byteforce",
+                                List.of(),
+                                List.of(),
+                                SIGNING_VALIDITY,
+                                keyPair,
+                                CertificateUsage.BOTH));
         stateFile.putIdentityCertificate(alias, issued.certificate());
         return issued;
     }
 
     private IssuedCertificate materialize(X509Certificate certificate, KeyPair keyPair) {
         return new IssuedCertificate(
-                certificate, List.of(certificate, caCertificate), keyPair.getPrivate(),
+                certificate,
+                List.of(certificate, caCertificate),
+                keyPair.getPrivate(),
                 serialOf(certificate),
                 certificate.getNotBefore().toInstant(),
                 certificate.getNotAfter().toInstant());
@@ -278,8 +300,8 @@ public class BcPkiProvider implements PkiProvider {
         trustStore.load(null, null);
         trustStore.setCertificateEntry("ca", caCertificate);
 
-        TrustManagerFactory tmf = TrustManagerFactory.getInstance(
-                TrustManagerFactory.getDefaultAlgorithm());
+        TrustManagerFactory tmf =
+                TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
         tmf.init(trustStore);
         return tmf.getTrustManagers();
     }
@@ -288,33 +310,42 @@ public class BcPkiProvider implements PkiProvider {
         KeyStore keyStore = KeyStore.getInstance("PKCS12");
         keyStore.load(null, null);
 
-        List<X509Certificate> chain = identity.chain() != null && !identity.chain().isEmpty()
-                ? identity.chain()
-                : List.of(identity.certificate());
-        keyStore.setKeyEntry("identity", identity.privateKey(), keyStorePassword,
+        List<X509Certificate> chain =
+                identity.chain() != null && !identity.chain().isEmpty()
+                        ? identity.chain()
+                        : List.of(identity.certificate());
+        keyStore.setKeyEntry(
+                "identity",
+                identity.privateKey(),
+                keyStorePassword,
                 chain.toArray(new Certificate[0]));
 
-        KeyManagerFactory kmf = KeyManagerFactory.getInstance(
-                KeyManagerFactory.getDefaultAlgorithm());
+        KeyManagerFactory kmf =
+                KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
         kmf.init(keyStore, keyStorePassword);
         return kmf.getKeyManagers();
     }
 
     // ==================== 内部工具 ====================
 
-    private BigInteger deterministicSerial(CertificateRequest request, PublicKey publicKey) throws Exception {
+    private BigInteger deterministicSerial(CertificateRequest request, PublicKey publicKey)
+            throws Exception {
         Duration validity = request.validity() != null ? request.validity() : DEFAULT_VALIDITY;
-        CertificateUsage usage = request.usage() != null
-                ? request.usage() : CertificateUsage.BOTH;
-        String canonical = String.join("|",
-                request.subject(),
-                request.dnsNames() == null ? "" : String.join(",", request.dnsNames()),
-                request.ipAddresses() == null ? "" : String.join(",", request.ipAddresses()),
-                String.valueOf(validity.toSeconds()),
-                usage.name(),
-                Base64.getEncoder().encodeToString(publicKey.getEncoded()));
-        byte[] digest = MessageDigest.getInstance("SHA-256")
-                .digest(canonical.getBytes(StandardCharsets.UTF_8));
+        CertificateUsage usage = request.usage() != null ? request.usage() : CertificateUsage.BOTH;
+        String canonical =
+                String.join(
+                        "|",
+                        request.subject(),
+                        request.dnsNames() == null ? "" : String.join(",", request.dnsNames()),
+                        request.ipAddresses() == null
+                                ? ""
+                                : String.join(",", request.ipAddresses()),
+                        String.valueOf(validity.toSeconds()),
+                        usage.name(),
+                        Base64.getEncoder().encodeToString(publicKey.getEncoded()));
+        byte[] digest =
+                MessageDigest.getInstance("SHA-256")
+                        .digest(canonical.getBytes(StandardCharsets.UTF_8));
         return new BigInteger(1, Arrays.copyOf(digest, 16));
     }
 
@@ -331,8 +362,9 @@ public class BcPkiProvider implements PkiProvider {
     private static InputStream openResource(String resource) throws Exception {
         if (resource.startsWith("classpath:")) {
             String path = resource.substring("classpath:".length());
-            InputStream in = BcPkiProvider.class
-                    .getResourceAsStream(path.startsWith("/") ? path : "/" + path);
+            InputStream in =
+                    BcPkiProvider.class.getResourceAsStream(
+                            path.startsWith("/") ? path : "/" + path);
             if (in == null) {
                 throw new PkiException("找不到 classpath 资源: " + resource);
             }

@@ -19,9 +19,9 @@ import org.junit.jupiter.api.Test;
 /**
  * 包环门禁：{@code cn.byteforce.seedj} 下的包之间不得存在循环依赖（parent↔spi 白名单除外）。
  *
- * <p>用强连通分量（Tarjan）而不是 ArchUnit 的 slices 报告：SCC 是确定性的，可以把一个环
- * 作为一行 allowlist 记录、逐个偿还，而不是靠匹配异常消息。allowlist 每行是环内包名排序后
- * 以逗号连接，文件为 {@code config/archunit/package-cycle-allowlist.txt}。</p>
+ * <p>用强连通分量（Tarjan）而不是 ArchUnit 的 slices 报告：SCC 是确定性的，可以把一个环 作为一行 allowlist
+ * 记录、逐个偿还，而不是靠匹配异常消息。allowlist 每行是环内包名排序后 以逗号连接，文件为 {@code
+ * config/archunit/package-cycle-allowlist.txt}。
  */
 class PackageCycleTest {
 
@@ -60,11 +60,7 @@ class PackageCycleTest {
         }
         violations.sort(null);
 
-        assertThat(violations)
-                .as(
-                        "存在未登记的包级环；拆分或反转依赖，或在 %s 记录环内包名（逗号分隔）",
-                        ALLOWLIST)
-                .isEmpty();
+        assertThat(violations).as("存在未登记的包级环；拆分或反转依赖，或在 %s 记录环内包名（逗号分隔）", ALLOWLIST).isEmpty();
     }
 
     private static String seedjPackage(String packageName) {

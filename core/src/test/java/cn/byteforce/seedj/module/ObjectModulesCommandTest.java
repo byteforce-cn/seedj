@@ -1,5 +1,8 @@
 package cn.byteforce.seedj.module;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import cn.byteforce.seedj.cqrs.Command;
 import cn.byteforce.seedj.cqrs.CommandAgent;
 import cn.byteforce.seedj.cqrs.CommandHandler;
@@ -11,30 +14,27 @@ import cn.byteforce.seedj.domain.FieldType;
 import cn.byteforce.seedj.domain.Repository;
 import cn.byteforce.seedj.eventbus.EventMessage;
 import cn.byteforce.seedj.eventbus.EventPublisher;
-import org.junit.jupiter.api.Test;
-
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import org.junit.jupiter.api.Test;
 
 class ObjectModulesCommandTest {
 
-    private static final CommandHandler<Object> HANDLER = new CommandHandler<>() {
-        @Override
-        public UUID targetId(Object command) {
-            return UUID.randomUUID();
-        }
+    private static final CommandHandler<Object> HANDLER =
+            new CommandHandler<>() {
+                @Override
+                public UUID targetId(Object command) {
+                    return UUID.randomUUID();
+                }
 
-        @Override
-        public AppendRequest decide(Object command,
-                                    cn.byteforce.seedj.cqrs.CommandContext ctx) {
-            return AppendRequest.create("employee", ctx.targetId(), ctx.now(), null,
-                    ctx.actor(), Map.of());
-        }
-    };
+                @Override
+                public AppendRequest decide(
+                        Object command, cn.byteforce.seedj.cqrs.CommandContext ctx) {
+                    return AppendRequest.create(
+                            "employee", ctx.targetId(), ctx.now(), null, ctx.actor(), Map.of());
+                }
+            };
 
     @Test
     void commandDeclarationBuildsRegistration() {
@@ -43,10 +43,10 @@ class ObjectModulesCommandTest {
                 .readPermission("hr.employee.read")
                 .field("name", FieldType.TEXT)
                 .command("hr.employee.create", CreatePayload.class)
-                    .permission("hr.employee.write")
-                    .handler(HANDLER)
-                    .creates()
-                    .emits("hr.employee.created");
+                .permission("hr.employee.write")
+                .handler(HANDLER)
+                .creates()
+                .emits("hr.employee.created");
 
         ObjectModuleRegistry registry = modules.freeze();
 
@@ -68,12 +68,14 @@ class ObjectModulesCommandTest {
                 .readPermission("hr.employee.read")
                 .field("name", FieldType.TEXT)
                 .command("hr.employee.create", CreatePayload.class)
-                    .permission("hr.employee.write").handler(HANDLER);
+                .permission("hr.employee.write")
+                .handler(HANDLER);
         modules.object("employee2", "hr_employee_2")
                 .readPermission("hr.employee.read")
                 .field("name", FieldType.TEXT)
                 .command("hr.employee.create", CreatePayload.class)
-                    .permission("hr.employee.write").handler(HANDLER);
+                .permission("hr.employee.write")
+                .handler(HANDLER);
 
         assertThatThrownBy(modules::freeze)
                 .isInstanceOf(IllegalArgumentException.class)
@@ -87,7 +89,7 @@ class ObjectModulesCommandTest {
                 .readPermission("hr.employee.read")
                 .field("name", FieldType.TEXT)
                 .command("hr.employee.create", CreatePayload.class)
-                    .handler(HANDLER);
+                .handler(HANDLER);
 
         assertThatThrownBy(modules::freeze)
                 .isInstanceOf(IllegalArgumentException.class)
@@ -101,7 +103,7 @@ class ObjectModulesCommandTest {
                 .readPermission("hr.employee.read")
                 .field("name", FieldType.TEXT)
                 .command("hr.employee.create", CreatePayload.class)
-                    .permission("hr.employee.write");
+                .permission("hr.employee.write");
 
         assertThatThrownBy(modules::freeze)
                 .isInstanceOf(IllegalArgumentException.class)
@@ -115,9 +117,9 @@ class ObjectModulesCommandTest {
                 .readPermission("hr.employee.read")
                 .field("name", FieldType.TEXT)
                 .command("hr.employee.create", CreateExtraPayload.class)
-                    .permission("hr.employee.write")
-                    .handler(HANDLER)
-                    .redactedCommandField("id_number");
+                .permission("hr.employee.write")
+                .handler(HANDLER)
+                .redactedCommandField("id_number");
 
         ObjectModuleRegistry registry = modules.freeze();
         CommandRegistration registration = registry.commands().get(0);
@@ -135,7 +137,8 @@ class ObjectModulesCommandTest {
                 .readPermission("hr.employee.read")
                 .field("name", FieldType.TEXT)
                 .command("hr.employee.create", CreateExtraPayload.class)
-                    .permission("hr.employee.write").handler(HANDLER);
+                .permission("hr.employee.write")
+                .handler(HANDLER);
 
         assertThatThrownBy(modules::freeze)
                 .isInstanceOf(IllegalArgumentException.class)
@@ -149,9 +152,9 @@ class ObjectModulesCommandTest {
                 .readPermission("hr.employee.read")
                 .field("name", FieldType.TEXT)
                 .command("hr.employee.create", CreateExtraPayload.class)
-                    .permission("hr.employee.write")
-                    .handler(HANDLER)
-                    .commandField("id_number");
+                .permission("hr.employee.write")
+                .handler(HANDLER)
+                .commandField("id_number");
 
         assertThat(modules.freeze().commands()).hasSize(1);
     }
@@ -169,9 +172,9 @@ class ObjectModulesCommandTest {
                 .readPermission("hr.employee.read")
                 .field("name", FieldType.TEXT)
                 .command("hr.employee.onboard", AgentPayload.class)
-                    .permission("hr.employee.write")
-                    .agent(AGENT)
-                    .emits("test.probe.touched");
+                .permission("hr.employee.write")
+                .agent(AGENT)
+                .emits("test.probe.touched");
 
         CommandRegistration registration = modules.freeze().commands().get(0);
 
@@ -189,9 +192,9 @@ class ObjectModulesCommandTest {
                 .readPermission("hr.employee.read")
                 .field("name", FieldType.TEXT)
                 .command("hr.employee.onboard", AgentPayload.class)
-                    .permission("hr.employee.write")
-                    .handler(HANDLER)
-                    .agent(AGENT);
+                .permission("hr.employee.write")
+                .handler(HANDLER)
+                .agent(AGENT);
 
         assertThatThrownBy(modules::freeze)
                 .isInstanceOf(IllegalArgumentException.class)
@@ -205,8 +208,8 @@ class ObjectModulesCommandTest {
                 .readPermission("hr.employee.read")
                 .field("name", FieldType.TEXT)
                 .command("hr.employee.onboard", CreatePayload.class)
-                    .permission("hr.employee.write")
-                    .agent(AGENT);
+                .permission("hr.employee.write")
+                .agent(AGENT);
 
         assertThatThrownBy(modules::freeze)
                 .isInstanceOf(IllegalArgumentException.class)
@@ -220,9 +223,9 @@ class ObjectModulesCommandTest {
                 .readPermission("hr.employee.read")
                 .field("name", FieldType.TEXT)
                 .command("hr.employee.onboard", AgentPayload.class)
-                    .permission("hr.employee.write")
-                    .agent(NON_CREATING)
-                    .creates();
+                .permission("hr.employee.write")
+                .agent(NON_CREATING)
+                .creates();
 
         assertThatThrownBy(modules::freeze)
                 .isInstanceOf(IllegalArgumentException.class)
@@ -269,8 +272,7 @@ class ObjectModulesCommandTest {
         }
 
         @Override
-        protected void handle(AgentAggregate aggregate, AgentPayload command) {
-        }
+        protected void handle(AgentAggregate aggregate, AgentPayload command) {}
     }
 
     static final class AgentRepository implements Repository<AgentAggregate, String> {
@@ -281,24 +283,19 @@ class ObjectModulesCommandTest {
         }
 
         @Override
-        public void save(AgentAggregate aggregate) {
-        }
+        public void save(AgentAggregate aggregate) {}
     }
 
     static final class NoopPublisher implements EventPublisher {
 
         @Override
-        public void publish(cn.byteforce.seedj.domain.event.DomainEvent event) {
-        }
+        public void publish(cn.byteforce.seedj.domain.event.DomainEvent event) {}
 
         @Override
-        public void publish(EventMessage message) {
-        }
+        public void publish(EventMessage message) {}
     }
 
-    record CreatePayload(String name) {
-    }
+    record CreatePayload(String name) {}
 
-    record CreateExtraPayload(String name, String idNumber) {
-    }
+    record CreateExtraPayload(String name, String idNumber) {}
 }

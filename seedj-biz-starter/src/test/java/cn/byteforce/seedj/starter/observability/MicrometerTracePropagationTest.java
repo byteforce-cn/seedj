@@ -1,17 +1,16 @@
 package cn.byteforce.seedj.starter.observability;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import io.micrometer.tracing.Span;
 import io.micrometer.tracing.TraceContext;
 import io.micrometer.tracing.Tracer;
 import io.micrometer.tracing.propagation.Propagator;
 import io.micrometer.tracing.test.simple.SimpleTracer;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
 import java.util.List;
 import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
 class MicrometerTracePropagationTest {
 
@@ -59,10 +58,7 @@ class MicrometerTracePropagationTest {
         }
     }
 
-    /**
-     * 只实现 traceparent 的最小 propagator，用来验证 seam 与 span 关系，
-     * 不依赖具体的 bridge（Brave / OTel）。
-     */
+    /** 只实现 traceparent 的最小 propagator，用来验证 seam 与 span 关系， 不依赖具体的 bridge（Brave / OTel）。 */
     static final class MapPropagator implements Propagator {
 
         private final Tracer tracer;
@@ -78,7 +74,9 @@ class MicrometerTracePropagationTest {
 
         @Override
         public <C> void inject(TraceContext context, C carrier, Setter<C> setter) {
-            setter.set(carrier, "traceparent",
+            setter.set(
+                    carrier,
+                    "traceparent",
                     "00-" + context.traceId() + "-" + context.spanId() + "-01");
         }
 
@@ -92,11 +90,12 @@ class MicrometerTracePropagationTest {
             if (parts.length < 4) {
                 return Span.Builder.NOOP;
             }
-            TraceContext parent = tracer.traceContextBuilder()
-                    .traceId(parts[1])
-                    .spanId(parts[2])
-                    .sampled("01".equals(parts[3]))
-                    .build();
+            TraceContext parent =
+                    tracer.traceContextBuilder()
+                            .traceId(parts[1])
+                            .spanId(parts[2])
+                            .sampled("01".equals(parts[3]))
+                            .build();
             return tracer.spanBuilder().setParent(parent);
         }
     }

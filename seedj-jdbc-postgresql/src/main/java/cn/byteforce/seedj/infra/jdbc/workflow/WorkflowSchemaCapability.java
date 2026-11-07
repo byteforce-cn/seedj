@@ -3,7 +3,6 @@ package cn.byteforce.seedj.infra.jdbc.workflow;
 import cn.byteforce.seedj.core.InfrastructureCapability;
 import cn.byteforce.seedj.core.Migration;
 import cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner;
-
 import java.util.List;
 
 /**
@@ -16,8 +15,8 @@ public final class WorkflowSchemaCapability implements InfrastructureCapability 
 
     private final JdbcMigrationRunner runner;
 
-    private final List<Migration> migrations = List.of(
-            new Migration(1, "create workflow tables", WorkflowMigrations.v1()));
+    private final List<Migration> migrations =
+            List.of(new Migration(1, "create workflow tables", WorkflowMigrations.v1()));
 
     /**
      * 构造能力。

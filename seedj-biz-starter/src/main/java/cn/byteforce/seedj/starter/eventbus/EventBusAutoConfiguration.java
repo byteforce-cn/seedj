@@ -6,11 +6,11 @@ import cn.byteforce.seedj.eventbus.EventSubscriber;
 import cn.byteforce.seedj.eventbus.spi.EventBusTransport;
 import cn.byteforce.seedj.eventbus.spi.EventConsumerStore;
 import cn.byteforce.seedj.eventbus.spi.EventPayloadSerializer;
-import cn.byteforce.seedj.outbox.OutboxWriter;
 import cn.byteforce.seedj.id.IdGenerator;
-import cn.byteforce.seedj.starter.observability.TracePropagation;
+import cn.byteforce.seedj.outbox.OutboxWriter;
 import cn.byteforce.seedj.outbox.spi.OutboxSink;
 import cn.byteforce.seedj.outbox.spi.OutboxStore;
+import cn.byteforce.seedj.starter.observability.TracePropagation;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -27,46 +27,46 @@ import org.springframework.core.env.Environment;
  * EventBus 装配（全部 Spring 组装集中在 starter）。
  *
  * <p>本类只做装配，不提供任何 transport / consumer store 实现：
+ *
  * <ul>
- *   <li>队列：{@code seedj-infra-local}（file / memory）；</li>
- *   <li>outbox：{@code seedj-jdbc-postgresql} + 存储实现（如 seedj-jdbc-postgresql）；</li>
- *   <li>两者都没有：{@code EventPublisher} 仍然存在，但 publish 会抛
- *       {@code NO_TRANSPORT}，而不是让应用启动失败。</li>
+ *   <li>队列：{@code seedj-infra-local}（file / memory）；
+ *   <li>outbox：{@code seedj-jdbc-postgresql} + 存储实现（如 seedj-jdbc-postgresql）；
+ *   <li>两者都没有：{@code EventPublisher} 仍然存在，但 publish 会抛 {@code NO_TRANSPORT}，而不是让应用启动失败。
  * </ul>
  *
- * <p>eventbus 只提供 outbox 的投递适配器 {@link EventBusOutboxSink}；
- * relay、存储与租约全部归 outbox 能力。
+ * <p>eventbus 只提供 outbox 的投递适配器 {@link EventBusOutboxSink}； relay、存储与租约全部归 outbox 能力。
  */
 @AutoConfiguration
-@ConditionalOnProperty(prefix = "seedj.eventbus", name = "enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(
+        prefix = "seedj.eventbus",
+        name = "enabled",
+        havingValue = "true",
+        matchIfMissing = true)
 @EnableConfigurationProperties(EventBusProperties.class)
 public class EventBusAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public EventPublisher eventPublisher(ObjectProvider<OutboxStore> outboxStore,
-                                         ObjectProvider<OutboxWriter> outboxWriter,
-                                         ObjectProvider<EventBusTransport> transport,
-                                         ObjectProvider<EventPayloadSerializer> serializer,
-                                         IdGenerator<String> idGenerator,
-                                         EventBusMetrics metrics,
-                                         TracePropagation tracing) {
-        return new DefaultEventPublisher(outboxStore, outboxWriter, transport, serializer,
-                idGenerator, metrics, tracing);
+    public EventPublisher eventPublisher(
+            ObjectProvider<OutboxStore> outboxStore,
+            ObjectProvider<OutboxWriter> outboxWriter,
+            ObjectProvider<EventBusTransport> transport,
+            ObjectProvider<EventPayloadSerializer> serializer,
+            IdGenerator<String> idGenerator,
+            EventBusMetrics metrics,
+            TracePropagation tracing) {
+        return new DefaultEventPublisher(
+                outboxStore, outboxWriter, transport, serializer, idGenerator, metrics, tracing);
     }
 
-    /**
-     * 让 eventbus 成为 outbox 的投递目标；用户自定义 {@link OutboxSink} 时退让。
-     */
+    /** 让 eventbus 成为 outbox 的投递目标；用户自定义 {@link OutboxSink} 时退让。 */
     @Bean
     @ConditionalOnMissingBean(OutboxSink.class)
     public OutboxSink eventBusOutboxSink(ObjectProvider<EventBusTransport> transport) {
         return new EventBusOutboxSink(transport);
     }
 
-    /**
-     * 启动期确保订阅/配置声明的 topic 存在。
-     */
+    /** 启动期确保订阅/配置声明的 topic 存在。 */
     @Bean
     @ConditionalOnMissingBean(name = "eventBusTopicCapability")
     public InfrastructureCapability eventBusTopicCapability(
@@ -76,9 +76,7 @@ public class EventBusAutoConfiguration {
         return new EventTopicCapability(transport, subscribers, properties);
     }
 
-    /**
-     * 消费容器：发现 EventSubscriber bean，按消费者组拉取并处理事件。
-     */
+    /** 消费容器：发现 EventSubscriber bean，按消费者组拉取并处理事件。 */
     @Bean(destroyMethod = "close")
     @ConditionalOnMissingBean
     @DependsOn("infrastructureInitializer")
@@ -90,8 +88,8 @@ public class EventBusAutoConfiguration {
             EventBusMetrics metrics,
             TracePropagation tracing,
             Environment environment) {
-        return new EventConsumerContainer(stores, subscribers, serializers, properties, metrics,
-                tracing, environment);
+        return new EventConsumerContainer(
+                stores, subscribers, serializers, properties, metrics, tracing, environment);
     }
 
     @Configuration(proxyBeanMethods = false)
@@ -109,9 +107,12 @@ public class EventBusAutoConfiguration {
     static class MicrometerMetricsConfiguration {
         @Bean
         @ConditionalOnMissingBean
-        EventBusMetrics eventBusMetrics(ObjectProvider<io.micrometer.core.instrument.MeterRegistry> registry) {
+        EventBusMetrics eventBusMetrics(
+                ObjectProvider<io.micrometer.core.instrument.MeterRegistry> registry) {
             io.micrometer.core.instrument.MeterRegistry resolved = registry.getIfAvailable();
-            return resolved == null ? EventBusMetrics.noop() : new MicrometerEventBusMetrics(resolved);
+            return resolved == null
+                    ? EventBusMetrics.noop()
+                    : new MicrometerEventBusMetrics(resolved);
         }
     }
 
@@ -122,8 +123,9 @@ public class EventBusAutoConfiguration {
         @ConditionalOnMissingBean
         EventPayloadSerializer jacksonEventPayloadSerializer(
                 ObjectProvider<tools.jackson.databind.ObjectMapper> mapper) {
-            tools.jackson.databind.ObjectMapper resolved = mapper.getIfAvailable(
-                    () -> tools.jackson.databind.json.JsonMapper.builder().build());
+            tools.jackson.databind.ObjectMapper resolved =
+                    mapper.getIfAvailable(
+                            () -> tools.jackson.databind.json.JsonMapper.builder().build());
             return new EventPayloadSerializer() {
                 @Override
                 public byte[] serialize(Object payload) {
@@ -132,7 +134,8 @@ public class EventBusAutoConfiguration {
                     } catch (Exception e) {
                         throw new cn.byteforce.seedj.eventbus.EventBusException(
                                 cn.byteforce.seedj.eventbus.EventBusErrorCode.SERIALIZATION_FAILED,
-                                "cannot serialize event payload", e);
+                                "cannot serialize event payload",
+                                e);
                     }
                 }
 
@@ -143,7 +146,8 @@ public class EventBusAutoConfiguration {
                     } catch (Exception e) {
                         throw new cn.byteforce.seedj.eventbus.EventBusException(
                                 cn.byteforce.seedj.eventbus.EventBusErrorCode.SERIALIZATION_FAILED,
-                                "cannot deserialize event payload as " + type.getName(), e);
+                                "cannot deserialize event payload as " + type.getName(),
+                                e);
                     }
                 }
             };

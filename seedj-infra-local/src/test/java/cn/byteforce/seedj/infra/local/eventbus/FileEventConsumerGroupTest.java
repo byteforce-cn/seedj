@@ -1,35 +1,34 @@
 package cn.byteforce.seedj.infra.local.eventbus;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import cn.byteforce.seedj.eventbus.EventMessage;
 import cn.byteforce.seedj.eventbus.spi.PollRequest;
 import cn.byteforce.seedj.eventbus.spi.ReceivedEvent;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-/**
- * 同机多实例（两个 transport 共享同一目录）的消费者组语义。
- */
+/** 同机多实例（两个 transport 共享同一目录）的消费者组语义。 */
 class FileEventConsumerGroupTest {
 
-    @TempDir
-    Path tempDir;
+    @TempDir Path tempDir;
 
     private static PollRequest request(String group) {
         return new PollRequest(group, Set.of("group.topic"), 10, Duration.ofSeconds(30));
     }
 
     private static EventMessage message(int index) {
-        return EventMessage.of("evt-" + index, "group.topic", "agg-1",
+        return EventMessage.of(
+                "evt-" + index,
+                "group.topic",
+                "agg-1",
                 ("p" + index).getBytes(StandardCharsets.UTF_8));
     }
 

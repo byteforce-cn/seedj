@@ -3,7 +3,6 @@ package cn.byteforce.seedj.infra.jdbc.iam;
 import cn.byteforce.seedj.core.InfrastructureCapability;
 import cn.byteforce.seedj.core.Migration;
 import cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner;
-
 import java.util.List;
 
 /** Ensures the SAS JDBC tables exist; separate scope from IAM tables. */

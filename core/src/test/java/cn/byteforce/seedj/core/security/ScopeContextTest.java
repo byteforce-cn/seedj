@@ -1,19 +1,18 @@
 package cn.byteforce.seedj.core.security;
 
-import org.junit.jupiter.api.Test;
-
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-
 import static cn.byteforce.seedj.core.security.ScopeKeyType.DATE;
 import static cn.byteforce.seedj.core.security.ScopeKeyType.LIST_STRING;
 import static cn.byteforce.seedj.core.security.ScopeKeyType.LIST_UUID;
 import static cn.byteforce.seedj.core.security.ScopeKeyType.STRING;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import org.junit.jupiter.api.Test;
 
 class ScopeContextTest {
 
@@ -28,9 +27,11 @@ class ScopeContextTest {
 
     @Test
     void duplicateKeyFails() {
-        var resolver = new DefaultContextResolver(List.of(
-                (sink, caller) -> sink.put(ORG_UNITS, List.of("D01")),
-                (sink, caller) -> sink.put(ORG_UNITS, List.of("D02"))));
+        var resolver =
+                new DefaultContextResolver(
+                        List.of(
+                                (sink, caller) -> sink.put(ORG_UNITS, List.of("D01")),
+                                (sink, caller) -> sink.put(ORG_UNITS, List.of("D02"))));
 
         assertThatThrownBy(() -> resolver.resolve(caller()))
                 .isInstanceOf(IllegalStateException.class)
@@ -41,8 +42,8 @@ class ScopeContextTest {
     void writersRunInOrder() {
         List<String> invocation = new ArrayList<>();
         ContextWriter late = writer(20, "late", sink -> sink.put(DEPARTMENT, "D02"), invocation);
-        ContextWriter early = writer(10, "early", sink -> sink.put(ORG_UNITS, List.of("D01")),
-                invocation);
+        ContextWriter early =
+                writer(10, "early", sink -> sink.put(ORG_UNITS, List.of("D01")), invocation);
 
         ScopeContext context = new DefaultContextResolver(List.of(late, early)).resolve(caller());
 
@@ -55,9 +56,12 @@ class ScopeContextTest {
     @Test
     void writerFailurePropagates() {
         RuntimeException boom = new RuntimeException("boom");
-        var resolver = new DefaultContextResolver(List.of((sink, caller) -> {
-            throw boom;
-        }));
+        var resolver =
+                new DefaultContextResolver(
+                        List.of(
+                                (sink, caller) -> {
+                                    throw boom;
+                                }));
 
         assertThatThrownBy(() -> resolver.resolve(caller())).isSameAs(boom);
         assertThat(ScopeContextHolder.current()).isEmpty();
@@ -81,8 +85,8 @@ class ScopeContextTest {
 
     @Test
     void holderCloseIsIdempotent() {
-        ScopeContextHolder.Scope scope = ScopeContextHolder.open(
-                ScopeContext.of(Map.of("subject.department", "D01")));
+        ScopeContextHolder.Scope scope =
+                ScopeContextHolder.open(ScopeContext.of(Map.of("subject.department", "D01")));
 
         scope.close();
         scope.close();
@@ -92,10 +96,12 @@ class ScopeContextTest {
 
     @Test
     void typedGetRejectsWrongType() {
-        ScopeContext context = ScopeContext.of(Map.of(
-                "org.units", List.of("D01"),
-                "subject.department", "D01",
-                "as.of", LocalDate.parse("2026-11-06")));
+        ScopeContext context =
+                ScopeContext.of(
+                        Map.of(
+                                "org.units", List.of("D01"),
+                                "subject.department", "D01",
+                                "as.of", LocalDate.parse("2026-11-06")));
 
         assertThatThrownBy(() -> context.get(new ScopeKey<>("org.units", LIST_UUID)))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -111,10 +117,12 @@ class ScopeContextTest {
     @Test
     void typedGetReturnsOnlyValidatedValues() {
         UUID unit = UUID.randomUUID();
-        ScopeContext context = ScopeContext.of(Map.of(
-                "org.units", List.of("D01"),
-                "org.ids", List.of(unit),
-                "as.of", LocalDate.parse("2026-11-06")));
+        ScopeContext context =
+                ScopeContext.of(
+                        Map.of(
+                                "org.units", List.of("D01"),
+                                "org.ids", List.of(unit),
+                                "as.of", LocalDate.parse("2026-11-06")));
 
         assertThat(context.get(ORG_UNITS)).contains(List.of("D01"));
         assertThat(context.get(new ScopeKey<>("org.ids", LIST_UUID))).contains(List.of(unit));
@@ -139,30 +147,40 @@ class ScopeContextTest {
 
     @Test
     void duplicateCatalogKeyWithDifferentTypeFails() {
-        assertThatThrownBy(() -> ScopeKeyCatalog.of(List.of(
-                ORG_UNITS, new ScopeKey<>("org.units", STRING))))
+        assertThatThrownBy(
+                        () ->
+                                ScopeKeyCatalog.of(
+                                        List.of(ORG_UNITS, new ScopeKey<>("org.units", STRING))))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("org.units");
-        assertThat(ScopeKeyCatalog.of(List.of(ORG_UNITS,
-                new ScopeKey<>("org.units", LIST_STRING))).keys()).hasSize(1);
+        assertThat(
+                        ScopeKeyCatalog.of(
+                                        List.of(
+                                                ORG_UNITS,
+                                                new ScopeKey<>("org.units", LIST_STRING)))
+                                .keys())
+                .hasSize(1);
     }
 
     @Test
     void nullAndIllegalValuesAreRejected() {
-        assertThatThrownBy(() -> ScopeContext.of(Map.of("org.units", "not-a-list"))
-                .get(ORG_UNITS))
+        assertThatThrownBy(() -> ScopeContext.of(Map.of("org.units", "not-a-list")).get(ORG_UNITS))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> ScopeContext.of(
-                java.util.Collections.singletonMap("org.units", null)))
+        assertThatThrownBy(
+                        () ->
+                                ScopeContext.of(
+                                        java.util.Collections.singletonMap("org.units", null)))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new ScopeKey<>("Org Units", STRING))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThat(ScopeKeyCatalog.of(List.of()).keys()).isEmpty();
     }
 
-    private static ContextWriter writer(int order, String name,
-                                        java.util.function.Consumer<ContextSink> action,
-                                        List<String> invocation) {
+    private static ContextWriter writer(
+            int order,
+            String name,
+            java.util.function.Consumer<ContextSink> action,
+            List<String> invocation) {
         return new ContextWriter() {
             @Override
             public int order() {

@@ -1,21 +1,18 @@
 package cn.byteforce.seedj.infra.local.lock;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import cn.byteforce.seedj.lock.LockProvider;
 import cn.byteforce.seedj.lock.LockProviderContractTest;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-/**
- * 内存实现：契约测试 + 用可控时钟验证到期逻辑（不依赖 sleep）。
- */
+/** 内存实现：契约测试 + 用可控时钟验证到期逻辑（不依赖 sleep）。 */
 class InMemoryLockProviderTest extends LockProviderContractTest {
 
     @Override

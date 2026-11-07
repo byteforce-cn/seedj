@@ -1,6 +1,8 @@
 package cn.byteforce.seedj.starter.iam.scim;
 
-
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -17,14 +19,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-
 /** SCIM 2.0 core User/Group endpoints plus discovery. */
 @RestController
-@RequestMapping(path = "${seedj.iam.scim.base-path:/scim/v2}",
-        produces = ScimSupport.CONTENT_TYPE)
+@RequestMapping(path = "${seedj.iam.scim.base-path:/scim/v2}", produces = ScimSupport.CONTENT_TYPE)
 public class ScimController {
 
     private static final MediaType SCIM = MediaType.parseMediaType(ScimSupport.CONTENT_TYPE);
@@ -33,8 +30,10 @@ public class ScimController {
     private final ScimGroupService groups;
     private final String basePath;
 
-    public ScimController(ScimUserService users, ScimGroupService groups,
-                          cn.byteforce.seedj.starter.iam.IamProperties properties) {
+    public ScimController(
+            ScimUserService users,
+            ScimGroupService groups,
+            cn.byteforce.seedj.starter.iam.IamProperties properties) {
         this.users = users;
         this.groups = groups;
         this.basePath = properties.scim().basePath();
@@ -50,30 +49,61 @@ public class ScimController {
         body.put("changePassword", Map.of("supported", true));
         body.put("sort", Map.of("supported", false));
         body.put("etag", Map.of("supported", true));
-        body.put("authenticationSchemes", List.of(Map.of(
-                "type", "oauthbearertoken",
-                "name", "OAuth Bearer Token",
-                "description", "Bearer token with SCIM scopes",
-                "primary", true)));
+        body.put(
+                "authenticationSchemes",
+                List.of(
+                        Map.of(
+                                "type", "oauthbearertoken",
+                                "name", "OAuth Bearer Token",
+                                "description", "Bearer token with SCIM scopes",
+                                "primary", true)));
         return body;
     }
 
     @GetMapping("/Schemas")
     public Map<String, Object> schemas() {
-        return Map.of("schemas", List.of("urn:ietf:params:scim:api:messages:2.0:ListResponse"),
-                "totalResults", 2, "startIndex", 1, "itemsPerPage", 2,
-                "Resources", List.of(schema(ScimSupport.USER_SCHEMA, "User",
-                                List.of("userName", "externalId", "name", "displayName", "emails",
-                                        "active", "password", "groups")),
-                        schema(ScimSupport.GROUP_SCHEMA, "Group",
+        return Map.of(
+                "schemas",
+                List.of("urn:ietf:params:scim:api:messages:2.0:ListResponse"),
+                "totalResults",
+                2,
+                "startIndex",
+                1,
+                "itemsPerPage",
+                2,
+                "Resources",
+                List.of(
+                        schema(
+                                ScimSupport.USER_SCHEMA,
+                                "User",
+                                List.of(
+                                        "userName",
+                                        "externalId",
+                                        "name",
+                                        "displayName",
+                                        "emails",
+                                        "active",
+                                        "password",
+                                        "groups")),
+                        schema(
+                                ScimSupport.GROUP_SCHEMA,
+                                "Group",
                                 List.of("displayName", "externalId", "members"))));
     }
 
     @GetMapping("/ResourceTypes")
     public Map<String, Object> resourceTypes() {
-        return Map.of("schemas", List.of("urn:ietf:params:scim:api:messages:2.0:ListResponse"),
-                "totalResults", 2, "startIndex", 1, "itemsPerPage", 2,
-                "Resources", List.of(
+        return Map.of(
+                "schemas",
+                List.of("urn:ietf:params:scim:api:messages:2.0:ListResponse"),
+                "totalResults",
+                2,
+                "startIndex",
+                1,
+                "itemsPerPage",
+                2,
+                "Resources",
+                List.of(
                         resourceType("User", ScimSupport.USER_SCHEMA, "/Users"),
                         resourceType("Group", ScimSupport.GROUP_SCHEMA, "/Groups")));
     }
@@ -86,8 +116,9 @@ public class ScimController {
         return users.list(filter, startIndex, count);
     }
 
-    @PostMapping(path = "/Users", consumes = {ScimSupport.CONTENT_TYPE,
-            MediaType.APPLICATION_JSON_VALUE})
+    @PostMapping(
+            path = "/Users",
+            consumes = {ScimSupport.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE})
     public ResponseEntity<Map<String, Object>> createUser(@RequestBody Map<String, Object> body) {
         Map<String, Object> created = users.create(body);
         String id = String.valueOf(created.get("id"));
@@ -101,28 +132,38 @@ public class ScimController {
     @GetMapping("/Users/{id}")
     public ResponseEntity<Map<String, Object>> getUser(@PathVariable("id") String id) {
         Map<String, Object> user = users.get(id);
-        return ResponseEntity.ok().contentType(SCIM)
-                .header(HttpHeaders.ETAG, etag(user)).body(user);
+        return ResponseEntity.ok()
+                .contentType(SCIM)
+                .header(HttpHeaders.ETAG, etag(user))
+                .body(user);
     }
 
-    @PutMapping(path = "/Users/{id}", consumes = {ScimSupport.CONTENT_TYPE,
-            MediaType.APPLICATION_JSON_VALUE})
+    @PutMapping(
+            path = "/Users/{id}",
+            consumes = {ScimSupport.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE})
     public ResponseEntity<Map<String, Object>> updateUser(
-            @PathVariable("id") String id, @RequestBody Map<String, Object> body,
+            @PathVariable("id") String id,
+            @RequestBody Map<String, Object> body,
             @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
         Map<String, Object> updated = users.update(id, body, ifMatch);
-        return ResponseEntity.ok().contentType(SCIM)
-                .header(HttpHeaders.ETAG, etag(updated)).body(updated);
+        return ResponseEntity.ok()
+                .contentType(SCIM)
+                .header(HttpHeaders.ETAG, etag(updated))
+                .body(updated);
     }
 
-    @PatchMapping(path = "/Users/{id}", consumes = {ScimSupport.CONTENT_TYPE,
-            MediaType.APPLICATION_JSON_VALUE})
+    @PatchMapping(
+            path = "/Users/{id}",
+            consumes = {ScimSupport.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE})
     public ResponseEntity<Map<String, Object>> patchUser(
-            @PathVariable("id") String id, @RequestBody Map<String, Object> body,
+            @PathVariable("id") String id,
+            @RequestBody Map<String, Object> body,
             @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
         Map<String, Object> updated = users.patch(id, body, ifMatch);
-        return ResponseEntity.ok().contentType(SCIM)
-                .header(HttpHeaders.ETAG, etag(updated)).body(updated);
+        return ResponseEntity.ok()
+                .contentType(SCIM)
+                .header(HttpHeaders.ETAG, etag(updated))
+                .body(updated);
     }
 
     @DeleteMapping("/Users/{id}")
@@ -141,8 +182,9 @@ public class ScimController {
         return groups.list(filter, startIndex, count);
     }
 
-    @PostMapping(path = "/Groups", consumes = {ScimSupport.CONTENT_TYPE,
-            MediaType.APPLICATION_JSON_VALUE})
+    @PostMapping(
+            path = "/Groups",
+            consumes = {ScimSupport.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE})
     public ResponseEntity<Map<String, Object>> createGroup(@RequestBody Map<String, Object> body) {
         Map<String, Object> created = groups.create(body);
         String id = String.valueOf(created.get("id"));
@@ -156,28 +198,38 @@ public class ScimController {
     @GetMapping("/Groups/{id}")
     public ResponseEntity<Map<String, Object>> getGroup(@PathVariable("id") String id) {
         Map<String, Object> group = groups.get(id);
-        return ResponseEntity.ok().contentType(SCIM)
-                .header(HttpHeaders.ETAG, etag(group)).body(group);
+        return ResponseEntity.ok()
+                .contentType(SCIM)
+                .header(HttpHeaders.ETAG, etag(group))
+                .body(group);
     }
 
-    @PutMapping(path = "/Groups/{id}", consumes = {ScimSupport.CONTENT_TYPE,
-            MediaType.APPLICATION_JSON_VALUE})
+    @PutMapping(
+            path = "/Groups/{id}",
+            consumes = {ScimSupport.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE})
     public ResponseEntity<Map<String, Object>> updateGroup(
-            @PathVariable("id") String id, @RequestBody Map<String, Object> body,
+            @PathVariable("id") String id,
+            @RequestBody Map<String, Object> body,
             @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
         Map<String, Object> updated = groups.update(id, body, ifMatch);
-        return ResponseEntity.ok().contentType(SCIM)
-                .header(HttpHeaders.ETAG, etag(updated)).body(updated);
+        return ResponseEntity.ok()
+                .contentType(SCIM)
+                .header(HttpHeaders.ETAG, etag(updated))
+                .body(updated);
     }
 
-    @PatchMapping(path = "/Groups/{id}", consumes = {ScimSupport.CONTENT_TYPE,
-            MediaType.APPLICATION_JSON_VALUE})
+    @PatchMapping(
+            path = "/Groups/{id}",
+            consumes = {ScimSupport.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE})
     public ResponseEntity<Map<String, Object>> patchGroup(
-            @PathVariable("id") String id, @RequestBody Map<String, Object> body,
+            @PathVariable("id") String id,
+            @RequestBody Map<String, Object> body,
             @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
         Map<String, Object> updated = groups.patch(id, body, ifMatch);
-        return ResponseEntity.ok().contentType(SCIM)
-                .header(HttpHeaders.ETAG, etag(updated)).body(updated);
+        return ResponseEntity.ok()
+                .contentType(SCIM)
+                .header(HttpHeaders.ETAG, etag(updated))
+                .body(updated);
     }
 
     @DeleteMapping("/Groups/{id}")
@@ -201,10 +253,22 @@ public class ScimController {
         schema.put("id", id);
         schema.put("name", name);
         schema.put("description", name + " resource");
-        schema.put("attributes", attributes.stream().map(attribute -> Map.of(
-                "name", attribute, "type", "string", "multiValued", false,
-                "required", "userName".equals(attribute) || "displayName".equals(attribute)))
-                .toList());
+        schema.put(
+                "attributes",
+                attributes.stream()
+                        .map(
+                                attribute ->
+                                        Map.of(
+                                                "name",
+                                                attribute,
+                                                "type",
+                                                "string",
+                                                "multiValued",
+                                                false,
+                                                "required",
+                                                "userName".equals(attribute)
+                                                        || "displayName".equals(attribute)))
+                        .toList());
         return schema;
     }
 

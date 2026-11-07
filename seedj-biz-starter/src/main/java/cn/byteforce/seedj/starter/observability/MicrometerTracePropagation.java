@@ -4,16 +4,14 @@ import io.micrometer.tracing.Span;
 import io.micrometer.tracing.TraceContext;
 import io.micrometer.tracing.Tracer;
 import io.micrometer.tracing.propagation.Propagator;
-
 import java.util.HashMap;
 import java.util.Map;
 
 /**
  * micrometer-tracing 实现：W3C traceparent 注入 / 提取。
  *
- * <p>消费端用提取出的 {@link Span.Builder} 建子 span（父上下文由 propagator 还原），
- * 采样位随 traceparent 继承；MDC 由 tracing bridge 的 correlation 装饰器在作用域内
- * 自动填充，本类不碰 MDC。</p>
+ * <p>消费端用提取出的 {@link Span.Builder} 建子 span（父上下文由 propagator 还原）， 采样位随 traceparent 继承；MDC 由 tracing
+ * bridge 的 correlation 装饰器在作用域内 自动填充，本类不碰 MDC。
  */
 public final class MicrometerTracePropagation implements TracePropagation {
 
@@ -45,8 +43,7 @@ public final class MicrometerTracePropagation implements TracePropagation {
     @Override
     public Scope extract(Map<String, String> headers) {
         if (!headers.containsKey(TRACEPARENT)) {
-            return () -> {
-            };
+            return () -> {};
         }
         Span.Builder builder = propagator.extract(headers, Map::get);
         Span span = builder.name("event.consume").start();

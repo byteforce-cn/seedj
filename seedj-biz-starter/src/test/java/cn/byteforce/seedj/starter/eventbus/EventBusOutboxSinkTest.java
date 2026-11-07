@@ -1,22 +1,21 @@
 package cn.byteforce.seedj.starter.eventbus;
 
-import cn.byteforce.seedj.eventbus.EventMessage;
-import cn.byteforce.seedj.outbox.OutboxErrorCode;
-import cn.byteforce.seedj.outbox.OutboxException;
-import cn.byteforce.seedj.outbox.OutboxRecord;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.ObjectProvider;
-
-import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import java.util.Map;
-import java.util.concurrent.CompletionStage;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+
+import cn.byteforce.seedj.eventbus.EventMessage;
+import cn.byteforce.seedj.outbox.OutboxErrorCode;
+import cn.byteforce.seedj.outbox.OutboxException;
+import cn.byteforce.seedj.outbox.OutboxRecord;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.Map;
+import java.util.concurrent.CompletionStage;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.ObjectProvider;
 
 class EventBusOutboxSinkTest {
 
@@ -66,7 +65,14 @@ class EventBusOutboxSinkTest {
     }
 
     private static OutboxRecord record() {
-        return new OutboxRecord("m1", "order.cancelled", "agg-1", "order.cancelled", 2,
-                "payload".getBytes(StandardCharsets.UTF_8), Map.of("trace", "t-1"), AT);
+        return new OutboxRecord(
+                "m1",
+                "order.cancelled",
+                "agg-1",
+                "order.cancelled",
+                2,
+                "payload".getBytes(StandardCharsets.UTF_8),
+                Map.of("trace", "t-1"),
+                AT);
     }
 }

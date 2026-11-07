@@ -4,7 +4,6 @@ import cn.byteforce.seedj.core.Migration;
 import cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner;
 import cn.byteforce.seedj.infra.jdbc.domain.ObjectSchemaCapability;
 import cn.byteforce.seedj.module.ObjectModuleRegistry;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
@@ -14,9 +13,8 @@ import java.util.List;
 /**
  * HR 员工表的显式迁移：V1 是签入的 literal SQL，不再由当前 schema 在启动时生成。
  *
- * <p>迁移 scope 固定 {@code hr-employee}。V1 冻结后只读：后续加字段一律新增 V2、V3…，
- * 由 {@code seedj-codegen} 生成候选、人工审阅后提交。这里读取 classpath 资源而不是拼接
- * {@code TemporalDdl}，避免「schema 改一次、V1 文本变一次、已有库 checksum 冲突」。</p>
+ * <p>迁移 scope 固定 {@code hr-employee}。V1 冻结后只读：后续加字段一律新增 V2、V3…， 由 {@code seedj-codegen}
+ * 生成候选、人工审阅后提交。这里读取 classpath 资源而不是拼接 {@code TemporalDdl}，避免「schema 改一次、V1 文本变一次、已有库 checksum 冲突」。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -38,10 +36,13 @@ public final class HrEmployeeSchemaCapability extends ObjectSchemaCapability {
      * @param runner 迁移执行器
      * @param modules 模块注册表
      */
-    public HrEmployeeSchemaCapability(JdbcMigrationRunner runner,
-                                      ObjectModuleRegistry modules) {
-        super(NAME, runner, modules.require("employee").schema(),
-                List.of(new Migration(1, "create hr_employee table", v1()),
+    public HrEmployeeSchemaCapability(JdbcMigrationRunner runner, ObjectModuleRegistry modules) {
+        super(
+                NAME,
+                runner,
+                modules.require("employee").schema(),
+                List.of(
+                        new Migration(1, "create hr_employee table", v1()),
                         new Migration(2, "align employee constraints with contract", v2())));
     }
 

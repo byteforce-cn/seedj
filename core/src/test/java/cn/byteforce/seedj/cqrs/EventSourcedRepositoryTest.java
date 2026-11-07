@@ -1,23 +1,20 @@
 package cn.byteforce.seedj.cqrs;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import cn.byteforce.seedj.cqrs.spi.EventStore;
 import cn.byteforce.seedj.domain.AbstractAggregateRoot;
 import cn.byteforce.seedj.domain.event.DomainEvent;
 import cn.byteforce.seedj.domain.event.EventApplier;
 import cn.byteforce.seedj.domain.event.EventType;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
-/**
- * 事件溯源仓储：读流重放、按期望版本追加、无事件时不写存储。
- */
+/** 事件溯源仓储：读流重放、按期望版本追加、无事件时不写存储。 */
 class EventSourcedRepositoryTest {
 
     private static final UUID ID = UUID.fromString("018f2e3a-1234-7000-8000-000000000001");
@@ -25,8 +22,8 @@ class EventSourcedRepositoryTest {
     @Test
     @DisplayName("流不存在时加载为空")
     void loadMissingStreamReturnsEmpty() {
-        RecordingStore store = new RecordingStore(EventStream.empty(
-                new StreamId<>("hr.counter", ID)));
+        RecordingStore store =
+                new RecordingStore(EventStream.empty(new StreamId<>("hr.counter", ID)));
 
         assertThat(new CounterRepository(store).load(ID)).isEmpty();
         assertThat(store.reads).containsExactly(new StreamId<>("hr.counter", ID));
@@ -35,9 +32,12 @@ class EventSourcedRepositoryTest {
     @Test
     @DisplayName("加载时重放全部历史并把版本校正到流头")
     void loadReplaysHistory() {
-        RecordingStore store = new RecordingStore(new EventStream<>(
-                new StreamId<>("hr.counter", ID), 2L,
-                List.of(new Added(1), new Added(4))));
+        RecordingStore store =
+                new RecordingStore(
+                        new EventStream<>(
+                                new StreamId<>("hr.counter", ID),
+                                2L,
+                                List.of(new Added(1), new Added(4))));
 
         Counter counter = new CounterRepository(store).load(ID).orElseThrow();
 
@@ -49,8 +49,10 @@ class EventSourcedRepositoryTest {
     @Test
     @DisplayName("保存按期望版本追加事件并清空待提交列表")
     void saveAppendsWithExpectedVersion() {
-        RecordingStore store = new RecordingStore(new EventStream<>(
-                new StreamId<>("hr.counter", ID), 1L, List.of(new Added(1))));
+        RecordingStore store =
+                new RecordingStore(
+                        new EventStream<>(
+                                new StreamId<>("hr.counter", ID), 1L, List.of(new Added(1))));
         CounterRepository repository = new CounterRepository(store);
         Counter counter = repository.load(ID).orElseThrow();
         counter.add(2);
@@ -67,8 +69,10 @@ class EventSourcedRepositoryTest {
     @Test
     @DisplayName("没有待提交事件时不写存储")
     void saveWithoutEventsIsNoop() {
-        RecordingStore store = new RecordingStore(new EventStream<>(
-                new StreamId<>("hr.counter", ID), 1L, List.of(new Added(1))));
+        RecordingStore store =
+                new RecordingStore(
+                        new EventStream<>(
+                                new StreamId<>("hr.counter", ID), 1L, List.of(new Added(1))));
         CounterRepository repository = new CounterRepository(store);
 
         repository.save(repository.load(ID).orElseThrow());
@@ -102,8 +106,7 @@ class EventSourcedRepositoryTest {
         }
     }
 
-    static final class Counter extends AbstractAggregateRoot<UUID>
-            implements EventApplier<Added> {
+    static final class Counter extends AbstractAggregateRoot<UUID> implements EventApplier<Added> {
 
         private int total;
 
@@ -175,8 +178,8 @@ class EventSourcedRepositoryTest {
         }
 
         @Override
-        public long append(StreamId<UUID> streamId, long expectedVersion,
-                           List<? extends DomainEvent> events) {
+        public long append(
+                StreamId<UUID> streamId, long expectedVersion, List<? extends DomainEvent> events) {
             appends++;
             appendedStreamId = streamId;
             this.expectedVersion = expectedVersion;

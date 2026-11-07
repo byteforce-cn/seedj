@@ -14,25 +14,58 @@ import org.junit.jupiter.api.Test;
 /** 值域约束从模型透传到 OpenAPI、DDL 与生成的 schema 源码。 */
 class SchemaRendererConstraintsTest {
 
-    private static final FieldDefinition.Constraints STATUS = new FieldDefinition.Constraints(
-            Set.of("terminated", "active"), null, null, null, false, null, null);
+    private static final FieldDefinition.Constraints STATUS =
+            new FieldDefinition.Constraints(
+                    Set.of("terminated", "active"), null, null, null, false, null, null);
 
     private static final FieldDefinition.Constraints EMPLOYEE_NO =
-            new FieldDefinition.Constraints(Set.of(), "^EMP-[0-9]{6,}$", 8, 32, true,
-                    null, null);
+            new FieldDefinition.Constraints(Set.of(), "^EMP-[0-9]{6,}$", 8, 32, true, null, null);
 
     private static ObjectModel model() {
-        return new ObjectModel("employee", "hr_employee", "fixture", "EmployeeFields", false,
+        return new ObjectModel(
+                "employee",
+                "hr_employee",
+                "fixture",
+                "EmployeeFields",
+                false,
                 List.of(
-                        new FieldModel("employee_no", FieldType.TEXT, "String", true, false,
-                                true, true, true, Privacy.PUBLIC, MaskerName.NONE,
+                        new FieldModel(
+                                "employee_no",
+                                FieldType.TEXT,
+                                "String",
+                                true,
+                                false,
+                                true,
+                                true,
+                                true,
+                                Privacy.PUBLIC,
+                                MaskerName.NONE,
                                 EMPLOYEE_NO),
-                        new FieldModel("status", FieldType.TEXT, "String", true, false, true,
-                                false, false, Privacy.PUBLIC, MaskerName.NONE, STATUS),
-                        new FieldModel("amount", FieldType.DECIMAL, "java.math.BigDecimal",
-                                false, false, false, false, false, Privacy.PUBLIC,
-                                MaskerName.NONE, new FieldDefinition.Constraints(Set.of(),
-                                null, null, null, false, 18, 2))));
+                        new FieldModel(
+                                "status",
+                                FieldType.TEXT,
+                                "String",
+                                true,
+                                false,
+                                true,
+                                false,
+                                false,
+                                Privacy.PUBLIC,
+                                MaskerName.NONE,
+                                STATUS),
+                        new FieldModel(
+                                "amount",
+                                FieldType.DECIMAL,
+                                "java.math.BigDecimal",
+                                false,
+                                false,
+                                false,
+                                false,
+                                false,
+                                Privacy.PUBLIC,
+                                MaskerName.NONE,
+                                new FieldDefinition.Constraints(
+                                        Set.of(), null, null, null, false, 18, 2))));
     }
 
     @Test
@@ -40,8 +73,8 @@ class SchemaRendererConstraintsTest {
     void openApiCarriesEnumAndPattern() {
         String yaml = SchemaRenderer.openApi(model());
 
-        assertThat(yaml).contains("          enum:\n            - active\n"
-                + "            - terminated");
+        assertThat(yaml)
+                .contains("          enum:\n            - active\n" + "            - terminated");
         assertThat(yaml).contains("          pattern: '^EMP-[0-9]{6,}$'");
         assertThat(yaml).contains("          minLength: 8");
         assertThat(yaml).contains("          maxLength: 32");
@@ -55,14 +88,19 @@ class SchemaRendererConstraintsTest {
     void createSqlCarriesNotNullCheckAndUniqueIndex() {
         String sql = SchemaRenderer.createSql(model());
 
-        assertThat(sql).contains("    status TEXT NOT NULL CHECK (status IN ('active', 'terminated')),");
-        assertThat(sql).contains("    employee_no TEXT NOT NULL"
-                + " CHECK (employee_no ~ '^EMP-[0-9]{6,}$')"
-                + " CHECK (char_length(employee_no) >= 8)"
-                + " CHECK (char_length(employee_no) <= 32),");
+        assertThat(sql)
+                .contains("    status TEXT NOT NULL CHECK (status IN ('active', 'terminated')),");
+        assertThat(sql)
+                .contains(
+                        "    employee_no TEXT NOT NULL"
+                                + " CHECK (employee_no ~ '^EMP-[0-9]{6,}$')"
+                                + " CHECK (char_length(employee_no) >= 8)"
+                                + " CHECK (char_length(employee_no) <= 32),");
         assertThat(sql).contains("    amount NUMERIC(18,2),");
-        assertThat(sql).contains("CREATE UNIQUE INDEX uq_hr_employee_employee_no"
-                + " ON hr_employee (employee_no) WHERE superseded_at IS NULL;");
+        assertThat(sql)
+                .contains(
+                        "CREATE UNIQUE INDEX uq_hr_employee_employee_no"
+                                + " ON hr_employee (employee_no) WHERE superseded_at IS NULL;");
     }
 
     @Test
@@ -70,10 +108,14 @@ class SchemaRendererConstraintsTest {
     void javaSourceCarriesConstraints() {
         String source = SchemaRenderer.javaSource(model());
 
-        assertThat(source).contains("new FieldDefinition.Constraints(java.util.Set.of(),"
-                + " \"^EMP-[0-9]{6,}$\", 8, 32, true, null, null)");
+        assertThat(source)
+                .contains(
+                        "new FieldDefinition.Constraints(java.util.Set.of(),"
+                                + " \"^EMP-[0-9]{6,}$\", 8, 32, true, null, null)");
         assertThat(source).contains("java.util.Set.of(\"active\", \"terminated\")");
-        assertThat(source).contains("new FieldDefinition.Constraints(java.util.Set.of(),"
-                + " null, null, null, false, 18, 2)");
+        assertThat(source)
+                .contains(
+                        "new FieldDefinition.Constraints(java.util.Set.of(),"
+                                + " null, null, null, false, 18, 2)");
     }
 }

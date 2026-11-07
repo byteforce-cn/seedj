@@ -7,12 +7,18 @@ import java.util.Objects;
 
 /** 实例快照；调用方只读，不解析内部存储。 */
 public record WorkflowInstance(
-        WorkflowInstanceId id, WorkflowDefinitionId definitionId,
-        WorkflowDefinitionVersion definitionVersion, WorkflowStatus status,
-        String currentStep, List<TaskId> pendingTaskIds, String startedBy,
-        Instant startedAt, Instant updatedAt, Instant completedAt,
-        Map<String, String> variables, WorkflowFailure failure
-) {
+        WorkflowInstanceId id,
+        WorkflowDefinitionId definitionId,
+        WorkflowDefinitionVersion definitionVersion,
+        WorkflowStatus status,
+        String currentStep,
+        List<TaskId> pendingTaskIds,
+        String startedBy,
+        Instant startedAt,
+        Instant updatedAt,
+        Instant completedAt,
+        Map<String, String> variables,
+        WorkflowFailure failure) {
     public WorkflowInstance {
         Objects.requireNonNull(id, "id cannot be null");
         Objects.requireNonNull(definitionId, "definitionId cannot be null");

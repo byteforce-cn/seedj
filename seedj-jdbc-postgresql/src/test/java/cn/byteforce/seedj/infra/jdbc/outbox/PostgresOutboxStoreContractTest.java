@@ -13,9 +13,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-/**
- * PostgreSQL outbox 跑公共契约套件（真实数据库，不使用 mock）。
- */
+/** PostgreSQL outbox 跑公共契约套件（真实数据库，不使用 mock）。 */
 @Testcontainers
 class PostgresOutboxStoreContractTest extends OutboxStoreContractTest {
 
@@ -32,8 +30,9 @@ class PostgresOutboxStoreContractTest extends OutboxStoreContractTest {
 
     @BeforeAll
     static void initialize() {
-        DriverManagerDataSource dataSource = new DriverManagerDataSource(
-                POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
+        DriverManagerDataSource dataSource =
+                new DriverManagerDataSource(
+                        POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
         jdbcTemplate = new JdbcTemplate(dataSource);
         new PostgresOutboxSchemaCapability(new JdbcMigrationRunner(dataSource)).initialize();
         transaction = new TransactionTemplate(new DataSourceTransactionManager(dataSource));

@@ -6,20 +6,18 @@ import cn.byteforce.seedj.audit.AuditEvent;
 import cn.byteforce.seedj.cqrs.CommandRecord;
 import cn.byteforce.seedj.cqrs.TemporalCommandAudit;
 import cn.byteforce.seedj.domain.event.CommandEvent;
-import tools.jackson.databind.json.JsonMapper;
-import tools.jackson.databind.node.ArrayNode;
-import tools.jackson.databind.node.ObjectNode;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Supplier;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 
 /**
  * 把临时命令的终态与事件翻译成审计追加请求。
  *
- * <p>每条受理命令都写链（不看 {@code @Audited}）；payload 固定为
- * {@code {command_id, event_ids}}，事件投影用于 v1.1 摘要复算。</p>
+ * <p>每条受理命令都写链（不看 {@code @Audited}）；payload 固定为 {@code {command_id, event_ids}}，事件投影用于 v1.1 摘要复算。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -36,7 +34,7 @@ public final class TemporalCommandAuditAdapter implements TemporalCommandAudit {
      * 构造适配器。
      *
      * @param appender 审计追加端口
-     * @param actor    当前操作人解析；不得返回 {@code null}
+     * @param actor 当前操作人解析；不得返回 {@code null}
      */
     public TemporalCommandAuditAdapter(AuditAppender<String> appender, Supplier<String> actor) {
         this.appender = Objects.requireNonNull(appender, "appender");
@@ -52,11 +50,12 @@ public final class TemporalCommandAuditAdapter implements TemporalCommandAudit {
         List<AuditEvent> projections = new ArrayList<>(safeEvents.size());
         for (CommandEvent event : safeEvents) {
             eventIds.add(event.id().toString());
-            projections.add(new AuditEvent(event.id(), event.type(),
-                    JSON.valueToTree(event.payload())));
+            projections.add(
+                    new AuditEvent(event.id(), event.type(), JSON.valueToTree(event.payload())));
         }
         String resourceId = record.locator() == null ? null : record.locator().toString();
-        appender.append(new AuditAppendRequest<>(record.type(), actor.get(), objectType,
-                resourceId, payload, projections));
+        appender.append(
+                new AuditAppendRequest<>(
+                        record.type(), actor.get(), objectType, resourceId, payload, projections));
     }
 }

@@ -1,5 +1,8 @@
 package cn.byteforce.seedj.iam.scim;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import cn.byteforce.seedj.iam.IamErrorCode;
 import cn.byteforce.seedj.iam.IamException;
 import cn.byteforce.seedj.iam.ScimComparisonOperator;
@@ -7,12 +10,7 @@ import cn.byteforce.seedj.iam.ScimFilter;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
-/**
- * SCIM filter 解析器边界：全部比较运算符、字面量类型与语法错误位置。
- */
+/** SCIM filter 解析器边界：全部比较运算符、字面量类型与语法错误位置。 */
 class ScimFilterParserEdgeCaseTest {
 
     @Test

@@ -1,20 +1,19 @@
 package cn.byteforce.seedj.infra.jdbc.iam;
 
 import cn.byteforce.seedj.core.Migration;
-
 import java.util.List;
 
 /** SAS 7.1.1 JDBC schema, adapted for PostgreSQL (text + timestamptz). */
 public final class OAuth2Migrations {
 
-    private OAuth2Migrations() {
-    }
+    private OAuth2Migrations() {}
 
     public static List<Migration> all() {
         return List.of(new Migration(1, "oauth2 registered client, authorization, consent", V1));
     }
 
-    private static final String V1 = """
+    private static final String V1 =
+            """
             CREATE TABLE oauth2_registered_client (
                 id                            VARCHAR(100) NOT NULL,
                 client_id                     VARCHAR(100) NOT NULL,

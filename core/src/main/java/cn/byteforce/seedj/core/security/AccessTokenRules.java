@@ -14,12 +14,11 @@ import java.util.Set;
 /**
  * 访问令牌规则：biz（资源服务器）与 iam（认证服务器）共用的唯一一份实现。
  *
- * <p>为什么放在 {@code core} 而不是某个 starter：两侧使用同一个令牌，规则必须
- * 逐位一致；一旦各写一套，"认证服务器放行的令牌资源服务器拒绝"这类问题就无法
- * 通过构造保证。这里只有纯函数，不依赖 Spring、不读时钟、不抛异常。</p>
+ * <p>为什么放在 {@code core} 而不是某个 starter：两侧使用同一个令牌，规则必须 逐位一致；一旦各写一套，"认证服务器放行的令牌资源服务器拒绝"这类问题就无法
+ * 通过构造保证。这里只有纯函数，不依赖 Spring、不读时钟、不抛异常。
  *
- * <p>RFC 9068 要点：访问令牌 {@code typ=at+jwt}、必须有 issuer、必须有非空
- * {@code aud}，因此 ID Token（{@code typ=JWT}）无法当作访问令牌使用。</p>
+ * <p>RFC 9068 要点：访问令牌 {@code typ=at+jwt}、必须有 issuer、必须有非空 {@code aud}，因此 ID Token（{@code
+ * typ=JWT}）无法当作访问令牌使用。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -45,20 +44,19 @@ public final class AccessTokenRules {
     public static final String PERMISSION_PREFIX = "PERM_";
     public static final String GROUP_PREFIX = "GROUP_";
 
-    private AccessTokenRules() {
-    }
+    private AccessTokenRules() {}
 
     /**
      * 校验访问令牌；通过返回空，否则返回第一个失败原因。
      *
-     * @param claims         令牌声明
+     * @param claims 令牌声明
      * @param expectedIssuer 期望的 {@code iss}，不得空白
-     * @param now            当前时间（由调用方注入 {@code Clock}）
+     * @param now 当前时间（由调用方注入 {@code Clock}）
      * @return 失败原因；成功为空
      * @throws IllegalArgumentException 期望 issuer 空白
      */
-    public static Optional<SecurityErrorCode> check(TokenClaims claims, String expectedIssuer,
-                                                    Instant now) {
+    public static Optional<SecurityErrorCode> check(
+            TokenClaims claims, String expectedIssuer, Instant now) {
         if (claims == null) {
             return Optional.of(SecurityErrorCode.AUTHENTICATION_REQUIRED);
         }
@@ -83,9 +81,7 @@ public final class AccessTokenRules {
         return Optional.empty();
     }
 
-    /**
-     * 是否包含非空受众；供 Spring 的 {@code JwtClaimValidator} 复用。
-     */
+    /** 是否包含非空受众；供 Spring 的 {@code JwtClaimValidator} 复用。 */
     public static boolean hasAudience(Object value) {
         if (value instanceof String text) {
             return !text.isBlank();
@@ -99,7 +95,7 @@ public final class AccessTokenRules {
     /**
      * 令牌声明 → Spring 风格权限串（{@code SCOPE_/ROLE_/PERM_/GROUP_} 前缀）。
      *
-     * <p>顺序稳定：scope、roles、permissions、groups，各自内部保持令牌顺序。</p>
+     * <p>顺序稳定：scope、roles、permissions、groups，各自内部保持令牌顺序。
      */
     public static List<String> authorities(TokenClaims claims) {
         List<String> result = new ArrayList<>();
@@ -115,15 +111,14 @@ public final class AccessTokenRules {
     /**
      * 令牌声明 → 调用方视图。
      *
-     * @param claims   已通过 {@link #check} 的声明
+     * @param claims 已通过 {@link #check} 的声明
      * @param tenantId 租户；空白回落 {@link Caller#DEFAULT_TENANT}
      */
     public static Caller toCaller(TokenClaims claims, String tenantId) {
         Map<String, Object> attributes = new LinkedHashMap<>(claims.attributes());
         String userId = stringValue(attributes.get(USER_ID_CLAIM));
         String acr = stringValue(attributes.get(ACR_CLAIM));
-        Set<String> amr = new LinkedHashSet<>(
-                stringValues(attributes.get(AMR_CLAIM)));
+        Set<String> amr = new LinkedHashSet<>(stringValues(attributes.get(AMR_CLAIM)));
         return new Caller(
                 userId.isBlank() ? claims.subject() : userId,
                 claims.subject(),
@@ -142,10 +137,7 @@ public final class AccessTokenRules {
         }
     }
 
-    /**
-     * 把声明值读成字符串列表：集合逐项转字符串，字符串按空白切分
-     * （OAuth2 的 {@code scope} 常为 {@code "read write"}）。
-     */
+    /** 把声明值读成字符串列表：集合逐项转字符串，字符串按空白切分 （OAuth2 的 {@code scope} 常为 {@code "read write"}）。 */
     static List<String> stringValues(Object raw) {
         if (raw == null) {
             return List.of();

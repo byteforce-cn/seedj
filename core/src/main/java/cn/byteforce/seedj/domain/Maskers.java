@@ -10,8 +10,7 @@ import java.util.Objects;
  */
 public final class Maskers {
 
-    private Maskers() {
-    }
+    private Maskers() {}
 
     /**
      * 只保留末尾四位；长度不超过四位时全部隐藏。
@@ -48,8 +47,11 @@ public final class Maskers {
             }
             String local = text.substring(0, at);
             String domain = text.substring(at + 1);
-            return local.charAt(0) + "*".repeat(local.length() - 1) + "@"
-                    + domain.charAt(0) + "*".repeat(domain.length() - 1);
+            return local.charAt(0)
+                    + "*".repeat(local.length() - 1)
+                    + "@"
+                    + domain.charAt(0)
+                    + "*".repeat(domain.length() - 1);
         };
     }
 

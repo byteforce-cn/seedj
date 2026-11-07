@@ -1,5 +1,11 @@
 package cn.byteforce.seedj.starter.web;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import cn.byteforce.seedj.core.InfrastructureErrorCode;
 import cn.byteforce.seedj.core.InfrastructureException;
 import cn.byteforce.seedj.core.exception.ContractErrorCode;
@@ -7,6 +13,7 @@ import cn.byteforce.seedj.core.exception.ContractException;
 import cn.byteforce.seedj.cqrs.CqrsErrorCode;
 import cn.byteforce.seedj.cqrs.CqrsException;
 import cn.byteforce.seedj.domain.exception.AggregateNotFoundException;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -18,26 +25,17 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Map;
-
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
-/**
- * 错误信封的冻结形状与状态码、Retry-After、traceId。
- */
+/** 错误信封的冻结形状与状态码、Retry-After、traceId。 */
 class ContractErrorHandlerTest {
 
     private MockMvc mvc;
 
     @BeforeEach
     void setUp() {
-        mvc = MockMvcBuilders.standaloneSetup(new ProbeController())
-                .setControllerAdvice(new ContractErrorHandler())
-                .build();
+        mvc =
+                MockMvcBuilders.standaloneSetup(new ProbeController())
+                        .setControllerAdvice(new ContractErrorHandler())
+                        .build();
     }
 
     @Test
@@ -65,9 +63,10 @@ class ContractErrorHandlerTest {
     @Test
     @DisplayName("非法 JSON：400 且不泄露解析细节")
     void malformedBodyIs400InvalidPayload() throws Exception {
-        mvc.perform(post("/probe/body")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{not-json"))
+        mvc.perform(
+                        post("/probe/body")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{not-json"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("EIS-400-001"))
                 .andExpect(jsonPath("$.message").value("invalid request body"));
@@ -80,8 +79,11 @@ class ContractErrorHandlerTest {
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("EIS-503-001"))
                 .andExpect(jsonPath("$.message").value("unavailable"))
-                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers
-                        .not(org.hamcrest.Matchers.containsString("secret"))));
+                .andExpect(
+                        jsonPath("$.message")
+                                .value(
+                                        org.hamcrest.Matchers.not(
+                                                org.hamcrest.Matchers.containsString("secret"))));
     }
 
     @Test
@@ -92,8 +94,11 @@ class ContractErrorHandlerTest {
                 .andExpect(jsonPath("$.code").value("EIS-500-001"))
                 .andExpect(jsonPath("$.message").value("internal error"))
                 .andExpect(jsonPath("$.details.traceId").isNotEmpty())
-                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers
-                        .not(org.hamcrest.Matchers.containsString("secret"))));
+                .andExpect(
+                        jsonPath("$.message")
+                                .value(
+                                        org.hamcrest.Matchers.not(
+                                                org.hamcrest.Matchers.containsString("secret"))));
     }
 
     @Test
@@ -102,8 +107,7 @@ class ContractErrorHandlerTest {
         mvc.perform(get("/probe/command-rejected"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("EIS-400-002"))
-                .andExpect(jsonPath("$.details.reason_code")
-                        .value("CQRS-COMMAND_REJECTED"));
+                .andExpect(jsonPath("$.details.reason_code").value("CQRS-COMMAND_REJECTED"));
     }
 
     @Test
@@ -140,8 +144,11 @@ class ContractErrorHandlerTest {
                 .andExpect(jsonPath("$.code").value("EIS-500-001"))
                 .andExpect(jsonPath("$.message").value("internal error"))
                 .andExpect(jsonPath("$.details.traceId").isNotEmpty())
-                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers
-                        .not(org.hamcrest.Matchers.containsString("secret"))));
+                .andExpect(
+                        jsonPath("$.message")
+                                .value(
+                                        org.hamcrest.Matchers.not(
+                                                org.hamcrest.Matchers.containsString("secret"))));
     }
 
     @RestController
@@ -154,20 +161,22 @@ class ContractErrorHandlerTest {
 
         @GetMapping("/probe/not-ready")
         Map<String, Object> notReady() {
-            throw new ContractException(ContractErrorCode.READ_MODEL_NOT_READY,
-                    "version not readable yet", Map.of("minVersion", 2), null);
+            throw new ContractException(
+                    ContractErrorCode.READ_MODEL_NOT_READY,
+                    "version not readable yet",
+                    Map.of("minVersion", 2),
+                    null);
         }
 
         @GetMapping("/probe/infrastructure")
         Map<String, Object> infrastructure() {
-            throw new InfrastructureException(InfrastructureErrorCode.MIGRATION_FAILED,
-                    "secret database detail");
+            throw new InfrastructureException(
+                    InfrastructureErrorCode.MIGRATION_FAILED, "secret database detail");
         }
 
         @GetMapping("/probe/internal")
         Map<String, Object> internal() {
-            throw new ContractException(ContractErrorCode.INTERNAL_ERROR,
-                    "secret internal detail");
+            throw new ContractException(ContractErrorCode.INTERNAL_ERROR, "secret internal detail");
         }
 
         @GetMapping("/probe/command-rejected")

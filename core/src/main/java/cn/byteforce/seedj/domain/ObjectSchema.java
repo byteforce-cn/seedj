@@ -2,7 +2,6 @@ package cn.byteforce.seedj.domain;
 
 import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;
-
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -19,8 +18,8 @@ import java.util.regex.Pattern;
 /**
  * 业务对象 schema：字段的单一来源。
  *
- * <p>由它派生物理表、DDL、事件白名单、读投影脱敏与命令校验；业务代码不再手工维护
- * command record → fields helper → table → test fixture → DDL 之间的同一份字段列表。</p>
+ * <p>由它派生物理表、DDL、事件白名单、读投影脱敏与命令校验；业务代码不再手工维护 command record → fields helper → table → test fixture
+ * → DDL 之间的同一份字段列表。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -28,9 +27,18 @@ import java.util.regex.Pattern;
 public final class ObjectSchema {
 
     /** 双时间轴元字段；领域字段不得与之同名。 */
-    public static final Set<String> META_FIELDS = Set.of(
-            "id", "version", "valid_from", "valid_to", "recorded_at", "superseded_at",
-            "created_by", "created_at", "updated_by", "updated_at");
+    public static final Set<String> META_FIELDS =
+            Set.of(
+                    "id",
+                    "version",
+                    "valid_from",
+                    "valid_to",
+                    "recorded_at",
+                    "superseded_at",
+                    "created_by",
+                    "created_at",
+                    "updated_by",
+                    "updated_at");
 
     private static final Pattern IDENTIFIER = Pattern.compile("^[a-z][a-z0-9_]*$");
 
@@ -68,7 +76,7 @@ public final class ObjectSchema {
      * 声明式构造器。
      *
      * @param objectType 对象类型
-     * @param tableName  物理表名
+     * @param tableName 物理表名
      * @return 构造器
      */
     public static Builder builder(String objectType, String tableName) {
@@ -113,8 +121,8 @@ public final class ObjectSchema {
      * @return 字段
      */
     public FieldDefinition requireField(String name) {
-        return field(name).orElseThrow(
-                () -> new IllegalArgumentException("unknown field: " + name));
+        return field(name)
+                .orElseThrow(() -> new IllegalArgumentException("unknown field: " + name));
     }
 
     /**
@@ -138,7 +146,9 @@ public final class ObjectSchema {
      * @return 字段名列表
      */
     public List<String> eventFields() {
-        return fields.stream().filter(FieldDefinition::eventVisible).map(FieldDefinition::name)
+        return fields.stream()
+                .filter(FieldDefinition::eventVisible)
+                .map(FieldDefinition::name)
                 .toList();
     }
 
@@ -148,7 +158,9 @@ public final class ObjectSchema {
      * @return 字段名列表
      */
     public List<String> requiredFields() {
-        return fields.stream().filter(FieldDefinition::required).map(FieldDefinition::name)
+        return fields.stream()
+                .filter(FieldDefinition::required)
+                .map(FieldDefinition::name)
                 .toList();
     }
 
@@ -185,9 +197,8 @@ public final class ObjectSchema {
     /**
      * 按 schema 白名单收敛事件载荷。
      *
-     * <p>只保留 {@link FieldDefinition#eventVisible()} 为真的字段；writeOnly 与敏感字段
-     * 即使被 handler 放进 payload 也不会进入 outbox。schema 外的键视为 handler 错误，
-     * 失败关闭而不是静默丢弃，避免拼写错误导致“事件少了一个字段”。</p>
+     * <p>只保留 {@link FieldDefinition#eventVisible()} 为真的字段；writeOnly 与敏感字段 即使被 handler 放进 payload
+     * 也不会进入 outbox。schema 外的键视为 handler 错误， 失败关闭而不是静默丢弃，避免拼写错误导致“事件少了一个字段”。
      *
      * @param payload handler 产出的事件载荷
      * @return 只含可见字段的事件载荷（保持声明顺序）
@@ -221,7 +232,8 @@ public final class ObjectSchema {
         Set<String> unknown = new TreeSet<>(input.keySet());
         unknown.removeAll(byName.keySet());
         if (!unknown.isEmpty()) {
-            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
+            throw new ContractException(
+                    ContractErrorCode.INVALID_PAYLOAD,
                     "unknown fields for " + objectType + ": " + unknown);
         }
         List<String> missing = new ArrayList<>();
@@ -231,7 +243,8 @@ public final class ObjectSchema {
             }
         }
         if (!missing.isEmpty()) {
-            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
+            throw new ContractException(
+                    ContractErrorCode.INVALID_PAYLOAD,
                     "missing required fields for " + objectType + ": " + missing);
         }
         Map<String, Object> typed = new LinkedHashMap<>();
@@ -241,7 +254,8 @@ public final class ObjectSchema {
             try {
                 value = field.type().coerce(entry.getValue());
             } catch (ContractException error) {
-                throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
+                throw new ContractException(
+                        ContractErrorCode.INVALID_PAYLOAD,
                         "field " + entry.getKey() + ": " + error.reason());
             }
             requireConstraints(field, value);
@@ -260,36 +274,32 @@ public final class ObjectSchema {
             throw invalidValue(field, "must be one of " + constraints.enumValues());
         }
         if (constraints.pattern() != null
-                && !Pattern.compile(constraints.pattern()).matcher(String.valueOf(value))
+                && !Pattern.compile(constraints.pattern())
+                        .matcher(String.valueOf(value))
                         .matches()) {
             throw invalidValue(field, "must match " + constraints.pattern());
         }
         if (value instanceof CharSequence text) {
             if (constraints.minLength() != null && text.length() < constraints.minLength()) {
-                throw invalidValue(field,
-                        "length must be >= " + constraints.minLength());
+                throw invalidValue(field, "length must be >= " + constraints.minLength());
             }
             if (constraints.maxLength() != null && text.length() > constraints.maxLength()) {
-                throw invalidValue(field,
-                        "length must be <= " + constraints.maxLength());
+                throw invalidValue(field, "length must be <= " + constraints.maxLength());
             }
         }
         if (value instanceof BigDecimal decimal) {
             if (constraints.scale() != null && decimal.scale() > constraints.scale()) {
-                throw invalidValue(field,
-                        "scale must be <= " + constraints.scale());
+                throw invalidValue(field, "scale must be <= " + constraints.scale());
             }
-            if (constraints.precision() != null
-                    && decimal.precision() > constraints.precision()) {
-                throw invalidValue(field,
-                        "precision must be <= " + constraints.precision());
+            if (constraints.precision() != null && decimal.precision() > constraints.precision()) {
+                throw invalidValue(field, "precision must be <= " + constraints.precision());
             }
         }
     }
 
     private static ContractException invalidValue(FieldDefinition field, String requirement) {
-        return new ContractException(ContractErrorCode.INVALID_PAYLOAD,
-                "field " + field.name() + " " + requirement);
+        return new ContractException(
+                ContractErrorCode.INVALID_PAYLOAD, "field " + field.name() + " " + requirement);
     }
 
     private static String identifier(String value, String role) {

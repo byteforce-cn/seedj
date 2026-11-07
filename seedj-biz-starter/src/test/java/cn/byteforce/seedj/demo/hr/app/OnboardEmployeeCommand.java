@@ -1,18 +1,16 @@
 package cn.byteforce.seedj.demo.hr.app;
 
 import cn.byteforce.seedj.cqrs.Command;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import cn.byteforce.seedj.demo.hr.domain.EmployeeId;
-
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.LocalDate;
 import java.util.Objects;
 
 /**
  * 入职命令。
  *
- * <p>携带<b>目标员工标识</b>：命令在边界处（{@link HrCommandService}）由
- * {@code IdGenerator} 分配标识后构建，因此命令对象一旦存在就是完整可执行的——
- * 模板可以在加载聚合之前就完成加锁与 CAS 键的确定。
+ * <p>携带<b>目标员工标识</b>：命令在边界处（{@link HrCommandService}）由 {@code IdGenerator}
+ * 分配标识后构建，因此命令对象一旦存在就是完整可执行的—— 模板可以在加载聚合之前就完成加锁与 CAS 键的确定。
  *
  * @param employeeId 目标员工标识
  * @param employeeNo 工号
@@ -29,7 +27,8 @@ public record OnboardEmployeeCommand(
         @JsonProperty("name") String name,
         @JsonProperty("department") String department,
         @JsonProperty("position") String position,
-        @JsonProperty("hire_date") LocalDate hireDate) implements Command<EmployeeId> {
+        @JsonProperty("hire_date") LocalDate hireDate)
+        implements Command<EmployeeId> {
 
     public OnboardEmployeeCommand {
         Objects.requireNonNull(employeeId, "employeeId");

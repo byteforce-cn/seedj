@@ -1,7 +1,6 @@
 package cn.byteforce.seedj.conformance;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -10,23 +9,24 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /**
  * 产品代码命名门禁：规范名只能以三种线格式出现（错误码、Schema URI、DDL 域类型）。
  *
  * <p>扫描所有模块的 {@code src/main/java}、{@code src/main/resources} 与 {@code pom.xml}，
- * 去掉三条例外后不得再出现规范名。构建产物不参与扫描。</p>
+ * 去掉三条例外后不得再出现规范名。构建产物不参与扫描。
  */
 class NamingGuardTest {
 
     private static final Path ROOT = repoRoot(Path.of(System.getProperty("user.dir")));
 
-    private static final Pattern ALLOWED = Pattern.compile(
-            "EIS-\\d{3}-\\d{3}|eis://[^\\s\"']+|eis_(id|version|timestamp)");
+    private static final Pattern ALLOWED =
+            Pattern.compile("EIS-\\d{3}-\\d{3}|eis://[^\\s\"']+|eis_(id|version|timestamp)");
 
-    private static final Pattern FORBIDDEN_STANDALONE = Pattern.compile("(?i)(^|[^a-z])eis([^a-z]|$)");
+    private static final Pattern FORBIDDEN_STANDALONE =
+            Pattern.compile("(?i)(^|[^a-z])eis([^a-z]|$)");
 
     private static final Pattern FORBIDDEN_CAMEL = Pattern.compile("[a-z]Eis");
 

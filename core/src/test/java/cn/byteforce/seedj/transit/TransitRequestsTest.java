@@ -1,17 +1,14 @@
 package cn.byteforce.seedj.transit;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
-import java.util.Arrays;
-import java.util.List;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/**
- * 请求模型的构造语义：校验规则、默认归一化与访问器。
- */
+import java.util.Arrays;
+import java.util.List;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+/** 请求模型的构造语义：校验规则、默认归一化与访问器。 */
 class TransitRequestsTest {
 
     @Test
@@ -72,8 +69,9 @@ class TransitRequestsTest {
         assertThatThrownBy(() -> new SignRequest("k1", null, null, null))
                 .isInstanceOf(IllegalArgumentException.class);
 
-        VerifyRequest verify = new VerifyRequest("k1", "payload", "aGVsbG8=",
-                SignatureAlgorithm.SHA256_WITH_RSA, 1);
+        VerifyRequest verify =
+                new VerifyRequest(
+                        "k1", "payload", "aGVsbG8=", SignatureAlgorithm.SHA256_WITH_RSA, 1);
         assertThat(verify.getSignature()).isEqualTo("aGVsbG8=");
         assertThat(verify.getAlgorithm()).isEqualTo(SignatureAlgorithm.SHA256_WITH_RSA);
         assertThat(verify.getData()).isEqualTo("payload");
@@ -101,15 +99,15 @@ class TransitRequestsTest {
         assertThatThrownBy(() -> new HmacRequest("k1", null, null, null))
                 .isInstanceOf(IllegalArgumentException.class);
 
-        VerifyHmacRequest verify = new VerifyHmacRequest("k1", "payload", "aGVsbG8=",
-                HmacAlgorithm.SHA256, 1);
+        VerifyHmacRequest verify =
+                new VerifyHmacRequest("k1", "payload", "aGVsbG8=", HmacAlgorithm.SHA256, 1);
         assertThat(verify.getHmac()).isEqualTo("aGVsbG8=");
         assertThat(verify.getAlgorithm()).isEqualTo(HmacAlgorithm.SHA256);
         assertThat(verify.getData()).isEqualTo("payload");
         assertThat(verify.getKeyName()).isEqualTo("k1");
         assertThat(verify.getKeyVersion()).isEqualTo(1);
-        assertThatThrownBy(() -> new VerifyHmacRequest("k1", "payload", "aGVsbG8",
-                null, null)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new VerifyHmacRequest("k1", "payload", "aGVsbG8", null, null))
+                .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new VerifyHmacRequest("k1", null, "aGVsbG8=", null, null))
                 .isInstanceOf(IllegalArgumentException.class);
     }
@@ -153,7 +151,8 @@ class TransitRequestsTest {
         assertThat(request.getGlobalContext()).isEqualTo("aGVsbG8=");
         assertThat(request.getGlobalKeyVersion()).isEqualTo(2);
 
-        assertThatThrownBy(() -> new BatchEncryptRequest("k1", Arrays.asList(item, null), null, null))
+        assertThatThrownBy(
+                        () -> new BatchEncryptRequest("k1", Arrays.asList(item, null), null, null))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new BatchEncryptRequest("k1", null, null, null))
                 .isInstanceOf(IllegalArgumentException.class);
@@ -169,8 +168,9 @@ class TransitRequestsTest {
         assertThat(decrypt.getKeyName()).isEqualTo("k1");
         assertThat(decrypt.getItems()).containsExactly(noVersion);
         assertThat(decrypt.getGlobalContext()).isNull();
-        assertThatThrownBy(() -> new BatchDecryptRequest("k1", List.of(noVersion, withVersion),
-                null)).isInstanceOf(IllegalArgumentException.class)
+        assertThatThrownBy(
+                        () -> new BatchDecryptRequest("k1", List.of(noVersion, withVersion), null))
+                .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("keyVersion");
 
         BatchRewrapRequest rewrap = new BatchRewrapRequest("k1", List.of(noVersion), null);
@@ -185,8 +185,8 @@ class TransitRequestsTest {
     @Test
     @DisplayName("CreateKeyRequest：类型必填，其余保持 null 交给 provider 默认值")
     void createKeyRequest() {
-        CreateKeyRequest request = new CreateKeyRequest("k1", KeyType.ED25519, true, false,
-                true, false);
+        CreateKeyRequest request =
+                new CreateKeyRequest("k1", KeyType.ED25519, true, false, true, false);
         assertThat(request.getKeyName()).isEqualTo("k1");
         assertThat(request.getType()).isEqualTo(KeyType.ED25519);
         assertThat(request.getDerived()).isTrue();

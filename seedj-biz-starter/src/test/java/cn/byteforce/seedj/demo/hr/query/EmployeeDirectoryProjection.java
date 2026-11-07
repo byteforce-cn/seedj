@@ -6,8 +6,8 @@ import cn.byteforce.seedj.demo.hr.domain.EmployeeOnboarded;
 /**
  * 把入职事件投影到员工目录。
  *
- * <p>订阅 topic 由 {@link EmployeeOnboarded} 上的 {@code @EventType} 推导，
- * 不需要手写字符串；消费者组名取自 {@link #projectionName()}。
+ * <p>订阅 topic 由 {@link EmployeeOnboarded} 上的 {@code @EventType} 推导， 不需要手写字符串；消费者组名取自 {@link
+ * #projectionName()}。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -28,7 +28,13 @@ public final class EmployeeDirectoryProjection extends AbstractProjection<Employ
 
     @Override
     protected void apply(EmployeeOnboarded event) {
-        directory.upsert(new EmployeeView(event.employeeId(), event.employeeNo(), event.name(),
-                event.department(), event.position(), event.hireDate()));
+        directory.upsert(
+                new EmployeeView(
+                        event.employeeId(),
+                        event.employeeNo(),
+                        event.name(),
+                        event.department(),
+                        event.position(),
+                        event.hireDate()));
     }
 }

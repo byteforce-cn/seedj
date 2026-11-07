@@ -1,20 +1,19 @@
 package cn.byteforce.seedj.infra.jdbc.iam;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import cn.byteforce.seedj.iam.IamErrorCode;
 import cn.byteforce.seedj.iam.IamException;
 import cn.byteforce.seedj.iam.ScimComparisonOperator;
 import cn.byteforce.seedj.iam.ScimFilter;
-import org.junit.jupiter.api.Test;
-
 import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import org.junit.jupiter.api.Test;
 
 class IamFilterSqlTest {
 
-    private static ScimFilter.Compare compare(String attribute, ScimComparisonOperator operator,
-                                             Object value) {
+    private static ScimFilter.Compare compare(
+            String attribute, ScimComparisonOperator operator, Object value) {
         return new ScimFilter.Compare(attribute, operator, value);
     }
 
@@ -31,8 +30,8 @@ class IamFilterSqlTest {
 
     @Test
     void userNameEqualityTargetsNormalizedColumn() {
-        IamFilterSql.Sql sql = IamFilterSql.user(
-                compare("userName", ScimComparisonOperator.EQ, "Alice.Smith"));
+        IamFilterSql.Sql sql =
+                IamFilterSql.user(compare("userName", ScimComparisonOperator.EQ, "Alice.Smith"));
 
         assertThat(sql.where()).isEqualTo("user_name_normalized = ?");
         assertThat(sql.arguments()).containsExactly("alice.smith");
@@ -40,8 +39,8 @@ class IamFilterSqlTest {
 
     @Test
     void userNameInequalityTargetsNormalizedColumn() {
-        IamFilterSql.Sql sql = IamFilterSql.user(
-                compare("userName", ScimComparisonOperator.NE, "Alice"));
+        IamFilterSql.Sql sql =
+                IamFilterSql.user(compare("userName", ScimComparisonOperator.NE, "Alice"));
 
         assertThat(sql.where()).isEqualTo("user_name_normalized IS DISTINCT FROM ?");
         assertThat(sql.arguments()).containsExactly("alice");
@@ -49,40 +48,55 @@ class IamFilterSqlTest {
 
     @Test
     void stringOperatorsUseCaseInsensitivePatterns() {
-        assertThat(IamFilterSql.user(compare("email", ScimComparisonOperator.CO, "Example"))
-                .where()).isEqualTo("email ILIKE '%' || ? || '%'");
-        assertThat(IamFilterSql.user(compare("email", ScimComparisonOperator.SW, "alice"))
-                .where()).isEqualTo("email ILIKE ? || '%'");
-        assertThat(IamFilterSql.user(compare("email", ScimComparisonOperator.EW, "example.com"))
-                .where()).isEqualTo("email ILIKE '%' || ?");
+        assertThat(
+                        IamFilterSql.user(compare("email", ScimComparisonOperator.CO, "Example"))
+                                .where())
+                .isEqualTo("email ILIKE '%' || ? || '%'");
+        assertThat(IamFilterSql.user(compare("email", ScimComparisonOperator.SW, "alice")).where())
+                .isEqualTo("email ILIKE ? || '%'");
+        assertThat(
+                        IamFilterSql.user(
+                                        compare("email", ScimComparisonOperator.EW, "example.com"))
+                                .where())
+                .isEqualTo("email ILIKE '%' || ?");
     }
 
     @Test
     void containmentDoesNotLowercaseItsArgument() {
-        IamFilterSql.Sql sql = IamFilterSql.user(
-                compare("userName", ScimComparisonOperator.CO, "Alice"));
+        IamFilterSql.Sql sql =
+                IamFilterSql.user(compare("userName", ScimComparisonOperator.CO, "Alice"));
 
         assertThat(sql.arguments()).containsExactly("Alice");
     }
 
     @Test
     void orderingOperatorsKeepTheRawValue() {
-        assertThat(IamFilterSql.user(compare("meta.version", ScimComparisonOperator.GT, 3L))
-                .where()).isEqualTo("version > ?");
-        assertThat(IamFilterSql.user(compare("meta.version", ScimComparisonOperator.LT, 3L))
-                .where()).isEqualTo("version < ?");
-        assertThat(IamFilterSql.user(compare("meta.version", ScimComparisonOperator.GE, 3L))
-                .where()).isEqualTo("version >= ?");
-        assertThat(IamFilterSql.user(compare("meta.version", ScimComparisonOperator.LE, 3L))
-                .where()).isEqualTo("version <= ?");
-        assertThat(IamFilterSql.user(compare("meta.version", ScimComparisonOperator.LE, 3L))
-                .arguments()).containsExactly(3L);
+        assertThat(
+                        IamFilterSql.user(compare("meta.version", ScimComparisonOperator.GT, 3L))
+                                .where())
+                .isEqualTo("version > ?");
+        assertThat(
+                        IamFilterSql.user(compare("meta.version", ScimComparisonOperator.LT, 3L))
+                                .where())
+                .isEqualTo("version < ?");
+        assertThat(
+                        IamFilterSql.user(compare("meta.version", ScimComparisonOperator.GE, 3L))
+                                .where())
+                .isEqualTo("version >= ?");
+        assertThat(
+                        IamFilterSql.user(compare("meta.version", ScimComparisonOperator.LE, 3L))
+                                .where())
+                .isEqualTo("version <= ?");
+        assertThat(
+                        IamFilterSql.user(compare("meta.version", ScimComparisonOperator.LE, 3L))
+                                .arguments())
+                .containsExactly(3L);
     }
 
     @Test
     void nonStringAttributesAreNotLowercased() {
-        IamFilterSql.Sql sql = IamFilterSql.user(
-                compare("active", ScimComparisonOperator.EQ, Boolean.TRUE));
+        IamFilterSql.Sql sql =
+                IamFilterSql.user(compare("active", ScimComparisonOperator.EQ, Boolean.TRUE));
 
         assertThat(sql.where()).isEqualTo("active = ?");
         assertThat(sql.arguments()).containsExactly(Boolean.TRUE);
@@ -110,42 +124,59 @@ class IamFilterSqlTest {
 
     @Test
     void andWrapsEachClauseAndKeepsArgumentOrder() {
-        IamFilterSql.Sql sql = IamFilterSql.user(new ScimFilter.And(List.of(
-                compare("userName", ScimComparisonOperator.EQ, "Alice"),
-                compare("active", ScimComparisonOperator.EQ, Boolean.TRUE))));
+        IamFilterSql.Sql sql =
+                IamFilterSql.user(
+                        new ScimFilter.And(
+                                List.of(
+                                        compare("userName", ScimComparisonOperator.EQ, "Alice"),
+                                        compare(
+                                                "active",
+                                                ScimComparisonOperator.EQ,
+                                                Boolean.TRUE))));
 
-        assertThat(sql.where()).isEqualTo(
-                "(user_name_normalized = ?) AND (active = ?)");
+        assertThat(sql.where()).isEqualTo("(user_name_normalized = ?) AND (active = ?)");
         assertThat(sql.arguments()).containsExactly("alice", Boolean.TRUE);
     }
 
     @Test
     void orWrapsEachClauseAndKeepsArgumentOrder() {
-        IamFilterSql.Sql sql = IamFilterSql.user(new ScimFilter.Or(List.of(
-                compare("email", ScimComparisonOperator.EW, "example.com"),
-                compare("userName", ScimComparisonOperator.SW, "svc"))));
+        IamFilterSql.Sql sql =
+                IamFilterSql.user(
+                        new ScimFilter.Or(
+                                List.of(
+                                        compare("email", ScimComparisonOperator.EW, "example.com"),
+                                        compare("userName", ScimComparisonOperator.SW, "svc"))));
 
-        assertThat(sql.where()).isEqualTo("(email ILIKE '%' || ?) OR (user_name_normalized ILIKE ? || '%')");
+        assertThat(sql.where())
+                .isEqualTo("(email ILIKE '%' || ?) OR (user_name_normalized ILIKE ? || '%')");
         assertThat(sql.arguments()).containsExactly("example.com", "svc");
     }
 
     @Test
     void notNegatesTheInnerClause() {
-        IamFilterSql.Sql sql = IamFilterSql.user(new ScimFilter.Not(
-                new ScimFilter.Or(List.of(
-                        compare("active", ScimComparisonOperator.EQ, Boolean.FALSE),
-                        new ScimFilter.Present("externalId")))));
+        IamFilterSql.Sql sql =
+                IamFilterSql.user(
+                        new ScimFilter.Not(
+                                new ScimFilter.Or(
+                                        List.of(
+                                                compare(
+                                                        "active",
+                                                        ScimComparisonOperator.EQ,
+                                                        Boolean.FALSE),
+                                                new ScimFilter.Present("externalId")))));
 
-        assertThat(sql.where()).isEqualTo(
-                "NOT ((active = ?) OR (external_id IS NOT NULL))");
+        assertThat(sql.where()).isEqualTo("NOT ((active = ?) OR (external_id IS NOT NULL))");
         assertThat(sql.arguments()).containsExactly(Boolean.FALSE);
     }
 
     @Test
     void groupFilterUsesGroupColumns() {
-        IamFilterSql.Sql sql = IamFilterSql.group(new ScimFilter.And(List.of(
-                compare("displayName", ScimComparisonOperator.EQ, "Sales"),
-                compare("externalId", ScimComparisonOperator.SW, "ext-"))));
+        IamFilterSql.Sql sql =
+                IamFilterSql.group(
+                        new ScimFilter.And(
+                                List.of(
+                                        compare("displayName", ScimComparisonOperator.EQ, "Sales"),
+                                        compare("externalId", ScimComparisonOperator.SW, "ext-"))));
 
         assertThat(sql.where()).isEqualTo("(display_name = ?) AND (external_id ILIKE ? || '%')");
         assertThat(sql.arguments()).containsExactly("Sales", "ext-");
@@ -155,26 +186,28 @@ class IamFilterSqlTest {
     void groupPresentMembershipUsesExistsSubquery() {
         IamFilterSql.Sql sql = IamFilterSql.group(new ScimFilter.Present("members.value"));
 
-        assertThat(sql.where()).isEqualTo(
-                "EXISTS (SELECT 1 FROM iam_group_member gm WHERE gm.group_id = iam_group.id)");
+        assertThat(sql.where())
+                .isEqualTo(
+                        "EXISTS (SELECT 1 FROM iam_group_member gm WHERE gm.group_id = iam_group.id)");
         assertThat(sql.arguments()).isEmpty();
     }
 
     @Test
     void groupMembershipEqualityBindsTheMemberId() {
-        IamFilterSql.Sql sql = IamFilterSql.group(
-                compare("members.value", ScimComparisonOperator.EQ, "u-1"));
+        IamFilterSql.Sql sql =
+                IamFilterSql.group(compare("members.value", ScimComparisonOperator.EQ, "u-1"));
 
-        assertThat(sql.where()).isEqualTo(
-                "EXISTS (SELECT 1 FROM iam_group_member gm WHERE gm.group_id = iam_group.id"
-                        + " AND gm.user_id = ?)");
+        assertThat(sql.where())
+                .isEqualTo(
+                        "EXISTS (SELECT 1 FROM iam_group_member gm WHERE gm.group_id = iam_group.id"
+                                + " AND gm.user_id = ?)");
         assertThat(sql.arguments()).containsExactly("u-1");
     }
 
     @Test
     void groupMembershipInequalityNegatesTheSubquery() {
-        IamFilterSql.Sql sql = IamFilterSql.group(
-                compare("members.value", ScimComparisonOperator.NE, "u-1"));
+        IamFilterSql.Sql sql =
+                IamFilterSql.group(compare("members.value", ScimComparisonOperator.NE, "u-1"));
 
         assertThat(sql.where()).startsWith("NOT EXISTS (SELECT 1 FROM iam_group_member gm");
         assertThat(sql.arguments()).containsExactly("u-1");

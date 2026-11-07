@@ -6,9 +6,8 @@ import cn.byteforce.seedj.core.ErrorDescriptor;
 /**
  * CQRS 错误码。
  *
- * <p>命令侧（事件存储）与查询侧（投影）共用一套分类：调用方只需要判
- * {@link cn.byteforce.seedj.core.InfrastructureException#isRetryable()}，
- * 不需要认识具体适配器。
+ * <p>命令侧（事件存储）与查询侧（投影）共用一套分类：调用方只需要判 {@link
+ * cn.byteforce.seedj.core.InfrastructureException#isRetryable()}， 不需要认识具体适配器。
  *
  * @author ByteForce
  * @since 1.0.0

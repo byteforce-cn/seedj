@@ -1,15 +1,14 @@
 package cn.byteforce.seedj.cqrs;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
 /**
  * 查询模板：拦截链顺序、短路（缓存命中）、异常透传。
@@ -30,44 +29,51 @@ class QueryAgentTest {
     @DisplayName("拦截器按列表顺序由外到内执行")
     void interceptorsRunFromOuterToInner() {
         List<String> trace = new ArrayList<>();
-        QueryInterceptor<String> outer = invocation -> {
-            trace.add("outer:enter");
-            try {
-                return invocation.proceed();
-            } finally {
-                trace.add("outer:exit");
-            }
-        };
-        QueryInterceptor<String> inner = invocation -> {
-            trace.add("inner:enter");
-            try {
-                return invocation.proceed();
-            } finally {
-                trace.add("inner:exit");
-            }
-        };
+        QueryInterceptor<String> outer =
+                invocation -> {
+                    trace.add("outer:enter");
+                    try {
+                        return invocation.proceed();
+                    } finally {
+                        trace.add("outer:exit");
+                    }
+                };
+        QueryInterceptor<String> inner =
+                invocation -> {
+                    trace.add("inner:enter");
+                    try {
+                        return invocation.proceed();
+                    } finally {
+                        trace.add("inner:exit");
+                    }
+                };
         QueryAgent<String> agent = new QueryAgent<>(List.of(outer, inner));
 
-        assertThat(agent.execute(() -> {
-            trace.add("query");
-            return "value";
-        })).isEqualTo("value");
+        assertThat(
+                        agent.execute(
+                                () -> {
+                                    trace.add("query");
+                                    return "value";
+                                }))
+                .isEqualTo("value");
 
-        assertThat(trace).containsExactly(
-                "outer:enter", "inner:enter", "query", "inner:exit", "outer:exit");
+        assertThat(trace)
+                .containsExactly("outer:enter", "inner:enter", "query", "inner:exit", "outer:exit");
     }
 
     @Test
     @DisplayName("拦截器短路：查询不执行（缓存命中）")
     void interceptorCanServeFromCache() {
         AtomicInteger executions = new AtomicInteger();
-        QueryAgent<Optional<String>> agent = new QueryAgent<>(
-                List.of(invocation -> Optional.of("cached")));
+        QueryAgent<Optional<String>> agent =
+                new QueryAgent<>(List.of(invocation -> Optional.of("cached")));
 
-        Optional<String> result = agent.execute(() -> {
-            executions.incrementAndGet();
-            return Optional.of("from-read-model");
-        });
+        Optional<String> result =
+                agent.execute(
+                        () -> {
+                            executions.incrementAndGet();
+                            return Optional.of("from-read-model");
+                        });
 
         assertThat(result).contains("cached");
         assertThat(executions).hasValue(0);
@@ -78,17 +84,22 @@ class QueryAgentTest {
     void propagatesQueryFailure() {
         QueryAgent<String> agent = new QueryAgent<>();
 
-        assertThatThrownBy(() -> agent.execute(() -> {
-            throw new IllegalStateException("read model unavailable");
-        })).isInstanceOf(IllegalStateException.class)
+        assertThatThrownBy(
+                        () ->
+                                agent.execute(
+                                        () -> {
+                                            throw new IllegalStateException(
+                                                    "read model unavailable");
+                                        }))
+                .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("read model unavailable");
     }
 
     @Test
     @DisplayName("拦截器可以改写结果")
     void interceptorCanRewriteResult() {
-        QueryAgent<String> agent = new QueryAgent<>(
-                List.of(invocation -> invocation.proceed().toUpperCase()));
+        QueryAgent<String> agent =
+                new QueryAgent<>(List.of(invocation -> invocation.proceed().toUpperCase()));
 
         assertThat(agent.execute(() -> "value")).isEqualTo("VALUE");
     }

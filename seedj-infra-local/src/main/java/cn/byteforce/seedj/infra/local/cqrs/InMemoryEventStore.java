@@ -7,7 +7,6 @@ import cn.byteforce.seedj.cqrs.IdCodec;
 import cn.byteforce.seedj.cqrs.StreamId;
 import cn.byteforce.seedj.cqrs.spi.EventStore;
 import cn.byteforce.seedj.domain.event.DomainEvent;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -18,8 +17,7 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * 内存事件存储：单进程、无持久化。
  *
- * <p>用于本地开发、单元测试与契约测试。生产环境请换 JDBC/对象存储实现；
- * 两者的语义完全一致，因为都遵守 {@link EventStore} 的契约。
+ * <p>用于本地开发、单元测试与契约测试。生产环境请换 JDBC/对象存储实现； 两者的语义完全一致，因为都遵守 {@link EventStore} 的契约。
  *
  * <p>写入用 {@code compute} 保证同一条流的 CAS 是原子的：并发追加只有一个成功。
  *
@@ -48,8 +46,8 @@ public final class InMemoryEventStore<ID> implements EventStore<ID> {
     }
 
     @Override
-    public long append(StreamId<ID> streamId, long expectedVersion,
-                       List<? extends DomainEvent> events) {
+    public long append(
+            StreamId<ID> streamId, long expectedVersion, List<? extends DomainEvent> events) {
         Objects.requireNonNull(streamId, "streamId");
         Objects.requireNonNull(events, "events");
         if (events.isEmpty()) {
@@ -60,19 +58,26 @@ public final class InMemoryEventStore<ID> implements EventStore<ID> {
         }
 
         AtomicLong appended = new AtomicLong();
-        streams.compute(streamId.canonical(codec), (key, current) -> {
-            List<DomainEvent> history = current == null ? List.of() : current;
-            if (history.size() != expectedVersion) {
-                throw new CqrsException(CqrsErrorCode.CONCURRENCY_CONFLICT,
-                        "stream " + streamId + " expected version " + expectedVersion
-                                + " but was " + history.size());
-            }
-            List<DomainEvent> next = new ArrayList<>(history.size() + events.size());
-            next.addAll(history);
-            next.addAll(events);
-            appended.set(next.size());
-            return List.copyOf(next);
-        });
+        streams.compute(
+                streamId.canonical(codec),
+                (key, current) -> {
+                    List<DomainEvent> history = current == null ? List.of() : current;
+                    if (history.size() != expectedVersion) {
+                        throw new CqrsException(
+                                CqrsErrorCode.CONCURRENCY_CONFLICT,
+                                "stream "
+                                        + streamId
+                                        + " expected version "
+                                        + expectedVersion
+                                        + " but was "
+                                        + history.size());
+                    }
+                    List<DomainEvent> next = new ArrayList<>(history.size() + events.size());
+                    next.addAll(history);
+                    next.addAll(events);
+                    appended.set(next.size());
+                    return List.copyOf(next);
+                });
         return appended.get();
     }
 }

@@ -36,6 +36,14 @@ public enum TransitErrorCode implements ErrorDescriptor {
         this.category = category;
         this.defaultRetryable = defaultRetryable;
     }
-    @Override public ErrorCategory category() { return category; }
-    @Override public boolean defaultRetryable() { return defaultRetryable; }
+
+    @Override
+    public ErrorCategory category() {
+        return category;
+    }
+
+    @Override
+    public boolean defaultRetryable() {
+        return defaultRetryable;
+    }
 }

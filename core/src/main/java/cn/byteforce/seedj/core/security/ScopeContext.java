@@ -9,8 +9,7 @@ import java.util.Optional;
 /**
  * 请求事实快照：不可变、按声明 key 读取。
  *
- * <p>它不是安全上下文，也不携带认证结果；只在请求生命周期内由
- * {@link ScopeContextHolder} 暴露。</p>
+ * <p>它不是安全上下文，也不携带认证结果；只在请求生命周期内由 {@link ScopeContextHolder} 暴露。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -41,15 +40,17 @@ public final class ScopeContext {
     public static ScopeContext of(Map<String, Object> facts) {
         Objects.requireNonNull(facts, "facts");
         Map<String, Object> copy = new LinkedHashMap<>();
-        facts.forEach((key, value) -> {
-            if (key == null || key.isBlank()) {
-                throw new IllegalArgumentException("scope fact key must not be blank");
-            }
-            if (value == null) {
-                throw new IllegalArgumentException("scope fact " + key + " must not be null");
-            }
-            copy.put(key, value);
-        });
+        facts.forEach(
+                (key, value) -> {
+                    if (key == null || key.isBlank()) {
+                        throw new IllegalArgumentException("scope fact key must not be blank");
+                    }
+                    if (value == null) {
+                        throw new IllegalArgumentException(
+                                "scope fact " + key + " must not be null");
+                    }
+                    copy.put(key, value);
+                });
         return new ScopeContext(Collections.unmodifiableMap(copy));
     }
 

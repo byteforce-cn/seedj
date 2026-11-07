@@ -1,11 +1,11 @@
 package cn.byteforce.seedj.it.fixture.im;
 
-import cn.byteforce.seedj.eventbus.EventPublisher;
 import cn.byteforce.seedj.eventbus.EventMessage;
+import cn.byteforce.seedj.eventbus.EventPublisher;
 import cn.byteforce.seedj.eventbus.spi.EventBusTransport;
-import cn.byteforce.seedj.outbox.spi.OutboxStore;
-import cn.byteforce.seedj.infra.local.eventbus.FileEventBusTransport;
 import cn.byteforce.seedj.id.IdGenerator;
+import cn.byteforce.seedj.infra.local.eventbus.FileEventBusTransport;
+import cn.byteforce.seedj.outbox.spi.OutboxStore;
 import cn.byteforce.seedj.transit.Ciphertext;
 import cn.byteforce.seedj.transit.CreateKeyRequest;
 import cn.byteforce.seedj.transit.DecryptRequest;
@@ -13,6 +13,11 @@ import cn.byteforce.seedj.transit.EncryptRequest;
 import cn.byteforce.seedj.transit.KeyType;
 import cn.byteforce.seedj.transit.TransitException;
 import cn.byteforce.seedj.transit.TransitProvider;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.UUID;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -26,17 +31,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.UUID;
-
 /**
  * 仅测试用的业务资源端点：
+ *
  * <ul>
- *   <li>{@code /api/...}：资源服务器契约（JWT / scope）；</li>
- *   <li>{@code /api/public/test/...}：基础设施 SPI 的端到端探测（eventbus / transit / id）。</li>
+ *   <li>{@code /api/...}：资源服务器契约（JWT / scope）；
+ *   <li>{@code /api/public/test/...}：基础设施 SPI 的端到端探测（eventbus / transit / id）。
  * </ul>
  */
 @RestController
@@ -50,12 +50,13 @@ public class ImTestController {
     private final TransitProvider transit;
     private final IdGenerator<String> idGenerator;
 
-    public ImTestController(EventPublisher eventPublisher,
-                            ObjectProvider<OutboxStore> outboxStore,
-                            ObjectProvider<EventBusTransport> transport,
-                            JdbcTemplate jdbcTemplate,
-                            TransitProvider transit,
-                            IdGenerator<String> idGenerator) {
+    public ImTestController(
+            EventPublisher eventPublisher,
+            ObjectProvider<OutboxStore> outboxStore,
+            ObjectProvider<EventBusTransport> transport,
+            JdbcTemplate jdbcTemplate,
+            TransitProvider transit,
+            IdGenerator<String> idGenerator) {
         this.eventPublisher = eventPublisher;
         this.outboxStore = outboxStore;
         this.transport = transport;
@@ -82,32 +83,39 @@ public class ImTestController {
 
     // ==================== EventBus ====================
 
-    /**
-     * 在事务内发布一条消息。重复传入同一 {@code eventId} 只落一行（outbox 幂等）。
-     */
+    /** 在事务内发布一条消息。重复传入同一 {@code eventId} 只落一行（outbox 幂等）。 */
     @PostMapping("/api/public/test/events")
     @Transactional
-    public Map<String, Object> publishEvent(@RequestParam String topic,
-                                            @RequestParam(required = false) String partitionKey,
-                                            @RequestParam(required = false) String eventId,
-                                            @RequestParam(defaultValue = "payload") String payload) {
+    public Map<String, Object> publishEvent(
+            @RequestParam String topic,
+            @RequestParam(required = false) String partitionKey,
+            @RequestParam(required = false) String eventId,
+            @RequestParam(defaultValue = "payload") String payload) {
         String id = eventId != null ? eventId : idGenerator.id();
-        EventMessage message = new EventMessage(id, topic, partitionKey, topic, 1,
-                payload.getBytes(StandardCharsets.UTF_8), Map.of("source", "it"),
-                Instant.now());
+        EventMessage message =
+                new EventMessage(
+                        id,
+                        topic,
+                        partitionKey,
+                        topic,
+                        1,
+                        payload.getBytes(StandardCharsets.UTF_8),
+                        Map.of("source", "it"),
+                        Instant.now());
         eventPublisher.publish(message);
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("eventId", id);
         result.put("outboxPresent", outboxStore.getIfAvailable() != null);
-        result.put("transport", transport.getIfAvailable() != null
-                ? transport.getIfAvailable().getClass().getSimpleName() : "none");
+        result.put(
+                "transport",
+                transport.getIfAvailable() != null
+                        ? transport.getIfAvailable().getClass().getSimpleName()
+                        : "none");
         return result;
     }
 
-    /**
-     * 查询 outbox 行状态；没有 outbox 时返回 {@code outbox=false}。
-     */
+    /** 查询 outbox 行状态；没有 outbox 时返回 {@code outbox=false}。 */
     @GetMapping("/api/public/test/events/{eventId}")
     public Map<String, Object> eventStatus(@PathVariable String eventId) {
         Map<String, Object> result = new LinkedHashMap<>();
@@ -115,8 +123,10 @@ public class ImTestController {
             result.put("outbox", false);
             return result;
         }
-        var rows = jdbcTemplate.queryForList(
-                "SELECT status, attempts, sequence, lease_id FROM outbox WHERE message_id = ?", eventId);
+        var rows =
+                jdbcTemplate.queryForList(
+                        "SELECT status, attempts, sequence, lease_id FROM outbox WHERE message_id = ?",
+                        eventId);
         result.put("outbox", true);
         result.put("count", rows.size());
         if (!rows.isEmpty()) {
@@ -132,14 +142,13 @@ public class ImTestController {
         if (resolved instanceof FileEventBusTransport file) {
             return Map.of("dir", file.baseDir().toString(), "type", "file");
         }
-        return Map.of("dir", "", "type", resolved == null ? "none" : resolved.getClass().getSimpleName());
+        return Map.of(
+                "dir", "", "type", resolved == null ? "none" : resolved.getClass().getSimpleName());
     }
 
     // ==================== Transit ====================
 
-    /**
-     * 完整走一遍：createKey → encrypt → decrypt → rotate → 旧密文仍可解密。
-     */
+    /** 完整走一遍：createKey → encrypt → decrypt → rotate → 旧密文仍可解密。 */
     @GetMapping("/api/public/test/transit/roundtrip")
     public Map<String, Object> transitRoundtrip() {
         String keyName = "it-transit-key";

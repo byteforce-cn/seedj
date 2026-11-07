@@ -15,9 +15,8 @@ import org.junit.jupiter.api.Test;
 /**
  * split package 门禁：同一个 Java 包只能属于一个 Maven 模块。
  *
- * <p>跨模块同名包会让 JPMS、OSGi、类路径扫描与架构规则全部失去确定性。当前违规记录在
- * {@code config/archunit/split-package-allowlist.txt}，每行 {@code package|moduleA,moduleB}；
- * T3.2 清空。</p>
+ * <p>跨模块同名包会让 JPMS、OSGi、类路径扫描与架构规则全部失去确定性。当前违规记录在 {@code
+ * config/archunit/split-package-allowlist.txt}，每行 {@code package|moduleA,moduleB}； T3.2 清空。
  */
 class SplitPackageTest {
 
@@ -49,8 +48,7 @@ class SplitPackageTest {
 
         assertThat(violations)
                 .as(
-                        "存在未登记的跨模块 split package；移动实现包，或在 %s 记录 "
-                                + "`package|moduleA,moduleB`",
+                        "存在未登记的跨模块 split package；移动实现包，或在 %s 记录 " + "`package|moduleA,moduleB`",
                         ALLOWLIST)
                 .isEmpty();
     }

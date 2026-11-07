@@ -1,11 +1,10 @@
 package cn.byteforce.seedj.starter.iam.nativeauth;
 
-import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
-import org.springframework.security.oauth2.core.OAuth2Error;
-
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
+import org.springframework.security.oauth2.core.OAuth2Error;
 
 /** Carries the mfa_token and methods so the token endpoint can return them. */
 public class NativeAuthMfaRequiredException extends OAuth2AuthenticationException {

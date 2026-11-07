@@ -6,9 +6,9 @@ import java.util.List;
 /**
  * 任务查询。
  *
- * <p>{@code pendingFor} 匹配 PENDING assignment（排除 SUSPENDED），
- * {@code completedBy} 匹配 {@code record.assignee} 或 {@code record.onBehalfOf}；
- * 两者互斥。{@code candidateGroups} 匹配 GROUP/DEPARTMENT 参与者。
+ * <p>{@code pendingFor} 匹配 PENDING assignment（排除 SUSPENDED）， {@code completedBy} 匹配 {@code
+ * record.assignee} 或 {@code record.onBehalfOf}； 两者互斥。{@code candidateGroups} 匹配 GROUP/DEPARTMENT
+ * 参与者。
  */
 public record TaskQuery(
         WorkflowInstanceId instanceId,
@@ -19,8 +19,7 @@ public record TaskQuery(
         HumanTaskStatus status,
         Instant dueBefore,
         int limit,
-        String cursor
-) {
+        String cursor) {
     public TaskQuery {
         if (limit <= 0) throw new IllegalArgumentException("limit must be > 0");
         candidateGroups = candidateGroups == null ? List.of() : List.copyOf(candidateGroups);

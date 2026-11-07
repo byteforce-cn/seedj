@@ -6,6 +6,9 @@ import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;
 import cn.byteforce.seedj.cqrs.CqrsException;
 import cn.byteforce.seedj.lock.LockException;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.Ordered;
@@ -20,16 +23,11 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.UUID;
-
 /**
  * 契约面错误信封：所有错误响应固定 {@code {code,message,details?}}。
  *
- * <p>业务拒绝（命令）与 401/403 由各自边界处理，本类覆盖查询、参数解析、
- * 基础设施故障与未处理异常。{@code reason_code} 优先取异常携带的细分原因，
- * 为空时回落到错误码本身；{@code EIS-409-003} 必须带 {@code Retry-After}。</p>
+ * <p>业务拒绝（命令）与 401/403 由各自边界处理，本类覆盖查询、参数解析、 基础设施故障与未处理异常。{@code reason_code} 优先取异常携带的细分原因，
+ * 为空时回落到错误码本身；{@code EIS-409-003} 必须带 {@code Retry-After}。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -51,12 +49,12 @@ public class ContractErrorHandler {
         if (error.code() == ContractErrorCode.INTERNAL_ERROR) {
             String traceId = UUID.randomUUID().toString();
             log.error("seedj: contract internal error traceId={}", traceId, error);
-            return response(ContractErrorCode.INTERNAL_ERROR, "internal error",
-                    Map.of("traceId", traceId));
+            return response(
+                    ContractErrorCode.INTERNAL_ERROR, "internal error", Map.of("traceId", traceId));
         }
         Map<String, Object> details = new LinkedHashMap<>(error.details());
-        String reasonCode = error.reasonCode() == null
-                ? error.code().getCode() : error.reasonCode();
+        String reasonCode =
+                error.reasonCode() == null ? error.code().getCode() : error.reasonCode();
         details.putIfAbsent("reason_code", reasonCode);
         details.putIfAbsent("message_key", error.code().name());
 
@@ -65,31 +63,37 @@ public class ContractErrorHandler {
                 || error.code() == ContractErrorCode.VERSION_CONFLICT) {
             headers.set(HttpHeaders.RETRY_AFTER, "1");
         }
-        return new ResponseEntity<>(new ApiError(error.code().getCode(), error.reason(), details),
-                headers, HttpStatus.valueOf(error.code().httpStatus()));
+        return new ResponseEntity<>(
+                new ApiError(error.code().getCode(), error.reason(), details),
+                headers,
+                HttpStatus.valueOf(error.code().httpStatus()));
     }
 
     /**
      * CQRS 业务/并发错误 → 契约状态码。
      *
-     * <p>业务拒绝是 400、乐观并发是 409、存储缺失是 503，其余是 500；不得统一压成 503。</p>
+     * <p>业务拒绝是 400、乐观并发是 409、存储缺失是 503，其余是 500；不得统一压成 503。
      *
      * @param error CQRS 异常
      * @return 契约信封
      */
     @ExceptionHandler(CqrsException.class)
     public ResponseEntity<ApiError> handleCqrs(CqrsException error) {
-        ContractErrorCode code = switch (error.getErrorCode()) {
-            case COMMAND_REJECTED -> ContractErrorCode.COMMAND_REJECTED;
-            case CONCURRENCY_CONFLICT -> ContractErrorCode.VERSION_CONFLICT;
-            case INVALID_STREAM_ID, INVALID_ID -> ContractErrorCode.INVALID_PAYLOAD;
-            case STORE_UNAVAILABLE -> ContractErrorCode.UNAVAILABLE;
-            default -> ContractErrorCode.INTERNAL_ERROR;
-        };
+        ContractErrorCode code =
+                switch (error.getErrorCode()) {
+                    case COMMAND_REJECTED -> ContractErrorCode.COMMAND_REJECTED;
+                    case CONCURRENCY_CONFLICT -> ContractErrorCode.VERSION_CONFLICT;
+                    case INVALID_STREAM_ID, INVALID_ID -> ContractErrorCode.INVALID_PAYLOAD;
+                    case STORE_UNAVAILABLE -> ContractErrorCode.UNAVAILABLE;
+                    default -> ContractErrorCode.INTERNAL_ERROR;
+                };
         if (code == ContractErrorCode.INTERNAL_ERROR) {
             String traceId = UUID.randomUUID().toString();
-            log.error("seedj: cqrs internal error traceId={} code={}", traceId,
-                    error.getErrorCode(), error);
+            log.error(
+                    "seedj: cqrs internal error traceId={} code={}",
+                    traceId,
+                    error.getErrorCode(),
+                    error);
             return response(code, "internal error", Map.of("traceId", traceId));
         }
         Map<String, Object> details = new LinkedHashMap<>();
@@ -103,9 +107,11 @@ public class ContractErrorHandler {
      * @param error 解析异常
      * @return 400 信封
      */
-    @ExceptionHandler({HttpMessageNotReadableException.class,
-            MethodArgumentTypeMismatchException.class,
-            MissingServletRequestParameterException.class})
+    @ExceptionHandler({
+        HttpMessageNotReadableException.class,
+        MethodArgumentTypeMismatchException.class,
+        MissingServletRequestParameterException.class
+    })
     public ResponseEntity<ApiError> handleBadRequest(Exception error) {
         String message = "invalid request";
         Map<String, Object> details = new LinkedHashMap<>();
@@ -124,8 +130,7 @@ public class ContractErrorHandler {
     /**
      * 锁冲突/锁服务故障 → 可重试的 409（带 {@code Retry-After}）或 503。
      *
-     * <p>{@code LOCK_BUSY} 表示同对象已有命令在执行，调用方退避后重试即可；
-     * 不得落进通用基础设施 503，否则调用方会把可重试冲突当成依赖故障。</p>
+     * <p>{@code LOCK_BUSY} 表示同对象已有命令在执行，调用方退避后重试即可； 不得落进通用基础设施 503，否则调用方会把可重试冲突当成依赖故障。
      *
      * @param error 锁异常
      * @return 409/503/500 信封
@@ -136,19 +141,34 @@ public class ContractErrorHandler {
             case LOCK_BUSY -> {
                 HttpHeaders headers = new HttpHeaders();
                 headers.set(HttpHeaders.RETRY_AFTER, "1");
-                yield new ResponseEntity<>(new ApiError(
-                        ContractErrorCode.VERSION_CONFLICT.getCode(), "resource busy",
-                        Map.of("reason_code", "LOCK-BUSY")), headers, HttpStatus.CONFLICT);
+                yield new ResponseEntity<>(
+                        new ApiError(
+                                ContractErrorCode.VERSION_CONFLICT.getCode(),
+                                "resource busy",
+                                Map.of("reason_code", "LOCK-BUSY")),
+                        headers,
+                        HttpStatus.CONFLICT);
             }
-            case PROVIDER_UNAVAILABLE -> response(ContractErrorCode.UNAVAILABLE, "unavailable",
-                    Map.of("reason_code", "LOCK-PROVIDER-UNAVAILABLE"));
+            case PROVIDER_UNAVAILABLE ->
+                    response(
+                            ContractErrorCode.UNAVAILABLE,
+                            "unavailable",
+                            Map.of("reason_code", "LOCK-PROVIDER-UNAVAILABLE"));
             default -> {
                 String traceId = UUID.randomUUID().toString();
-                log.error("seedj: lock internal error traceId={} code={}", traceId,
-                        error.getErrorCode(), error);
-                yield response(ContractErrorCode.INTERNAL_ERROR, "internal error",
-                        Map.of("traceId", traceId,
-                                "reason_code", "LOCK-" + error.getErrorCode().name()));
+                log.error(
+                        "seedj: lock internal error traceId={} code={}",
+                        traceId,
+                        error.getErrorCode(),
+                        error);
+                yield response(
+                        ContractErrorCode.INTERNAL_ERROR,
+                        "internal error",
+                        Map.of(
+                                "traceId",
+                                traceId,
+                                "reason_code",
+                                "LOCK-" + error.getErrorCode().name()));
             }
         };
     }
@@ -175,12 +195,12 @@ public class ContractErrorHandler {
     public ResponseEntity<ApiError> handleUnexpected(Exception error) {
         String traceId = UUID.randomUUID().toString();
         log.error("seedj: unexpected error traceId={}", traceId, error);
-        return response(ContractErrorCode.INTERNAL_ERROR, "internal error",
-                Map.of("traceId", traceId));
+        return response(
+                ContractErrorCode.INTERNAL_ERROR, "internal error", Map.of("traceId", traceId));
     }
 
-    private static ResponseEntity<ApiError> response(ContractErrorCode code, String message,
-                                                     Map<String, Object> details) {
+    private static ResponseEntity<ApiError> response(
+            ContractErrorCode code, String message, Map<String, Object> details) {
         Map<String, Object> body = new LinkedHashMap<>(details);
         body.putIfAbsent("reason_code", code.getCode());
         return ResponseEntity.status(code.httpStatus())

@@ -1,7 +1,12 @@
 package cn.byteforce.seedj.starter.security;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import cn.byteforce.seedj.core.security.Caller;
 import cn.byteforce.seedj.core.security.CallerProvider;
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -11,12 +16,6 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
-
-import java.time.Instant;
-import java.util.List;
-import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 class JwtCallerProviderTest {
 
@@ -38,9 +37,12 @@ class JwtCallerProviderTest {
     @Test
     @DisplayName("匿名令牌视为未认证")
     void anonymousTokenReturnsEmpty() {
-        SecurityContextHolder.getContext().setAuthentication(
-                new AnonymousAuthenticationToken("key", "anonymous",
-                        List.of(new SimpleGrantedAuthority("ROLE_ANONYMOUS"))));
+        SecurityContextHolder.getContext()
+                .setAuthentication(
+                        new AnonymousAuthenticationToken(
+                                "key",
+                                "anonymous",
+                                List.of(new SimpleGrantedAuthority("ROLE_ANONYMOUS"))));
 
         assertThat(provider.find()).isEmpty();
     }
@@ -64,11 +66,15 @@ class JwtCallerProviderTest {
     @Test
     @DisplayName("非 JWT 认证按前缀还原角色/权限")
     void mapsAuthorityPrefixes() {
-        SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken("bob", "n/a", List.of(
-                        new SimpleGrantedAuthority("ROLE_OPS"),
-                        new SimpleGrantedAuthority("PERM_order:write"),
-                        new SimpleGrantedAuthority("GROUP_sales"))));
+        SecurityContextHolder.getContext()
+                .setAuthentication(
+                        new UsernamePasswordAuthenticationToken(
+                                "bob",
+                                "n/a",
+                                List.of(
+                                        new SimpleGrantedAuthority("ROLE_OPS"),
+                                        new SimpleGrantedAuthority("PERM_order:write"),
+                                        new SimpleGrantedAuthority("GROUP_sales"))));
 
         Caller caller = provider.find().orElseThrow();
 
@@ -82,8 +88,17 @@ class JwtCallerProviderTest {
     @DisplayName("异步作用域优先于 SecurityContext")
     void propagationWins() {
         SecurityContextHolder.getContext().setAuthentication(new JwtAuthenticationToken(jwt()));
-        Caller async = new Caller("async-user", "async", "t-9", java.util.Set.of(), java.util.Set.of(),
-                java.util.Set.of(), java.util.Set.of(), Caller.DEFAULT_ACR, Map.of());
+        Caller async =
+                new Caller(
+                        "async-user",
+                        "async",
+                        "t-9",
+                        java.util.Set.of(),
+                        java.util.Set.of(),
+                        java.util.Set.of(),
+                        java.util.Set.of(),
+                        Caller.DEFAULT_ACR,
+                        Map.of());
 
         try (CallerPropagation.Scope ignored = propagation.open(async)) {
             assertThat(provider.find()).contains(async);
@@ -108,8 +123,16 @@ class JwtCallerProviderTest {
     }
 
     private static Caller caller(String id) {
-        return new Caller(id, id, "t-1", java.util.Set.of(), java.util.Set.of(), java.util.Set.of(),
-                java.util.Set.of(), Caller.DEFAULT_ACR, Map.of());
+        return new Caller(
+                id,
+                id,
+                "t-1",
+                java.util.Set.of(),
+                java.util.Set.of(),
+                java.util.Set.of(),
+                java.util.Set.of(),
+                Caller.DEFAULT_ACR,
+                Map.of());
     }
 
     private static Jwt jwt() {

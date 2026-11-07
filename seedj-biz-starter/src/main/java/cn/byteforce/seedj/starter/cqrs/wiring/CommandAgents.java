@@ -3,19 +3,17 @@ package cn.byteforce.seedj.starter.cqrs.wiring;
 import cn.byteforce.seedj.cqrs.CommandAgent;
 import cn.byteforce.seedj.cqrs.CommandAudit;
 import cn.byteforce.seedj.cqrs.CommandInterceptor;
-import cn.byteforce.seedj.lock.LockProvider;
 import cn.byteforce.seedj.cqrs.spi.TransactionRunner;
-
+import cn.byteforce.seedj.lock.LockProvider;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
 /**
- * 命令模板的装配入口：业务只写 {@code new XxxAgent(..., agents.options())}，
- * 指标拦截器与审计钩子由框架注入。
+ * 命令模板的装配入口：业务只写 {@code new XxxAgent(..., agents.options())}， 指标拦截器与审计钩子由框架注入。
  *
- * <p>拦截器顺序：框架拦截器（指标）在最外层，业务拦截器按注册顺序排在后面。</p>
+ * <p>拦截器顺序：框架拦截器（指标）在最外层，业务拦截器按注册顺序排在后面。
  */
 public final class CommandAgents {
 
@@ -33,17 +31,30 @@ public final class CommandAgents {
 
     private final int maxAttempts;
 
-    public CommandAgents(TransactionRunner transactionRunner, LockProvider lockProvider,
-                         CommandAudit audit, CommandMetrics metrics,
-                         List<CommandInterceptor<?>> interceptors) {
-        this(transactionRunner, lockProvider, audit, metrics, interceptors,
-                Duration.ofSeconds(30), 3);
+    public CommandAgents(
+            TransactionRunner transactionRunner,
+            LockProvider lockProvider,
+            CommandAudit audit,
+            CommandMetrics metrics,
+            List<CommandInterceptor<?>> interceptors) {
+        this(
+                transactionRunner,
+                lockProvider,
+                audit,
+                metrics,
+                interceptors,
+                Duration.ofSeconds(30),
+                3);
     }
 
-    public CommandAgents(TransactionRunner transactionRunner, LockProvider lockProvider,
-                         CommandAudit audit, CommandMetrics metrics,
-                         List<CommandInterceptor<?>> interceptors,
-                         Duration lockTtl, int maxAttempts) {
+    public CommandAgents(
+            TransactionRunner transactionRunner,
+            LockProvider lockProvider,
+            CommandAudit audit,
+            CommandMetrics metrics,
+            List<CommandInterceptor<?>> interceptors,
+            Duration lockTtl,
+            int maxAttempts) {
         this.transactionRunner = Objects.requireNonNull(transactionRunner, "transactionRunner");
         this.lockProvider = Objects.requireNonNull(lockProvider, "lockProvider");
         this.audit = Objects.requireNonNull(audit, "audit");
@@ -54,8 +65,8 @@ public final class CommandAgents {
     }
 
     /**
-     * 每个命令 Agent 的 {@code Options}。泛型由赋值目标推断：
-     * {@code CommandAgent.Options<EmployeeId> options = agents.options();}
+     * 每个命令 Agent 的 {@code Options}。泛型由赋值目标推断： {@code CommandAgent.Options<EmployeeId> options =
+     * agents.options();}
      */
     public <ID> CommandAgent.Options<ID> options() {
         List<CommandInterceptor<ID>> ordered = new ArrayList<>(interceptors.size() + 1);
@@ -65,7 +76,7 @@ public final class CommandAgents {
             CommandInterceptor<ID> typed = (CommandInterceptor<ID>) interceptor;
             ordered.add(typed);
         }
-        return new CommandAgent.Options<>(transactionRunner, lockProvider, lockTtl,
-                maxAttempts, ordered, audit);
+        return new CommandAgent.Options<>(
+                transactionRunner, lockProvider, lockTtl, maxAttempts, ordered, audit);
     }
 }

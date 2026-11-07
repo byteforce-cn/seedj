@@ -23,24 +23,29 @@ import java.util.List;
 final class InMemoryWorkflowTaskLifecycle {
 
     private final InMemoryWorkflowSupport support;
+
     InMemoryWorkflowTaskLifecycle(InMemoryWorkflowSupport support) {
         this.support = support;
     }
 
-    List<TaskAssignment> cancelActiveAssignments(InstanceState state, HumanTask task,
-                                                         String reason, Instant now) {
+    List<TaskAssignment> cancelActiveAssignments(
+            InstanceState state, HumanTask task, String reason, Instant now) {
         List<TaskAssignment> assignments = new ArrayList<>();
         for (TaskAssignment assignment : task.assignments()) {
             if (TaskSupport.active(assignment.status())) {
                 assignments.add(TaskSupport.cancelled(assignment, reason, now));
-                support.event(state, "TASK_ASSIGNMENT_AUTO_CANCELLED", task.stepName(), task.id(),
-                        null, support.attrs("reason", reason,
-                                "participant", assignment.participant().value()));
+                support.event(
+                        state,
+                        "TASK_ASSIGNMENT_AUTO_CANCELLED",
+                        task.stepName(),
+                        task.id(),
+                        null,
+                        support.attrs(
+                                "reason", reason, "participant", assignment.participant().value()));
                 if (assignment.status() == AssignmentStatus.DELEGATED) {
                     cancelDelegationsFor(state, task.id());
                 } else {
-                    cancelDelegationForProxy(state, task.id(),
-                            assignment.participant().value());
+                    cancelDelegationForProxy(state, task.id(), assignment.participant().value());
                 }
             } else {
                 assignments.add(assignment);
@@ -49,17 +54,27 @@ final class InMemoryWorkflowTaskLifecycle {
         return assignments;
     }
 
-    void cancelTask(InstanceState state, HumanTask task, String assignmentReason,
-                            String eventReason, Instant now) {
-        List<TaskAssignment> assignments = cancelActiveAssignments(state, task,
-                assignmentReason, now);
-        HumanTask cancelled = TaskSupport.withAssignments(task, assignments,
-                HumanTaskStatus.CANCELLED, now, now);
+    void cancelTask(
+            InstanceState state,
+            HumanTask task,
+            String assignmentReason,
+            String eventReason,
+            Instant now) {
+        List<TaskAssignment> assignments =
+                cancelActiveAssignments(state, task, assignmentReason, now);
+        HumanTask cancelled =
+                TaskSupport.withAssignments(task, assignments, HumanTaskStatus.CANCELLED, now, now);
         state.tasks.put(cancelled.id(), cancelled);
         state.suspensions.remove(cancelled.id());
-        support.event(state, "TASK_CANCELLED", cancelled.stepName(), cancelled.id(), null,
+        support.event(
+                state,
+                "TASK_CANCELLED",
+                cancelled.stepName(),
+                cancelled.id(),
+                null,
                 support.attrs("reason", eventReason));
-        discardAfterPending(state, cancelled.id(), InMemoryWorkflowSupport.REASON_UPSTREAM_ROLLBACK);
+        discardAfterPending(
+                state, cancelled.id(), InMemoryWorkflowSupport.REASON_UPSTREAM_ROLLBACK);
     }
 
     void cancelAllActiveTasks(InstanceState state, String reason) {
@@ -82,7 +97,8 @@ final class InMemoryWorkflowTaskLifecycle {
 
     void cancelDelegationForProxy(InstanceState state, TaskId taskId, String proxy) {
         for (Delegation delegation : state.delegations) {
-            if (delegation.taskId.equals(taskId) && !delegation.handled
+            if (delegation.taskId.equals(taskId)
+                    && !delegation.handled
                     && delegation.proxyParticipant.equals(proxy)) {
                 delegation.handled = true;
                 delegation.cancelled = true;
@@ -91,15 +107,19 @@ final class InMemoryWorkflowTaskLifecycle {
     }
 
     void discardAfterPending(InstanceState state, TaskId taskId, String reason) {
-        List<AfterPending> matches = state.afterPending.stream()
-                .filter(p -> p.originalTaskId().equals(taskId))
-                .toList();
+        List<AfterPending> matches =
+                state.afterPending.stream().filter(p -> p.originalTaskId().equals(taskId)).toList();
         if (matches.isEmpty()) {
             return;
         }
         state.afterPending.removeAll(matches);
         for (AfterPending pending : matches) {
-            support.event(state, "TASK_AFTER_SPAWN_DISCARDED", null, taskId, pending.actionId(),
+            support.event(
+                    state,
+                    "TASK_AFTER_SPAWN_DISCARDED",
+                    null,
+                    taskId,
+                    pending.actionId(),
                     support.attrs("reason", reason));
         }
     }
@@ -108,41 +128,59 @@ final class InMemoryWorkflowTaskLifecycle {
         List<AfterPending> all = List.copyOf(state.afterPending);
         state.afterPending.clear();
         for (AfterPending pending : all) {
-            support.event(state, "TASK_AFTER_SPAWN_DISCARDED", null, pending.originalTaskId(),
-                    pending.actionId(), support.attrs("reason", reason));
+            support.event(
+                    state,
+                    "TASK_AFTER_SPAWN_DISCARDED",
+                    null,
+                    pending.originalTaskId(),
+                    pending.actionId(),
+                    support.attrs("reason", reason));
         }
     }
 
-    HumanTaskSpec deriveSpec(HumanTaskSpec base, List<ParticipantSpec> assignees,
-                                     SignCompletion signCompletion) {
-        RejectCompletion rejectCompletion = clampRejects(base.rejectCompletion(),
-                assignees.size());
-        return new HumanTaskSpec(assignees, signCompletion, rejectCompletion,
-                base.rejectTargets(), base.formKey(), base.formSchema(),
-                base.allowAddAssignee(), base.allowedAddPositions(),
-                base.allowRemoveAssignee(), base.allowTransfer(), base.allowDelegate(),
-                base.allowWithdraw(), base.allowUrge(), base.allowCc(),
-                base.dueIn(), base.metadata());
+    HumanTaskSpec deriveSpec(
+            HumanTaskSpec base, List<ParticipantSpec> assignees, SignCompletion signCompletion) {
+        RejectCompletion rejectCompletion = clampRejects(base.rejectCompletion(), assignees.size());
+        return new HumanTaskSpec(
+                assignees,
+                signCompletion,
+                rejectCompletion,
+                base.rejectTargets(),
+                base.formKey(),
+                base.formSchema(),
+                base.allowAddAssignee(),
+                base.allowedAddPositions(),
+                base.allowRemoveAssignee(),
+                base.allowTransfer(),
+                base.allowDelegate(),
+                base.allowWithdraw(),
+                base.allowUrge(),
+                base.allowCc(),
+                base.dueIn(),
+                base.metadata());
     }
 
-    SignCompletion beforeSignCompletion(HumanTaskSpec spec,
-                                                List<ParticipantSpec> assignees) {
+    SignCompletion beforeSignCompletion(HumanTaskSpec spec, List<ParticipantSpec> assignees) {
         int newSize = assignees.size();
         if (spec.signCompletion() instanceof AtLeastCount count) {
-            boolean reduce = !"false".equalsIgnoreCase(
-                    spec.metadata().get("allowAddAssigneeReducesThreshold"));
+            boolean reduce =
+                    !"false"
+                            .equalsIgnoreCase(
+                                    spec.metadata().get("allowAddAssigneeReducesThreshold"));
             if (count.count() > newSize && !reduce) {
                 throw new WorkflowStateConflictException(
-                        "AtLeastCount(" + count.count() + ") exceeds BEFORE assignee size "
-                                + newSize + " and threshold reduction is disabled");
+                        "AtLeastCount("
+                                + count.count()
+                                + ") exceeds BEFORE assignee size "
+                                + newSize
+                                + " and threshold reduction is disabled");
             }
             return new AtLeastCount(Math.min(count.count(), newSize));
         }
         return spec.signCompletion();
     }
 
-    SignCompletion afterSignCompletion(HumanTaskSpec spec,
-                                               List<ParticipantSpec> assignees) {
+    SignCompletion afterSignCompletion(HumanTaskSpec spec, List<ParticipantSpec> assignees) {
         int newSize = assignees.size();
         String override = spec.metadata().get("afterAddSignCompletion");
         if (override == null || override.isBlank()) {
@@ -156,10 +194,9 @@ final class InMemoryWorkflowTaskLifecycle {
             int count = Integer.parseInt(value.substring("AtLeastCount:".length()).strip());
             return new AtLeastCount(Math.min(Math.max(1, count), newSize));
         }
-        if (value.regionMatches(true, 0, "AtLeastPercentage:", 0,
-                "AtLeastPercentage:".length())) {
-            double percentage = Double.parseDouble(
-                    value.substring("AtLeastPercentage:".length()).strip());
+        if (value.regionMatches(true, 0, "AtLeastPercentage:", 0, "AtLeastPercentage:".length())) {
+            double percentage =
+                    Double.parseDouble(value.substring("AtLeastPercentage:".length()).strip());
             return new AtLeastPercentage(percentage);
         }
         return new AnyApprove();
@@ -187,5 +224,4 @@ final class InMemoryWorkflowTaskLifecycle {
         }
         return denominator;
     }
-
 }

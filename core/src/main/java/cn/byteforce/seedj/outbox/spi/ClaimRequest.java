@@ -2,9 +2,7 @@ package cn.byteforce.seedj.outbox.spi;
 
 import java.time.Duration;
 
-/**
- * 一次领取请求。
- */
+/** 一次领取请求。 */
 public record ClaimRequest(int limit, Duration lease) {
 
     public ClaimRequest {

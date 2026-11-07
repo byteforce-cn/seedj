@@ -3,9 +3,8 @@ package cn.byteforce.seedj.core.clock;
 /**
  * 混合逻辑时钟扩展接口。
  *
- * <p>业务主路径仍只依赖 {@link Clock#now()}；只有需要传播因果关系的
- * 组件（消息发送方/接收方、跨节点复制）才注入本接口，调用
- * {@link #nowTimestamp()} 发送、{@link #merge(HybridTimestamp)} 接收。</p>
+ * <p>业务主路径仍只依赖 {@link Clock#now()}；只有需要传播因果关系的 组件（消息发送方/接收方、跨节点复制）才注入本接口，调用 {@link #nowTimestamp()}
+ * 发送、{@link #merge(HybridTimestamp)} 接收。
  */
 public interface HybridClock extends Clock {
 

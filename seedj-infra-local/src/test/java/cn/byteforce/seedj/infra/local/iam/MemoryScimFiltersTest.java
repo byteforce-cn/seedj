@@ -1,15 +1,14 @@
 package cn.byteforce.seedj.infra.local.iam;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import cn.byteforce.seedj.iam.ScimComparisonOperator;
 import cn.byteforce.seedj.iam.ScimFilter;
-import org.junit.jupiter.api.Test;
-
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
 
 /** 内存 SCIM 过滤求值：运算符、集合属性、嵌套路径与空值语义。 */
 class MemoryScimFiltersTest {
@@ -64,9 +63,12 @@ class MemoryScimFiltersTest {
 
     @Test
     void presentRequiresNonNullAndNonEmptyCollection() {
-        assertThat(MemoryScimFilters.matches(new ScimFilter.Present("userName"), attributes)).isTrue();
-        assertThat(MemoryScimFilters.matches(new ScimFilter.Present("empty"), attributes)).isFalse();
-        assertThat(MemoryScimFilters.matches(new ScimFilter.Present("missing"), attributes)).isFalse();
+        assertThat(MemoryScimFilters.matches(new ScimFilter.Present("userName"), attributes))
+                .isTrue();
+        assertThat(MemoryScimFilters.matches(new ScimFilter.Present("empty"), attributes))
+                .isFalse();
+        assertThat(MemoryScimFilters.matches(new ScimFilter.Present("missing"), attributes))
+                .isFalse();
     }
 
     @Test
@@ -81,13 +83,26 @@ class MemoryScimFiltersTest {
         ScimFilter engineer = new ScimFilter.Compare("userName", ScimComparisonOperator.SW, "al");
         ScimFilter active = new ScimFilter.Compare("active", ScimComparisonOperator.EQ, true);
 
-        assertThat(MemoryScimFilters.matches(new ScimFilter.And(List.of(engineer, active)),
-                attributes)).isTrue();
-        assertThat(MemoryScimFilters.matches(new ScimFilter.And(List.of(engineer,
-                new ScimFilter.Not(active))), attributes)).isFalse();
-        assertThat(MemoryScimFilters.matches(new ScimFilter.Or(List.of(
-                new ScimFilter.Compare("userName", ScimComparisonOperator.EQ, "bob"), active)),
-                attributes)).isTrue();
+        assertThat(
+                        MemoryScimFilters.matches(
+                                new ScimFilter.And(List.of(engineer, active)), attributes))
+                .isTrue();
+        assertThat(
+                        MemoryScimFilters.matches(
+                                new ScimFilter.And(List.of(engineer, new ScimFilter.Not(active))),
+                                attributes))
+                .isFalse();
+        assertThat(
+                        MemoryScimFilters.matches(
+                                new ScimFilter.Or(
+                                        List.of(
+                                                new ScimFilter.Compare(
+                                                        "userName",
+                                                        ScimComparisonOperator.EQ,
+                                                        "bob"),
+                                                active)),
+                                attributes))
+                .isTrue();
         assertThat(MemoryScimFilters.matches(new ScimFilter.Not(active), attributes)).isFalse();
     }
 
@@ -95,13 +110,16 @@ class MemoryScimFiltersTest {
     void collectionAttributesSupportMembership() {
         Map<String, Object> group = Map.of("members.value", Set.of("u1", "u2"));
 
-        assertThat(MemoryScimFilters.matches(
-                new ScimFilter.Compare("members.value", ScimComparisonOperator.EQ, "u2"), group))
+        assertThat(
+                        MemoryScimFilters.matches(
+                                new ScimFilter.Compare(
+                                        "members.value", ScimComparisonOperator.EQ, "u2"),
+                                group))
                 .isTrue();
     }
 
     private boolean matches(String attribute, ScimComparisonOperator operator, Object value) {
-        return MemoryScimFilters.matches(new ScimFilter.Compare(attribute, operator, value),
-                attributes);
+        return MemoryScimFilters.matches(
+                new ScimFilter.Compare(attribute, operator, value), attributes);
     }
 }

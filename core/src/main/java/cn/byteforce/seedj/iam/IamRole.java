@@ -22,10 +22,15 @@ public record IamRole(
         version = Math.max(0, version);
     }
 
-    public static IamRole create(String id, String tenantId, String code, String name, String description,
-                                 String parentId, boolean builtIn) {
-        return new IamRole(id, tenantId, code, name, description,
-                parentId, builtIn, 0);
+    public static IamRole create(
+            String id,
+            String tenantId,
+            String code,
+            String name,
+            String description,
+            String parentId,
+            boolean builtIn) {
+        return new IamRole(id, tenantId, code, name, description, parentId, builtIn, 0);
     }
 
     public IamRole withParent(String parentId) {

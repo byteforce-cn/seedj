@@ -1,20 +1,17 @@
 package cn.byteforce.seedj.domain.event;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
-/**
- * apply 分派表：精确匹配、父类型回溯、事件族解析与穷尽性校验。
- */
+/** apply 分派表：精确匹配、父类型回溯、事件族解析与穷尽性校验。 */
 class EventDispatchTest {
 
     @Test
@@ -94,9 +91,10 @@ class EventDispatchTest {
         List<Method> methods = EventDispatch.applyMethods(CandidateScan.class);
 
         assertThat(methods).extracting(Method::getName).containsOnly("apply");
-        assertThat(methods).noneMatch(method -> java.lang.reflect.Modifier.isStatic(
-                method.getModifiers()));
-        assertThat(methods).extracting(method -> method.getParameterTypes()[0])
+        assertThat(methods)
+                .noneMatch(method -> java.lang.reflect.Modifier.isStatic(method.getModifiers()));
+        assertThat(methods)
+                .extracting(method -> method.getParameterTypes()[0])
                 .containsExactlyInAnyOrder(String.class, OrderPlaced.class);
     }
 
@@ -125,129 +123,101 @@ class EventDispatchTest {
     @Test
     @DisplayName("非 sealed 类型直接失败")
     void missingHandlersRequiresSealedType() {
-        assertThatThrownBy(() -> EventDispatch.missingHandlers(Order.class, OrderEvent.class
-                .getPermittedSubclasses()[0]))
+        assertThatThrownBy(
+                        () ->
+                                EventDispatch.missingHandlers(
+                                        Order.class, OrderEvent.class.getPermittedSubclasses()[0]))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("is not a sealed interface/class");
     }
 
     // ---------------------------------------------------------------- fixtures
 
-    sealed interface OrderEvent extends DomainEvent permits OrderPlaced, OrderPaid, OrderShipped {
-    }
+    sealed interface OrderEvent extends DomainEvent permits OrderPlaced, OrderPaid, OrderShipped {}
 
-    static final class OrderPlaced implements OrderEvent {
-    }
+    static final class OrderPlaced implements OrderEvent {}
 
-    static final class OrderPaid implements OrderEvent {
-    }
+    static final class OrderPaid implements OrderEvent {}
 
-    static final class OrderShipped implements OrderEvent {
-    }
+    static final class OrderShipped implements OrderEvent {}
 
     sealed interface AlertEvent extends DomainEvent
-            permits AlertRaised, AlertCleared, CriticalAlert {
-    }
+            permits AlertRaised, AlertCleared, CriticalAlert {}
 
-    static final class AlertRaised implements AlertEvent {
-    }
+    static final class AlertRaised implements AlertEvent {}
 
-    static final class AlertCleared implements AlertEvent {
-    }
+    static final class AlertCleared implements AlertEvent {}
 
-    non-sealed interface CriticalAlert extends AlertEvent {
-    }
+    non-sealed interface CriticalAlert extends AlertEvent {}
 
-    static final class CriticalAlertImpl implements CriticalAlert {
-    }
+    static final class CriticalAlertImpl implements CriticalAlert {}
 
-    static final class Unrelated implements DomainEvent {
-    }
+    static final class Unrelated implements DomainEvent {}
 
     static final class Order implements EventApplier<OrderEvent> {
 
-        protected void apply(OrderPlaced event) {
-        }
+        protected void apply(OrderPlaced event) {}
 
-        protected void apply(OrderPaid event) {
-        }
+        protected void apply(OrderPaid event) {}
     }
 
     static final class Alert implements EventApplier<AlertEvent> {
 
-        protected void apply(AlertEvent event) {
-        }
+        protected void apply(AlertEvent event) {}
 
-        protected void apply(CriticalAlert event) {
-        }
+        protected void apply(CriticalAlert event) {}
     }
 
-    interface OrderApplier extends EventApplier<OrderEvent> {
-    }
+    interface OrderApplier extends EventApplier<OrderEvent> {}
 
     static final class ViaInterface implements OrderApplier {
 
-        protected void apply(OrderEvent event) {
-        }
+        protected void apply(OrderEvent event) {}
     }
 
-    static final class OrderCreated implements DomainEvent {
-    }
+    static final class OrderCreated implements DomainEvent {}
 
-    static abstract class GenericBase<E extends DomainEvent> implements EventApplier<E> {
-    }
+    abstract static class GenericBase<E extends DomainEvent> implements EventApplier<E> {}
 
-    static abstract class ConcreteBase implements EventApplier<OrderPlaced> {
-    }
+    abstract static class ConcreteBase implements EventApplier<OrderPlaced> {}
 
     static final class InheritsConcrete extends ConcreteBase {
 
-        protected void apply(OrderPlaced event) {
-        }
+        protected void apply(OrderPlaced event) {}
     }
 
     static final class ConcreteChild extends GenericBase<OrderCreated> {
 
-        protected void apply(OrderCreated event) {
-        }
+        protected void apply(OrderCreated event) {}
     }
 
     @SuppressWarnings("rawtypes")
-    static final class RawApplier implements EventApplier {
-    }
+    static final class RawApplier implements EventApplier {}
 
-    static final class NotAnApplier {
-    }
+    static final class NotAnApplier {}
 
-    static abstract class AbstractHandler implements EventApplier<OrderEvent> {
+    abstract static class AbstractHandler implements EventApplier<OrderEvent> {
 
         abstract void apply(OrderPlaced event);
 
-        protected void apply(OrderPaid event) {
-        }
+        protected void apply(OrderPaid event) {}
     }
 
     static final class TextHandler {
 
-        void apply(String text) {
-        }
+        void apply(String text) {}
     }
 
     static final class CandidateScan {
 
-        private void apply(String text) {
-        }
+        private void apply(String text) {}
 
-        protected void apply(OrderPlaced event) {
-        }
+        protected void apply(OrderPlaced event) {}
 
-        static void apply(OrderCreated event) {
-        }
+        static void apply(OrderCreated event) {}
 
-        void apply(OrderCreated first, OrderCreated second) {
-        }
+        void apply(OrderCreated first, OrderCreated second) {}
 
-        void handled(OrderCreated event) {
-        }
+        void handled(OrderCreated event) {}
     }
 }

@@ -1,6 +1,10 @@
 package cn.byteforce.seedj.starter.iam.web;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import jakarta.servlet.http.Cookie;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
@@ -8,11 +12,6 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
-
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /** 强制重新认证后回跳的白名单校验：只回到同源授权端点。 */
 class ReauthAwareAuthenticationSuccessHandlerTest {
@@ -23,8 +22,9 @@ class ReauthAwareAuthenticationSuccessHandlerTest {
 
     @BeforeEach
     void setUp() {
-        handler = new ReauthAwareAuthenticationSuccessHandler(
-                AuthorizationServerSettings.builder().issuer("https://iam.test").build());
+        handler =
+                new ReauthAwareAuthenticationSuccessHandler(
+                        AuthorizationServerSettings.builder().issuer("https://iam.test").build());
     }
 
     @Test
@@ -56,12 +56,14 @@ class ReauthAwareAuthenticationSuccessHandlerTest {
 
     @Test
     void rejectsForeignOrigin() throws Exception {
-        MockHttpServletRequest request = loginRequest("https://evil.example/oauth2/authorize?client_id=web");
+        MockHttpServletRequest request =
+                loginRequest("https://evil.example/oauth2/authorize?client_id=web");
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         handler.onAuthenticationSuccess(request, response, authentication());
 
-        assertThat(response.getRedirectedUrl()).isNotEqualTo("https://evil.example/oauth2/authorize?client_id=web");
+        assertThat(response.getRedirectedUrl())
+                .isNotEqualTo("https://evil.example/oauth2/authorize?client_id=web");
     }
 
     @Test
@@ -76,13 +78,15 @@ class ReauthAwareAuthenticationSuccessHandlerTest {
 
     @Test
     void rejectsPortMismatch() throws Exception {
-        MockHttpServletRequest request = loginRequest("http://localhost:8080/oauth2/authorize?client_id=web");
+        MockHttpServletRequest request =
+                loginRequest("http://localhost:8080/oauth2/authorize?client_id=web");
         request.setServerPort(80);
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         handler.onAuthenticationSuccess(request, response, authentication());
 
-        assertThat(response.getRedirectedUrl()).isNotEqualTo("http://localhost:8080/oauth2/authorize?client_id=web");
+        assertThat(response.getRedirectedUrl())
+                .isNotEqualTo("http://localhost:8080/oauth2/authorize?client_id=web");
     }
 
     @Test
@@ -109,8 +113,10 @@ class ReauthAwareAuthenticationSuccessHandlerTest {
 
     private static MockHttpServletRequest loginRequest(String target) {
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/login");
-        request.setCookies(new Cookie(AuthorizationRequestConformanceFilter.REAUTH_COOKIE,
-                URLEncoder.encode(target, StandardCharsets.UTF_8)));
+        request.setCookies(
+                new Cookie(
+                        AuthorizationRequestConformanceFilter.REAUTH_COOKIE,
+                        URLEncoder.encode(target, StandardCharsets.UTF_8)));
         return request;
     }
 

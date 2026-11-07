@@ -15,22 +15,20 @@ import org.junit.jupiter.api.Test;
 /**
  * 变更放大门禁：加一个字段只能改「一个声明点 + 一条审阅过的迁移」。
  *
- * <p>代码生成之后，schema 只由 {@code @SeedjObject} record 声明；手写 {@code ObjectSchema.builder}
- * 与运行期 DDL 生成都不允许回到业务代码里。</p>
+ * <p>代码生成之后，schema 只由 {@code @SeedjObject} record 声明；手写 {@code ObjectSchema.builder} 与运行期 DDL
+ * 生成都不允许回到业务代码里。
  */
 class ChangeAmplificationTest {
 
     private static final Path ROOT = ModuleClassPath.root();
 
-    private static final List<Path> HR_MAIN =
-            javaFiles(ROOT, "seedj-server/hr/src/main/java");
+    private static final List<Path> HR_MAIN = javaFiles(ROOT, "seedj-server/hr/src/main/java");
 
     @Test
     @DisplayName("HR schema 声明点只有一个 @SeedjObject record")
     void singleSchemaDeclaration() {
-        int declarations = (int) HR_MAIN.stream()
-                .filter(file -> contains(file, "@SeedjObject"))
-                .count();
+        int declarations =
+                (int) HR_MAIN.stream().filter(file -> contains(file, "@SeedjObject")).count();
         assertWithin("hr.schemaDeclarationSites", "hr.schemaDeclarationSites", declarations);
         assertThat(declarations).as("HR must declare its schema exactly once").isEqualTo(1);
     }
@@ -62,10 +60,9 @@ class ChangeAmplificationTest {
                 throw new UncheckedIOException(error);
             }
         }
-        assertThat(sql).anySatisfy(script -> assertThat(script)
-                .contains("CREATE TABLE hr_employee"));
-        assertThat(sql).noneSatisfy(script -> assertThat(script)
-                .contains("Generated candidate"));
+        assertThat(sql)
+                .anySatisfy(script -> assertThat(script).contains("CREATE TABLE hr_employee"));
+        assertThat(sql).noneSatisfy(script -> assertThat(script).contains("Generated candidate"));
         assertThat(CognitiveLoadBaseline.textOccurrences(HR_MAIN, "TemporalDdl.createTable"))
                 .as("启动时生成 DDL 会让已有库 checksum 冲突；V1 必须签入")
                 .isZero();

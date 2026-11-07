@@ -13,9 +13,11 @@ import org.springframework.context.annotation.Import;
 public class IamWebConfiguration {
 
     @Configuration(proxyBeanMethods = false)
-    @ConditionalOnProperty(prefix = "seedj.iam.mfa.totp", name = "enabled",
-            havingValue = "true", matchIfMissing = true)
+    @ConditionalOnProperty(
+            prefix = "seedj.iam.mfa.totp",
+            name = "enabled",
+            havingValue = "true",
+            matchIfMissing = true)
     @Import({IamMfaController.class, IamTotpController.class})
-    static class TotpWebConfiguration {
-    }
+    static class TotpWebConfiguration {}
 }

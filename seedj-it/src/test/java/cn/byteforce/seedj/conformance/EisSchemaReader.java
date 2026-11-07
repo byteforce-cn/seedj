@@ -13,15 +13,14 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
  * 读取 eis 权威 Schema 与 manifest 的最小测试辅助：不引入新的运行时依赖。
  *
- * <p>只解析对象契约需要的结构：{@code title}、{@code allOf} 下的
- * {@code properties}/{@code required}，以及 manifest 的 {@code permissions[].id}。</p>
+ * <p>只解析对象契约需要的结构：{@code title}、{@code allOf} 下的 {@code properties}/{@code required}，以及 manifest 的
+ * {@code permissions[].id}。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -33,15 +32,14 @@ final class EisSchemaReader {
     private static final Pattern PERMISSION_ID =
             Pattern.compile("^\\s*-\\s+id:\\s+\"([^\"]+)\"\\s*$");
 
-    private EisSchemaReader() {
-    }
+    private EisSchemaReader() {}
 
     /**
      * eis 对象契约的领域字段视图。
      *
-     * @param title      契约标题
+     * @param title 契约标题
      * @param properties 领域字段（字段名 → 原始 JSON 结构）
-     * @param required   必填字段
+     * @param required 必填字段
      */
     record EisObject(String title, Map<String, Object> properties, Set<String> required) {
 
@@ -73,8 +71,10 @@ final class EisSchemaReader {
         Map<String, Object> properties = new LinkedHashMap<>();
         Set<String> required = new LinkedHashSet<>();
         collect(root, properties, required);
-        return new EisObject(root.path("title").asString(schemaFile.getFileName().toString()),
-                Map.copyOf(properties), Set.copyOf(required));
+        return new EisObject(
+                root.path("title").asString(schemaFile.getFileName().toString()),
+                Map.copyOf(properties),
+                Set.copyOf(required));
     }
 
     /**
@@ -107,8 +107,8 @@ final class EisSchemaReader {
         return Set.copyOf(ids);
     }
 
-    private static void collect(JsonNode node, Map<String, Object> properties,
-                                Set<String> required) {
+    private static void collect(
+            JsonNode node, Map<String, Object> properties, Set<String> required) {
         if (node == null || node.isNull()) {
             return;
         }

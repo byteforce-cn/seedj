@@ -1,8 +1,15 @@
 package cn.byteforce.seedj.test;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import cn.byteforce.seedj.it.extension.ClusterExtension;
 import cn.byteforce.seedj.it.extension.ClusterService;
 import cn.byteforce.seedj.it.extension.EnableClusterServices;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Map;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -10,17 +17,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.test.web.servlet.client.RestTestClient;
 import tools.jackson.databind.json.JsonMapper;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Map;
-import java.util.stream.Stream;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
-/**
- * EventBus 端到端：事务性 outbox → relay → 磁盘队列，全部走真实的 HTTP / PostgreSQL / 文件系统。
- */
+/** EventBus 端到端：事务性 outbox → relay → 磁盘队列，全部走真实的 HTTP / PostgreSQL / 文件系统。 */
 @ExtendWith(ClusterExtension.class)
 @EnableClusterServices({"im"})
 class EventBusIT {
@@ -30,8 +27,8 @@ class EventBusIT {
     @Test
     @DisplayName("发布事件：落 outbox → relay 投递 → 状态 SENT 且磁盘出现消息文件")
     void publishIsPersistedAndDelivered(@ClusterService("im") RestTestClient im) throws Exception {
-        Map<String, Object> published = postEvent(im,
-                "it.delivered", "agg-1", "it-evt-1", "hello-eventbus");
+        Map<String, Object> published =
+                postEvent(im, "it.delivered", "agg-1", "it-evt-1", "hello-eventbus");
 
         assertThat(published.get("eventId")).isEqualTo("it-evt-1");
         assertThat(published.get("outboxPresent")).isEqualTo(true);
@@ -44,16 +41,20 @@ class EventBusIT {
         assertThat(dir).isNotBlank();
 
         Path topicDir = Path.of(dir, "it.delivered");
-        assertThat(topicDir).isDirectoryContaining(path ->
-                path.getFileName().toString().contains("it-evt-1")
-                        && path.getFileName().toString().endsWith(".meta"));
+        assertThat(topicDir)
+                .isDirectoryContaining(
+                        path ->
+                                path.getFileName().toString().contains("it-evt-1")
+                                        && path.getFileName().toString().endsWith(".meta"));
 
         try (Stream<Path> payloads = Files.list(topicDir)) {
-            Path payload = payloads
-                    .filter(p -> p.getFileName().toString().contains("it-evt-1"))
-                    .filter(p -> p.getFileName().toString().endsWith(".payload"))
-                    .findFirst().orElseThrow();
-            assertThat(Files.readString(payload, StandardCharsets.UTF_8)).isEqualTo("hello-eventbus");
+            Path payload =
+                    payloads.filter(p -> p.getFileName().toString().contains("it-evt-1"))
+                            .filter(p -> p.getFileName().toString().endsWith(".payload"))
+                            .findFirst()
+                            .orElseThrow();
+            assertThat(Files.readString(payload, StandardCharsets.UTF_8))
+                    .isEqualTo("hello-eventbus");
         }
     }
 
@@ -79,23 +80,31 @@ class EventBusIT {
         Map<String, Object> second = awaitStatus(im, "it-evt-3b", "SENT");
 
         assertThat(((Number) second.get("sequence")).longValue())
-                .isGreaterThan(((Number) get(im, "/api/public/test/events/it-evt-3a")
-                        .get("sequence")).longValue());
+                .isGreaterThan(
+                        ((Number) get(im, "/api/public/test/events/it-evt-3a").get("sequence"))
+                                .longValue());
     }
 
     // ==================== helpers ====================
 
-    private static Map<String, Object> postEvent(RestTestClient client, String topic,
-                                                 String partitionKey, String eventId, String payload) {
-        var result = client.post()
-                .uri(uri -> uri.path("/api/public/test/events")
-                        .queryParam("topic", topic)
-                        .queryParam("partitionKey", partitionKey)
-                        .queryParam("eventId", eventId)
-                        .queryParam("payload", payload)
-                        .build())
-                .exchange()
-                .returnResult(String.class);
+    private static Map<String, Object> postEvent(
+            RestTestClient client,
+            String topic,
+            String partitionKey,
+            String eventId,
+            String payload) {
+        var result =
+                client.post()
+                        .uri(
+                                uri ->
+                                        uri.path("/api/public/test/events")
+                                                .queryParam("topic", topic)
+                                                .queryParam("partitionKey", partitionKey)
+                                                .queryParam("eventId", eventId)
+                                                .queryParam("payload", payload)
+                                                .build())
+                        .exchange()
+                        .returnResult(String.class);
         assertThat(result.getStatus()).isEqualTo(HttpStatus.OK);
         return json(result.getResponseBodyContent());
     }
@@ -106,8 +115,8 @@ class EventBusIT {
         return json(result.getResponseBodyContent());
     }
 
-    private static Map<String, Object> awaitStatus(RestTestClient client, String eventId,
-                                                   String expected) throws Exception {
+    private static Map<String, Object> awaitStatus(
+            RestTestClient client, String eventId, String expected) throws Exception {
         long deadline = System.nanoTime() + java.time.Duration.ofSeconds(15).toNanos();
         Map<String, Object> last = Map.of();
         while (System.nanoTime() < deadline) {

@@ -16,7 +16,7 @@ public final class IamConditionEvaluator {
      * 求值条件。
      *
      * @param condition 条件
-     * @param snapshot  属性快照
+     * @param snapshot 属性快照
      * @return 结果
      */
     public ConditionOutcome evaluate(IamCondition condition, Map<String, Object> snapshot) {
@@ -41,29 +41,28 @@ public final class IamConditionEvaluator {
 
     private ConditionOutcome evaluateTerm(IamConditionTerm term, Map<String, Object> snapshot) {
         PathResult path = resolve(snapshot, term.attribute());
-        List<String> candidates = path.values().stream()
-                .filter(value -> value != null)
-                .map(String::valueOf)
-                .toList();
+        List<String> candidates =
+                path.values().stream().filter(value -> value != null).map(String::valueOf).toList();
         if (!path.present()) {
             return ConditionOutcome.missing(term.attribute());
         }
         if (term.op() == IamConditionOperator.EXISTS) {
             boolean expected = Boolean.parseBoolean(term.values().get(0));
             boolean exists = !candidates.isEmpty();
-            return exists == expected ? ConditionOutcome.success()
+            return exists == expected
+                    ? ConditionOutcome.success()
                     : ConditionOutcome.mismatch(term.attribute());
         }
         if (candidates.isEmpty()) {
             return ConditionOutcome.mismatch(term.attribute());
         }
-        boolean matched = switch (term.op()) {
-            case EQ, IN -> candidates.stream().anyMatch(term.values()::contains);
-            case NEQ, NOT_IN -> candidates.stream().noneMatch(term.values()::contains);
-            case EXISTS -> throw new IllegalStateException("handled above");
-        };
-        return matched ? ConditionOutcome.success()
-                : ConditionOutcome.mismatch(term.attribute());
+        boolean matched =
+                switch (term.op()) {
+                    case EQ, IN -> candidates.stream().anyMatch(term.values()::contains);
+                    case NEQ, NOT_IN -> candidates.stream().noneMatch(term.values()::contains);
+                    case EXISTS -> throw new IllegalStateException("handled above");
+                };
+        return matched ? ConditionOutcome.success() : ConditionOutcome.mismatch(term.attribute());
     }
 
     private static PathResult resolve(Map<String, Object> snapshot, String attribute) {
@@ -102,6 +101,5 @@ public final class IamConditionEvaluator {
         return new PathResult(present, current);
     }
 
-    private record PathResult(boolean present, List<Object> values) {
-    }
+    private record PathResult(boolean present, List<Object> values) {}
 }

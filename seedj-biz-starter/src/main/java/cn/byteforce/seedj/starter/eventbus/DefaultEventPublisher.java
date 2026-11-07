@@ -8,25 +8,22 @@ import cn.byteforce.seedj.eventbus.EventPublisher;
 import cn.byteforce.seedj.eventbus.spi.EventBusTransport;
 import cn.byteforce.seedj.eventbus.spi.EventPayloadSerializer;
 import cn.byteforce.seedj.id.IdGenerator;
-import cn.byteforce.seedj.starter.observability.TracePropagation;
 import cn.byteforce.seedj.outbox.OutboxWriter;
 import cn.byteforce.seedj.outbox.spi.OutboxStore;
-import org.springframework.beans.factory.ObjectProvider;
-
+import cn.byteforce.seedj.starter.observability.TracePropagation;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletionException;
+import org.springframework.beans.factory.ObjectProvider;
 
 /**
  * 默认发布实现。
  *
- * <p>存在 outbox 能力（同时有 {@link OutboxStore} 与 {@link OutboxWriter}）时：
- * 写入 outbox（与业务同事务），由 outbox relay 异步投递；没有 outbox 时：
- * 直接写 transport（at-most-once）。依赖用 {@link ObjectProvider} 延迟解析，
- * 所以 bean 的注册顺序不影响装配。</p>
+ * <p>存在 outbox 能力（同时有 {@link OutboxStore} 与 {@link OutboxWriter}）时： 写入 outbox（与业务同事务），由 outbox
+ * relay 异步投递；没有 outbox 时： 直接写 transport（at-most-once）。依赖用 {@link ObjectProvider} 延迟解析， 所以 bean
+ * 的注册顺序不影响装配。
  *
- * <p>追踪上下文在这里注入 {@code EventMessage.headers}：此刻仍在命令事务内，
- * header 会随 outbox 落库，再由 relay 原样带到消费端。</p>
+ * <p>追踪上下文在这里注入 {@code EventMessage.headers}：此刻仍在命令事务内， header 会随 outbox 落库，再由 relay 原样带到消费端。
  */
 public class DefaultEventPublisher implements EventPublisher {
 
@@ -38,13 +35,14 @@ public class DefaultEventPublisher implements EventPublisher {
     private final EventBusMetrics metrics;
     private final TracePropagation tracing;
 
-    public DefaultEventPublisher(ObjectProvider<OutboxStore> outboxStores,
-                                 ObjectProvider<OutboxWriter> outboxWriters,
-                                 ObjectProvider<EventBusTransport> transport,
-                                 ObjectProvider<EventPayloadSerializer> serializer,
-                                 IdGenerator<String> idGenerator,
-                                 EventBusMetrics metrics,
-                                 TracePropagation tracing) {
+    public DefaultEventPublisher(
+            ObjectProvider<OutboxStore> outboxStores,
+            ObjectProvider<OutboxWriter> outboxWriters,
+            ObjectProvider<EventBusTransport> transport,
+            ObjectProvider<EventPayloadSerializer> serializer,
+            IdGenerator<String> idGenerator,
+            EventBusMetrics metrics,
+            TracePropagation tracing) {
         this.outboxStores = outboxStores;
         this.outboxWriters = outboxWriters;
         this.transport = transport;
@@ -68,7 +66,8 @@ public class DefaultEventPublisher implements EventPublisher {
     private void publish(DomainEvent event, String eventId) {
         EventPayloadSerializer payloadSerializer = serializer.getIfAvailable();
         if (payloadSerializer == null) {
-            throw new EventBusException(EventBusErrorCode.NO_SERIALIZER,
+            throw new EventBusException(
+                    EventBusErrorCode.NO_SERIALIZER,
                     "no EventPayloadSerializer bean; register one or add Jackson to the classpath");
         }
         publish(EventMessage.from(eventId, event, payloadSerializer.serialize(event)));
@@ -88,7 +87,8 @@ public class DefaultEventPublisher implements EventPublisher {
 
             EventBusTransport busTransport = transport.getIfAvailable();
             if (busTransport == null) {
-                throw new EventBusException(EventBusErrorCode.NO_TRANSPORT,
+                throw new EventBusException(
+                        EventBusErrorCode.NO_TRANSPORT,
                         "no OutboxStore and no EventBusTransport on the classpath");
             }
             busTransport.send(traced).toCompletableFuture().join();
@@ -99,8 +99,10 @@ public class DefaultEventPublisher implements EventPublisher {
             if (cause instanceof EventBusException busException) {
                 throw busException;
             }
-            throw new EventBusException(EventBusErrorCode.SEND_FAILED,
-                    "transport failed: " + cause.getMessage(), cause);
+            throw new EventBusException(
+                    EventBusErrorCode.SEND_FAILED,
+                    "transport failed: " + cause.getMessage(),
+                    cause);
         } catch (RuntimeException e) {
             metrics.publishFailed(traced.eventType());
             throw e;

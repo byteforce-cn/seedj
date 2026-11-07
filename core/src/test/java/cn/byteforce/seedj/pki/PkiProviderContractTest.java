@@ -1,16 +1,15 @@
 package cn.byteforce.seedj.pki;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.security.cert.X509Certificate;
+import java.util.List;
+import javax.net.ssl.SSLContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-
-import javax.net.ssl.SSLContext;
-import java.security.cert.X509Certificate;
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * PKI 契约测试套件。新 provider 只需 {@code extends} 本类并实现 {@link #newProvider()}。
@@ -39,8 +38,10 @@ public abstract class PkiProviderContractTest {
     @Test
     @DisplayName("issue 返回证书链与序列号，有效期有序")
     void issue() {
-        PkiProvider.IssuedCertificate issued = provider.issue(
-                PkiProvider.CertificateRequest.server("CN=svc", List.of("svc.local"), List.of()));
+        PkiProvider.IssuedCertificate issued =
+                provider.issue(
+                        PkiProvider.CertificateRequest.server(
+                                "CN=svc", List.of("svc.local"), List.of()));
 
         assertThat(issued.certificate()).isNotNull();
         assertThat(issued.privateKey()).isNotNull();
@@ -57,7 +58,8 @@ public abstract class PkiProviderContractTest {
         PkiProvider.IssuedCertificate second = provider.signingIdentity("iam");
 
         assertThat(second.serialNumber()).isEqualTo(first.serialNumber());
-        assertThat(second.certificate().getPublicKey()).isEqualTo(first.certificate().getPublicKey());
+        assertThat(second.certificate().getPublicKey())
+                .isEqualTo(first.certificate().getPublicKey());
     }
 
     @Test
@@ -66,7 +68,8 @@ public abstract class PkiProviderContractTest {
         PkiProvider.IssuedCertificate issued = provider.signingIdentity("iam");
         provider.revoke(issued.serialNumber(), PkiProvider.RevocationReason.KEY_COMPROMISE);
 
-        assertThat(provider.status(issued.serialNumber())).isEqualTo(PkiProvider.CertificateStatus.REVOKED);
+        assertThat(provider.status(issued.serialNumber()))
+                .isEqualTo(PkiProvider.CertificateStatus.REVOKED);
         assertThatThrownBy(() -> provider.signingIdentity("iam")).isInstanceOf(PkiException.class);
     }
 
@@ -74,11 +77,12 @@ public abstract class PkiProviderContractTest {
     @DisplayName("rotate 换钥：新 serial，旧 serial 永久 REVOKED")
     void rotationRetiresOldIdentity() {
         PkiProvider.IssuedCertificate before = provider.signingIdentity("iam");
-        PkiProvider.IssuedCertificate after = provider.rotateSigningIdentity(
-                "iam", PkiProvider.RevocationReason.SUPERSEDED);
+        PkiProvider.IssuedCertificate after =
+                provider.rotateSigningIdentity("iam", PkiProvider.RevocationReason.SUPERSEDED);
 
         assertThat(after.serialNumber()).isNotEqualTo(before.serialNumber());
-        assertThat(after.certificate().getPublicKey()).isNotEqualTo(before.certificate().getPublicKey());
+        assertThat(after.certificate().getPublicKey())
+                .isNotEqualTo(before.certificate().getPublicKey());
         assertThat(provider.status(before.serialNumber()))
                 .isEqualTo(PkiProvider.CertificateStatus.REVOKED);
         assertThat(provider.signingIdentity("iam").serialNumber()).isEqualTo(after.serialNumber());
@@ -87,8 +91,8 @@ public abstract class PkiProviderContractTest {
     @Test
     @DisplayName("rotate 一个不存在的 alias 等价于 signingIdentity，不产生吊销记录")
     void rotationWithoutExistingIdentity() {
-        PkiProvider.IssuedCertificate issued = provider.rotateSigningIdentity(
-                "fresh", PkiProvider.RevocationReason.SUPERSEDED);
+        PkiProvider.IssuedCertificate issued =
+                provider.rotateSigningIdentity("fresh", PkiProvider.RevocationReason.SUPERSEDED);
 
         assertThat(issued.serialNumber()).isNotBlank();
         assertThat(provider.status(issued.serialNumber()))

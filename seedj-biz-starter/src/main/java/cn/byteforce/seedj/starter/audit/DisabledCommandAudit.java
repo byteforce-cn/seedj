@@ -2,16 +2,15 @@ package cn.byteforce.seedj.starter.audit;
 
 import cn.byteforce.seedj.cqrs.Command;
 import cn.byteforce.seedj.cqrs.CommandAudit;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * 审计被显式关闭时的 seam：不写任何东西，但对每个已标注的命令类 WARN 一次。
  *
- * <p>{@code seedj.audit.enabled=false} 是允许的选择，只是不允许悄悄发生。</p>
+ * <p>{@code seedj.audit.enabled=false} 是允许的选择，只是不允许悄悄发生。
  */
 public final class DisabledCommandAudit implements CommandAudit {
 
@@ -34,7 +33,9 @@ public final class DisabledCommandAudit implements CommandAudit {
         if (AuditedCommands.find(type).isEmpty() || !warned.add(type)) {
             return;
         }
-        log.warn("seedj audit is disabled but command {} is annotated with @Audited; "
-                + "no audit record will be written", type.getName());
+        log.warn(
+                "seedj audit is disabled but command {} is annotated with @Audited; "
+                        + "no audit record will be written",
+                type.getName());
     }
 }

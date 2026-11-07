@@ -17,26 +17,25 @@ import org.junit.jupiter.api.io.TempDir;
 /**
  * 公开文档边界门禁：公开树不得承载或引用过程文档，ADR 编号不得裸露。
  *
- * <p>公开发布后，过程文档（设计、计划、评估、验收记录、ADR 正文）只存在于私有文档仓。
- * 本测试扫描产品源码、测试源码、构建脚本、POM、README 与 {@code docs/}，出现过程路径、
- * 裸 ADR 编号或无 URL 的文档指路即失败。</p>
+ * <p>公开发布后，过程文档（设计、计划、评估、验收记录、ADR 正文）只存在于私有文档仓。 本测试扫描产品源码、测试源码、构建脚本、POM、README 与 {@code
+ * docs/}，出现过程路径、 裸 ADR 编号或无 URL 的文档指路即失败。
  *
- * <p>例外：{@code config/conformance/schema/} 与 {@code config/conformance/baseline/} 是规范
- * 的逐字节副本（由 {@code check-spec-alignment.sh} 校验），其中的 ADR 字样不可改写，因此
- * 豁免裸编号规则。</p>
+ * <p>例外：{@code config/conformance/schema/} 与 {@code config/conformance/baseline/} 是规范 的逐字节副本（由
+ * {@code check-spec-alignment.sh} 校验），其中的 ADR 字样不可改写，因此 豁免裸编号规则。
  */
 class DocsBoundaryTest {
 
-    private static final Path ROOT = NamingGuardTest.repoRoot(
-            Path.of(System.getProperty("user.dir")));
+    private static final Path ROOT =
+            NamingGuardTest.repoRoot(Path.of(System.getProperty("user.dir")));
 
-    private static final List<String> FORBIDDEN_DIRS = List.of(
-            "docs/adr",
-            "docs/superpowers",
-            "docs/assessment",
-            "docs/conformance/runs",
-            "config/adr",
-            ".superpowers");
+    private static final List<String> FORBIDDEN_DIRS =
+            List.of(
+                    "docs/adr",
+                    "docs/superpowers",
+                    "docs/assessment",
+                    "docs/conformance/runs",
+                    "config/adr",
+                    ".superpowers");
 
     /** 私有仓的过程路径；{@code 00-freeze/adr/} 是规范仓的公开路径，不在此列。 */
     private static final Pattern FORBIDDEN_PATHS =
@@ -46,9 +45,8 @@ class DocsBoundaryTest {
 
     private static final Pattern DOC_POINTER = Pattern.compile("独立文档仓|文档仓");
 
-    private static final List<String> ADR_COPY_DIRS = List.of(
-            "config/conformance/schema/",
-            "config/conformance/baseline/");
+    private static final List<String> ADR_COPY_DIRS =
+            List.of("config/conformance/schema/", "config/conformance/baseline/");
 
     private static final String SELF =
             "seedj-it/src/test/java/cn/byteforce/seedj/conformance/DocsBoundaryTest.java";
@@ -57,34 +55,26 @@ class DocsBoundaryTest {
     @DisplayName("仓库不存在过程文档目录")
     void forbiddenDirectoriesStayDeleted() {
         for (String dir : FORBIDDEN_DIRS) {
-            assertThat(ROOT.resolve(dir))
-                    .as("过程文档不得进入公开树: %s", dir)
-                    .doesNotExist();
+            assertThat(ROOT.resolve(dir)).as("过程文档不得进入公开树: %s", dir).doesNotExist();
         }
     }
 
     @Test
     @DisplayName("公开树不引用过程文档路径")
     void noProcessPathReferences() {
-        assertThat(hits("process path"))
-                .as("过程文档路径不得出现在公开树")
-                .isEmpty();
+        assertThat(hits("process path")).as("过程文档路径不得出现在公开树").isEmpty();
     }
 
     @Test
     @DisplayName("ADR 编号必须带 EIS 前缀")
     void adrNumbersAreQualified() {
-        assertThat(hits("bare adr"))
-                .as("裸 ADR 编号在公开树里无法解析；规范决策写 EIS ADR-NNNN")
-                .isEmpty();
+        assertThat(hits("bare adr")).as("裸 ADR 编号在公开树里无法解析；规范决策写 EIS ADR-NNNN").isEmpty();
     }
 
     @Test
     @DisplayName("文档指路必须可解析")
     void noDanglingDocPointers() {
-        assertThat(hits("doc pointer"))
-                .as("指路必须是仓内相对链接或 https URL，不能只写\"文档仓\"")
-                .isEmpty();
+        assertThat(hits("doc pointer")).as("指路必须是仓内相对链接或 https URL，不能只写\"文档仓\"").isEmpty();
     }
 
     @Test
@@ -95,13 +85,13 @@ class DocsBoundaryTest {
         Files.writeString(tmp.resolve("config/bare-adr.md"), "见 ADR-0012\n");
         Files.writeString(tmp.resolve("config/pointer.md"), "见独立文档仓\n");
         Files.writeString(tmp.resolve("docs/process.md"), "详见 adr/ADR-0001-x.md\n");
-        Files.writeString(tmp.resolve("config/eis.md"),
+        Files.writeString(
+                tmp.resolve("config/eis.md"),
                 "EIS ADR-0004（00-freeze/adr/0004-authz-attributes-ownership.md）\n");
 
         List<Hit> hits = scan(tmp);
 
-        assertThat(hits).extracting(Hit::kind)
-                .contains("bare adr", "doc pointer", "process path");
+        assertThat(hits).extracting(Hit::kind).contains("bare adr", "doc pointer", "process path");
         assertThat(hits)
                 .as("EIS 公开路径与 EIS 前缀不应被误报")
                 .noneMatch(hit -> hit.location().contains("eis.md"));
@@ -172,6 +162,5 @@ class DocsBoundaryTest {
         return ADR_COPY_DIRS.stream().anyMatch(rel::startsWith);
     }
 
-    private record Hit(String kind, String location, String text) {
-    }
+    private record Hit(String kind, String location, String text) {}
 }

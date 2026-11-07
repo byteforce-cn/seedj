@@ -1,7 +1,6 @@
 package cn.byteforce.seedj.outbox;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -9,8 +8,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.stream.Stream;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
 /**
  * 形状门禁：outbox 契约包不得依赖 eventbus。
@@ -29,12 +28,12 @@ class OutboxPackageIndependenceTest {
 
         List<String> offenders;
         try (Stream<Path> files = Files.walk(root)) {
-            offenders = files
-                    .filter(path -> path.toString().endsWith(".java"))
-                    .filter(OutboxPackageIndependenceTest::importsEventBus)
-                    .map(Path::toString)
-                    .sorted()
-                    .toList();
+            offenders =
+                    files.filter(path -> path.toString().endsWith(".java"))
+                            .filter(OutboxPackageIndependenceTest::importsEventBus)
+                            .map(Path::toString)
+                            .sorted()
+                            .toList();
         }
 
         assertThat(offenders).as("outbox files importing eventbus").isEmpty();

@@ -15,9 +15,8 @@ import org.junit.jupiter.api.Test;
 /**
  * 公共 API 门禁：每个 public 顶层类型都必须显式登记在 {@code config/public-api.txt}。
  *
- * <p>清单是 allowlist，不是文档：新增类型必须改清单并在评审中可见，删除类型要按
- * API 兼容性规则走。格式 {@code module|package|SimpleName}，
- * 按行排序。开发者确认变更后运行 {@code -Dseedj.api.update=true} 写回并提交。</p>
+ * <p>清单是 allowlist，不是文档：新增类型必须改清单并在评审中可见，删除类型要按 API 兼容性规则走。格式 {@code module|package|SimpleName}，
+ * 按行排序。开发者确认变更后运行 {@code -Dseedj.api.update=true} 写回并提交。
  */
 class PublicApiSurfaceTest {
 
@@ -37,10 +36,11 @@ class PublicApiSurfaceTest {
         assertThat(Files.isRegularFile(snapshot))
                 .as("%s 不存在；运行 -Dseedj.api.update=true 生成并提交", PUBLIC_API)
                 .isTrue();
-        List<String> expected = Files.readAllLines(snapshot).stream()
-                .map(String::trim)
-                .filter(line -> !line.isEmpty() && !line.startsWith("#"))
-                .toList();
+        List<String> expected =
+                Files.readAllLines(snapshot).stream()
+                        .map(String::trim)
+                        .filter(line -> !line.isEmpty() && !line.startsWith("#"))
+                        .toList();
 
         List<String> added = new ArrayList<>(actual);
         added.removeAll(expected);

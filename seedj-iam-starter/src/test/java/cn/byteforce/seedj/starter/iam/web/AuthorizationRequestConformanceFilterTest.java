@@ -1,6 +1,13 @@
 package cn.byteforce.seedj.starter.iam.web;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import jakarta.servlet.FilterChain;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,17 +28,7 @@ import org.springframework.security.oauth2.server.authorization.client.Registere
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
 import org.springframework.security.oauth2.server.authorization.settings.ClientSettings;
 
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
-/**
- * RFC 6749 / OIDC Core 前置校验的行为测试：只断言状态码、重定向错误码、Cookie 与放行结果。
- */
+/** RFC 6749 / OIDC Core 前置校验的行为测试：只断言状态码、重定向错误码、Cookie 与放行结果。 */
 class AuthorizationRequestConformanceFilterTest {
 
     private static final String AUTHORIZE = "/oauth2/authorize";
@@ -48,36 +45,41 @@ class AuthorizationRequestConformanceFilterTest {
         clients.clear();
         chainInvoked.set(false);
         consent = null;
-        filter = new AuthorizationRequestConformanceFilter(new RegisteredClientRepository() {
-            @Override
-            public void save(RegisteredClient registeredClient) {
-                clients.put(registeredClient.getClientId(), registeredClient);
-            }
+        filter =
+                new AuthorizationRequestConformanceFilter(
+                        new RegisteredClientRepository() {
+                            @Override
+                            public void save(RegisteredClient registeredClient) {
+                                clients.put(registeredClient.getClientId(), registeredClient);
+                            }
 
-            @Override
-            public RegisteredClient findById(String id) {
-                return clients.values().stream().filter(c -> c.getId().equals(id)).findFirst()
-                        .orElse(null);
-            }
+                            @Override
+                            public RegisteredClient findById(String id) {
+                                return clients.values().stream()
+                                        .filter(c -> c.getId().equals(id))
+                                        .findFirst()
+                                        .orElse(null);
+                            }
 
-            @Override
-            public RegisteredClient findByClientId(String clientId) {
-                return clients.get(clientId);
-            }
-        }, new OAuth2AuthorizationConsentService() {
-            @Override
-            public void save(OAuth2AuthorizationConsent authorizationConsent) {
-            }
+                            @Override
+                            public RegisteredClient findByClientId(String clientId) {
+                                return clients.get(clientId);
+                            }
+                        },
+                        new OAuth2AuthorizationConsentService() {
+                            @Override
+                            public void save(OAuth2AuthorizationConsent authorizationConsent) {}
 
-            @Override
-            public void remove(OAuth2AuthorizationConsent authorizationConsent) {
-            }
+                            @Override
+                            public void remove(OAuth2AuthorizationConsent authorizationConsent) {}
 
-            @Override
-            public OAuth2AuthorizationConsent findById(String clientId, String principalName) {
-                return consent;
-            }
-        }, AuthorizationServerSettings.builder().issuer("https://iam.test").build());
+                            @Override
+                            public OAuth2AuthorizationConsent findById(
+                                    String clientId, String principalName) {
+                                return consent;
+                            }
+                        },
+                        AuthorizationServerSettings.builder().issuer("https://iam.test").build());
     }
 
     @AfterEach
@@ -103,7 +105,14 @@ class AuthorizationRequestConformanceFilterTest {
     void ignoresPushedAuthorizationRequest() throws Exception {
         register(client(false, false, REDIRECT_URI));
 
-        run(request("GET", AUTHORIZE, "client_id", "nobody", "request_uri", "urn:ietf:params:oauth:request_uri:x"));
+        run(
+                request(
+                        "GET",
+                        AUTHORIZE,
+                        "client_id",
+                        "nobody",
+                        "request_uri",
+                        "urn:ietf:params:oauth:request_uri:x"));
 
         assertThat(chainInvoked).isTrue();
     }
@@ -120,10 +129,16 @@ class AuthorizationRequestConformanceFilterTest {
     @Test
     void appliesWhenContextPathIsSet() throws Exception {
         register(client(false, false, REDIRECT_URI));
-        MockHttpServletRequest request = request("GET", AUTHORIZE,
-                "client_id", "web",
-                "redirect_uri", REDIRECT_URI,
-                "response_type", "code");
+        MockHttpServletRequest request =
+                request(
+                        "GET",
+                        AUTHORIZE,
+                        "client_id",
+                        "web",
+                        "redirect_uri",
+                        REDIRECT_URI,
+                        "response_type",
+                        "code");
         request.setContextPath("/iam");
         request.setRequestURI("/iam" + AUTHORIZE);
 
@@ -147,7 +162,8 @@ class AuthorizationRequestConformanceFilterTest {
 
     @Test
     void blankClientIdIsBadRequest() throws Exception {
-        MockHttpServletResponse response = run(request("GET", AUTHORIZE, "client_id", " ", "response_type", "code"));
+        MockHttpServletResponse response =
+                run(request("GET", AUTHORIZE, "client_id", " ", "response_type", "code"));
 
         assertJsonError(response, "invalid_request");
     }
@@ -156,8 +172,17 @@ class AuthorizationRequestConformanceFilterTest {
     void unregisteredClientIdIsBadRequest() throws Exception {
         register(client(false, false, REDIRECT_URI));
 
-        MockHttpServletResponse response = run(request("GET", AUTHORIZE,
-                "client_id", "unknown", "redirect_uri", REDIRECT_URI, "response_type", "code"));
+        MockHttpServletResponse response =
+                run(
+                        request(
+                                "GET",
+                                AUTHORIZE,
+                                "client_id",
+                                "unknown",
+                                "redirect_uri",
+                                REDIRECT_URI,
+                                "response_type",
+                                "code"));
 
         assertJsonError(response, "invalid_client");
         assertThat(response.getRedirectedUrl()).isNull();
@@ -167,8 +192,8 @@ class AuthorizationRequestConformanceFilterTest {
     void missingRedirectUriIsBadRequestWhenClientHasSeveral() throws Exception {
         register(client(false, false, REDIRECT_URI, "https://app.example.com/other"));
 
-        MockHttpServletResponse response = run(request("GET", AUTHORIZE,
-                "client_id", "web", "response_type", "code"));
+        MockHttpServletResponse response =
+                run(request("GET", AUTHORIZE, "client_id", "web", "response_type", "code"));
 
         assertJsonError(response, "invalid_request");
         assertThat(response.getContentAsString()).contains("redirect_uri is required");
@@ -178,8 +203,17 @@ class AuthorizationRequestConformanceFilterTest {
     void singleRegisteredRedirectUriIsUsedWhenOmitted() throws Exception {
         register(client(false, false, REDIRECT_URI));
 
-        MockHttpServletResponse response = run(request("GET", AUTHORIZE,
-                "client_id", "web", "response_type", "code", "scope", "openid"));
+        MockHttpServletResponse response =
+                run(
+                        request(
+                                "GET",
+                                AUTHORIZE,
+                                "client_id",
+                                "web",
+                                "response_type",
+                                "code",
+                                "scope",
+                                "openid"));
 
         assertThat(chainInvoked).isTrue();
         assertThat(response.getStatus()).isEqualTo(200);
@@ -189,8 +223,17 @@ class AuthorizationRequestConformanceFilterTest {
     void unregisteredRedirectUriIsBadRequest() throws Exception {
         register(client(false, false, REDIRECT_URI));
 
-        MockHttpServletResponse response = run(request("GET", AUTHORIZE,
-                "client_id", "web", "redirect_uri", "https://evil.example/cb", "response_type", "code"));
+        MockHttpServletResponse response =
+                run(
+                        request(
+                                "GET",
+                                AUTHORIZE,
+                                "client_id",
+                                "web",
+                                "redirect_uri",
+                                "https://evil.example/cb",
+                                "response_type",
+                                "code"));
 
         assertJsonError(response, "invalid_request");
         assertThat(response.getContentAsString()).contains("redirect_uri is not registered");
@@ -204,9 +247,21 @@ class AuthorizationRequestConformanceFilterTest {
     void duplicateSingletonParameterIsRedirectedAsInvalidRequest() throws Exception {
         register(client(false, false, REDIRECT_URI));
 
-        MockHttpServletResponse response = run(request("GET", AUTHORIZE,
-                "client_id", "web", "client_id", "web",
-                "redirect_uri", REDIRECT_URI, "response_type", "code", "state", "s1"));
+        MockHttpServletResponse response =
+                run(
+                        request(
+                                "GET",
+                                AUTHORIZE,
+                                "client_id",
+                                "web",
+                                "client_id",
+                                "web",
+                                "redirect_uri",
+                                REDIRECT_URI,
+                                "response_type",
+                                "code",
+                                "state",
+                                "s1"));
 
         assertRedirectError(response, "invalid_request", "s1");
     }
@@ -215,8 +270,8 @@ class AuthorizationRequestConformanceFilterTest {
     void missingResponseTypeIsRedirectedAsInvalidRequest() throws Exception {
         register(client(false, false, REDIRECT_URI));
 
-        MockHttpServletResponse response = run(request("GET", AUTHORIZE,
-                "client_id", "web", "redirect_uri", REDIRECT_URI));
+        MockHttpServletResponse response =
+                run(request("GET", AUTHORIZE, "client_id", "web", "redirect_uri", REDIRECT_URI));
 
         assertRedirectError(response, "invalid_request", null);
     }
@@ -225,8 +280,17 @@ class AuthorizationRequestConformanceFilterTest {
     void unsupportedResponseTypeIsRedirected() throws Exception {
         register(client(false, false, REDIRECT_URI));
 
-        MockHttpServletResponse response = run(request("GET", AUTHORIZE,
-                "client_id", "web", "redirect_uri", REDIRECT_URI, "response_type", "token"));
+        MockHttpServletResponse response =
+                run(
+                        request(
+                                "GET",
+                                AUTHORIZE,
+                                "client_id",
+                                "web",
+                                "redirect_uri",
+                                REDIRECT_URI,
+                                "response_type",
+                                "token"));
 
         assertRedirectError(response, "unsupported_response_type", null);
     }
@@ -235,9 +299,19 @@ class AuthorizationRequestConformanceFilterTest {
     void duplicateScopeIsRedirectedAsInvalidScope() throws Exception {
         register(client(false, false, REDIRECT_URI));
 
-        MockHttpServletResponse response = run(request("GET", AUTHORIZE,
-                "client_id", "web", "redirect_uri", REDIRECT_URI, "response_type", "code",
-                "scope", "openid openid"));
+        MockHttpServletResponse response =
+                run(
+                        request(
+                                "GET",
+                                AUTHORIZE,
+                                "client_id",
+                                "web",
+                                "redirect_uri",
+                                REDIRECT_URI,
+                                "response_type",
+                                "code",
+                                "scope",
+                                "openid openid"));
 
         assertRedirectError(response, "invalid_scope", null);
     }
@@ -246,9 +320,19 @@ class AuthorizationRequestConformanceFilterTest {
     void scopeOutsideAllowedCharacterSetIsRedirectedAsInvalidScope() throws Exception {
         register(client(false, false, REDIRECT_URI));
 
-        MockHttpServletResponse response = run(request("GET", AUTHORIZE,
-                "client_id", "web", "redirect_uri", REDIRECT_URI, "response_type", "code",
-                "scope", "open\"id"));
+        MockHttpServletResponse response =
+                run(
+                        request(
+                                "GET",
+                                AUTHORIZE,
+                                "client_id",
+                                "web",
+                                "redirect_uri",
+                                REDIRECT_URI,
+                                "response_type",
+                                "code",
+                                "scope",
+                                "open\"id"));
 
         assertRedirectError(response, "invalid_scope", null);
     }
@@ -257,9 +341,19 @@ class AuthorizationRequestConformanceFilterTest {
     void unregisteredScopeIsRedirectedAsInvalidScope() throws Exception {
         register(client(false, false, REDIRECT_URI));
 
-        MockHttpServletResponse response = run(request("GET", AUTHORIZE,
-                "client_id", "web", "redirect_uri", REDIRECT_URI, "response_type", "code",
-                "scope", "openid admin"));
+        MockHttpServletResponse response =
+                run(
+                        request(
+                                "GET",
+                                AUTHORIZE,
+                                "client_id",
+                                "web",
+                                "redirect_uri",
+                                REDIRECT_URI,
+                                "response_type",
+                                "code",
+                                "scope",
+                                "openid admin"));
 
         assertRedirectError(response, "invalid_scope", null);
     }
@@ -268,8 +362,17 @@ class AuthorizationRequestConformanceFilterTest {
     void requiredPkceWithoutChallengeIsRedirected() throws Exception {
         register(client(true, false, REDIRECT_URI));
 
-        MockHttpServletResponse response = run(request("GET", AUTHORIZE,
-                "client_id", "web", "redirect_uri", REDIRECT_URI, "response_type", "code"));
+        MockHttpServletResponse response =
+                run(
+                        request(
+                                "GET",
+                                AUTHORIZE,
+                                "client_id",
+                                "web",
+                                "redirect_uri",
+                                REDIRECT_URI,
+                                "response_type",
+                                "code"));
 
         assertRedirectError(response, "invalid_request", null);
         assertThat(response.getRedirectedUrl()).contains("code_challenge");
@@ -279,9 +382,19 @@ class AuthorizationRequestConformanceFilterTest {
     void codeChallengeMethodWithoutChallengeIsRedirected() throws Exception {
         register(client(false, false, REDIRECT_URI));
 
-        MockHttpServletResponse response = run(request("GET", AUTHORIZE,
-                "client_id", "web", "redirect_uri", REDIRECT_URI, "response_type", "code",
-                "code_challenge_method", "S256"));
+        MockHttpServletResponse response =
+                run(
+                        request(
+                                "GET",
+                                AUTHORIZE,
+                                "client_id",
+                                "web",
+                                "redirect_uri",
+                                REDIRECT_URI,
+                                "response_type",
+                                "code",
+                                "code_challenge_method",
+                                "S256"));
 
         assertRedirectError(response, "invalid_request", null);
     }
@@ -290,9 +403,19 @@ class AuthorizationRequestConformanceFilterTest {
     void challengeWithoutMethodIsRedirected() throws Exception {
         register(client(false, false, REDIRECT_URI));
 
-        MockHttpServletResponse response = run(request("GET", AUTHORIZE,
-                "client_id", "web", "redirect_uri", REDIRECT_URI, "response_type", "code",
-                "code_challenge", challenge()));
+        MockHttpServletResponse response =
+                run(
+                        request(
+                                "GET",
+                                AUTHORIZE,
+                                "client_id",
+                                "web",
+                                "redirect_uri",
+                                REDIRECT_URI,
+                                "response_type",
+                                "code",
+                                "code_challenge",
+                                challenge()));
 
         assertRedirectError(response, "invalid_request", null);
     }
@@ -301,9 +424,21 @@ class AuthorizationRequestConformanceFilterTest {
     void nonS256ChallengeMethodIsRedirected() throws Exception {
         register(client(false, false, REDIRECT_URI));
 
-        MockHttpServletResponse response = run(request("GET", AUTHORIZE,
-                "client_id", "web", "redirect_uri", REDIRECT_URI, "response_type", "code",
-                "code_challenge", challenge(), "code_challenge_method", "plain"));
+        MockHttpServletResponse response =
+                run(
+                        request(
+                                "GET",
+                                AUTHORIZE,
+                                "client_id",
+                                "web",
+                                "redirect_uri",
+                                REDIRECT_URI,
+                                "response_type",
+                                "code",
+                                "code_challenge",
+                                challenge(),
+                                "code_challenge_method",
+                                "plain"));
 
         assertRedirectError(response, "invalid_request", null);
     }
@@ -312,9 +447,21 @@ class AuthorizationRequestConformanceFilterTest {
     void challengeWithWrongLengthIsRedirected() throws Exception {
         register(client(false, false, REDIRECT_URI));
 
-        MockHttpServletResponse response = run(request("GET", AUTHORIZE,
-                "client_id", "web", "redirect_uri", REDIRECT_URI, "response_type", "code",
-                "code_challenge", challenge().substring(1), "code_challenge_method", "S256"));
+        MockHttpServletResponse response =
+                run(
+                        request(
+                                "GET",
+                                AUTHORIZE,
+                                "client_id",
+                                "web",
+                                "redirect_uri",
+                                REDIRECT_URI,
+                                "response_type",
+                                "code",
+                                "code_challenge",
+                                challenge().substring(1),
+                                "code_challenge_method",
+                                "S256"));
 
         assertRedirectError(response, "invalid_request", null);
     }
@@ -323,9 +470,21 @@ class AuthorizationRequestConformanceFilterTest {
     void challengeWithIllegalCharacterIsRedirected() throws Exception {
         register(client(false, false, REDIRECT_URI));
 
-        MockHttpServletResponse response = run(request("GET", AUTHORIZE,
-                "client_id", "web", "redirect_uri", REDIRECT_URI, "response_type", "code",
-                "code_challenge", "!" + challenge().substring(1), "code_challenge_method", "S256"));
+        MockHttpServletResponse response =
+                run(
+                        request(
+                                "GET",
+                                AUTHORIZE,
+                                "client_id",
+                                "web",
+                                "redirect_uri",
+                                REDIRECT_URI,
+                                "response_type",
+                                "code",
+                                "code_challenge",
+                                "!" + challenge().substring(1),
+                                "code_challenge_method",
+                                "S256"));
 
         assertRedirectError(response, "invalid_request", null);
     }
@@ -334,9 +493,19 @@ class AuthorizationRequestConformanceFilterTest {
     void unsupportedResponseModeIsRedirected() throws Exception {
         register(client(false, false, REDIRECT_URI));
 
-        MockHttpServletResponse response = run(request("GET", AUTHORIZE,
-                "client_id", "web", "redirect_uri", REDIRECT_URI, "response_type", "code",
-                "response_mode", "fragment"));
+        MockHttpServletResponse response =
+                run(
+                        request(
+                                "GET",
+                                AUTHORIZE,
+                                "client_id",
+                                "web",
+                                "redirect_uri",
+                                REDIRECT_URI,
+                                "response_type",
+                                "code",
+                                "response_mode",
+                                "fragment"));
 
         assertRedirectError(response, "invalid_request", null);
     }
@@ -345,9 +514,19 @@ class AuthorizationRequestConformanceFilterTest {
     void negativeMaxAgeIsRedirected() throws Exception {
         register(client(false, false, REDIRECT_URI));
 
-        MockHttpServletResponse response = run(request("GET", AUTHORIZE,
-                "client_id", "web", "redirect_uri", REDIRECT_URI, "response_type", "code",
-                "max_age", "-1"));
+        MockHttpServletResponse response =
+                run(
+                        request(
+                                "GET",
+                                AUTHORIZE,
+                                "client_id",
+                                "web",
+                                "redirect_uri",
+                                REDIRECT_URI,
+                                "response_type",
+                                "code",
+                                "max_age",
+                                "-1"));
 
         assertRedirectError(response, "invalid_request", null);
     }
@@ -356,9 +535,19 @@ class AuthorizationRequestConformanceFilterTest {
     void nonNumericMaxAgeIsRedirected() throws Exception {
         register(client(false, false, REDIRECT_URI));
 
-        MockHttpServletResponse response = run(request("GET", AUTHORIZE,
-                "client_id", "web", "redirect_uri", REDIRECT_URI, "response_type", "code",
-                "max_age", "soon"));
+        MockHttpServletResponse response =
+                run(
+                        request(
+                                "GET",
+                                AUTHORIZE,
+                                "client_id",
+                                "web",
+                                "redirect_uri",
+                                REDIRECT_URI,
+                                "response_type",
+                                "code",
+                                "max_age",
+                                "soon"));
 
         assertRedirectError(response, "invalid_request", null);
     }
@@ -367,9 +556,19 @@ class AuthorizationRequestConformanceFilterTest {
     void emptyPromptIsRedirected() throws Exception {
         register(client(false, false, REDIRECT_URI));
 
-        MockHttpServletResponse response = run(request("GET", AUTHORIZE,
-                "client_id", "web", "redirect_uri", REDIRECT_URI, "response_type", "code",
-                "prompt", " "));
+        MockHttpServletResponse response =
+                run(
+                        request(
+                                "GET",
+                                AUTHORIZE,
+                                "client_id",
+                                "web",
+                                "redirect_uri",
+                                REDIRECT_URI,
+                                "response_type",
+                                "code",
+                                "prompt",
+                                " "));
 
         assertRedirectError(response, "invalid_request", null);
     }
@@ -378,9 +577,19 @@ class AuthorizationRequestConformanceFilterTest {
     void promptNoneCombinedWithOtherValuesIsRedirected() throws Exception {
         register(client(false, false, REDIRECT_URI));
 
-        MockHttpServletResponse response = run(request("GET", AUTHORIZE,
-                "client_id", "web", "redirect_uri", REDIRECT_URI, "response_type", "code",
-                "prompt", "none login"));
+        MockHttpServletResponse response =
+                run(
+                        request(
+                                "GET",
+                                AUTHORIZE,
+                                "client_id",
+                                "web",
+                                "redirect_uri",
+                                REDIRECT_URI,
+                                "response_type",
+                                "code",
+                                "prompt",
+                                "none login"));
 
         assertRedirectError(response, "invalid_request", null);
     }
@@ -393,9 +602,19 @@ class AuthorizationRequestConformanceFilterTest {
     void promptNoneWithoutSessionReturnsLoginRequired() throws Exception {
         register(client(false, false, REDIRECT_URI));
 
-        MockHttpServletResponse response = run(request("GET", AUTHORIZE,
-                "client_id", "web", "redirect_uri", REDIRECT_URI, "response_type", "code",
-                "prompt", "none"));
+        MockHttpServletResponse response =
+                run(
+                        request(
+                                "GET",
+                                AUTHORIZE,
+                                "client_id",
+                                "web",
+                                "redirect_uri",
+                                REDIRECT_URI,
+                                "response_type",
+                                "code",
+                                "prompt",
+                                "none"));
 
         assertRedirectError(response, "login_required", null);
     }
@@ -404,9 +623,20 @@ class AuthorizationRequestConformanceFilterTest {
     void promptNoneWithExpiredSessionReturnsLoginRequired() throws Exception {
         register(client(false, false, REDIRECT_URI));
         authenticate("alice");
-        MockHttpServletRequest request = request("GET", AUTHORIZE,
-                "client_id", "web", "redirect_uri", REDIRECT_URI, "response_type", "code",
-                "prompt", "none", "max_age", "60");
+        MockHttpServletRequest request =
+                request(
+                        "GET",
+                        AUTHORIZE,
+                        "client_id",
+                        "web",
+                        "redirect_uri",
+                        REDIRECT_URI,
+                        "response_type",
+                        "code",
+                        "prompt",
+                        "none",
+                        "max_age",
+                        "60");
         request.setSession(oldSession(120_000));
 
         MockHttpServletResponse response = run(request);
@@ -419,9 +649,21 @@ class AuthorizationRequestConformanceFilterTest {
         register(client(false, true, REDIRECT_URI));
         authenticate("alice");
 
-        MockHttpServletResponse response = run(request("GET", AUTHORIZE,
-                "client_id", "web", "redirect_uri", REDIRECT_URI, "response_type", "code",
-                "scope", "openid profile", "prompt", "none"));
+        MockHttpServletResponse response =
+                run(
+                        request(
+                                "GET",
+                                AUTHORIZE,
+                                "client_id",
+                                "web",
+                                "redirect_uri",
+                                REDIRECT_URI,
+                                "response_type",
+                                "code",
+                                "scope",
+                                "openid profile",
+                                "prompt",
+                                "none"));
 
         assertRedirectError(response, "consent_required", null);
     }
@@ -432,9 +674,21 @@ class AuthorizationRequestConformanceFilterTest {
         authenticate("alice");
         consent = OAuth2AuthorizationConsent.withId("client-1", "alice").scope("profile").build();
 
-        MockHttpServletResponse response = run(request("GET", AUTHORIZE,
-                "client_id", "web", "redirect_uri", REDIRECT_URI, "response_type", "code",
-                "scope", "openid profile", "prompt", "none"));
+        MockHttpServletResponse response =
+                run(
+                        request(
+                                "GET",
+                                AUTHORIZE,
+                                "client_id",
+                                "web",
+                                "redirect_uri",
+                                REDIRECT_URI,
+                                "response_type",
+                                "code",
+                                "scope",
+                                "openid profile",
+                                "prompt",
+                                "none"));
 
         assertThat(response.getStatus()).isEqualTo(200);
         assertThat(chainInvoked).isTrue();
@@ -445,9 +699,21 @@ class AuthorizationRequestConformanceFilterTest {
         register(client(false, true, REDIRECT_URI));
         authenticate("alice");
 
-        MockHttpServletResponse response = run(request("GET", AUTHORIZE,
-                "client_id", "web", "redirect_uri", REDIRECT_URI, "response_type", "code",
-                "scope", "openid", "prompt", "none"));
+        MockHttpServletResponse response =
+                run(
+                        request(
+                                "GET",
+                                AUTHORIZE,
+                                "client_id",
+                                "web",
+                                "redirect_uri",
+                                REDIRECT_URI,
+                                "response_type",
+                                "code",
+                                "scope",
+                                "openid",
+                                "prompt",
+                                "none"));
 
         assertThat(response.getStatus()).isEqualTo(200);
         assertThat(chainInvoked).isTrue();
@@ -462,9 +728,21 @@ class AuthorizationRequestConformanceFilterTest {
         register(client(false, false, REDIRECT_URI));
         authenticate("alice");
 
-        MockHttpServletResponse response = run(request("GET", AUTHORIZE,
-                "client_id", "web", "redirect_uri", REDIRECT_URI, "response_type", "code",
-                "state", "s1", "prompt", "login"));
+        MockHttpServletResponse response =
+                run(
+                        request(
+                                "GET",
+                                AUTHORIZE,
+                                "client_id",
+                                "web",
+                                "redirect_uri",
+                                REDIRECT_URI,
+                                "response_type",
+                                "code",
+                                "state",
+                                "s1",
+                                "prompt",
+                                "login"));
 
         assertReauthentication(response);
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
@@ -474,9 +752,18 @@ class AuthorizationRequestConformanceFilterTest {
     void maxAgeExceededForcesReauthentication() throws Exception {
         register(client(false, false, REDIRECT_URI));
         authenticate("alice");
-        MockHttpServletRequest request = request("GET", AUTHORIZE,
-                "client_id", "web", "redirect_uri", REDIRECT_URI, "response_type", "code",
-                "max_age", "60");
+        MockHttpServletRequest request =
+                request(
+                        "GET",
+                        AUTHORIZE,
+                        "client_id",
+                        "web",
+                        "redirect_uri",
+                        REDIRECT_URI,
+                        "response_type",
+                        "code",
+                        "max_age",
+                        "60");
         request.setSession(oldSession(120_000));
 
         MockHttpServletResponse response = run(request);
@@ -488,9 +775,18 @@ class AuthorizationRequestConformanceFilterTest {
     void maxAgeWithinSessionAgeIsAllowed() throws Exception {
         register(client(false, false, REDIRECT_URI));
         authenticate("alice");
-        MockHttpServletRequest request = request("GET", AUTHORIZE,
-                "client_id", "web", "redirect_uri", REDIRECT_URI, "response_type", "code",
-                "max_age", "600");
+        MockHttpServletRequest request =
+                request(
+                        "GET",
+                        AUTHORIZE,
+                        "client_id",
+                        "web",
+                        "redirect_uri",
+                        REDIRECT_URI,
+                        "response_type",
+                        "code",
+                        "max_age",
+                        "600");
         request.setSession(oldSession(1_000));
 
         run(request);
@@ -501,11 +797,24 @@ class AuthorizationRequestConformanceFilterTest {
     @Test
     void anonymousSessionWithMaxAgeIsNotReauthenticatedTwice() throws Exception {
         register(client(false, false, REDIRECT_URI));
-        SecurityContextHolder.getContext().setAuthentication(new AnonymousAuthenticationToken(
-                "key", "anonymous", AuthorityUtils.createAuthorityList("ROLE_ANONYMOUS")));
-        MockHttpServletRequest request = request("GET", AUTHORIZE,
-                "client_id", "web", "redirect_uri", REDIRECT_URI, "response_type", "code",
-                "max_age", "60");
+        SecurityContextHolder.getContext()
+                .setAuthentication(
+                        new AnonymousAuthenticationToken(
+                                "key",
+                                "anonymous",
+                                AuthorityUtils.createAuthorityList("ROLE_ANONYMOUS")));
+        MockHttpServletRequest request =
+                request(
+                        "GET",
+                        AUTHORIZE,
+                        "client_id",
+                        "web",
+                        "redirect_uri",
+                        REDIRECT_URI,
+                        "response_type",
+                        "code",
+                        "max_age",
+                        "60");
         request.setSession(oldSession(120_000));
 
         MockHttpServletResponse response = run(request);
@@ -517,11 +826,32 @@ class AuthorizationRequestConformanceFilterTest {
     void validRequestIsPassedThrough() throws Exception {
         register(client(false, false, REDIRECT_URI));
         authenticate("alice");
-        MockHttpServletRequest request = request("GET", AUTHORIZE,
-                "client_id", "web", "redirect_uri", REDIRECT_URI, "response_type", "code",
-                "scope", "openid profile", "state", "s1", "nonce", "n1",
-                "code_challenge", challenge(), "code_challenge_method", "S256",
-                "max_age", "120", "prompt", "consent", "login_hint", "alice@example.com");
+        MockHttpServletRequest request =
+                request(
+                        "GET",
+                        AUTHORIZE,
+                        "client_id",
+                        "web",
+                        "redirect_uri",
+                        REDIRECT_URI,
+                        "response_type",
+                        "code",
+                        "scope",
+                        "openid profile",
+                        "state",
+                        "s1",
+                        "nonce",
+                        "n1",
+                        "code_challenge",
+                        challenge(),
+                        "code_challenge_method",
+                        "S256",
+                        "max_age",
+                        "120",
+                        "prompt",
+                        "consent",
+                        "login_hint",
+                        "alice@example.com");
         request.setSession(oldSession(1_000));
 
         MockHttpServletResponse response = run(request);
@@ -542,20 +872,22 @@ class AuthorizationRequestConformanceFilterTest {
         clients.put(client.getClientId(), client);
     }
 
-    private static RegisteredClient client(boolean requireProofKey, boolean requireConsent,
-                                          String... redirectUris) {
-        RegisteredClient.Builder builder = RegisteredClient.withId("client-1")
-                .clientId("web")
-                .clientName("Web")
-                .clientAuthenticationMethod(ClientAuthenticationMethod.NONE)
-                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-                .scope("openid")
-                .scope("profile")
-                .scope("read")
-                .clientSettings(ClientSettings.builder()
-                        .requireProofKey(requireProofKey)
-                        .requireAuthorizationConsent(requireConsent)
-                        .build());
+    private static RegisteredClient client(
+            boolean requireProofKey, boolean requireConsent, String... redirectUris) {
+        RegisteredClient.Builder builder =
+                RegisteredClient.withId("client-1")
+                        .clientId("web")
+                        .clientName("Web")
+                        .clientAuthenticationMethod(ClientAuthenticationMethod.NONE)
+                        .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                        .scope("openid")
+                        .scope("profile")
+                        .scope("read")
+                        .clientSettings(
+                                ClientSettings.builder()
+                                        .requireProofKey(requireProofKey)
+                                        .requireAuthorizationConsent(requireConsent)
+                                        .build());
         for (String redirectUri : redirectUris) {
             builder.redirectUri(redirectUri);
         }
@@ -563,9 +895,10 @@ class AuthorizationRequestConformanceFilterTest {
     }
 
     private static void authenticate(String name) {
-        SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken(name, "n/a",
-                        AuthorityUtils.createAuthorityList("ROLE_USER")));
+        SecurityContextHolder.getContext()
+                .setAuthentication(
+                        new UsernamePasswordAuthenticationToken(
+                                name, "n/a", AuthorityUtils.createAuthorityList("ROLE_USER")));
     }
 
     private static MockHttpSession oldSession(long ageMillis) {
@@ -578,7 +911,8 @@ class AuthorizationRequestConformanceFilterTest {
         };
     }
 
-    private static MockHttpServletRequest request(String method, String path, String... nameValues) {
+    private static MockHttpServletRequest request(
+            String method, String path, String... nameValues) {
         MockHttpServletRequest request = new MockHttpServletRequest(method, path);
         for (int i = 0; i + 1 < nameValues.length; i += 2) {
             request.addParameter(nameValues[i], nameValues[i + 1]);
@@ -601,8 +935,8 @@ class AuthorizationRequestConformanceFilterTest {
         assertThat(response.getContentAsString()).contains("\"error\":\"" + error + "\"");
     }
 
-    private static void assertRedirectError(MockHttpServletResponse response, String error,
-                                            String state) {
+    private static void assertRedirectError(
+            MockHttpServletResponse response, String error, String state) {
         assertThat(response.getStatus()).isEqualTo(302);
         String location = response.getRedirectedUrl();
         assertThat(location).startsWith("https://app.example.com/cb?");

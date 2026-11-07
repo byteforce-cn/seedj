@@ -1,29 +1,31 @@
 package cn.byteforce.seedj.core.security;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
 class AccessTokenRulesTest {
 
     private static final Instant NOW = Instant.parse("2026-11-06T10:00:00Z");
     private static final String ISSUER = "https://iam.example.com";
 
-    private static TokenClaims token(String type, String issuer, Instant expiresAt,
-                                     List<String> audience) {
+    private static TokenClaims token(
+            String type, String issuer, Instant expiresAt, List<String> audience) {
         return new TokenClaims("alice", type, issuer, expiresAt, audience, Map.of());
     }
 
     private static TokenClaims valid() {
-        return token(AccessTokenRules.ACCESS_TOKEN_TYPE, ISSUER,
-                NOW.plus(Duration.ofMinutes(15)), List.of("order-api"));
+        return token(
+                AccessTokenRules.ACCESS_TOKEN_TYPE,
+                ISSUER,
+                NOW.plus(Duration.ofMinutes(15)),
+                List.of("order-api"));
     }
 
     @Test
@@ -35,8 +37,8 @@ class AccessTokenRulesTest {
     @Test
     @DisplayName("ID Token（typ=JWT）不能当作访问令牌")
     void rejectsIdToken() {
-        TokenClaims idToken = token("JWT", ISSUER, NOW.plus(Duration.ofMinutes(15)),
-                List.of("order-api"));
+        TokenClaims idToken =
+                token("JWT", ISSUER, NOW.plus(Duration.ofMinutes(15)), List.of("order-api"));
         assertThat(AccessTokenRules.check(idToken, ISSUER, NOW))
                 .contains(SecurityErrorCode.AUTHENTICATION_FAILED);
     }
@@ -44,8 +46,11 @@ class AccessTokenRulesTest {
     @Test
     @DisplayName("typ 缺失视为无效")
     void rejectsMissingType() {
-        assertThat(AccessTokenRules.check(token("", ISSUER, NOW.plusSeconds(600),
-                List.of("order-api")), ISSUER, NOW))
+        assertThat(
+                        AccessTokenRules.check(
+                                token("", ISSUER, NOW.plusSeconds(600), List.of("order-api")),
+                                ISSUER,
+                                NOW))
                 .contains(SecurityErrorCode.AUTHENTICATION_FAILED);
     }
 
@@ -59,9 +64,15 @@ class AccessTokenRulesTest {
     @Test
     @DisplayName("缺少 exp 时拒绝（访问令牌必须有有效期）")
     void rejectsMissingExpiry() {
-        assertThat(AccessTokenRules.check(
-                token(AccessTokenRules.ACCESS_TOKEN_TYPE, ISSUER, null, List.of("order-api")),
-                ISSUER, NOW))
+        assertThat(
+                        AccessTokenRules.check(
+                                token(
+                                        AccessTokenRules.ACCESS_TOKEN_TYPE,
+                                        ISSUER,
+                                        null,
+                                        List.of("order-api")),
+                                ISSUER,
+                                NOW))
                 .contains(SecurityErrorCode.AUTHENTICATION_FAILED);
     }
 
@@ -69,9 +80,15 @@ class AccessTokenRulesTest {
     @DisplayName("超过有效期 + 时钟偏移后返回 TOKEN_EXPIRED")
     void rejectsExpiredToken() {
         Instant expired = NOW.minus(AccessTokenRules.DEFAULT_CLOCK_SKEW).minusSeconds(1);
-        assertThat(AccessTokenRules.check(
-                token(AccessTokenRules.ACCESS_TOKEN_TYPE, ISSUER, expired, List.of("order-api")),
-                ISSUER, NOW))
+        assertThat(
+                        AccessTokenRules.check(
+                                token(
+                                        AccessTokenRules.ACCESS_TOKEN_TYPE,
+                                        ISSUER,
+                                        expired,
+                                        List.of("order-api")),
+                                ISSUER,
+                                NOW))
                 .contains(SecurityErrorCode.TOKEN_EXPIRED);
     }
 
@@ -79,18 +96,30 @@ class AccessTokenRulesTest {
     @DisplayName("刚过期但仍在时钟偏移内：通过")
     void toleratesClockSkew() {
         Instant justExpired = NOW.minus(AccessTokenRules.DEFAULT_CLOCK_SKEW).plusSeconds(1);
-        assertThat(AccessTokenRules.check(
-                token(AccessTokenRules.ACCESS_TOKEN_TYPE, ISSUER, justExpired,
-                        List.of("order-api")), ISSUER, NOW))
+        assertThat(
+                        AccessTokenRules.check(
+                                token(
+                                        AccessTokenRules.ACCESS_TOKEN_TYPE,
+                                        ISSUER,
+                                        justExpired,
+                                        List.of("order-api")),
+                                ISSUER,
+                                NOW))
                 .isEmpty();
     }
 
     @Test
     @DisplayName("aud 为空时拒绝")
     void rejectsEmptyAudience() {
-        assertThat(AccessTokenRules.check(
-                token(AccessTokenRules.ACCESS_TOKEN_TYPE, ISSUER,
-                        NOW.plusSeconds(600), List.of()), ISSUER, NOW))
+        assertThat(
+                        AccessTokenRules.check(
+                                token(
+                                        AccessTokenRules.ACCESS_TOKEN_TYPE,
+                                        ISSUER,
+                                        NOW.plusSeconds(600),
+                                        List.of()),
+                                ISSUER,
+                                NOW))
                 .contains(SecurityErrorCode.AUTHENTICATION_FAILED);
     }
 
@@ -111,24 +140,39 @@ class AccessTokenRulesTest {
     @Test
     @DisplayName("权限串按 SCOPE/ROLE/PERM/GROUP 顺序生成")
     void buildsPrefixedAuthorities() {
-        TokenClaims claims = new TokenClaims("alice", "at+jwt", ISSUER,
-                NOW.plusSeconds(600), List.of("order-api"),
-                Map.of("scope", List.of("read"),
-                        "roles", List.of("ADMIN", "OPS"),
-                        "permissions", List.of("order:read"),
-                        "groups", List.of("sales")));
+        TokenClaims claims =
+                new TokenClaims(
+                        "alice",
+                        "at+jwt",
+                        ISSUER,
+                        NOW.plusSeconds(600),
+                        List.of("order-api"),
+                        Map.of(
+                                "scope",
+                                List.of("read"),
+                                "roles",
+                                List.of("ADMIN", "OPS"),
+                                "permissions",
+                                List.of("order:read"),
+                                "groups",
+                                List.of("sales")));
 
         assertThat(AccessTokenRules.authorities(claims))
-                .containsExactly("SCOPE_read", "ROLE_ADMIN", "ROLE_OPS",
-                        "PERM_order:read", "GROUP_sales");
+                .containsExactly(
+                        "SCOPE_read", "ROLE_ADMIN", "ROLE_OPS", "PERM_order:read", "GROUP_sales");
     }
 
     @Test
     @DisplayName("空格分隔的 scope 字符串也能正确拆分")
     void splitsSpaceDelimitedScope() {
-        TokenClaims claims = new TokenClaims("alice", "at+jwt", ISSUER,
-                NOW.plusSeconds(600), List.of("order-api"),
-                Map.of("scope", "openid read write"));
+        TokenClaims claims =
+                new TokenClaims(
+                        "alice",
+                        "at+jwt",
+                        ISSUER,
+                        NOW.plusSeconds(600),
+                        List.of("order-api"),
+                        Map.of("scope", "openid read write"));
 
         assertThat(AccessTokenRules.authorities(claims))
                 .containsExactly("SCOPE_openid", "SCOPE_read", "SCOPE_write");
@@ -137,9 +181,14 @@ class AccessTokenRulesTest {
     @Test
     @DisplayName("user_id 优先于 sub 作为主体标识")
     void prefersUserIdClaim() {
-        TokenClaims claims = new TokenClaims("alice", "at+jwt", ISSUER,
-                NOW.plusSeconds(600), List.of("order-api"),
-                Map.of("user_id", "u-1", "roles", List.of("ADMIN")));
+        TokenClaims claims =
+                new TokenClaims(
+                        "alice",
+                        "at+jwt",
+                        ISSUER,
+                        NOW.plusSeconds(600),
+                        List.of("order-api"),
+                        Map.of("user_id", "u-1", "roles", List.of("ADMIN")));
 
         Caller caller = AccessTokenRules.toCaller(claims, "t-1");
 

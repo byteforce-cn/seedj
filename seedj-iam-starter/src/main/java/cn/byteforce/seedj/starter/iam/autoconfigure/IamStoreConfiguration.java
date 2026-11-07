@@ -1,20 +1,5 @@
 package cn.byteforce.seedj.starter.iam.autoconfigure;
 
-import cn.byteforce.seedj.starter.iam.IamProperties;
-import cn.byteforce.seedj.starter.iam.identity.IamBootstrapRunner;
-import cn.byteforce.seedj.starter.iam.identity.IamIdentityService;
-import cn.byteforce.seedj.starter.iam.identity.IamTotpService;
-import cn.byteforce.seedj.starter.iam.identity.IamMfaChallengeService;
-import cn.byteforce.seedj.infra.local.iam.AesGcmIamSecretProtector;
-import cn.byteforce.seedj.infra.local.iam.InMemoryIamAuditSink;
-import cn.byteforce.seedj.infra.local.iam.InMemoryIamAuthorizationRepository;
-import cn.byteforce.seedj.infra.local.iam.InMemoryIamGroupRepository;
-import cn.byteforce.seedj.infra.local.iam.InMemoryIamPolicyRepository;
-import cn.byteforce.seedj.infra.local.iam.InMemoryIamSigningKeyStore;
-import cn.byteforce.seedj.infra.local.iam.InMemoryIamTokenRevoker;
-import cn.byteforce.seedj.infra.local.iam.InMemoryIamTotpRepository;
-import cn.byteforce.seedj.infra.local.iam.InMemoryIamUserRepository;
-import cn.byteforce.seedj.infra.local.iam.TransitIamSecretProtector;
 import cn.byteforce.seedj.core.security.SecurityAuditSink;
 import cn.byteforce.seedj.iam.spi.IamAuthorizationRepository;
 import cn.byteforce.seedj.iam.spi.IamGroupRepository;
@@ -26,7 +11,25 @@ import cn.byteforce.seedj.iam.spi.IamTokenRevoker;
 import cn.byteforce.seedj.iam.spi.IamTotpRepository;
 import cn.byteforce.seedj.iam.spi.IamUserRepository;
 import cn.byteforce.seedj.id.IdGenerator;
+import cn.byteforce.seedj.infra.local.iam.AesGcmIamSecretProtector;
+import cn.byteforce.seedj.infra.local.iam.InMemoryIamAuditSink;
+import cn.byteforce.seedj.infra.local.iam.InMemoryIamAuthorizationRepository;
+import cn.byteforce.seedj.infra.local.iam.InMemoryIamGroupRepository;
+import cn.byteforce.seedj.infra.local.iam.InMemoryIamPolicyRepository;
+import cn.byteforce.seedj.infra.local.iam.InMemoryIamSigningKeyStore;
+import cn.byteforce.seedj.infra.local.iam.InMemoryIamTokenRevoker;
+import cn.byteforce.seedj.infra.local.iam.InMemoryIamTotpRepository;
+import cn.byteforce.seedj.infra.local.iam.InMemoryIamUserRepository;
+import cn.byteforce.seedj.infra.local.iam.TransitIamSecretProtector;
+import cn.byteforce.seedj.starter.iam.IamProperties;
+import cn.byteforce.seedj.starter.iam.identity.IamBootstrapRunner;
+import cn.byteforce.seedj.starter.iam.identity.IamIdentityService;
+import cn.byteforce.seedj.starter.iam.identity.IamMfaChallengeService;
+import cn.byteforce.seedj.starter.iam.identity.IamTotpService;
 import cn.byteforce.seedj.transit.TransitProvider;
+import java.security.SecureRandom;
+import java.time.Clock;
+import java.util.Base64;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -36,14 +39,13 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import java.security.SecureRandom;
-import java.time.Clock;
-import java.util.Base64;
-
 /** Store selection and the pure service graph shared by memory and JDBC modes. */
 @AutoConfiguration
 @ConditionalOnBean(IamEnabledMarker.class)
-@ConditionalOnProperty(prefix = "seedj.iam", name = "enabled", havingValue = "true",
+@ConditionalOnProperty(
+        prefix = "seedj.iam",
+        name = "enabled",
+        havingValue = "true",
         matchIfMissing = true)
 public class IamStoreConfiguration {
 
@@ -71,18 +73,20 @@ public class IamStoreConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public IamIdentityService iamIdentityService(IamUserRepository users,
-                                                 IamPasswordHasher hasher,
-                                                 IamTokenRevoker revoker,
-                                                 SecurityAuditSink audit,
-                                                 IdGenerator<String> idGenerator) {
+    public IamIdentityService iamIdentityService(
+            IamUserRepository users,
+            IamPasswordHasher hasher,
+            IamTokenRevoker revoker,
+            SecurityAuditSink audit,
+            IdGenerator<String> idGenerator) {
         return new IamIdentityService(users, hasher, revoker, audit, idGenerator);
     }
 
     @Bean
     @ConditionalOnMissingBean
     public cn.byteforce.seedj.starter.iam.identity.IamAuthorizationService iamAuthorizationService(
-            IamAuthorizationRepository authorization, IamGroupRepository groups,
+            IamAuthorizationRepository authorization,
+            IamGroupRepository groups,
             IamProperties properties) {
         return new cn.byteforce.seedj.starter.iam.identity.IamAuthorizationService(
                 authorization, groups, properties.rbac().cacheTtl());
@@ -90,57 +94,73 @@ public class IamStoreConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    @ConditionalOnProperty(prefix = "seedj.iam.mfa.totp", name = "enabled",
-            havingValue = "true", matchIfMissing = true)
-    public IamTotpService iamTotpService(IamTotpRepository totp, IamUserRepository users,
-                                         IamSecretProtector protector, IamPasswordHasher hasher,
-                                         IamProperties properties, SecurityAuditSink audit,
-                                         Clock clock, IdGenerator<String> idGenerator) {
-        return new IamTotpService(totp, users, protector, hasher, properties.mfa().totp(),
-                audit, clock, idGenerator);
+    @ConditionalOnProperty(
+            prefix = "seedj.iam.mfa.totp",
+            name = "enabled",
+            havingValue = "true",
+            matchIfMissing = true)
+    public IamTotpService iamTotpService(
+            IamTotpRepository totp,
+            IamUserRepository users,
+            IamSecretProtector protector,
+            IamPasswordHasher hasher,
+            IamProperties properties,
+            SecurityAuditSink audit,
+            Clock clock,
+            IdGenerator<String> idGenerator) {
+        return new IamTotpService(
+                totp, users, protector, hasher, properties.mfa().totp(), audit, clock, idGenerator);
     }
 
     @Bean
     @ConditionalOnMissingBean
-    @ConditionalOnProperty(prefix = "seedj.iam.native-auth", name = "enabled",
-            havingValue = "true")
-    public IamMfaChallengeService iamMfaChallengeService(IamTotpRepository totp,
-                                                          IamProperties properties,
-                                                          Clock clock,
-                                                          IdGenerator<String> idGenerator) {
+    @ConditionalOnProperty(prefix = "seedj.iam.native-auth", name = "enabled", havingValue = "true")
+    public IamMfaChallengeService iamMfaChallengeService(
+            IamTotpRepository totp,
+            IamProperties properties,
+            Clock clock,
+            IdGenerator<String> idGenerator) {
         return new IamMfaChallengeService(totp, properties.nativeAuth(), clock, idGenerator);
     }
 
     @Bean
     @ConditionalOnMissingBean
-    @ConditionalOnProperty(prefix = "seedj.iam.mfa.totp", name = "enabled",
-            havingValue = "true", matchIfMissing = true)
-    public cn.byteforce.seedj.starter.iam.identity.IamMfaAttemptLimiter iamMfaAttemptLimiter(Clock clock) {
-        return new cn.byteforce.seedj.starter.iam.identity.IamMfaAttemptLimiter(5,
-                java.time.Duration.ofMinutes(5), clock);
+    @ConditionalOnProperty(
+            prefix = "seedj.iam.mfa.totp",
+            name = "enabled",
+            havingValue = "true",
+            matchIfMissing = true)
+    public cn.byteforce.seedj.starter.iam.identity.IamMfaAttemptLimiter iamMfaAttemptLimiter(
+            Clock clock) {
+        return new cn.byteforce.seedj.starter.iam.identity.IamMfaAttemptLimiter(
+                5, java.time.Duration.ofMinutes(5), clock);
     }
 
     @Bean
     @ConditionalOnMissingBean
-    public IamBootstrapRunner iamBootstrapRunner(IamProperties properties,
-                                                 IamUserRepository users,
-                                                 IamAuthorizationRepository authorization,
-                                                 IamIdentityService identities,
-                                                 IdGenerator<String> idGenerator) {
-        return new IamBootstrapRunner(properties.admin(), users, authorization, identities,
-                idGenerator);
+    public IamBootstrapRunner iamBootstrapRunner(
+            IamProperties properties,
+            IamUserRepository users,
+            IamAuthorizationRepository authorization,
+            IamIdentityService identities,
+            IdGenerator<String> idGenerator) {
+        return new IamBootstrapRunner(
+                properties.admin(), users, authorization, identities, idGenerator);
     }
 
     /** Prefer Transit when it is on the classpath and enabled; otherwise AES-GCM. */
     @Configuration(proxyBeanMethods = false)
-    @ConditionalOnProperty(prefix = "seedj.iam.secret", name = "provider",
-            havingValue = "transit", matchIfMissing = true)
+    @ConditionalOnProperty(
+            prefix = "seedj.iam.secret",
+            name = "provider",
+            havingValue = "transit",
+            matchIfMissing = true)
     static class TransitSecretConfiguration {
         @Bean
         @ConditionalOnMissingBean(IamSecretProtector.class)
         @ConditionalOnBean(TransitProvider.class)
-        IamSecretProtector transitSecretProtector(TransitProvider transit,
-                                                  IamProperties properties) {
+        IamSecretProtector transitSecretProtector(
+                TransitProvider transit, IamProperties properties) {
             return new TransitIamSecretProtector(transit, "iam-secrets");
         }
     }
@@ -166,8 +186,9 @@ public class IamStoreConfiguration {
                 }
                 key = new byte[32];
                 SECURE_RANDOM.nextBytes(key);
-                log.warn("seedj.iam.secret.key is not set; generated an ephemeral AES key. "
-                        + "Set a stable key or enable Transit for restarts.");
+                log.warn(
+                        "seedj.iam.secret.key is not set; generated an ephemeral AES key. "
+                                + "Set a stable key or enable Transit for restarts.");
             }
             return new AesGcmIamSecretProtector(key, properties.secret().keyName());
         }
@@ -175,7 +196,10 @@ public class IamStoreConfiguration {
 
     /** Memory store: zero external dependencies, for tests and local runs. */
     @Configuration(proxyBeanMethods = false)
-    @ConditionalOnProperty(prefix = "seedj.iam", name = "store", havingValue = "memory",
+    @ConditionalOnProperty(
+            prefix = "seedj.iam",
+            name = "store",
+            havingValue = "memory",
             matchIfMissing = true)
     static class MemoryStoreConfiguration {
         @Bean
@@ -222,8 +246,11 @@ public class IamStoreConfiguration {
 
         @Bean
         @ConditionalOnMissingBean(IamSigningKeyStore.class)
-        @ConditionalOnProperty(prefix = "seedj.iam.jwk", name = "provider",
-                havingValue = "memory", matchIfMissing = true)
+        @ConditionalOnProperty(
+                prefix = "seedj.iam.jwk",
+                name = "provider",
+                havingValue = "memory",
+                matchIfMissing = true)
         IamSigningKeyStore iamSigningKeyStore(IdGenerator<String> idGenerator) {
             return new InMemoryIamSigningKeyStore(idGenerator);
         }

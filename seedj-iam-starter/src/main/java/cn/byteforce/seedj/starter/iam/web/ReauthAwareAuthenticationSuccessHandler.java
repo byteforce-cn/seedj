@@ -4,23 +4,22 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.ResponseCookie;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
-import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
-import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
-
 import java.io.IOException;
 import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
+import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
+import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
 
 /**
- * 登录成功处理器：优先消费 {@link AuthorizationRequestConformanceFilter#REAUTH_COOKIE}，
- * 在强制重新认证（{@code prompt=login} / {@code max_age}）后回到去掉 prompt/max_age 的
- * 原授权请求；否则回退到 Spring Security 的 SavedRequest 行为。
+ * 登录成功处理器：优先消费 {@link AuthorizationRequestConformanceFilter#REAUTH_COOKIE}， 在强制重新认证（{@code
+ * prompt=login} / {@code max_age}）后回到去掉 prompt/max_age 的 原授权请求；否则回退到 Spring Security 的 SavedRequest
+ * 行为。
  */
 public final class ReauthAwareAuthenticationSuccessHandler implements AuthenticationSuccessHandler {
 
@@ -34,9 +33,11 @@ public final class ReauthAwareAuthenticationSuccessHandler implements Authentica
     }
 
     @Override
-    public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
-                                        Authentication authentication) throws IOException, ServletException {
-        String encodedTarget = readCookie(request, AuthorizationRequestConformanceFilter.REAUTH_COOKIE);
+    public void onAuthenticationSuccess(
+            HttpServletRequest request, HttpServletResponse response, Authentication authentication)
+            throws IOException, ServletException {
+        String encodedTarget =
+                readCookie(request, AuthorizationRequestConformanceFilter.REAUTH_COOKIE);
         if (encodedTarget != null) {
             deleteCookie(request, response);
             String target = URLDecoder.decode(encodedTarget, StandardCharsets.UTF_8);
@@ -79,13 +80,14 @@ public final class ReauthAwareAuthenticationSuccessHandler implements Authentica
     }
 
     private static void deleteCookie(HttpServletRequest request, HttpServletResponse response) {
-        ResponseCookie cookie = ResponseCookie.from(AuthorizationRequestConformanceFilter.REAUTH_COOKIE, "")
-                .httpOnly(true)
-                .secure(request.isSecure())
-                .path("/")
-                .maxAge(Duration.ZERO)
-                .sameSite("Lax")
-                .build();
+        ResponseCookie cookie =
+                ResponseCookie.from(AuthorizationRequestConformanceFilter.REAUTH_COOKIE, "")
+                        .httpOnly(true)
+                        .secure(request.isSecure())
+                        .path("/")
+                        .maxAge(Duration.ZERO)
+                        .sameSite("Lax")
+                        .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 }

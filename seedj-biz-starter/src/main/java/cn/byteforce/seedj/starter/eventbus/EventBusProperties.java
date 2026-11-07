@@ -1,17 +1,15 @@
 package cn.byteforce.seedj.starter.eventbus;
 
-import org.springframework.boot.context.properties.ConfigurationProperties;
-
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
  * EventBus 装配配置（{@code seedj.eventbus.*}）。
  *
- * <p>队列与 outbox 的选择在各自模块里：
- * {@code seedj.eventbus.transport=file|memory}（seedj-infra-local）、
- * {@code seedj.outbox.enabled=true|false}（seedj-jdbc-postgresql）。
+ * <p>队列与 outbox 的选择在各自模块里： {@code seedj.eventbus.transport=file|memory}（seedj-infra-local）、 {@code
+ * seedj.outbox.enabled=true|false}（seedj-jdbc-postgresql）。
  */
 @ConfigurationProperties(prefix = "seedj.eventbus")
 public class EventBusProperties {
@@ -44,9 +42,7 @@ public class EventBusProperties {
         this.topics = topics == null ? new ArrayList<>() : new ArrayList<>(topics);
     }
 
-    /**
-     * 消费侧配置。
-     */
+    /** 消费侧配置。 */
     public static class Consumer {
 
         /** 是否启用消费者容器。 */

@@ -1,5 +1,7 @@
 package cn.byteforce.seedj.starter.iam.identity;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import cn.byteforce.seedj.iam.IamGroup;
 import cn.byteforce.seedj.iam.IamPermission;
 import cn.byteforce.seedj.iam.IamRole;
@@ -7,13 +9,10 @@ import cn.byteforce.seedj.iam.IamSubject;
 import cn.byteforce.seedj.iam.IamUser;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamAuthorizationRepository;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamGroupRepository;
-import org.junit.jupiter.api.Test;
-
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Set;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
 
 class IamAuthorizationServiceSubjectTest {
 
@@ -25,12 +24,14 @@ class IamAuthorizationServiceSubjectTest {
 
     @Test
     void buildsSubjectSnapshotFromEffectiveAuthorization() {
-        IamUser user = IamUser.create("u-1", "default", "alice", "Alice", null, true)
-                .withProfile("Alice", null, java.util.Map.of("givenName", "Alice"));
-        IamGroup group = groups.create(IamGroup.create("g-1", "default", "sales", null,
-                Set.of(user.id())));
-        IamRole role = repository.createRole(
-                IamRole.create("r-1", "default", "reader", "Reader", "", null, false));
+        IamUser user =
+                IamUser.create("u-1", "default", "alice", "Alice", null, true)
+                        .withProfile("Alice", null, java.util.Map.of("givenName", "Alice"));
+        IamGroup group =
+                groups.create(IamGroup.create("g-1", "default", "sales", null, Set.of(user.id())));
+        IamRole role =
+                repository.createRole(
+                        IamRole.create("r-1", "default", "reader", "Reader", "", null, false));
         repository.savePermission(IamPermission.of("default", "order", "read", ""));
         repository.grantPermission(role.id(), "order:read");
         repository.assignRoleToUser(user.id(), role.id(), Instant.now(), "test");
@@ -53,7 +54,8 @@ class IamAuthorizationServiceSubjectTest {
     void exposesAndInvalidatesTheCacheEpoch() {
         assertThat(service.epoch("default")).isZero();
 
-        repository.createRole(IamRole.create("r-1", "default", "reader", "Reader", "", null, false));
+        repository.createRole(
+                IamRole.create("r-1", "default", "reader", "Reader", "", null, false));
 
         assertThat(service.epoch("default")).isPositive();
         assertThat(service.effective("default", "u-1").roles()).isEmpty();
@@ -64,8 +66,7 @@ class IamAuthorizationServiceSubjectTest {
     @Test
     void defaultsTtlForNullZeroAndNegativeDurations() {
         for (Duration ttl : new Duration[] {null, Duration.ZERO, Duration.ofSeconds(-1)}) {
-            IamAuthorizationService tolerant =
-                    new IamAuthorizationService(repository, groups, ttl);
+            IamAuthorizationService tolerant = new IamAuthorizationService(repository, groups, ttl);
 
             assertThat(tolerant.effective("default", "u-1").roles()).isEmpty();
         }

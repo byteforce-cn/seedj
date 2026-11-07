@@ -5,9 +5,7 @@ import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 
-/**
- * 纯内存状态：进程重启即丢失，仅用于单元测试与显式声明的临时场景。
- */
+/** 纯内存状态：进程重启即丢失，仅用于单元测试与显式声明的临时场景。 */
 final class InMemoryTransitState implements TransitState {
 
     private final ReentrantLock lock = new ReentrantLock();

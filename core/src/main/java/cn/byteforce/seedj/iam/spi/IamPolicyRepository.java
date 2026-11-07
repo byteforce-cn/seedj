@@ -1,7 +1,6 @@
 package cn.byteforce.seedj.iam.spi;
 
 import cn.byteforce.seedj.iam.IamPolicy;
-
 import java.util.List;
 import java.util.Optional;
 

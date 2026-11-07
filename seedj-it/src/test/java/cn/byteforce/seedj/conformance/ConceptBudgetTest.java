@@ -16,8 +16,7 @@ import org.junit.jupiter.api.Test;
 /**
  * 概念预算：写路径、schema 与 public API 面的数量不得增长。
  *
- * <p>认知负担主要来自「同一个问题有几套答案」。写路径只允许两套（双时间轴默认 +
- * 事件溯源 advanced），schema 只允许一套，public 类型总量只能下降。</p>
+ * <p>认知负担主要来自「同一个问题有几套答案」。写路径只允许两套（双时间轴默认 + 事件溯源 advanced），schema 只允许一套，public 类型总量只能下降。
  */
 class ConceptBudgetTest {
 
@@ -59,9 +58,10 @@ class ConceptBudgetTest {
         Path allowlist = ROOT.resolve("config/public-api.txt");
         long types;
         try {
-            types = Files.readAllLines(allowlist).stream()
-                    .filter(line -> !line.isBlank() && !line.startsWith("#"))
-                    .count();
+            types =
+                    Files.readAllLines(allowlist).stream()
+                            .filter(line -> !line.isBlank() && !line.startsWith("#"))
+                            .count();
         } catch (IOException error) {
             throw new UncheckedIOException(error);
         }

@@ -7,23 +7,22 @@ import cn.byteforce.seedj.iam.IamException;
 import cn.byteforce.seedj.iam.IamSubject;
 import cn.byteforce.seedj.iam.IamSubjectAuthorization;
 import cn.byteforce.seedj.iam.IamUser;
-import cn.byteforce.seedj.starter.iam.IamProperties;
-import cn.byteforce.seedj.starter.iam.identity.IamAuthorizationService;
 import cn.byteforce.seedj.iam.spi.IamPolicyDecisionPoint;
 import cn.byteforce.seedj.iam.spi.IamUserRepository;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
-
+import cn.byteforce.seedj.starter.iam.IamProperties;
+import cn.byteforce.seedj.starter.iam.identity.IamAuthorizationService;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 
 /**
- * Bean named {@code iam} for SpEL enforcement:
- * {@code @PreAuthorize("@iam.authorize(authentication, 'order', #id, 'read')")}.
+ * Bean named {@code iam} for SpEL enforcement: {@code @PreAuthorize("@iam.authorize(authentication,
+ * 'order', #id, 'read')")}.
  */
 public class IamAuthorizationFacade {
 
@@ -32,26 +31,32 @@ public class IamAuthorizationFacade {
     private final IamAuthorizationService authorization;
     private final String tenantId;
 
-    public IamAuthorizationFacade(IamPolicyDecisionPoint pdp, IamUserRepository users,
-                                  IamAuthorizationService authorization, IamProperties properties) {
+    public IamAuthorizationFacade(
+            IamPolicyDecisionPoint pdp,
+            IamUserRepository users,
+            IamAuthorizationService authorization,
+            IamProperties properties) {
         this.pdp = pdp;
         this.users = users;
         this.authorization = authorization;
         this.tenantId = properties.tenantId();
     }
 
-    public boolean authorize(Authentication authentication, String resourceType,
-                             String resourceId, String action) {
+    public boolean authorize(
+            Authentication authentication, String resourceType, String resourceId, String action) {
         IamSubject subject = subject(authentication);
-        IamAuthorizationDecision decision = pdp.decide(new IamAuthorizationRequest(subject,
-                action, resourceType, resourceId, Map.of(), Map.of()));
+        IamAuthorizationDecision decision =
+                pdp.decide(
+                        new IamAuthorizationRequest(
+                                subject, action, resourceType, resourceId, Map.of(), Map.of()));
         return decision.allowed();
     }
 
-    public void require(Authentication authentication, String resourceType, String resourceId,
-                        String action) {
+    public void require(
+            Authentication authentication, String resourceType, String resourceId, String action) {
         if (!authorize(authentication, resourceType, resourceId, action)) {
-            throw new IamException(IamErrorCode.FORBIDDEN,
+            throw new IamException(
+                    IamErrorCode.FORBIDDEN,
                     "not authorized for " + action + " on " + resourceType + "/" + resourceId);
         }
     }
@@ -61,16 +66,24 @@ public class IamAuthorizationFacade {
             throw new IamException(IamErrorCode.FORBIDDEN, "authentication required");
         }
         String username = authentication.getName();
-        IamUser user = users.findByUserName(tenantId, username)
-                .orElseGet(() -> users.findById(username).orElse(null));
+        IamUser user =
+                users.findByUserName(tenantId, username)
+                        .orElseGet(() -> users.findById(username).orElse(null));
         if (user != null) {
             IamSubjectAuthorization auth = authorization.effective(user.tenantId(), user.id());
             Map<String, Object> attributes = new LinkedHashMap<>(user.attributes());
             if (authentication instanceof JwtAuthenticationToken jwt) {
                 attributes.putAll(jwt.getToken().getClaims());
             }
-            return new IamSubject(user.id(), user.userName(), user.tenantId(), auth.roles(),
-                    auth.permissions(), auth.groups(), amr(authentication), acr(authentication),
+            return new IamSubject(
+                    user.id(),
+                    user.userName(),
+                    user.tenantId(),
+                    auth.roles(),
+                    auth.permissions(),
+                    auth.groups(),
+                    amr(authentication),
+                    acr(authentication),
                     attributes);
         }
         Set<String> roles = new LinkedHashSet<>();
@@ -107,8 +120,16 @@ public class IamAuthorizationFacade {
                 groups.addAll(claimGroups);
             }
         }
-        return new IamSubject(subjectId, username, tenantId, roles, permissions, groups,
-                amr(authentication), acr(authentication), attributes);
+        return new IamSubject(
+                subjectId,
+                username,
+                tenantId,
+                roles,
+                permissions,
+                groups,
+                amr(authentication),
+                acr(authentication),
+                attributes);
     }
 
     private static Set<String> amr(Authentication authentication) {

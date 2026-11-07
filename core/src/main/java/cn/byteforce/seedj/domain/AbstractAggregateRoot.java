@@ -1,58 +1,49 @@
 package cn.byteforce.seedj.domain;
 
+import cn.byteforce.seedj.domain.event.DomainEvent;
+import cn.byteforce.seedj.domain.event.EventDispatch;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-import cn.byteforce.seedj.domain.event.DomainEvent;
-import cn.byteforce.seedj.domain.event.EventDispatch;
-
 /**
  * 聚合根基类。
  *
- * 开发者只需要：
+ * <p>开发者只需要：
+ *
  * <ol>
- *   <li>继承本类，并 {@code implements EventApplier<事件族>}；</li>
- *   <li>为每个事件写一个 {@code protected void apply(X e)} 方法；</li>
- *   <li>在命令方法里调用 {@link #raise(DomainEvent)}；</li>
- *   <li>在工厂方法里调用 {@link #replay(DomainEvent)} 重建历史（通常由框架调用）。</li>
+ *   <li>继承本类，并 {@code implements EventApplier<事件族>}；
+ *   <li>为每个事件写一个 {@code protected void apply(X e)} 方法；
+ *   <li>在命令方法里调用 {@link #raise(DomainEvent)}；
+ *   <li>在工厂方法里调用 {@link #replay(DomainEvent)} 重建历史（通常由框架调用）。
  * </ol>
  *
- * <p>分派按 {@code apply(X)} 的方法签名进行，扫的是 {@code getDeclaredMethods()}
- * 并且允许非 public：{@code apply} 只该由框架和聚合自己调用，{@code protected}
- * 可以避免外部直接改状态。不要尝试 {@code implements EventApplier<A>, EventApplier<B>}：
- * Java 不允许同一泛型接口以不同参数重复实现，编译期即失败。
+ * <p>分派按 {@code apply(X)} 的方法签名进行，扫的是 {@code getDeclaredMethods()} 并且允许非 public：{@code apply}
+ * 只该由框架和聚合自己调用，{@code protected} 可以避免外部直接改状态。不要尝试 {@code implements EventApplier<A>,
+ * EventApplier<B>}： Java 不允许同一泛型接口以不同参数重复实现，编译期即失败。
  *
  * <p>分派、缓存、异常解包全部由本类吸收，开发者不感知反射。
  */
 public abstract class AbstractAggregateRoot<ID> extends AbstractEntity<ID> {
 
-    /**
-     * 类级分派缓存由 {@link EventDispatch} 统一持有：运行时分派与启动期校验共用同一张表。
-     */
+    /** 类级分派缓存由 {@link EventDispatch} 统一持有：运行时分派与启动期校验共用同一张表。 */
 
     /** 诊断开关：-Ddomain.events.dispatch.debug=true 时打印分派耗时 */
-    private static final boolean DEBUG =
-            Boolean.getBoolean("domain.events.dispatch.debug");
+    private static final boolean DEBUG = Boolean.getBoolean("domain.events.dispatch.debug");
 
     private long version;
 
     private final List<DomainEvent> domainEvents = new ArrayList<>();
 
-    /**
-     * 新建聚合。版本从 0 开始。
-     */
+    /** 新建聚合。版本从 0 开始。 */
     protected AbstractAggregateRoot(ID id) {
         super(id);
         this.version = 0L;
     }
 
-    /**
-     * 从持久化状态重建聚合。版本为已应用事件数。
-     * 仅供持久化层/仓储在 rehydrate 时使用，业务代码不应调用。
-     */
+    /** 从持久化状态重建聚合。版本为已应用事件数。 仅供持久化层/仓储在 rehydrate 时使用，业务代码不应调用。 */
     protected AbstractAggregateRoot(ID id, long version) {
         super(id);
         if (version < 0) {
@@ -69,10 +60,11 @@ public abstract class AbstractAggregateRoot<ID> extends AbstractEntity<ID> {
      * 命令方法专用：应用事件并注册，两者绑定，结构上不可能遗漏。
      *
      * <p>调用后：
+     *
      * <ul>
-     *   <li>对应 {@code apply(X)} 被立即执行，聚合状态改变；</li>
-     *   <li>事件被加入待提交列表，版本号 +1；</li>
-     *   <li>持久化层在事务中通过 {@link #peekDomainEvents()} 取走。</li>
+     *   <li>对应 {@code apply(X)} 被立即执行，聚合状态改变；
+     *   <li>事件被加入待提交列表，版本号 +1；
+     *   <li>持久化层在事务中通过 {@link #peekDomainEvents()} 取走。
      * </ul>
      */
     protected final void raise(DomainEvent event) {
@@ -81,10 +73,7 @@ public abstract class AbstractAggregateRoot<ID> extends AbstractEntity<ID> {
         this.version++;
     }
 
-    /**
-     * 重放专用：只应用状态，不注册事件。
-     * 供 rehydrate 使用，命令方法不应调用。
-     */
+    /** 重放专用：只应用状态，不注册事件。 供 rehydrate 使用，命令方法不应调用。 */
     public final void replay(DomainEvent event) {
         dispatch(event);
     }
@@ -96,8 +85,10 @@ public abstract class AbstractAggregateRoot<ID> extends AbstractEntity<ID> {
     private void dispatch(DomainEvent event) {
         Objects.requireNonNull(event, "domain event must not be null");
 
-        Method handler = EventDispatch.methodFor(getClass(), event.getClass())
-                .orElseThrow(() -> new IllegalStateException(buildMissingHandlerMessage(event)));
+        Method handler =
+                EventDispatch.methodFor(getClass(), event.getClass())
+                        .orElseThrow(
+                                () -> new IllegalStateException(buildMissingHandlerMessage(event)));
 
         long start = DEBUG ? System.nanoTime() : 0L;
         try {
@@ -112,7 +103,8 @@ public abstract class AbstractAggregateRoot<ID> extends AbstractEntity<ID> {
         } finally {
             if (DEBUG) {
                 long elapsed = System.nanoTime() - start;
-                System.err.printf("[domain-events] %s.%s -> %s took %d ns%n",
+                System.err.printf(
+                        "[domain-events] %s.%s -> %s took %d ns%n",
                         getClass().getSimpleName(),
                         event.getClass().getSimpleName(),
                         handler.getName(),
@@ -128,17 +120,16 @@ public abstract class AbstractAggregateRoot<ID> extends AbstractEntity<ID> {
                     protected void apply(%s e) { ... }
                 and declare the event family:
                     implements EventApplier<%s>
-                """.formatted(
-                getClass().getSimpleName(),
-                event.getClass().getSimpleName(),
-                getClass().getSimpleName(),
-                event.getClass().getSimpleName(),
-                event.getClass().getSimpleName());
+                """
+                .formatted(
+                        getClass().getSimpleName(),
+                        event.getClass().getSimpleName(),
+                        getClass().getSimpleName(),
+                        event.getClass().getSimpleName(),
+                        event.getClass().getSimpleName());
     }
 
-    /**
-     * 把任意 Throwable 原样抛出，绕过 checked 声明。用于解包 InvocationTargetException。
-     */
+    /** 把任意 Throwable 原样抛出，绕过 checked 声明。用于解包 InvocationTargetException。 */
     @SuppressWarnings("unchecked")
     private static <T extends Throwable> RuntimeException sneakyThrow(Throwable t) throws T {
         throw (T) t;
@@ -148,9 +139,7 @@ public abstract class AbstractAggregateRoot<ID> extends AbstractEntity<ID> {
     // 版本与事件收集
     // ============================================================
 
-    /**
-     * 当前逻辑版本（已应用事件总数，含尚未持久化的）。
-     */
+    /** 当前逻辑版本（已应用事件总数，含尚未持久化的）。 */
     public long version() {
         return version;
     }
@@ -160,26 +149,19 @@ public abstract class AbstractAggregateRoot<ID> extends AbstractEntity<ID> {
      *
      * <p>公式：version - 未提交事件数。
      *
-     * <p>例：从存储加载时 version=5，之后注册了 2 个事件，
-     * 当前 version=7，expectedVersion=5。
-     * 持久化层必须用 {@code WHERE version = 5} 做 CAS，
-     * 而不是 {@code WHERE version = 7}。
+     * <p>例：从存储加载时 version=5，之后注册了 2 个事件， 当前 version=7，expectedVersion=5。 持久化层必须用 {@code WHERE
+     * version = 5} 做 CAS， 而不是 {@code WHERE version = 7}。
      */
     public long expectedVersion() {
         return version - domainEvents.size();
     }
 
-    /**
-     * 查看待提交事件但不移除。仓储在 append 成功后再调用
-     * {@link #clearDomainEvents()}，避免冲突重试时事件已丢失。
-     */
+    /** 查看待提交事件但不移除。仓储在 append 成功后再调用 {@link #clearDomainEvents()}，避免冲突重试时事件已丢失。 */
     public List<DomainEvent> peekDomainEvents() {
         return List.copyOf(domainEvents);
     }
 
-    /**
-     * 清空待提交事件。只能在 append 成功之后调用。
-     */
+    /** 清空待提交事件。只能在 append 成功之后调用。 */
     public void clearDomainEvents() {
         domainEvents.clear();
     }
@@ -194,8 +176,7 @@ public abstract class AbstractAggregateRoot<ID> extends AbstractEntity<ID> {
      * <p>由 {@link cn.byteforce.seedj.cqrs.EventSourcedRepository} 在 {@code load} 时调用；
      * 业务代码不应直接调用（命令方法用 {@link #raise}，历史回放用本方法）。
      *
-     * <p>{@code targetVersion} 必须不小于当前版本：快照装载时它是流头版本，
-     * 全新实例重放时它等于历史事件数。
+     * <p>{@code targetVersion} 必须不小于当前版本：快照装载时它是流头版本， 全新实例重放时它等于历史事件数。
      */
     public final void replayAll(List<? extends DomainEvent> history, long targetVersion) {
         if (targetVersion < version) {
@@ -215,8 +196,8 @@ public abstract class AbstractAggregateRoot<ID> extends AbstractEntity<ID> {
     /**
      * 校验 sealed 事件类型的所有子类型都已有对应的 {@code apply(X)} 方法。
      *
-     * <p>启动期已经会对 {@code implements EventApplier<X>} 的聚合自动做这件事，
-     * 这里保留给不启容器的纯单元测试（想在没有 Spring 的测试里也守住穷尽性）。
+     * <p>启动期已经会对 {@code implements EventApplier<X>} 的聚合自动做这件事， 这里保留给不启容器的纯单元测试（想在没有 Spring
+     * 的测试里也守住穷尽性）。
      *
      * <pre>{@code
      * @Test
@@ -231,15 +212,17 @@ public abstract class AbstractAggregateRoot<ID> extends AbstractEntity<ID> {
             return;
         }
         List<String> names = missing.stream().map(Class::getSimpleName).toList();
-        throw new AssertionError("""
+        throw new AssertionError(
+                """
                 %s does not handle all events of sealed type %s.
                 Missing: %s
                 Fix: add protected void apply(...) for each missing event,
                      or a single protected void apply(%s event) with an exhaustive switch.
-                """.formatted(
-                getClass().getSimpleName(),
-                sealedEventType.getSimpleName(),
-                names,
-                sealedEventType.getSimpleName()));
+                """
+                        .formatted(
+                                getClass().getSimpleName(),
+                                sealedEventType.getSimpleName(),
+                                names,
+                                sealedEventType.getSimpleName()));
     }
 }

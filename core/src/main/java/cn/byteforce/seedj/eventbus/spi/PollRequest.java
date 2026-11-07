@@ -7,10 +7,10 @@ import java.util.Set;
 /**
  * 一次消费拉取请求。
  *
- * @param group  消费者组；同一 group 内多实例竞争
+ * @param group 消费者组；同一 group 内多实例竞争
  * @param topics 订阅的 topic 集合
- * @param limit  本次最多拉取条数
- * @param lease  投递租约；实例处理期间其他实例不可重复领取
+ * @param limit 本次最多拉取条数
+ * @param lease 投递租约；实例处理期间其他实例不可重复领取
  */
 public record PollRequest(String group, Set<String> topics, int limit, Duration lease) {
 

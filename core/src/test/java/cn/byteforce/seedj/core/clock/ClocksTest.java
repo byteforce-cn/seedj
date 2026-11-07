@@ -1,16 +1,13 @@
 package cn.byteforce.seedj.core.clock;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
-import java.time.Instant;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/**
- * 时钟工厂：系统/固定/单调包装的精度与递进语义。
- */
+import java.time.Instant;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+/** 时钟工厂：系统/固定/单调包装的精度与递进语义。 */
 class ClocksTest {
 
     private static final Instant T0 = Instant.parse("2026-11-06T09:00:00.123456789Z");

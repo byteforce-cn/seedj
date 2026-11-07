@@ -33,7 +33,7 @@ public enum ScopeKeyType {
     /**
      * 校验并规范化一个事实值。
      *
-     * @param key   key 名（用于错误信息）
+     * @param key key 名（用于错误信息）
      * @param value 原始值
      * @return 规范化后的值
      */
@@ -53,8 +53,13 @@ public enum ScopeKeyType {
 
     private static Object require(String key, Object value, Class<?> type) {
         if (!type.isInstance(value)) {
-            throw new IllegalArgumentException("scope fact " + key + " must be "
-                    + type.getSimpleName() + ", got: " + value.getClass().getName());
+            throw new IllegalArgumentException(
+                    "scope fact "
+                            + key
+                            + " must be "
+                            + type.getSimpleName()
+                            + ", got: "
+                            + value.getClass().getName());
         }
         return value;
     }
@@ -65,8 +70,12 @@ public enum ScopeKeyType {
         }
         for (Object element : values) {
             if (!elementType.isInstance(element)) {
-                throw new IllegalArgumentException("scope fact " + key + " must contain "
-                        + elementType.getSimpleName() + " values");
+                throw new IllegalArgumentException(
+                        "scope fact "
+                                + key
+                                + " must contain "
+                                + elementType.getSimpleName()
+                                + " values");
             }
         }
         return List.copyOf(values);

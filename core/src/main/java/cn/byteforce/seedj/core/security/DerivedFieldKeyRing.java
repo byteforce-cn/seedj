@@ -45,13 +45,16 @@ public final class DerivedFieldKeyRing {
     public static DerivedFieldKeyRing fromEnvironment() {
         String raw = System.getenv(ENVIRONMENT_KEY);
         if (raw == null || raw.isBlank()) {
-            throw new IllegalStateException("seedj: " + ENVIRONMENT_KEY
-                    + " is required for derived fields; refusing to fall back to a test key");
+            throw new IllegalStateException(
+                    "seedj: "
+                            + ENVIRONMENT_KEY
+                            + " is required for derived fields; refusing to fall back to a test key");
         }
-        return new DerivedFieldKeyRing(Arrays.stream(raw.split(","))
-                .map(String::trim)
-                .filter(value -> !value.isEmpty())
-                .toArray(String[]::new));
+        return new DerivedFieldKeyRing(
+                Arrays.stream(raw.split(","))
+                        .map(String::trim)
+                        .filter(value -> !value.isEmpty())
+                        .toArray(String[]::new));
     }
 
     /**

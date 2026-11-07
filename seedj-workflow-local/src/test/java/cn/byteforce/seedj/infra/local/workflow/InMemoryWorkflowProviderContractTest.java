@@ -1,11 +1,11 @@
 package cn.byteforce.seedj.infra.local.workflow;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import cn.byteforce.seedj.workflow.spi.WorkflowCapabilities;
 import cn.byteforce.seedj.workflow.spi.WorkflowProvider;
 import cn.byteforce.seedj.workflow.spi.WorkflowProviderContractTest;
 import org.junit.jupiter.api.Test;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /** 内存实现跑通 v2.4 契约 TCK，并声明全部 21 项能力。 */
 class InMemoryWorkflowProviderContractTest extends WorkflowProviderContractTest {

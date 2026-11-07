@@ -1,25 +1,29 @@
 package cn.byteforce.seedj.iam.spi;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import cn.byteforce.seedj.iam.IamMfaChallenge;
 import cn.byteforce.seedj.iam.IamRecoveryCode;
 import cn.byteforce.seedj.iam.IamTotpState;
-import org.junit.jupiter.api.Test;
-
 import java.time.Instant;
 import java.util.List;
+import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-/**
- * {@link IamTotpRepository} 契约测试套件：TOTP 状态、重放保护、恢复码与 MFA 挑战。
- */
+/** {@link IamTotpRepository} 契约测试套件：TOTP 状态、重放保护、恢复码与 MFA 挑战。 */
 public abstract class IamTotpRepositoryContractTest {
 
     protected abstract IamTotpRepository repository();
 
     private static IamTotpState state(String userId) {
-        return new IamTotpState(userId, "default", "k1", "cipher", false, -1,
-                Instant.parse("2026-11-06T00:00:00Z"), null);
+        return new IamTotpState(
+                userId,
+                "default",
+                "k1",
+                "cipher",
+                false,
+                -1,
+                Instant.parse("2026-11-06T00:00:00Z"),
+                null);
     }
 
     @Test
@@ -52,10 +56,10 @@ public abstract class IamTotpRepositoryContractTest {
 
     @Test
     void replacesAndFindsRecoveryCodes() {
-        IamRecoveryCode first = new IamRecoveryCode("u1", "hash-1", false,
-                Instant.parse("2026-11-06T00:00:00Z"));
-        IamRecoveryCode second = new IamRecoveryCode("u1", "hash-2", false,
-                Instant.parse("2026-11-06T00:00:00Z"));
+        IamRecoveryCode first =
+                new IamRecoveryCode("u1", "hash-1", false, Instant.parse("2026-11-06T00:00:00Z"));
+        IamRecoveryCode second =
+                new IamRecoveryCode("u1", "hash-2", false, Instant.parse("2026-11-06T00:00:00Z"));
 
         repository().replaceRecoveryCodes("u1", List.of(first, second));
 
@@ -69,9 +73,20 @@ public abstract class IamTotpRepositoryContractTest {
 
     @Test
     void marksOnlyMatchingRecoveryCodeUsed() {
-        repository().replaceRecoveryCodes("u1", List.of(
-                new IamRecoveryCode("u1", "hash-1", false, Instant.parse("2026-11-06T00:00:00Z")),
-                new IamRecoveryCode("u1", "hash-2", false, Instant.parse("2026-11-06T00:00:00Z"))));
+        repository()
+                .replaceRecoveryCodes(
+                        "u1",
+                        List.of(
+                                new IamRecoveryCode(
+                                        "u1",
+                                        "hash-1",
+                                        false,
+                                        Instant.parse("2026-11-06T00:00:00Z")),
+                                new IamRecoveryCode(
+                                        "u1",
+                                        "hash-2",
+                                        false,
+                                        Instant.parse("2026-11-06T00:00:00Z"))));
 
         repository().markRecoveryCodeUsed("u1", "hash-1");
         repository().markRecoveryCodeUsed("unknown", "hash-1");
@@ -84,8 +99,15 @@ public abstract class IamTotpRepositoryContractTest {
     @Test
     void deletingTotpStateAlsoDropsRecoveryCodes() {
         repository().saveTotp(state("u1"));
-        repository().replaceRecoveryCodes("u1", List.of(new IamRecoveryCode("u1", "hash-1", false,
-                Instant.parse("2026-11-06T00:00:00Z"))));
+        repository()
+                .replaceRecoveryCodes(
+                        "u1",
+                        List.of(
+                                new IamRecoveryCode(
+                                        "u1",
+                                        "hash-1",
+                                        false,
+                                        Instant.parse("2026-11-06T00:00:00Z"))));
 
         repository().deleteTotp("u1");
 
@@ -95,8 +117,17 @@ public abstract class IamTotpRepositoryContractTest {
 
     @Test
     void savesAndUpdatesChallenges() {
-        IamMfaChallenge challenge = new IamMfaChallenge("c1", "u1", "web", "device-1", "token-hash",
-                Instant.parse("2026-11-06T00:05:00Z"), false, 0, 5);
+        IamMfaChallenge challenge =
+                new IamMfaChallenge(
+                        "c1",
+                        "u1",
+                        "web",
+                        "device-1",
+                        "token-hash",
+                        Instant.parse("2026-11-06T00:05:00Z"),
+                        false,
+                        0,
+                        5);
 
         repository().saveChallenge(challenge);
 
@@ -106,6 +137,8 @@ public abstract class IamTotpRepositoryContractTest {
         repository().updateChallenge(attempted);
 
         assertThat(repository().findChallengeByTokenHash("token-hash"))
-                .get().extracting(IamMfaChallenge::attempts).isEqualTo(1);
+                .get()
+                .extracting(IamMfaChallenge::attempts)
+                .isEqualTo(1);
     }
 }

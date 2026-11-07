@@ -5,13 +5,12 @@ import cn.byteforce.seedj.cqrs.CommandInterceptor;
 import cn.byteforce.seedj.cqrs.CommandInvocation;
 import cn.byteforce.seedj.cqrs.CqrsException;
 import cn.byteforce.seedj.domain.exception.AggregateNotFoundException;
-
 import java.time.Duration;
 
 /**
  * 命令指标拦截器：包在锁与事务外面，因此量到的是“锁等待 + 事务 + 处理”的总耗时。
  *
- * <p>由 {@link CommandAgents#options()} 放在拦截器链最外层，业务不需要注册。</p>
+ * <p>由 {@link CommandAgents#options()} 放在拦截器链最外层，业务不需要注册。
  */
 public final class CommandMetricsInterceptor<ID> implements CommandInterceptor<ID> {
 
@@ -33,8 +32,10 @@ public final class CommandMetricsInterceptor<ID> implements CommandInterceptor<I
             outcome = classify(e);
             throw e;
         } finally {
-            metrics.executed(commandName(invocation.command()),
-                    outcome, Duration.ofNanos(System.nanoTime() - start));
+            metrics.executed(
+                    commandName(invocation.command()),
+                    outcome,
+                    Duration.ofNanos(System.nanoTime() - start));
         }
     }
 

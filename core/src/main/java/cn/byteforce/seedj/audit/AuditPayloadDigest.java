@@ -2,17 +2,16 @@ package cn.byteforce.seedj.audit;
 
 import cn.byteforce.seedj.core.utils.CanonicalJsonHelper;
 import cn.byteforce.seedj.core.utils.HashesHelper;
+import java.util.List;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
-import java.util.List;
-
 /**
  * 审计 {@code payload_digest} 的计算：事件投影的规范 JSON 再做 SHA-256。
  *
- * <p>投影固定为 {@code [{"id":…,"type":…,"payload":…}…]}，顺序由调用方按审计条目
- * {@code payload.event_ids} 给出。空投影使用规范冻结常量。</p>
+ * <p>投影固定为 {@code [{"id":…,"type":…,"payload":…}…]}，顺序由调用方按审计条目 {@code payload.event_ids}
+ * 给出。空投影使用规范冻结常量。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -25,8 +24,7 @@ public final class AuditPayloadDigest {
 
     private static final JsonMapper MAPPER = JsonMapper.builder().build();
 
-    private AuditPayloadDigest() {
-    }
+    private AuditPayloadDigest() {}
 
     /**
      * 计算事件投影摘要。

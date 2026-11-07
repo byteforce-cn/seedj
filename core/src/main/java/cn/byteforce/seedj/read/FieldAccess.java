@@ -5,7 +5,7 @@ import java.util.Objects;
 /**
  * 单个字段的访问结果。
  *
- * @param action   动作
+ * @param action 动作
  * @param policyId 贡献该结果的策略 id；无策略时为 {@code null}
  * @author ByteForce
  * @since 1.0.0

@@ -1,8 +1,7 @@
 package cn.byteforce.seedj.infra.local.pki;
 
-import org.springframework.boot.context.properties.ConfigurationProperties;
-
 import java.nio.file.Path;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "seedj.pki")
 public class PkiProperties {
@@ -18,21 +17,46 @@ public class PkiProperties {
     private String caAlias = "pki-test-ca";
 
     /** 状态文件（签发 + 吊销记录）。多服务应指向同一路径 */
-    private Path revocationStore = Path.of(
-            System.getProperty("java.io.tmpdir"), "seedj-pki-state.properties");
+    private Path revocationStore =
+            Path.of(System.getProperty("java.io.tmpdir"), "seedj-pki-state.properties");
 
-    public boolean isEnabled() { return enabled; }
-    public void setEnabled(boolean enabled) { this.enabled = enabled; }
+    public boolean isEnabled() {
+        return enabled;
+    }
 
-    public String getCaResource() { return caResource; }
-    public void setCaResource(String caResource) { this.caResource = caResource; }
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
 
-    public String getCaPassword() { return caPassword; }
-    public void setCaPassword(String caPassword) { this.caPassword = caPassword; }
+    public String getCaResource() {
+        return caResource;
+    }
 
-    public String getCaAlias() { return caAlias; }
-    public void setCaAlias(String caAlias) { this.caAlias = caAlias; }
+    public void setCaResource(String caResource) {
+        this.caResource = caResource;
+    }
 
-    public Path getRevocationStore() { return revocationStore; }
-    public void setRevocationStore(Path revocationStore) { this.revocationStore = revocationStore; }
+    public String getCaPassword() {
+        return caPassword;
+    }
+
+    public void setCaPassword(String caPassword) {
+        this.caPassword = caPassword;
+    }
+
+    public String getCaAlias() {
+        return caAlias;
+    }
+
+    public void setCaAlias(String caAlias) {
+        this.caAlias = caAlias;
+    }
+
+    public Path getRevocationStore() {
+        return revocationStore;
+    }
+
+    public void setRevocationStore(Path revocationStore) {
+        this.revocationStore = revocationStore;
+    }
 }

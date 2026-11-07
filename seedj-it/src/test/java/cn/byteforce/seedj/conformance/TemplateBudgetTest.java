@@ -12,15 +12,13 @@ import org.junit.jupiter.api.Test;
 /**
  * HR 样板预算：文件数、行数、{@code @Bean} 与框架类型数不得超过基线。
  *
- * <p>这四项是「业务开发人员每天要读多少东西」的直接代理指标。基线只在指标下降时收紧；
- * 超过基线必须先在代码里降低，而不是改基线。</p>
+ * <p>这四项是「业务开发人员每天要读多少东西」的直接代理指标。基线只在指标下降时收紧； 超过基线必须先在代码里降低，而不是改基线。
  */
 class TemplateBudgetTest {
 
     private static final Path ROOT = ModuleClassPath.root();
 
-    private static final List<Path> HR_MAIN =
-            javaFiles(ROOT, "seedj-server/hr/src/main/java");
+    private static final List<Path> HR_MAIN = javaFiles(ROOT, "seedj-server/hr/src/main/java");
 
     @Test
     @DisplayName("HR 主源码文件数不超过基线")
@@ -37,7 +35,9 @@ class TemplateBudgetTest {
     @Test
     @DisplayName("HR 装配 @Bean 数不超过基线")
     void beanCount() {
-        assertWithin("hr.beans", "hr.beans",
+        assertWithin(
+                "hr.beans",
+                "hr.beans",
                 (int) CognitiveLoadBaseline.textOccurrences(HR_MAIN, "@Bean"));
     }
 

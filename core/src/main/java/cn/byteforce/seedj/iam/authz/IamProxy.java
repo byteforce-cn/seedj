@@ -8,20 +8,26 @@ import java.util.Objects;
 /**
  * 代理绑定：代理人代表被代理人行事，带双时间轴。
  *
- * @param id           代理绑定 ID
- * @param principal    被代理人
- * @param agent        代理人
- * @param scope        作用域键值对
- * @param validFrom    业务生效时间（含）
- * @param validTo      业务失效时间（不含）；{@code null} = 永久
- * @param recordedAt   系统记录时间
+ * @param id 代理绑定 ID
+ * @param principal 被代理人
+ * @param agent 代理人
+ * @param scope 作用域键值对
+ * @param validFrom 业务生效时间（含）
+ * @param validTo 业务失效时间（不含）；{@code null} = 永久
+ * @param recordedAt 系统记录时间
  * @param supersededAt 系统封口时间；{@code null} = 当前版本
  * @author ByteForce
  * @since 1.0.0
  */
-public record IamProxy(String id, String principal, String agent, Map<String, String> scope,
-                       Instant validFrom, Instant validTo, Instant recordedAt,
-                       Instant supersededAt) {
+public record IamProxy(
+        String id,
+        String principal,
+        String agent,
+        Map<String, String> scope,
+        Instant validFrom,
+        Instant validTo,
+        Instant recordedAt,
+        Instant supersededAt) {
 
     public IamProxy {
         id = requireText(id, "id");
@@ -40,7 +46,7 @@ public record IamProxy(String id, String principal, String agent, Map<String, St
     /**
      * 是否在指定业务/系统时点有效。
      *
-     * @param asOf         业务时点
+     * @param asOf 业务时点
      * @param recordedAsOf 系统时点；{@code null} 表示当前认知
      * @return 是否有效
      */

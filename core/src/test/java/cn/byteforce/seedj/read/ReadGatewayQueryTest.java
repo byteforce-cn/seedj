@@ -38,41 +38,72 @@ class ReadGatewayQueryTest {
 
     private static final UUID ACTOR = UUID.fromString("018f2e3a-0000-7000-8000-000000000001");
 
-    private static final Caller CALLER = new Caller(ACTOR.toString(), "alice", "default", null,
-            Set.of("employee.read"), null, null, null, null);
+    private static final Caller CALLER =
+            new Caller(
+                    ACTOR.toString(),
+                    "alice",
+                    "default",
+                    null,
+                    Set.of("employee.read"),
+                    null,
+                    null,
+                    null,
+                    null);
 
-    private static final ObjectSchema SCHEMA = ObjectSchema.builder("employee", "hr_employee")
-            .field(FieldDefinition.required("employee_no", FieldType.TEXT)
-                    .withFilterable().withSortable())
-            .field(new FieldDefinition("phone", FieldType.TEXT, false, false, false, false,
-                    false, false, Privacy.SENSITIVE, Maskers.last4()))
-            .writeOnly("id_number_hash", FieldType.TEXT)
-            .field(FieldDefinition.of("org_unit_id", FieldType.TEXT).withFilterable())
-            .build();
+    private static final ObjectSchema SCHEMA =
+            ObjectSchema.builder("employee", "hr_employee")
+                    .field(
+                            FieldDefinition.required("employee_no", FieldType.TEXT)
+                                    .withFilterable()
+                                    .withSortable())
+                    .field(
+                            new FieldDefinition(
+                                    "phone",
+                                    FieldType.TEXT,
+                                    false,
+                                    false,
+                                    false,
+                                    false,
+                                    false,
+                                    false,
+                                    Privacy.SENSITIVE,
+                                    Maskers.last4()))
+                    .writeOnly("id_number_hash", FieldType.TEXT)
+                    .field(FieldDefinition.of("org_unit_id", FieldType.TEXT).withFilterable())
+                    .build();
 
-    private static final QuerySpec SPEC = new QuerySpec("employee",
-            "SELECT employee_no, phone, id_number_hash, org_unit_id FROM hr_employee"
-                    + " WHERE employee_no = :number",
-            Set.of("employee_no", "phone", "id_number_hash", "org_unit_id"),
-            Set.of("number"), List.of("employee_no"), "employee_no");
+    private static final QuerySpec SPEC =
+            new QuerySpec(
+                    "employee",
+                    "SELECT employee_no, phone, id_number_hash, org_unit_id FROM hr_employee"
+                            + " WHERE employee_no = :number",
+                    Set.of("employee_no", "phone", "id_number_hash", "org_unit_id"),
+                    Set.of("number"),
+                    List.of("employee_no"),
+                    "employee_no");
 
     private final RecordingExecutor executor = new RecordingExecutor();
 
     @Test
     @DisplayName("注入行范围与分页参数，返回前按字段策略脱敏并写审计")
     void injectsScopeAndMasks() {
-        ReadGateway gateway = gateway(new ScopePredicate.Eq("org_unit_id", "D01"), true,
-                FieldPolicy.defaults(SCHEMA));
+        ReadGateway gateway =
+                gateway(
+                        new ScopePredicate.Eq("org_unit_id", "D01"),
+                        true,
+                        FieldPolicy.defaults(SCHEMA));
 
-        Page<Map<String, Object>> page = gateway.query(SPEC, Map.of("number", "E-1"), null,
-                null, new PageRequest(2, 10), CALLER);
+        Page<Map<String, Object>> page =
+                gateway.query(
+                        SPEC, Map.of("number", "E-1"), null, null, new PageRequest(2, 10), CALLER);
 
-        assertThat(executor.pageSql).isEqualTo("SELECT * FROM (SELECT employee_no, phone,"
-                + " id_number_hash, org_unit_id FROM hr_employee WHERE employee_no = ?)"
-                + " seedj_q WHERE seedj_q.\"org_unit_id\" = ?"
-                + " ORDER BY seedj_q.\"employee_no\" ASC LIMIT ? OFFSET ?");
-        assertThat(executor.pageArguments)
-                .containsExactly("E-1", "D01", 10, 10L);
+        assertThat(executor.pageSql)
+                .isEqualTo(
+                        "SELECT * FROM (SELECT employee_no, phone,"
+                                + " id_number_hash, org_unit_id FROM hr_employee WHERE employee_no = ?)"
+                                + " seedj_q WHERE seedj_q.\"org_unit_id\" = ?"
+                                + " ORDER BY seedj_q.\"employee_no\" ASC LIMIT ? OFFSET ?");
+        assertThat(executor.pageArguments).containsExactly("E-1", "D01", 10, 10L);
         assertThat(page.items()).hasSize(1);
         assertThat(page.items().get(0)).containsEntry("employee_no", "E-1");
         assertThat(page.items().get(0)).doesNotContainKeys("id_number_hash", "phone");
@@ -83,12 +114,13 @@ class ReadGatewayQueryTest {
     @Test
     @DisplayName("字段策略允许 masked 时按 schema 打码器输出")
     void masksWhenPolicyAllows() {
-        FieldPolicy masked = new FieldPolicy(Map.of("phone",
-                new FieldAccess(FieldAccess.Action.MASKED, "p1")));
+        FieldPolicy masked =
+                new FieldPolicy(Map.of("phone", new FieldAccess(FieldAccess.Action.MASKED, "p1")));
         ReadGateway gateway = gateway(new ScopePredicate.All(), true, masked);
 
-        Page<Map<String, Object>> page = gateway.query(SPEC, Map.of("number", "E-1"), null,
-                null, PageRequest.defaults(), CALLER);
+        Page<Map<String, Object>> page =
+                gateway.query(
+                        SPEC, Map.of("number", "E-1"), null, null, PageRequest.defaults(), CALLER);
 
         assertThat(page.items().get(0)).containsEntry("phone", "****0101");
     }
@@ -98,10 +130,20 @@ class ReadGatewayQueryTest {
     void rejectsUnlistedSort() {
         ReadGateway gateway = gateway(new ScopePredicate.All(), true, FieldPolicy.defaults(SCHEMA));
 
-        assertThatThrownBy(() -> gateway.query(SPEC, Map.of("number", "E-1"), "org_unit_id",
-                SortDirection.ASC, PageRequest.defaults(), CALLER))
-                .isInstanceOfSatisfying(ContractException.class, error ->
-                        assertThat(error.code()).isEqualTo(ContractErrorCode.INVALID_PAYLOAD));
+        assertThatThrownBy(
+                        () ->
+                                gateway.query(
+                                        SPEC,
+                                        Map.of("number", "E-1"),
+                                        "org_unit_id",
+                                        SortDirection.ASC,
+                                        PageRequest.defaults(),
+                                        CALLER))
+                .isInstanceOfSatisfying(
+                        ContractException.class,
+                        error ->
+                                assertThat(error.code())
+                                        .isEqualTo(ContractErrorCode.INVALID_PAYLOAD));
     }
 
     @Test
@@ -109,23 +151,40 @@ class ReadGatewayQueryTest {
     void rejectsParameters() {
         ReadGateway gateway = gateway(new ScopePredicate.All(), true, FieldPolicy.defaults(SCHEMA));
 
-        assertThatThrownBy(() -> gateway.query(SPEC, Map.of("number", "E-1", "extra", "x"), null,
-                null, PageRequest.defaults(), CALLER))
-                .isInstanceOfSatisfying(ContractException.class, error ->
-                        assertThat(error.code()).isEqualTo(ContractErrorCode.INVALID_PAYLOAD));
-        assertThatThrownBy(() -> gateway.query(SPEC, Map.of(), null, null,
-                PageRequest.defaults(), CALLER))
-                .isInstanceOfSatisfying(ContractException.class, error ->
-                        assertThat(error.code()).isEqualTo(ContractErrorCode.INVALID_PAYLOAD));
+        assertThatThrownBy(
+                        () ->
+                                gateway.query(
+                                        SPEC,
+                                        Map.of("number", "E-1", "extra", "x"),
+                                        null,
+                                        null,
+                                        PageRequest.defaults(),
+                                        CALLER))
+                .isInstanceOfSatisfying(
+                        ContractException.class,
+                        error ->
+                                assertThat(error.code())
+                                        .isEqualTo(ContractErrorCode.INVALID_PAYLOAD));
+        assertThatThrownBy(
+                        () ->
+                                gateway.query(
+                                        SPEC, Map.of(), null, null, PageRequest.defaults(), CALLER))
+                .isInstanceOfSatisfying(
+                        ContractException.class,
+                        error ->
+                                assertThat(error.code())
+                                        .isEqualTo(ContractErrorCode.INVALID_PAYLOAD));
     }
 
     @Test
     @DisplayName("行范围为 None 时直接空页，不访问存储")
     void noneScopeSkipsExecutor() {
-        ReadGateway gateway = gateway(new ScopePredicate.None(), true, FieldPolicy.defaults(SCHEMA));
+        ReadGateway gateway =
+                gateway(new ScopePredicate.None(), true, FieldPolicy.defaults(SCHEMA));
 
-        Page<Map<String, Object>> page = gateway.query(SPEC, Map.of("number", "E-1"), null, null,
-                PageRequest.defaults(), CALLER);
+        Page<Map<String, Object>> page =
+                gateway.query(
+                        SPEC, Map.of("number", "E-1"), null, null, PageRequest.defaults(), CALLER);
 
         assertThat(page.items()).isEmpty();
         assertThat(executor.calls).isEmpty();
@@ -134,22 +193,34 @@ class ReadGatewayQueryTest {
     @Test
     @DisplayName("没有执行器时失败关闭（503），不静默退化为无过滤查询")
     void missingExecutorFails() {
-        ReadGateway gateway = gateway(new ScopePredicate.All(), false, FieldPolicy.defaults(SCHEMA));
+        ReadGateway gateway =
+                gateway(new ScopePredicate.All(), false, FieldPolicy.defaults(SCHEMA));
 
-        assertThatThrownBy(() -> gateway.query(SPEC, Map.of("number", "E-1"), null, null,
-                PageRequest.defaults(), CALLER))
-                .isInstanceOfSatisfying(ContractException.class, error ->
-                        assertThat(error.code()).isEqualTo(ContractErrorCode.UNAVAILABLE));
+        assertThatThrownBy(
+                        () ->
+                                gateway.query(
+                                        SPEC,
+                                        Map.of("number", "E-1"),
+                                        null,
+                                        null,
+                                        PageRequest.defaults(),
+                                        CALLER))
+                .isInstanceOfSatisfying(
+                        ContractException.class,
+                        error -> assertThat(error.code()).isEqualTo(ContractErrorCode.UNAVAILABLE));
     }
 
     @Test
     @DisplayName("单表仓储走同一网关，返回类型化页")
     void temporalQueryRepositoryMapsRows() {
-        ReadGateway gateway = gateway(new ScopePredicate.All(), true,
-                FieldPolicy.defaults(SCHEMA));
-        TemporalQueryRepository<String> repository = new TemporalQueryRepository<>(gateway,
-                "employee", "employee_no", SortDirection.ASC,
-                fields -> String.valueOf(fields.get("employee_no")));
+        ReadGateway gateway = gateway(new ScopePredicate.All(), true, FieldPolicy.defaults(SCHEMA));
+        TemporalQueryRepository<String> repository =
+                new TemporalQueryRepository<>(
+                        gateway,
+                        "employee",
+                        "employee_no",
+                        SortDirection.ASC,
+                        fields -> String.valueOf(fields.get("employee_no")));
 
         Page<String> page = repository.find(Map.of("org_unit_id", "D01"), CALLER);
 
@@ -158,35 +229,42 @@ class ReadGatewayQueryTest {
     }
 
     private ReadGateway gateway(ScopePredicate scope, boolean withExecutor, FieldPolicy policy) {
-        DataScopeResolver scopes = new DataScopeResolver() {
-            @Override
-            public boolean supports(String objectType) {
-                return "employee".equals(objectType);
-            }
+        DataScopeResolver scopes =
+                new DataScopeResolver() {
+                    @Override
+                    public boolean supports(String objectType) {
+                        return "employee".equals(objectType);
+                    }
 
-            @Override
-            public ScopePredicate resolve(String objectType, Caller caller,
-                                          cn.byteforce.seedj.core.security.ScopeContext context) {
-                return scope;
-            }
-        };
-        FieldPolicyResolver fields = new FieldPolicyResolver() {
-            @Override
-            public boolean supports(String objectType) {
-                return "employee".equals(objectType);
-            }
+                    @Override
+                    public ScopePredicate resolve(
+                            String objectType,
+                            Caller caller,
+                            cn.byteforce.seedj.core.security.ScopeContext context) {
+                        return scope;
+                    }
+                };
+        FieldPolicyResolver fields =
+                new FieldPolicyResolver() {
+                    @Override
+                    public boolean supports(String objectType) {
+                        return "employee".equals(objectType);
+                    }
 
-            @Override
-            public FieldPolicy resolve(String objectType, Caller caller,
-                                       cn.byteforce.seedj.core.security.ScopeContext context) {
-                return policy;
-            }
-        };
-        return new ReadGateway(registry(),
+                    @Override
+                    public FieldPolicy resolve(
+                            String objectType,
+                            Caller caller,
+                            cn.byteforce.seedj.core.security.ScopeContext context) {
+                        return policy;
+                    }
+                };
+        return new ReadGateway(
+                registry(),
                 new StubStore(),
                 List.of(scopes),
                 List.of(fields),
-                event -> { },
+                event -> {},
                 new TestClock(Instant.parse("2026-11-06T09:00:00Z")),
                 UUID::randomUUID,
                 withExecutor ? executor : null);
@@ -241,8 +319,8 @@ class ReadGatewayQueryTest {
         TemporalSearch searched;
 
         @Override
-        public Optional<TemporalRow> find(String objectType, UUID id, TemporalQuery query,
-                                          ScopePredicate scope) {
+        public Optional<TemporalRow> find(
+                String objectType, UUID id, TemporalQuery query, ScopePredicate scope) {
             return Optional.empty();
         }
 
@@ -257,11 +335,21 @@ class ReadGatewayQueryTest {
             Map<String, Object> fields = new LinkedHashMap<>();
             fields.put("employee_no", "E-1");
             Instant now = Instant.parse("2026-11-06T09:00:00Z");
-            TemporalRow row = new TemporalRow("employee",
-                    new cn.byteforce.seedj.domain.ObjectVersion(
-                            UUID.fromString("018f2e3a-0000-7000-8000-000000000009"),
-                            1, now, null, now, null, ACTOR, now, null, null),
-                    fields);
+            TemporalRow row =
+                    new TemporalRow(
+                            "employee",
+                            new cn.byteforce.seedj.domain.ObjectVersion(
+                                    UUID.fromString("018f2e3a-0000-7000-8000-000000000009"),
+                                    1,
+                                    now,
+                                    null,
+                                    now,
+                                    null,
+                                    ACTOR,
+                                    now,
+                                    null,
+                                    null),
+                            fields);
             return new Page<>(List.of(row), 1, search.page().page(), search.page().size());
         }
 

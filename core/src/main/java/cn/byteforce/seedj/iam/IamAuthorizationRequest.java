@@ -22,7 +22,7 @@ public record IamAuthorizationRequest(
     }
 
     public IamAuthorizationRequest withResourceAttributes(Map<String, Object> attributes) {
-        return new IamAuthorizationRequest(subject, action, resourceType, resourceId,
-                attributes, environment);
+        return new IamAuthorizationRequest(
+                subject, action, resourceType, resourceId, attributes, environment);
     }
 }

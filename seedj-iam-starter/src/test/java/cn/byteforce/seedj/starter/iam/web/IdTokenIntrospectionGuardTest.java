@@ -1,5 +1,12 @@
 package cn.byteforce.seedj.starter.iam.web;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+import java.time.Instant;
+import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -14,14 +21,6 @@ import org.springframework.security.oauth2.server.authorization.OAuth2TokenIntro
 import org.springframework.security.oauth2.server.authorization.authentication.OAuth2TokenIntrospectionAuthenticationToken;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 
-import java.time.Instant;
-import java.util.Map;
-import java.util.Set;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
 /** RFC 7662：ID Token 不得被内省为 active=true。 */
 class IdTokenIntrospectionGuardTest {
 
@@ -30,7 +29,8 @@ class IdTokenIntrospectionGuardTest {
     private static final Authentication PRINCIPAL =
             new UsernamePasswordAuthenticationToken("web", "secret");
 
-    private final OAuth2AuthorizationService authorizations = mock(OAuth2AuthorizationService.class);
+    private final OAuth2AuthorizationService authorizations =
+            mock(OAuth2AuthorizationService.class);
     private IdTokenIntrospectionGuard guard;
 
     @BeforeEach
@@ -83,8 +83,8 @@ class IdTokenIntrospectionGuardTest {
     }
 
     private static OAuth2TokenIntrospectionAuthenticationToken introspection(String token) {
-        return new OAuth2TokenIntrospectionAuthenticationToken(token, PRINCIPAL, "access_token",
-                Map.of());
+        return new OAuth2TokenIntrospectionAuthenticationToken(
+                token, PRINCIPAL, "access_token", Map.of());
     }
 
     private static OAuth2Authorization idTokenAuthorization() {
@@ -101,8 +101,13 @@ class IdTokenIntrospectionGuardTest {
         return OAuth2Authorization.withRegisteredClient(client())
                 .principalName("alice")
                 .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-                .accessToken(new OAuth2AccessToken(OAuth2AccessToken.TokenType.BEARER,
-                        ACCESS_TOKEN, now, now.plusSeconds(300), Set.of("openid")))
+                .accessToken(
+                        new OAuth2AccessToken(
+                                OAuth2AccessToken.TokenType.BEARER,
+                                ACCESS_TOKEN,
+                                now,
+                                now.plusSeconds(300),
+                                Set.of("openid")))
                 .build();
     }
 

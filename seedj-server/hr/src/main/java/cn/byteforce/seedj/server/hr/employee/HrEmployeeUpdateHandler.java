@@ -9,7 +9,6 @@ import cn.byteforce.seedj.domain.AppendRequest;
 import cn.byteforce.seedj.domain.AppendResult;
 import cn.byteforce.seedj.domain.TemporalRow;
 import cn.byteforce.seedj.domain.event.CommandEvent;
-
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -33,7 +32,7 @@ public final class HrEmployeeUpdateHandler extends AbstractCommandHandler<HrEmpl
     /**
      * 构造处理器。
      *
-     * @param derived  派生字段
+     * @param derived 派生字段
      * @param orgUnits 组织单元目录
      */
     public HrEmployeeUpdateHandler(DerivedFieldRegistry derived, OrgUnitDirectory orgUnits) {
@@ -53,27 +52,30 @@ public final class HrEmployeeUpdateHandler extends AbstractCommandHandler<HrEmpl
         String requested = command.status();
         if (requested != null && !requested.equals(currentStatus)) {
             if (!allowed(currentStatus, requested)) {
-                throw reject(ContractErrorCode.COMMAND_REJECTED,
+                throw reject(
+                        ContractErrorCode.COMMAND_REJECTED,
                         "invalid status transition: " + currentStatus + " -> " + requested);
             }
         }
         if ("terminated".equals(currentStatus)) {
             if (command.orgUnitId() != null) {
-                throw reject(ContractErrorCode.COMMAND_REJECTED,
+                throw reject(
+                        ContractErrorCode.COMMAND_REJECTED,
                         "terminated employee cannot change org_unit_id");
             }
             if (requested != null && !"terminated".equals(requested)) {
-                throw reject(ContractErrorCode.COMMAND_REJECTED,
+                throw reject(
+                        ContractErrorCode.COMMAND_REJECTED,
                         "terminated employee cannot change status");
             }
         }
         if (command.hireDate() != null
                 && command.hireDate().isAfter(LocalDate.ofInstant(ctx.now(), ZoneOffset.UTC))) {
-            throw reject(ContractErrorCode.COMMAND_REJECTED,
-                    "hire_date must not be in the future");
+            throw reject(ContractErrorCode.COMMAND_REJECTED, "hire_date must not be in the future");
         }
         if (command.orgUnitId() != null && !orgUnits.exists(command.orgUnitId())) {
-            throw reject(ContractErrorCode.COMMAND_REJECTED,
+            throw reject(
+                    ContractErrorCode.COMMAND_REJECTED,
                     "unknown org_unit_id: " + command.orgUnitId());
         }
         if (command.idNumber() != null && command.idNumber().isBlank()) {
@@ -81,7 +83,8 @@ public final class HrEmployeeUpdateHandler extends AbstractCommandHandler<HrEmpl
         }
         Map<String, Object> changes = schemaFields(ctx, command);
         if (command.idNumber() != null && !command.idNumber().isBlank()) {
-            changes.put(HrEmployeeCreateHandler.ID_NUMBER_HASH,
+            changes.put(
+                    HrEmployeeCreateHandler.ID_NUMBER_HASH,
                     derived.require(HrEmployeeCreateHandler.ID_NUMBER_HASH)
                             .derive(command.idNumber()));
         }
@@ -96,8 +99,8 @@ public final class HrEmployeeUpdateHandler extends AbstractCommandHandler<HrEmpl
     }
 
     @Override
-    public List<CommandEvent> events(HrEmployeeUpdate command, AppendResult result,
-                                     CommandContext ctx) {
+    public List<CommandEvent> events(
+            HrEmployeeUpdate command, AppendResult result, CommandContext ctx) {
         return List.of(ctx.event("hr.employee.updated", result.appended().fields()));
     }
 

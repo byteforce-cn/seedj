@@ -6,8 +6,7 @@ import java.util.Optional;
 /**
  * 请求作用域载体：ThreadLocal + try-with-resources，嵌套时恢复进入前的值。
  *
- * <p>Web 入口由过滤器打开；job/消息消费者显式打开。异步边界必须同时传播
- * {@link Caller} 与 {@link ScopeContext}。</p>
+ * <p>Web 入口由过滤器打开；job/消息消费者显式打开。异步边界必须同时传播 {@link Caller} 与 {@link ScopeContext}。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -16,8 +15,7 @@ public final class ScopeContextHolder {
 
     private static final ThreadLocal<ScopeContext> CURRENT = new ThreadLocal<>();
 
-    private ScopeContextHolder() {
-    }
+    private ScopeContextHolder() {}
 
     /**
      * 当前上下文。

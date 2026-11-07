@@ -1,13 +1,12 @@
 package cn.byteforce.seedj.infra.local.iam;
 
-import cn.byteforce.seedj.id.IdGenerator;
-import cn.byteforce.seedj.iam.IamSigningKey;
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
 
+import cn.byteforce.seedj.iam.IamSigningKey;
+import cn.byteforce.seedj.id.IdGenerator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
 
 /** 内存 JWK 仓库：初始只有一把可签名活动密钥，轮换后旧密钥只保留公钥。 */
 class InMemoryIamSigningKeyStoreTest {
@@ -57,7 +56,8 @@ class InMemoryIamSigningKeyStoreTest {
         store.rotate();
 
         assertThat(store.keys()).hasSize(3);
-        assertThat(store.keys()).filteredOn(key -> !key.active())
+        assertThat(store.keys())
+                .filteredOn(key -> !key.active())
                 .allSatisfy(key -> assertThat(key.privateJwk()).isEmpty());
         assertThat(store.keys()).filteredOn(IamSigningKey::active).hasSize(1);
     }

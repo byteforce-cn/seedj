@@ -7,6 +7,10 @@ import cn.byteforce.seedj.core.security.DerivedField;
 import cn.byteforce.seedj.core.security.DerivedFieldKeyRing;
 import cn.byteforce.seedj.core.security.DerivedFieldRegistry;
 import cn.byteforce.seedj.id.IdGenerator;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -14,15 +18,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicLong;
-
 /**
  * HR 员工活样板装配：派生字段、组织目录、请求事实与两个 handler。
  *
- * <p>字段只在 {@link HrEmployeeModule} 声明一次；schema 从冻结注册表取。</p>
+ * <p>字段只在 {@link HrEmployeeModule} 声明一次；schema 从冻结注册表取。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -39,9 +38,10 @@ public class HrEmployeeConfiguration {
     @Bean
     public DerivedField hrIdNumberHash(
             @Value("${seedj.security.derived-field-keys:}") String keys) {
-        DerivedFieldKeyRing keyRing = keys == null || keys.isBlank()
-                ? DerivedFieldKeyRing.fromEnvironment()
-                : new DerivedFieldKeyRing(keys.split(","));
+        DerivedFieldKeyRing keyRing =
+                keys == null || keys.isBlank()
+                        ? DerivedFieldKeyRing.fromEnvironment()
+                        : new DerivedFieldKeyRing(keys.split(","));
         return new DerivedField("seedj:hr:employee:id_number_hash:v1", keyRing);
     }
 
@@ -54,8 +54,8 @@ public class HrEmployeeConfiguration {
     @Bean
     public DerivedFieldRegistry hrDerivedFields(
             @Qualifier("hrIdNumberHash") DerivedField idNumberHash) {
-        return new DerivedFieldRegistry(Map.of(HrEmployeeCreateHandler.ID_NUMBER_HASH,
-                idNumberHash));
+        return new DerivedFieldRegistry(
+                Map.of(HrEmployeeCreateHandler.ID_NUMBER_HASH, idNumberHash));
     }
 
     /**
@@ -90,15 +90,20 @@ public class HrEmployeeConfiguration {
      */
     @Bean
     public OrgUnitDirectory hrOrgUnitDirectory(
-            @Value("${seedj.hr.org-units:"
-                    + "11111111-1111-1111-1111-111111111111,"
-                    + "22222222-2222-2222-2222-222222222222,"
-                    + "33333333-3333-3333-3333-333333333333}") String units) {
-        Set<UUID> known = units == null || units.isBlank()
-                ? Set.of()
-                : java.util.Arrays.stream(units.split(",")).map(String::trim)
-                        .filter(unit -> !unit.isBlank()).map(UUID::fromString)
-                        .collect(java.util.stream.Collectors.toSet());
+            @Value(
+                            "${seedj.hr.org-units:"
+                                    + "11111111-1111-1111-1111-111111111111,"
+                                    + "22222222-2222-2222-2222-222222222222,"
+                                    + "33333333-3333-3333-3333-333333333333}")
+                    String units) {
+        Set<UUID> known =
+                units == null || units.isBlank()
+                        ? Set.of()
+                        : java.util.Arrays.stream(units.split(","))
+                                .map(String::trim)
+                                .filter(unit -> !unit.isBlank())
+                                .map(UUID::fromString)
+                                .collect(java.util.stream.Collectors.toSet());
         return known::contains;
     }
 
@@ -131,8 +136,8 @@ public class HrEmployeeConfiguration {
      * @return 模块声明
      */
     @Bean
-    public HrEmployeeModule hrEmployeeModule(HrEmployeeCreateHandler create,
-                                             HrEmployeeUpdateHandler update) {
+    public HrEmployeeModule hrEmployeeModule(
+            HrEmployeeCreateHandler create, HrEmployeeUpdateHandler update) {
         return new HrEmployeeModule(create, update);
     }
 
@@ -141,28 +146,29 @@ public class HrEmployeeConfiguration {
      *
      * @param commandIds 目标对象 ID 生成器
      * @param employeeNos 工号生成器
-     * @param derived    派生字段
-     * @param orgUnits   组织目录
+     * @param derived 派生字段
+     * @param orgUnits 组织目录
      * @return 处理器
      */
     @Bean
     public HrEmployeeCreateHandler hrEmployeeCreateHandler(
             @Qualifier("commandIdGenerator") IdGenerator<UUID> commandIds,
             @Qualifier("hrEmployeeNoGenerator") IdGenerator<String> employeeNos,
-            DerivedFieldRegistry derived, OrgUnitDirectory orgUnits) {
+            DerivedFieldRegistry derived,
+            OrgUnitDirectory orgUnits) {
         return new HrEmployeeCreateHandler(commandIds, employeeNos, derived, orgUnits);
     }
 
     /**
      * 更新处理器。
      *
-     * @param derived  派生字段
+     * @param derived 派生字段
      * @param orgUnits 组织目录
      * @return 处理器
      */
     @Bean
-    public HrEmployeeUpdateHandler hrEmployeeUpdateHandler(DerivedFieldRegistry derived,
-                                                           OrgUnitDirectory orgUnits) {
+    public HrEmployeeUpdateHandler hrEmployeeUpdateHandler(
+            DerivedFieldRegistry derived, OrgUnitDirectory orgUnits) {
         return new HrEmployeeUpdateHandler(derived, orgUnits);
     }
 }

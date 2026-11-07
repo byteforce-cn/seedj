@@ -9,7 +9,6 @@ import java.util.Locale;
  * @since 1.0.0
  */
 public enum AttributeState {
-
     FRESH,
     STALE,
     MISSING,

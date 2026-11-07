@@ -5,7 +5,6 @@ import cn.byteforce.seedj.transit.Ciphertext;
 import cn.byteforce.seedj.transit.DecryptRequest;
 import cn.byteforce.seedj.transit.EncryptRequest;
 import cn.byteforce.seedj.transit.TransitProvider;
-
 import java.util.Objects;
 
 /** Transit-backed protector; uses {@code context} as authenticated data. */
@@ -21,8 +20,8 @@ public class TransitIamSecretProtector implements IamSecretProtector {
 
     @Override
     public String protect(String plaintext, String context) {
-        Ciphertext ciphertext = transit.crypto().encrypt(
-                new EncryptRequest(keyName, plaintext, context, null));
+        Ciphertext ciphertext =
+                transit.crypto().encrypt(new EncryptRequest(keyName, plaintext, context, null));
         return ciphertext.getValue();
     }
 

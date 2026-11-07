@@ -1,12 +1,11 @@
 package cn.byteforce.seedj.infra.jdbc.outbox.wiring;
 
-import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
 
 class MicrometerOutboxMetricsTest {
 
@@ -35,10 +34,10 @@ class MicrometerOutboxMetricsTest {
         metrics.failed(true);
         metrics.failed(false);
 
-        assertThat(registry.get("seedj.outbox.failed")
-                .tag("retryable", "true").counter().count()).isEqualTo(2.0);
-        assertThat(registry.get("seedj.outbox.failed")
-                .tag("retryable", "false").counter().count()).isEqualTo(1.0);
+        assertThat(registry.get("seedj.outbox.failed").tag("retryable", "true").counter().count())
+                .isEqualTo(2.0);
+        assertThat(registry.get("seedj.outbox.failed").tag("retryable", "false").counter().count())
+                .isEqualTo(1.0);
     }
 
     @Test
@@ -57,7 +56,7 @@ class MicrometerOutboxMetricsTest {
         metrics.oldestLag(Duration.ofMillis(500));
 
         assertThat(registry.get("seedj.outbox.lag").timer().count()).isEqualTo(2);
-        assertThat(registry.get("seedj.outbox.lag").timer()
-                .totalTime(TimeUnit.MILLISECONDS)).isEqualTo(2_500.0);
+        assertThat(registry.get("seedj.outbox.lag").timer().totalTime(TimeUnit.MILLISECONDS))
+                .isEqualTo(2_500.0);
     }
 }

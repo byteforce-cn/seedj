@@ -1,11 +1,10 @@
 package cn.byteforce.seedj.domain;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Instant;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
 /** 时点参数推导视图：当前/时点；历史由 ReadGateway 的 history 入口表达。 */
 class TemporalViewTest {
@@ -33,7 +32,7 @@ class TemporalViewTest {
     @Test
     @DisplayName("HISTORY 是独立入口，不由 TemporalQuery 推导")
     void historyIsExplicit() {
-        assertThat(TemporalView.values()).containsExactly(TemporalView.CURRENT,
-                TemporalView.AS_OF, TemporalView.HISTORY);
+        assertThat(TemporalView.values())
+                .containsExactly(TemporalView.CURRENT, TemporalView.AS_OF, TemporalView.HISTORY);
     }
 }

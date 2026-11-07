@@ -11,8 +11,8 @@ public class IamRevocableAuthorizationService implements OAuth2AuthorizationServ
     private final OAuth2AuthorizationService delegate;
     private final InMemoryIamTokenRevoker revoker;
 
-    public IamRevocableAuthorizationService(OAuth2AuthorizationService delegate,
-                                            InMemoryIamTokenRevoker revoker) {
+    public IamRevocableAuthorizationService(
+            OAuth2AuthorizationService delegate, InMemoryIamTokenRevoker revoker) {
         this.delegate = delegate;
         this.revoker = revoker;
     }

@@ -2,13 +2,10 @@ package cn.byteforce.seedj.starter.eventbus;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
-
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-/**
- * micrometer 实现的 eventbus 指标（发布 + 消费）。
- */
+/** micrometer 实现的 eventbus 指标（发布 + 消费）。 */
 final class MicrometerEventBusMetrics implements EventBusMetrics {
 
     private final MeterRegistry registry;
@@ -45,15 +42,27 @@ final class MicrometerEventBusMetrics implements EventBusMetrics {
     @Override
     public void published(String eventType, boolean outbox) {
         String mode = outbox ? "outbox" : "transport";
-        published.computeIfAbsent(eventType + '|' + mode,
-                key -> registry.counter("seedj.eventbus.publish.count",
-                        "eventType", eventType, "mode", mode)).increment();
+        published
+                .computeIfAbsent(
+                        eventType + '|' + mode,
+                        key ->
+                                registry.counter(
+                                        "seedj.eventbus.publish.count",
+                                        "eventType",
+                                        eventType,
+                                        "mode",
+                                        mode))
+                .increment();
     }
 
     @Override
     public void publishFailed(String eventType) {
-        publishFailed.computeIfAbsent(eventType,
-                key -> registry.counter("seedj.eventbus.publish.failed",
-                        "eventType", eventType)).increment();
+        publishFailed
+                .computeIfAbsent(
+                        eventType,
+                        key ->
+                                registry.counter(
+                                        "seedj.eventbus.publish.failed", "eventType", eventType))
+                .increment();
     }
 }

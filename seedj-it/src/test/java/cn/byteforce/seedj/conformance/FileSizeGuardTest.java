@@ -16,9 +16,8 @@ import org.junit.jupiter.api.Test;
 /**
  * 文件大小门禁：主源码文件不得超过 600 行。
  *
- * <p>大文件通常意味着多个职责挤在一起，也让评审与上下文理解失效。allowlist 只允许
- * 自动生成代码或正在拆分中的文件，记录在 {@code config/archunit/file-size-allowlist.txt}，
- * 每行一个相对仓库根的路径；T3.5 清空。</p>
+ * <p>大文件通常意味着多个职责挤在一起，也让评审与上下文理解失效。allowlist 只允许 自动生成代码或正在拆分中的文件，记录在 {@code
+ * config/archunit/file-size-allowlist.txt}， 每行一个相对仓库根的路径；T3.5 清空。
  */
 class FileSizeGuardTest {
 
@@ -50,9 +49,7 @@ class FileSizeGuardTest {
         }
         violations.sort(null);
 
-        assertThat(violations)
-                .as("主源码超过 %d 行；拆分职责，或在 %s 登记并说明原因", MAX_LINES, ALLOWLIST)
-                .isEmpty();
+        assertThat(violations).as("主源码超过 %d 行；拆分职责，或在 %s 登记并说明原因", MAX_LINES, ALLOWLIST).isEmpty();
     }
 
     private static int countLines(Path file) {

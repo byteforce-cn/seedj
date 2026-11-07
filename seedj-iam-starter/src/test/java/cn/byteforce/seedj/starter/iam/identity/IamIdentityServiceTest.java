@@ -1,5 +1,8 @@
 package cn.byteforce.seedj.starter.iam.identity;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import cn.byteforce.seedj.core.security.SecurityAuditEvent;
 import cn.byteforce.seedj.core.security.SecurityAuditSink;
 import cn.byteforce.seedj.iam.IamErrorCode;
@@ -10,21 +13,18 @@ import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamAuditSink;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamTokenRevoker;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamUserRepository;
+import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
-
-import java.util.concurrent.atomic.AtomicLong;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class IamIdentityServiceTest {
 
     private final InMemoryIamUserRepository users = new InMemoryIamUserRepository();
     private final InMemoryIamTokenRevoker revoker = new InMemoryIamTokenRevoker();
     private final InMemoryIamAuditSink audit = new InMemoryIamAuditSink();
-    private final IamPasswordHasher hasher = new IamPasswordHasherAdapter(
-            PasswordEncoderFactories.createDelegatingPasswordEncoder());
+    private final IamPasswordHasher hasher =
+            new IamPasswordHasherAdapter(
+                    PasswordEncoderFactories.createDelegatingPasswordEncoder());
     private final AtomicLong seq = new AtomicLong();
     private final IdGenerator<String> idGenerator = () -> "id-" + seq.incrementAndGet();
     private final IamIdentityService service =
@@ -128,10 +128,12 @@ class IamIdentityServiceTest {
 
         service.changePassword(user.id(), "new-password");
 
-        assertThat(hasher.matches("new-password",
-                users.findPasswordHash(user.id()).orElseThrow())).isTrue();
-        assertThat(hasher.matches("alice-password",
-                users.findPasswordHash(user.id()).orElseThrow())).isFalse();
+        assertThat(hasher.matches("new-password", users.findPasswordHash(user.id()).orElseThrow()))
+                .isTrue();
+        assertThat(
+                        hasher.matches(
+                                "alice-password", users.findPasswordHash(user.id()).orElseThrow()))
+                .isFalse();
         assertThat(revoker.isRevoked("alice")).isTrue();
         assertThat(audit.events().get(audit.events().size() - 1).action())
                 .isEqualTo("iam.user.password");
@@ -161,8 +163,12 @@ class IamIdentityServiceTest {
     void updateDelegatesToRepository() {
         IamUser user = service.createUser("default", "alice", "alice-password", "Alice", null);
 
-        IamUser updated = service.update(user.withProfile("Alice Ng", "alice@example.com",
-                java.util.Map.of("givenName", "Alice")));
+        IamUser updated =
+                service.update(
+                        user.withProfile(
+                                "Alice Ng",
+                                "alice@example.com",
+                                java.util.Map.of("givenName", "Alice")));
 
         assertThat(updated.version()).isEqualTo(1);
         assertThat(users.findById(user.id()).orElseThrow().displayName()).isEqualTo("Alice Ng");
@@ -170,13 +176,15 @@ class IamIdentityServiceTest {
 
     @Test
     void auditFailureNeverChangesAuthenticationOutcome() {
-        SecurityAuditSink failing = event -> {
-            throw new IllegalStateException("audit backend down");
-        };
+        SecurityAuditSink failing =
+                event -> {
+                    throw new IllegalStateException("audit backend down");
+                };
         IamIdentityService serviceWithFailingAudit =
                 new IamIdentityService(users, hasher, revoker, failing, idGenerator);
-        IamUser user = serviceWithFailingAudit.createUser("default", "alice", "alice-password",
-                "Alice", null);
+        IamUser user =
+                serviceWithFailingAudit.createUser(
+                        "default", "alice", "alice-password", "Alice", null);
 
         assertThat(serviceWithFailingAudit.authenticate("default", "alice", "alice-password").id())
                 .isEqualTo(user.id());

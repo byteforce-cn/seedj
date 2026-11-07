@@ -1,7 +1,13 @@
 package cn.byteforce.seedj.starter.web;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import cn.byteforce.seedj.lock.LockErrorCode;
 import cn.byteforce.seedj.lock.LockException;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -10,13 +16,6 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Map;
-
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 /** 锁异常的错误信封：可重试冲突与依赖故障必须区分。 */
 class ContractErrorHandlerLockTest {
 
@@ -24,9 +23,10 @@ class ContractErrorHandlerLockTest {
 
     @BeforeEach
     void setUp() {
-        mvc = MockMvcBuilders.standaloneSetup(new LockProbeController())
-                .setControllerAdvice(new ContractErrorHandler())
-                .build();
+        mvc =
+                MockMvcBuilders.standaloneSetup(new LockProbeController())
+                        .setControllerAdvice(new ContractErrorHandler())
+                        .build();
     }
 
     @Test
@@ -46,8 +46,7 @@ class ContractErrorHandlerLockTest {
         mvc.perform(get("/probe/lock-provider"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("EIS-503-001"))
-                .andExpect(jsonPath("$.details.reason_code")
-                        .value("LOCK-PROVIDER-UNAVAILABLE"));
+                .andExpect(jsonPath("$.details.reason_code").value("LOCK-PROVIDER-UNAVAILABLE"));
     }
 
     @Test

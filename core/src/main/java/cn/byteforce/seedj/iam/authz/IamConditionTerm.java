@@ -6,8 +6,8 @@ import java.util.List;
  * 条件原子项：属性路径 + 运算 + 候选值。
  *
  * @param attribute 点分属性路径；段可带 {@code [*]}
- * @param op        运算
- * @param values    非空标量候选
+ * @param op 运算
+ * @param values 非空标量候选
  * @author ByteForce
  * @since 1.0.0
  */

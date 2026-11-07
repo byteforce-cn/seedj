@@ -3,9 +3,7 @@ package cn.byteforce.seedj.core.clock.spi;
 import cn.byteforce.seedj.core.clock.Clock;
 import cn.byteforce.seedj.core.clock.ClockGuarantee;
 
-/**
- * 时钟 provider SPI。通过 ServiceLoader 或 Spring 注册。
- */
+/** 时钟 provider SPI。通过 ServiceLoader 或 Spring 注册。 */
 public interface ClockProvider {
 
     /** provider 名称，与配置对应。 */

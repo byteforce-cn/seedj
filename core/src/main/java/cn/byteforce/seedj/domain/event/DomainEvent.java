@@ -11,9 +11,7 @@ public interface DomainEvent {
         return EventTypeRegistry.logicalName(getClass());
     }
 
-    /**
-     * payload 的 schema 版本。
-     */
+    /** payload 的 schema 版本。 */
     default int schemaVersion() {
         return EventTypeRegistry.schemaVersion(getClass());
     }

@@ -1,5 +1,7 @@
 package cn.byteforce.seedj.server.hr.employee;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import cn.byteforce.seedj.core.Migration;
 import cn.byteforce.seedj.core.clock.Clock;
 import cn.byteforce.seedj.domain.AppendRequest;
@@ -14,15 +16,6 @@ import cn.byteforce.seedj.infra.jdbc.domain.PostgresTemporalStore;
 import cn.byteforce.seedj.infra.jdbc.domain.TemporalSchemaCapability;
 import cn.byteforce.seedj.infra.jdbc.domain.TemporalTable;
 import cn.byteforce.seedj.infra.jdbc.domain.TemporalTables;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.DriverManagerDataSource;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
@@ -34,14 +27,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 /**
  * V1 → V2 升级证据：加字段只新增迁移，旧行、双时间轴与写入都不受损。
  *
- * <p>场景刻意按发布顺序执行：先只跑 V1 并写一行（升级前的库），再跑签入的 V2 候选
- * {@code ADD COLUMN}，然后用升级后的表映射读回旧行、写新版本、按记录时点读回 v1。</p>
+ * <p>场景刻意按发布顺序执行：先只跑 V1 并写一行（升级前的库），再跑签入的 V2 候选 {@code ADD COLUMN}，然后用升级后的表映射读回旧行、写新版本、按记录时点读回 v1。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -74,8 +72,9 @@ class HrEmployeeUpgradeMigrationTest {
 
     @BeforeAll
     static void initialize() {
-        DriverManagerDataSource dataSource = new DriverManagerDataSource(
-                POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
+        DriverManagerDataSource dataSource =
+                new DriverManagerDataSource(
+                        POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
         jdbc = new JdbcTemplate(dataSource);
         runner = new JdbcMigrationRunner(dataSource);
         new TemporalSchemaCapability(runner).initialize();
@@ -93,15 +92,17 @@ class HrEmployeeUpgradeMigrationTest {
         UUID id = UUID.randomUUID();
         v1Store.append(AppendRequest.create("employee", id, T0, null, ACTOR, fields(null)));
 
-        TemporalRow before = v1Store.find("employee", id, TemporalQuery.current(),
-                ScopePredicate.all()).orElseThrow();
+        TemporalRow before =
+                v1Store.find("employee", id, TemporalQuery.current(), ScopePredicate.all())
+                        .orElseThrow();
         assertThat(before.version().version()).isEqualTo(1);
         assertThat(before.fields()).doesNotContainKey("badge_no");
 
         runner.migrate(HrEmployeeSchemaCapability.NAME, List.of(v1Migration(), v2Migration()));
 
-        TemporalRow upgraded = v2Store.find("employee", id, TemporalQuery.current(),
-                ScopePredicate.all()).orElseThrow();
+        TemporalRow upgraded =
+                v2Store.find("employee", id, TemporalQuery.current(), ScopePredicate.all())
+                        .orElseThrow();
         assertThat(upgraded.version().version()).isEqualTo(1);
         assertThat(upgraded.fields())
                 .containsEntry("employee_no", "E-1")
@@ -109,35 +110,38 @@ class HrEmployeeUpgradeMigrationTest {
                 .doesNotContainKey("badge_no");
 
         NOW.set(T0.plusSeconds(5));
-        v2Store.append(AppendRequest.correction("employee", id, T0, null, ACTOR,
-                fields("B-42")));
+        v2Store.append(AppendRequest.correction("employee", id, T0, null, ACTOR, fields("B-42")));
 
-        TemporalRow current = v2Store.find("employee", id, TemporalQuery.current(),
-                ScopePredicate.all()).orElseThrow();
+        TemporalRow current =
+                v2Store.find("employee", id, TemporalQuery.current(), ScopePredicate.all())
+                        .orElseThrow();
         assertThat(current.version().version()).isEqualTo(2);
         assertThat(current.fields()).containsEntry("badge_no", "B-42");
 
-        TemporalRow historical = v2Store.find("employee", id,
-                new TemporalQuery(null, T0.plusSeconds(1), null), ScopePredicate.all())
-                .orElseThrow();
+        TemporalRow historical =
+                v2Store.find(
+                                "employee",
+                                id,
+                                new TemporalQuery(null, T0.plusSeconds(1), null),
+                                ScopePredicate.all())
+                        .orElseThrow();
         assertThat(historical.version().version()).isEqualTo(1);
         assertThat(historical.fields()).doesNotContainKey("badge_no");
 
-        assertThat(jdbc.queryForList(
-                "SELECT version FROM seedj_schema_history WHERE scope = ? ORDER BY version",
-                Integer.class, HrEmployeeSchemaCapability.NAME))
+        assertThat(
+                        jdbc.queryForList(
+                                "SELECT version FROM seedj_schema_history WHERE scope = ? ORDER BY version",
+                                Integer.class,
+                                HrEmployeeSchemaCapability.NAME))
                 .containsExactly(1, 2);
     }
 
     private static TemporalStore store(ObjectSchema schema) {
-        return new PostgresTemporalStore(jdbc, CLOCK,
-                new TemporalTables(List.of(TemporalTable.from(schema))));
+        return new PostgresTemporalStore(
+                jdbc, CLOCK, new TemporalTables(List.of(TemporalTable.from(schema))));
     }
 
-    /**
-     * V1 时代的物理 schema：新 schema 已经演进到 eis 契约，但本测试要证明旧库可升级，
-     * 因此显式保留 V1 的字段集合。
-     */
+    /** V1 时代的物理 schema：新 schema 已经演进到 eis 契约，但本测试要证明旧库可升级， 因此显式保留 V1 的字段集合。 */
     private static ObjectSchema legacySchema() {
         return ObjectSchema.builder("employee", "hr_employee")
                 .field("employee_no", FieldType.TEXT)
@@ -153,8 +157,8 @@ class HrEmployeeUpgradeMigrationTest {
     }
 
     private static ObjectSchema withBadgeNo(ObjectSchema schema) {
-        ObjectSchema.Builder builder = ObjectSchema.builder(schema.objectType(),
-                schema.tableName());
+        ObjectSchema.Builder builder =
+                ObjectSchema.builder(schema.objectType(), schema.tableName());
         schema.fields().forEach(builder::field);
         builder.field("badge_no", FieldType.TEXT);
         return builder.build();
@@ -186,8 +190,9 @@ class HrEmployeeUpgradeMigrationTest {
     }
 
     private static String v2Sql() {
-        try (InputStream in = HrEmployeeUpgradeMigrationTest.class
-                .getResourceAsStream("V2__hr_employee_add_badge_no.sql")) {
+        try (InputStream in =
+                HrEmployeeUpgradeMigrationTest.class.getResourceAsStream(
+                        "V2__hr_employee_add_badge_no.sql")) {
             if (in == null) {
                 throw new IllegalStateException("missing V2 migration resource");
             }

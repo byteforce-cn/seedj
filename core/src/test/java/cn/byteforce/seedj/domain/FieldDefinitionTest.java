@@ -1,10 +1,10 @@
 package cn.byteforce.seedj.domain;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
 class FieldDefinitionTest {
 
@@ -21,13 +21,14 @@ class FieldDefinitionTest {
 
     @Test
     void withersKeepOtherComponents() {
-        FieldDefinition field = FieldDefinition.of("phone", FieldType.TEXT)
-                .withRequired()
-                .withFilterable()
-                .withSortable()
-                .withIndexed()
-                .withPrivacy(Privacy.INTERNAL)
-                .withMasker(Maskers.last4());
+        FieldDefinition field =
+                FieldDefinition.of("phone", FieldType.TEXT)
+                        .withRequired()
+                        .withFilterable()
+                        .withSortable()
+                        .withIndexed()
+                        .withPrivacy(Privacy.INTERNAL)
+                        .withMasker(Maskers.last4());
 
         assertThat(field.required()).isTrue();
         assertThat(field.filterable()).isTrue();
@@ -39,32 +40,63 @@ class FieldDefinitionTest {
 
     @Test
     void sensitiveFieldCannotBeEventVisible() {
-        assertThatThrownBy(() -> new FieldDefinition("id_number", FieldType.TEXT, false, false,
-                true, false, false, false, Privacy.SENSITIVE, null))
+        assertThatThrownBy(
+                        () ->
+                                new FieldDefinition(
+                                        "id_number",
+                                        FieldType.TEXT,
+                                        false,
+                                        false,
+                                        true,
+                                        false,
+                                        false,
+                                        false,
+                                        Privacy.SENSITIVE,
+                                        null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("eventVisible");
     }
 
     @Test
     void restrictedFieldCannotBeEventVisible() {
-        assertThatThrownBy(() -> new FieldDefinition("salary", FieldType.DECIMAL, false, false,
-                true, false, false, false, Privacy.RESTRICTED, null))
+        assertThatThrownBy(
+                        () ->
+                                new FieldDefinition(
+                                        "salary",
+                                        FieldType.DECIMAL,
+                                        false,
+                                        false,
+                                        true,
+                                        false,
+                                        false,
+                                        false,
+                                        Privacy.RESTRICTED,
+                                        null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("eventVisible");
     }
 
     @Test
     void internalFieldMayBeEventVisible() {
-        FieldDefinition field = new FieldDefinition("department", FieldType.TEXT, false, false,
-                true, false, false, false, Privacy.INTERNAL, null);
+        FieldDefinition field =
+                new FieldDefinition(
+                        "department",
+                        FieldType.TEXT,
+                        false,
+                        false,
+                        true,
+                        false,
+                        false,
+                        false,
+                        Privacy.INTERNAL,
+                        null);
 
         assertThat(field.eventVisible()).isTrue();
     }
 
     @Test
     void maskersLastFourKeepsSuffix() {
-        assertThat(Maskers.last4().mask("id_number", "110101199001011234"))
-                .isEqualTo("****1234");
+        assertThat(Maskers.last4().mask("id_number", "110101199001011234")).isEqualTo("****1234");
         assertThat(Maskers.last4().mask("id_number", "1234")).isEqualTo("****");
         assertThat(Maskers.last4().mask("id_number", null)).isNull();
     }
@@ -87,8 +119,18 @@ class FieldDefinitionTest {
     @DisplayName("filterable 工厂与 privacy 缺省归一为 PUBLIC")
     void filterableFactoryAndDefaultPrivacy() {
         FieldDefinition filterable = FieldDefinition.filterable("org_unit_id", FieldType.TEXT);
-        FieldDefinition withoutPrivacy = new FieldDefinition("status", FieldType.TEXT, false,
-                false, true, false, false, false, null, null);
+        FieldDefinition withoutPrivacy =
+                new FieldDefinition(
+                        "status",
+                        FieldType.TEXT,
+                        false,
+                        false,
+                        true,
+                        false,
+                        false,
+                        false,
+                        null,
+                        null);
 
         assertThat(filterable.filterable()).isTrue();
         assertThat(filterable.eventVisible()).isTrue();

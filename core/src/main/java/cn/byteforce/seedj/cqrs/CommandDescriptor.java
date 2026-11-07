@@ -6,21 +6,25 @@ import java.util.regex.Pattern;
 /**
  * 命令的唯一元数据：类型、对象类型、载荷类型、权限、校验器、脱敏器。
  *
- * <p>命令目录、HTTP 边界与业务代码都从这里读取同一份声明，避免权限/校验/脱敏分别散落在
- * controller、agent 与装配代码里。线格式字段（{@code type}/{@code objectType}）保持稳定。</p>
+ * <p>命令目录、HTTP 边界与业务代码都从这里读取同一份声明，避免权限/校验/脱敏分别散落在 controller、agent 与装配代码里。线格式字段（{@code type}/{@code
+ * objectType}）保持稳定。
  *
- * @param type        线格式命令类型，匹配 {@code ^[a-z][a-z0-9_.]*$}
- * @param objectType  对象类型（对象表注册名）
+ * @param type 线格式命令类型，匹配 {@code ^[a-z][a-z0-9_.]*$}
+ * @param objectType 对象类型（对象表注册名）
  * @param payloadType 载荷类型
- * @param permission  执行所需权限；为空表示必须在目录装配阶段补齐
- * @param validator   载荷校验器；默认不做业务校验
- * @param redactor    命令记录载荷脱敏器；默认原样保存
+ * @param permission 执行所需权限；为空表示必须在目录装配阶段补齐
+ * @param validator 载荷校验器；默认不做业务校验
+ * @param redactor 命令记录载荷脱敏器；默认原样保存
  * @author ByteForce
  * @since 1.0.0
  */
-public record CommandDescriptor(String type, String objectType, Class<?> payloadType,
-                                String permission, CommandValidator validator,
-                                CommandPayloadRedactor redactor) {
+public record CommandDescriptor(
+        String type,
+        String objectType,
+        Class<?> payloadType,
+        String permission,
+        CommandValidator validator,
+        CommandPayloadRedactor redactor) {
 
     private static final Pattern TYPE_PATTERN = Pattern.compile("^[a-z][a-z0-9_.]*$");
 
@@ -112,8 +116,8 @@ public record CommandDescriptor(String type, String objectType, Class<?> payload
             if (payloadType == null) {
                 throw new IllegalStateException("command descriptor requires payloadType");
             }
-            return new CommandDescriptor(type, objectType, payloadType, permission, validator,
-                    redactor);
+            return new CommandDescriptor(
+                    type, objectType, payloadType, permission, validator, redactor);
         }
     }
 }

@@ -1,10 +1,10 @@
 package cn.byteforce.seedj.core;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
 class MigrationChecksumsTest {
 
@@ -58,21 +58,21 @@ class MigrationChecksumsTest {
     @Test
     @DisplayName("未就绪的必需能力在 validate 阶段抛 NOT_READY")
     void capabilityValidateFailsWhenNotReady() {
-        InfrastructureCapability capability = new InfrastructureCapability() {
-            @Override
-            public String getName() {
-                return "test";
-            }
+        InfrastructureCapability capability =
+                new InfrastructureCapability() {
+                    @Override
+                    public String getName() {
+                        return "test";
+                    }
 
-            @Override
-            public boolean isReady() {
-                return false;
-            }
+                    @Override
+                    public boolean isReady() {
+                        return false;
+                    }
 
-            @Override
-            public void initialize() {
-            }
-        };
+                    @Override
+                    public void initialize() {}
+                };
 
         assertThatThrownBy(capability::validate)
                 .isInstanceOf(InfrastructureException.class)

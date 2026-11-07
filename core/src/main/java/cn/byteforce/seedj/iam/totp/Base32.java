@@ -14,8 +14,7 @@ public final class Base32 {
         }
     }
 
-    private Base32() {
-    }
+    private Base32() {}
 
     public static String encode(byte[] data) {
         if (data == null || data.length == 0) {

@@ -2,19 +2,19 @@ package cn.byteforce.seedj.infra.jdbc.audit;
 
 import cn.byteforce.seedj.audit.CanonicalHasher;
 import cn.byteforce.seedj.core.Migration;
-
 import java.util.List;
 
-/**
- * 审计链的版本化迁移。
- */
+/** 审计链的版本化迁移。 */
 final class AuditMigrations {
 
-    private AuditMigrations() {
-    }
+    private AuditMigrations() {}
 
     static List<Migration> all() {
-        return List.of(new Migration(1, "audit chain tables", """
+        return List.of(
+                new Migration(
+                        1,
+                        "audit chain tables",
+                        """
                 CREATE TABLE IF NOT EXISTS audit_entry (
                     id            VARCHAR(64)  PRIMARY KEY,
                     sequence      BIGINT       NOT NULL UNIQUE,
@@ -41,8 +41,12 @@ final class AuditMigrations {
                 INSERT INTO audit_head (id, sequence, last_hash)
                 VALUES ('audit', 0, '%s')
                 ON CONFLICT (id) DO NOTHING;
-                """.formatted(CanonicalHasher.GENESIS_PREV_HASH)),
-                new Migration(2, "audit v1.1 alignment", """
+                """
+                                .formatted(CanonicalHasher.GENESIS_PREV_HASH)),
+                new Migration(
+                        2,
+                        "audit v1.1 alignment",
+                        """
                         ALTER TABLE audit_entry RENAME COLUMN occurred_at TO timestamp;
                         ALTER TABLE audit_entry ADD COLUMN IF NOT EXISTS payload_digest TEXT;
                         ALTER TABLE audit_entry ALTER COLUMN id TYPE TEXT;

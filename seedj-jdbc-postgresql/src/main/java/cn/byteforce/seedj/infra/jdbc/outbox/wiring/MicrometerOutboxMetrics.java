@@ -1,12 +1,9 @@
 package cn.byteforce.seedj.infra.jdbc.outbox.wiring;
 
 import io.micrometer.core.instrument.MeterRegistry;
-
 import java.time.Duration;
 
-/**
- * micrometer 实现的 outbox 指标。
- */
+/** micrometer 实现的 outbox 指标。 */
 final class MicrometerOutboxMetrics implements OutboxMetrics {
 
     private final MeterRegistry registry;

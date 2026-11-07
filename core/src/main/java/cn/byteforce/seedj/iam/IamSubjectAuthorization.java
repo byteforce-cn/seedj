@@ -4,9 +4,7 @@ import java.util.Set;
 
 /** Effective authorization of a user after direct, group, and inherited roles. */
 public record IamSubjectAuthorization(
-        Set<String> roles,
-        Set<String> permissions,
-        Set<String> groups) {
+        Set<String> roles, Set<String> permissions, Set<String> groups) {
 
     public IamSubjectAuthorization {
         roles = roles == null ? Set.of() : Set.copyOf(roles);

@@ -1,6 +1,10 @@
 package cn.byteforce.seedj.starter.domain.web;
 
-import cn.byteforce.seedj.starter.web.ContractErrorHandler;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import cn.byteforce.seedj.core.clock.Clock;
 import cn.byteforce.seedj.core.security.Caller;
 import cn.byteforce.seedj.core.security.ScopeContext;
@@ -14,12 +18,7 @@ import cn.byteforce.seedj.module.ObjectModules;
 import cn.byteforce.seedj.read.DataScopeResolver;
 import cn.byteforce.seedj.read.ReadAuditSink;
 import cn.byteforce.seedj.read.ReadGateway;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-
+import cn.byteforce.seedj.starter.web.ContractErrorHandler;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -27,15 +26,13 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
-/**
- * 对象时点查询的线格式与 404/409 语义（经 ReadGateway）。
- */
+/** 对象时点查询的线格式与 404/409 语义（经 ReadGateway）。 */
 class ObjectQueryControllerTest {
 
     private static final Instant T0 = Instant.parse("2026-10-08T09:00:00Z");
@@ -44,8 +41,17 @@ class ObjectQueryControllerTest {
 
     private static final UUID ACTOR = UUID.fromString("018f2e3a-0000-7000-8000-000000000001");
 
-    private static final Caller CALLER = new Caller("u-1", "alice", "default", Set.of(),
-            Set.of("probe.read"), Set.of(), Set.of("pwd"), "urn:seedj:acr:pwd", Map.of());
+    private static final Caller CALLER =
+            new Caller(
+                    "u-1",
+                    "alice",
+                    "default",
+                    Set.of(),
+                    Set.of("probe.read"),
+                    Set.of(),
+                    Set.of("pwd"),
+                    "urn:seedj:acr:pwd",
+                    Map.of());
 
     private final AtomicReference<Instant> now = new AtomicReference<>(T0);
 
@@ -53,8 +59,9 @@ class ObjectQueryControllerTest {
 
     private final ObjectModuleRegistry registry = registry();
 
-    private final InMemoryTemporalStore store = new InMemoryTemporalStore(clock,
-            new ObjectSchemaRegistry(List.of(registry.require("probe").schema())));
+    private final InMemoryTemporalStore store =
+            new InMemoryTemporalStore(
+                    clock, new ObjectSchemaRegistry(List.of(registry.require("probe").schema())));
 
     private MockMvc mvc;
 
@@ -62,24 +69,33 @@ class ObjectQueryControllerTest {
     void setUp() {
         now.set(T0);
         store.clear();
-        DataScopeResolver all = new DataScopeResolver() {
-            @Override
-            public boolean supports(String objectType) {
-                return true;
-            }
+        DataScopeResolver all =
+                new DataScopeResolver() {
+                    @Override
+                    public boolean supports(String objectType) {
+                        return true;
+                    }
 
-            @Override
-            public ScopePredicate resolve(String objectType, Caller caller,
-                                          ScopeContext context) {
-                return ScopePredicate.all();
-            }
-        };
-        ReadGateway gateway = new ReadGateway(registry, store, List.of(all), List.of(),
-                ReadAuditSink.noop(), clock, () -> UUID.randomUUID());
-        mvc = MockMvcBuilders.standaloneSetup(
-                        new ObjectQueryController(gateway, () -> Optional.of(CALLER)))
-                .setControllerAdvice(new ContractErrorHandler())
-                .build();
+                    @Override
+                    public ScopePredicate resolve(
+                            String objectType, Caller caller, ScopeContext context) {
+                        return ScopePredicate.all();
+                    }
+                };
+        ReadGateway gateway =
+                new ReadGateway(
+                        registry,
+                        store,
+                        List.of(all),
+                        List.of(),
+                        ReadAuditSink.noop(),
+                        clock,
+                        () -> UUID.randomUUID());
+        mvc =
+                MockMvcBuilders.standaloneSetup(
+                                new ObjectQueryController(gateway, () -> Optional.of(CALLER)))
+                        .setControllerAdvice(new ContractErrorHandler())
+                        .build();
     }
 
     @Test
@@ -120,14 +136,16 @@ class ObjectQueryControllerTest {
     void recordedAsOfReturnsHistoricalBelief() throws Exception {
         seedTwoVersions();
 
-        mvc.perform(get("/objects/probe/" + ID)
-                        .queryParam("recorded_as_of", T0.plusSeconds(30).toString()))
+        mvc.perform(
+                        get("/objects/probe/" + ID)
+                                .queryParam("recorded_as_of", T0.plusSeconds(30).toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.version").value(1))
                 .andExpect(jsonPath("$.data.name").value("v1"));
 
-        mvc.perform(get("/objects/probe/" + ID)
-                        .queryParam("recorded_as_of", T0.plusSeconds(90).toString()))
+        mvc.perform(
+                        get("/objects/probe/" + ID)
+                                .queryParam("recorded_as_of", T0.plusSeconds(90).toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.version").value(2));
     }
@@ -160,8 +178,7 @@ class ObjectQueryControllerTest {
     void injectionShapedFilterIs400() throws Exception {
         seed("alice", T0);
 
-        mvc.perform(get("/objects/probe")
-                        .queryParam("name", "active' OR 1=1--"))
+        mvc.perform(get("/objects/probe").queryParam("name", "active' OR 1=1--"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("EIS-400-001"));
     }
@@ -181,22 +198,27 @@ class ObjectQueryControllerTest {
         seed("b", T0);
         seed("c", T0);
 
-        String first = mvc.perform(get("/objects/probe")
-                        .queryParam("name__in", "a,c")
-                        .queryParam("sort", "name")
-                        .queryParam("size", "1"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.total").value(2))
-                .andExpect(jsonPath("$.items[0].data.name").value("a"))
-                .andExpect(jsonPath("$.next_cursor").isNotEmpty())
-                .andReturn().getResponse().getContentAsString();
+        String first =
+                mvc.perform(
+                                get("/objects/probe")
+                                        .queryParam("name__in", "a,c")
+                                        .queryParam("sort", "name")
+                                        .queryParam("size", "1"))
+                        .andExpect(status().isOk())
+                        .andExpect(jsonPath("$.total").value(2))
+                        .andExpect(jsonPath("$.items[0].data.name").value("a"))
+                        .andExpect(jsonPath("$.next_cursor").isNotEmpty())
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString();
         String cursor = com.jayway.jsonpath.JsonPath.read(first, "$.next_cursor");
 
-        mvc.perform(get("/objects/probe")
-                        .queryParam("name__in", "a,c")
-                        .queryParam("sort", "name")
-                        .queryParam("size", "1")
-                        .queryParam("cursor", cursor))
+        mvc.perform(
+                        get("/objects/probe")
+                                .queryParam("name__in", "a,c")
+                                .queryParam("sort", "name")
+                                .queryParam("size", "1")
+                                .queryParam("cursor", cursor))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items[0].data.name").value("c"))
                 .andExpect(jsonPath("$.next_cursor").doesNotExist());
@@ -210,21 +232,29 @@ class ObjectQueryControllerTest {
         seed("c", T0);
 
         mvc.perform(get("/objects/probe").queryParam("name__eq", "a"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(1));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(1));
         mvc.perform(get("/objects/probe").queryParam("name__ne", "a"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(2));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(2));
         mvc.perform(get("/objects/probe").queryParam("name__gt", "a"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(2));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(2));
         mvc.perform(get("/objects/probe").queryParam("name__gte", "b"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(2));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(2));
         mvc.perform(get("/objects/probe").queryParam("name__lt", "c"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(2));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(2));
         mvc.perform(get("/objects/probe").queryParam("name__lte", "b"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(2));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(2));
         mvc.perform(get("/objects/probe").queryParam("name__between", "a,c"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(3));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(3));
         mvc.perform(get("/objects/probe").queryParam("name__like", "a%"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(1));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(1));
     }
 
     @Test
@@ -265,8 +295,9 @@ class ObjectQueryControllerTest {
         mvc.perform(get("/objects/missing/" + ID))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("EIS-404-001"))
-                .andExpect(jsonPath("$.message")
-                        .value(org.hamcrest.Matchers.containsString("missing")));
+                .andExpect(
+                        jsonPath("$.message")
+                                .value(org.hamcrest.Matchers.containsString("missing")));
     }
 
     @Test
@@ -302,8 +333,9 @@ class ObjectQueryControllerTest {
     void listAppliesAsOf() throws Exception {
         store.append(AppendRequest.create("probe", ID, T0, null, ACTOR, Map.of("name", "v1")));
         now.set(T0.plusSeconds(60));
-        store.append(AppendRequest.correction("probe", ID, T0.plusSeconds(60), null, ACTOR,
-                Map.of("name", "v2")));
+        store.append(
+                AppendRequest.correction(
+                        "probe", ID, T0.plusSeconds(60), null, ACTOR, Map.of("name", "v2")));
 
         mvc.perform(get("/objects/probe").queryParam("as_of", T0.plusSeconds(30).toString()))
                 .andExpect(status().isOk())
@@ -312,25 +344,32 @@ class ObjectQueryControllerTest {
     }
 
     private void seed(String name, Instant validFrom) {
-        store.append(AppendRequest.create("probe", UUID.randomUUID(), validFrom, null, ACTOR,
-                Map.of("name", name)));
+        store.append(
+                AppendRequest.create(
+                        "probe", UUID.randomUUID(), validFrom, null, ACTOR, Map.of("name", name)));
     }
 
     private void seedTwoVersions() {
-        store.append(AppendRequest.create("probe", ID, T0, T0.plusSeconds(60), ACTOR,
-                Map.of("name", "v1")));
+        store.append(
+                AppendRequest.create(
+                        "probe", ID, T0, T0.plusSeconds(60), ACTOR, Map.of("name", "v1")));
         now.set(T0.plusSeconds(60));
-        store.append(AppendRequest.correction("probe", ID, T0.plusSeconds(60), null, ACTOR,
-                Map.of("name", "v2")));
+        store.append(
+                AppendRequest.correction(
+                        "probe", ID, T0.plusSeconds(60), null, ACTOR, Map.of("name", "v2")));
     }
 
     private static ObjectModuleRegistry registry() {
         ObjectModules modules = ObjectModules.create();
         modules.object("probe", "probe_object")
                 .readPermission("probe.read")
-                .field("name", FieldType.TEXT).filterable().sortable()
-                .field("status", FieldType.TEXT).filterable()
-                .field("hire_date", FieldType.DATE).filterable();
+                .field("name", FieldType.TEXT)
+                .filterable()
+                .sortable()
+                .field("status", FieldType.TEXT)
+                .filterable()
+                .field("hire_date", FieldType.DATE)
+                .filterable();
         return modules.freeze();
     }
 }

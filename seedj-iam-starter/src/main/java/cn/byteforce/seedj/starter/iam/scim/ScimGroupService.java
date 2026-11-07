@@ -1,23 +1,19 @@
 package cn.byteforce.seedj.starter.iam.scim;
 
-
-
-import cn.byteforce.seedj.iam.scim.ScimFilterParser;
-import cn.byteforce.seedj.iam.scim.ScimPatchOperation;
-import cn.byteforce.seedj.iam.scim.ScimPatchParser;
-import cn.byteforce.seedj.iam.scim.ScimPatchPath;
-
 import cn.byteforce.seedj.iam.IamErrorCode;
 import cn.byteforce.seedj.iam.IamException;
 import cn.byteforce.seedj.iam.IamGroup;
 import cn.byteforce.seedj.iam.IamGroupQuery;
 import cn.byteforce.seedj.iam.IamPage;
-import cn.byteforce.seedj.starter.iam.IamProperties;
+import cn.byteforce.seedj.iam.scim.ScimFilterParser;
+import cn.byteforce.seedj.iam.scim.ScimPatchOperation;
+import cn.byteforce.seedj.iam.scim.ScimPatchParser;
+import cn.byteforce.seedj.iam.scim.ScimPatchPath;
 import cn.byteforce.seedj.iam.spi.IamAuthorizationRepository;
 import cn.byteforce.seedj.iam.spi.IamGroupRepository;
 import cn.byteforce.seedj.iam.spi.IamUserRepository;
 import cn.byteforce.seedj.id.IdGenerator;
-
+import cn.byteforce.seedj.starter.iam.IamProperties;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -35,9 +31,12 @@ public class ScimGroupService {
     private final IdGenerator<String> idGenerator;
     private final String basePath;
 
-    public ScimGroupService(IamGroupRepository groups, IamUserRepository users,
-                            IamProperties properties, IamAuthorizationRepository authorization,
-                            IdGenerator<String> idGenerator) {
+    public ScimGroupService(
+            IamGroupRepository groups,
+            IamUserRepository users,
+            IamProperties properties,
+            IamAuthorizationRepository authorization,
+            IdGenerator<String> idGenerator) {
         this.groups = groups;
         this.users = users;
         this.properties = properties;
@@ -47,8 +46,11 @@ public class ScimGroupService {
     }
 
     public IamGroup require(String id) {
-        return groups.findById(id).orElseThrow(
-                () -> new IamException(IamErrorCode.GROUP_NOT_FOUND, "group not found: " + id));
+        return groups.findById(id)
+                .orElseThrow(
+                        () ->
+                                new IamException(
+                                        IamErrorCode.GROUP_NOT_FOUND, "group not found: " + id));
     }
 
     public Map<String, Object> get(String id) {
@@ -62,8 +64,13 @@ public class ScimGroupService {
         }
         Set<String> members = memberIds(body.get("members"));
         validateMembers(members);
-        IamGroup group = IamGroup.create(idGenerator.id(), properties.tenantId(), displayName,
-                ScimSupport.string(body.get("externalId")), members);
+        IamGroup group =
+                IamGroup.create(
+                        idGenerator.id(),
+                        properties.tenantId(),
+                        displayName,
+                        ScimSupport.string(body.get("externalId")),
+                        members);
         IamGroup created = groups.create(group);
         authorization.bumpEpoch(properties.tenantId());
         return map(created);
@@ -76,12 +83,20 @@ public class ScimGroupService {
         if (displayName == null || displayName.isBlank()) {
             displayName = current.displayName();
         }
-        Set<String> members = body.containsKey("members") ? memberIds(body.get("members"))
-                : current.memberIds();
+        Set<String> members =
+                body.containsKey("members") ? memberIds(body.get("members")) : current.memberIds();
         validateMembers(members);
-        IamGroup updated = groups.update(new IamGroup(current.id(), current.tenantId(),
-                displayName, ScimSupport.string(body.get("externalId")), members,
-                current.version(), current.createdAt(), current.updatedAt()));
+        IamGroup updated =
+                groups.update(
+                        new IamGroup(
+                                current.id(),
+                                current.tenantId(),
+                                displayName,
+                                ScimSupport.string(body.get("externalId")),
+                                members,
+                                current.version(),
+                                current.createdAt(),
+                                current.updatedAt()));
         authorization.bumpEpoch(properties.tenantId());
         return map(updated);
     }
@@ -97,9 +112,17 @@ public class ScimGroupService {
             throw new IamException(IamErrorCode.SCIM_BAD_REQUEST, "displayName is required");
         }
         validateMembers(draft.members);
-        IamGroup updated = groups.update(new IamGroup(current.id(), current.tenantId(),
-                draft.displayName, draft.externalId, draft.members, current.version(),
-                current.createdAt(), current.updatedAt()));
+        IamGroup updated =
+                groups.update(
+                        new IamGroup(
+                                current.id(),
+                                current.tenantId(),
+                                draft.displayName,
+                                draft.externalId,
+                                draft.members,
+                                current.version(),
+                                current.createdAt(),
+                                current.updatedAt()));
         authorization.bumpEpoch(properties.tenantId());
         return map(updated);
     }
@@ -112,8 +135,13 @@ public class ScimGroupService {
     }
 
     public Map<String, Object> list(String filter, int startIndex, int count) {
-        IamPage<IamGroup> page = groups.find(new IamGroupQuery(properties.tenantId(),
-                ScimFilterParser.parse(filter), startIndex, count));
+        IamPage<IamGroup> page =
+                groups.find(
+                        new IamGroupQuery(
+                                properties.tenantId(),
+                                ScimFilterParser.parse(filter),
+                                startIndex,
+                                count));
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("schemas", List.of(ScimSupport.LIST_SCHEMA));
         response.put("totalResults", page.totalResults());
@@ -135,25 +163,33 @@ public class ScimGroupService {
         for (String userId : group.memberIds()) {
             Map<String, Object> member = new LinkedHashMap<>();
             member.put("value", userId);
-            users.findById(userId).ifPresent(user -> {
-                member.put("display", user.userName());
-                member.put("$ref", basePath + "/Users/" + user.id());
-            });
+            users.findById(userId)
+                    .ifPresent(
+                            user -> {
+                                member.put("display", user.userName());
+                                member.put("$ref", basePath + "/Users/" + user.id());
+                            });
             members.add(member);
         }
         if (!members.isEmpty()) {
             value.put("members", members);
         }
-        value.put("meta", ScimSupport.meta("Group", basePath + "/Groups/" + group.id(),
-                group.version(), group.createdAt(), group.updatedAt()));
+        value.put(
+                "meta",
+                ScimSupport.meta(
+                        "Group",
+                        basePath + "/Groups/" + group.id(),
+                        group.version(),
+                        group.createdAt(),
+                        group.updatedAt()));
         return value;
     }
 
     private void validateMembers(Set<String> members) {
         for (String memberId : members) {
             if (users.findById(memberId).isEmpty()) {
-                throw new IamException(IamErrorCode.SCIM_BAD_REQUEST,
-                        "member does not exist: " + memberId);
+                throw new IamException(
+                        IamErrorCode.SCIM_BAD_REQUEST, "member does not exist: " + memberId);
             }
         }
     }
@@ -204,7 +240,8 @@ public class ScimGroupService {
                     }
                     return;
                 }
-                throw new IamException(IamErrorCode.SCIM_PATCH_INVALID,
+                throw new IamException(
+                        IamErrorCode.SCIM_PATCH_INVALID,
                         "PATCH without path requires an object value");
             }
             ScimPatchPath path;
@@ -219,7 +256,8 @@ public class ScimGroupService {
             if (path.valueFilter() != null) {
                 String memberId = filterValue(path.valueFilter());
                 if (memberId == null) {
-                    throw new IamException(IamErrorCode.SCIM_PATCH_INVALID,
+                    throw new IamException(
+                            IamErrorCode.SCIM_PATCH_INVALID,
                             "members path filter must be value eq \"id\"");
                 }
                 if ("remove".equals(operation.op())) {
@@ -235,13 +273,16 @@ public class ScimGroupService {
             switch (path.attribute()) {
                 case "displayName" -> {
                     if ("remove".equals(operation.op())) {
-                        throw new IamException(IamErrorCode.SCIM_PATCH_INVALID,
-                                "displayName cannot be removed");
+                        throw new IamException(
+                                IamErrorCode.SCIM_PATCH_INVALID, "displayName cannot be removed");
                     }
                     displayName = ScimSupport.string(operation.value());
                 }
-                case "externalId" -> externalId = "remove".equals(operation.op()) ? null
-                        : ScimSupport.string(operation.value());
+                case "externalId" ->
+                        externalId =
+                                "remove".equals(operation.op())
+                                        ? null
+                                        : ScimSupport.string(operation.value());
                 case "members" -> {
                     if ("remove".equals(operation.op())) {
                         members.clear();
@@ -251,8 +292,10 @@ public class ScimGroupService {
                         members.addAll(memberIds(operation.value()));
                     }
                 }
-                default -> throw new IamException(IamErrorCode.SCIM_PATCH_INVALID,
-                        "unsupported PATCH path: " + path.attribute());
+                default ->
+                        throw new IamException(
+                                IamErrorCode.SCIM_PATCH_INVALID,
+                                "unsupported PATCH path: " + path.attribute());
             }
         }
 

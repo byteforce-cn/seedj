@@ -3,19 +3,18 @@ package cn.byteforce.seedj.starter.iam.identity;
 import cn.byteforce.seedj.iam.IamPermission;
 import cn.byteforce.seedj.iam.IamRole;
 import cn.byteforce.seedj.iam.IamUser;
-import cn.byteforce.seedj.starter.iam.IamProperties;
 import cn.byteforce.seedj.iam.spi.IamAuthorizationRepository;
 import cn.byteforce.seedj.iam.spi.IamUserRepository;
 import cn.byteforce.seedj.id.IdGenerator;
+import cn.byteforce.seedj.starter.iam.IamProperties;
+import java.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.SmartInitializingSingleton;
 
-import java.time.Instant;
-
 /**
- * Creates the first administrator exactly once. It never logs or returns the
- * configured password, and it only runs when both bootstrap fields are present.
+ * Creates the first administrator exactly once. It never logs or returns the configured password,
+ * and it only runs when both bootstrap fields are present.
  */
 public class IamBootstrapRunner implements SmartInitializingSingleton {
 
@@ -29,9 +28,12 @@ public class IamBootstrapRunner implements SmartInitializingSingleton {
     private final IamIdentityService identities;
     private final IdGenerator<String> idGenerator;
 
-    public IamBootstrapRunner(IamProperties.Admin properties, IamUserRepository users,
-                              IamAuthorizationRepository authorization,
-                              IamIdentityService identities, IdGenerator<String> idGenerator) {
+    public IamBootstrapRunner(
+            IamProperties.Admin properties,
+            IamUserRepository users,
+            IamAuthorizationRepository authorization,
+            IamIdentityService identities,
+            IdGenerator<String> idGenerator) {
         this.properties = properties;
         this.users = users;
         this.authorization = authorization;
@@ -51,17 +53,34 @@ public class IamBootstrapRunner implements SmartInitializingSingleton {
         }
         String tenantId = properties.tenantId();
 
-        IamRole role = authorization.findRoleByCode(tenantId, ADMIN_ROLE).orElseGet(() ->
-                authorization.createRole(IamRole.create(idGenerator.id(), tenantId, ADMIN_ROLE, "IAM administrator",
-                        "Built-in IAM administrator", null, true)));
-        authorization.savePermission(IamPermission.of(tenantId, "iam", "admin",
-                "Manage IAM users, roles, policies, and MFA"));
+        IamRole role =
+                authorization
+                        .findRoleByCode(tenantId, ADMIN_ROLE)
+                        .orElseGet(
+                                () ->
+                                        authorization.createRole(
+                                                IamRole.create(
+                                                        idGenerator.id(),
+                                                        tenantId,
+                                                        ADMIN_ROLE,
+                                                        "IAM administrator",
+                                                        "Built-in IAM administrator",
+                                                        null,
+                                                        true)));
+        authorization.savePermission(
+                IamPermission.of(
+                        tenantId, "iam", "admin", "Manage IAM users, roles, policies, and MFA"));
         authorization.grantPermission(role.id(), ADMIN_PERMISSION);
 
         IamUser user = users.findByUserName(tenantId, username).orElse(null);
         if (user == null) {
-            user = identities.createUser(tenantId, username, properties.bootstrapPassword(),
-                    "IAM administrator", null);
+            user =
+                    identities.createUser(
+                            tenantId,
+                            username,
+                            properties.bootstrapPassword(),
+                            "IAM administrator",
+                            null);
             log.info("bootstrapped IAM administrator '{}'", username);
         }
         authorization.assignRoleToUser(user.id(), role.id(), Instant.now(), "bootstrap");

@@ -32,8 +32,9 @@ class PgClockMigrationTest {
 
     @BeforeAll
     static void initialize() {
-        dataSource = new DriverManagerDataSource(
-                POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
+        dataSource =
+                new DriverManagerDataSource(
+                        POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
         runner = new JdbcMigrationRunner(dataSource);
         runner.migrate("clock", ClockMigrations.all());
         jdbc = new JdbcTemplate(dataSource);
@@ -42,11 +43,11 @@ class PgClockMigrationTest {
     @Test
     @DisplayName("迁移创建 HLC 状态表与全局序列")
     void createsSchema() {
-        assertThat(jdbc.queryForObject(
-                "SELECT to_regclass('public.sys_hybrid_state')", String.class))
+        assertThat(
+                        jdbc.queryForObject(
+                                "SELECT to_regclass('public.sys_hybrid_state')", String.class))
                 .isEqualTo("sys_hybrid_state");
-        assertThat(jdbc.queryForObject(
-                "SELECT to_regclass('public.sys_global_seq')", String.class))
+        assertThat(jdbc.queryForObject("SELECT to_regclass('public.sys_global_seq')", String.class))
                 .isEqualTo("sys_global_seq");
         assertThat(runner.isUpToDate("clock", ClockMigrations.all())).isTrue();
     }

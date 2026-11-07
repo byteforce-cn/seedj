@@ -1,22 +1,19 @@
 package cn.byteforce.seedj.iam.policy;
 
-import cn.byteforce.seedj.iam.PolicyOperand;
-import cn.byteforce.seedj.iam.PolicyComparisonOperator;
-
-import cn.byteforce.seedj.iam.PolicyCondition;
-
 import cn.byteforce.seedj.core.security.SecurityAuditEvent;
+import cn.byteforce.seedj.core.security.SecurityAuditSink;
 import cn.byteforce.seedj.iam.IamAuthorizationDecision;
 import cn.byteforce.seedj.iam.IamAuthorizationRequest;
 import cn.byteforce.seedj.iam.IamPolicy;
 import cn.byteforce.seedj.iam.IamPolicyEffect;
 import cn.byteforce.seedj.iam.IamSubject;
-import cn.byteforce.seedj.core.security.SecurityAuditSink;
+import cn.byteforce.seedj.iam.PolicyComparisonOperator;
+import cn.byteforce.seedj.iam.PolicyCondition;
+import cn.byteforce.seedj.iam.PolicyOperand;
 import cn.byteforce.seedj.iam.spi.IamPolicyDecisionPoint;
 import cn.byteforce.seedj.iam.spi.IamPolicyRepository;
 import cn.byteforce.seedj.iam.spi.IamResourceAttributeResolver;
 import cn.byteforce.seedj.id.IdGenerator;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -26,9 +23,9 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Default PDP: DENY wins, no matching ALLOW means deny, and policies are evaluated
- * highest priority first. It only understands the typed {@link PolicyCondition}
- * AST; richer policy engines plug in as another {@link IamPolicyDecisionPoint}.
+ * Default PDP: DENY wins, no matching ALLOW means deny, and policies are evaluated highest priority
+ * first. It only understands the typed {@link PolicyCondition} AST; richer policy engines plug in
+ * as another {@link IamPolicyDecisionPoint}.
  */
 public class DefaultIamPolicyDecisionPoint implements IamPolicyDecisionPoint {
 
@@ -37,10 +34,11 @@ public class DefaultIamPolicyDecisionPoint implements IamPolicyDecisionPoint {
     private final SecurityAuditSink auditSink;
     private final IdGenerator<String> idGenerator;
 
-    public DefaultIamPolicyDecisionPoint(IamPolicyRepository policies,
-                                         List<IamResourceAttributeResolver> resolvers,
-                                         SecurityAuditSink auditSink,
-                                         IdGenerator<String> idGenerator) {
+    public DefaultIamPolicyDecisionPoint(
+            IamPolicyRepository policies,
+            List<IamResourceAttributeResolver> resolvers,
+            SecurityAuditSink auditSink,
+            IdGenerator<String> idGenerator) {
         this.policies = Objects.requireNonNull(policies, "policies");
         this.resolvers = resolvers == null ? List.of() : List.copyOf(resolvers);
         this.auditSink = auditSink;
@@ -52,15 +50,19 @@ public class DefaultIamPolicyDecisionPoint implements IamPolicyDecisionPoint {
         Map<String, Object> resourceAttributes = resolveResource(request);
         IamAuthorizationRequest resolved = request.withResourceAttributes(resourceAttributes);
 
-        List<IamPolicy> ordered = new ArrayList<>(policies.findEnabled(request.subject().tenantId()));
+        List<IamPolicy> ordered =
+                new ArrayList<>(policies.findEnabled(request.subject().tenantId()));
         ordered.sort(Comparator.comparingInt(IamPolicy::priority).reversed());
         String deniedBy = null;
         String allowedBy = null;
 
         for (IamPolicy policy : ordered) {
-            boolean resourceMatches = matches(policy.resources(), request.resourceType())
-                    || matches(policy.resources(), request.resourceType() + ":" + request.resourceId())
-                    || matches(policy.resources(), request.resourceId());
+            boolean resourceMatches =
+                    matches(policy.resources(), request.resourceType())
+                            || matches(
+                                    policy.resources(),
+                                    request.resourceType() + ":" + request.resourceId())
+                            || matches(policy.resources(), request.resourceId());
             if (!matches(policy.actions(), request.action()) || !resourceMatches) {
                 continue;
             }
@@ -94,8 +96,9 @@ public class DefaultIamPolicyDecisionPoint implements IamPolicyDecisionPoint {
         attributes.put("id", request.resourceId());
         for (IamResourceAttributeResolver resolver : resolvers) {
             if (resolver.supports(request.resourceType())) {
-                Map<String, Object> resolved = resolver.resolve(
-                        request.resourceType(), request.resourceId(), request.subject());
+                Map<String, Object> resolved =
+                        resolver.resolve(
+                                request.resourceType(), request.resourceId(), request.subject());
                 if (resolved != null) {
                     attributes.putAll(resolved);
                 }
@@ -138,17 +141,18 @@ public class DefaultIamPolicyDecisionPoint implements IamPolicyDecisionPoint {
             case ACTION -> request.action();
             case RESOURCE -> request.resourceAttributes().get(operand.path());
             case ENVIRONMENT -> request.environment().get(operand.path());
-            case SUBJECT -> switch (operand.path()) {
-                case "userId", "sub" -> subject.userId();
-                case "username" -> subject.username();
-                case "tenantId", "tenant_id" -> subject.tenantId();
-                case "roles" -> subject.roles();
-                case "permissions" -> subject.permissions();
-                case "groups" -> subject.groups();
-                case "amr" -> subject.amr();
-                case "acr" -> subject.acr();
-                default -> subject.attributes().get(operand.path());
-            };
+            case SUBJECT ->
+                    switch (operand.path()) {
+                        case "userId", "sub" -> subject.userId();
+                        case "username" -> subject.username();
+                        case "tenantId", "tenant_id" -> subject.tenantId();
+                        case "roles" -> subject.roles();
+                        case "permissions" -> subject.permissions();
+                        case "groups" -> subject.groups();
+                        case "amr" -> subject.amr();
+                        case "acr" -> subject.acr();
+                        default -> subject.attributes().get(operand.path());
+                    };
         };
     }
 
@@ -173,13 +177,19 @@ public class DefaultIamPolicyDecisionPoint implements IamPolicyDecisionPoint {
             if (left instanceof Collection<?> collection) {
                 return collection.stream().anyMatch(candidate -> equal(candidate, right));
             }
-            return left != null && right != null && String.valueOf(left).contains(String.valueOf(right));
+            return left != null
+                    && right != null
+                    && String.valueOf(left).contains(String.valueOf(right));
         }
         if (operator == PolicyComparisonOperator.STARTS_WITH) {
-            return left != null && right != null && String.valueOf(left).startsWith(String.valueOf(right));
+            return left != null
+                    && right != null
+                    && String.valueOf(left).startsWith(String.valueOf(right));
         }
         if (operator == PolicyComparisonOperator.ENDS_WITH) {
-            return left != null && right != null && String.valueOf(left).endsWith(String.valueOf(right));
+            return left != null
+                    && right != null
+                    && String.valueOf(left).endsWith(String.valueOf(right));
         }
         if (left == null || right == null) {
             return false;
@@ -223,11 +233,18 @@ public class DefaultIamPolicyDecisionPoint implements IamPolicyDecisionPoint {
             return;
         }
         try {
-            auditSink.record(new SecurityAuditEvent(idGenerator.id(), request.subject().tenantId(),
-                    request.subject().userId(), "abac." + request.action(),
-                    request.resourceType(), request.resourceId(), outcome,
-                    policyId == null ? "no matching policy" : "policy " + policyId,
-                    java.time.Instant.now(), Map.of("action", request.action())));
+            auditSink.record(
+                    new SecurityAuditEvent(
+                            idGenerator.id(),
+                            request.subject().tenantId(),
+                            request.subject().userId(),
+                            "abac." + request.action(),
+                            request.resourceType(),
+                            request.resourceId(),
+                            outcome,
+                            policyId == null ? "no matching policy" : "policy " + policyId,
+                            java.time.Instant.now(),
+                            Map.of("action", request.action())));
         } catch (RuntimeException ignored) {
             // auditing must never change the authorization outcome
         }
@@ -238,7 +255,8 @@ public class DefaultIamPolicyDecisionPoint implements IamPolicyDecisionPoint {
             if (pattern.equals("*") || pattern.equals(value)) {
                 return true;
             }
-            if (pattern.endsWith("*") && value.startsWith(pattern.substring(0, pattern.length() - 1))) {
+            if (pattern.endsWith("*")
+                    && value.startsWith(pattern.substring(0, pattern.length() - 1))) {
                 return true;
             }
         }

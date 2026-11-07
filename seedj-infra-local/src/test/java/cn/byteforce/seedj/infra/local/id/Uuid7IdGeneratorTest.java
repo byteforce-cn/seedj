@@ -1,18 +1,16 @@
 package cn.byteforce.seedj.infra.local.id;
 
-import cn.byteforce.seedj.core.clock.TestClock;
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import cn.byteforce.seedj.core.clock.TestClock;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
+import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-/**
- * UUIDv7 生成器：版本/变体、唯一性、单调性、时钟编码。
- */
+/** UUIDv7 生成器：版本/变体、唯一性、单调性、时钟编码。 */
 class Uuid7IdGeneratorTest {
 
     private final TestClock clock = new TestClock(Instant.parse("2026-10-08T09:00:00Z"));
@@ -24,6 +22,16 @@ class Uuid7IdGeneratorTest {
         UUID id = generator.id();
         assertThat(id.version()).isEqualTo(7);
         assertThat(id.variant()).isEqualTo(2);
+    }
+
+    @Test
+    void rejectsClockBeforeUnixEpoch() {
+        Uuid7IdGenerator beforeEpoch =
+                new Uuid7IdGenerator(new TestClock(Instant.parse("1969-12-31T23:59:59Z")));
+
+        assertThatThrownBy(beforeEpoch::id)
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("before unix epoch");
     }
 
     @Test

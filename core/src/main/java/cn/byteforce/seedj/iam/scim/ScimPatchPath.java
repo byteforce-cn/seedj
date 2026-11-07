@@ -3,8 +3,8 @@ package cn.byteforce.seedj.iam.scim;
 import cn.byteforce.seedj.iam.ScimFilter;
 
 /**
- * Parsed PATCH path. Supports {@code attr}, {@code attr.sub}, and the SCIM
- * multi-valued form {@code members[value eq "id"]}.
+ * Parsed PATCH path. Supports {@code attr}, {@code attr.sub}, and the SCIM multi-valued form {@code
+ * members[value eq "id"]}.
  */
 public record ScimPatchPath(String attribute, ScimFilter valueFilter) {
 

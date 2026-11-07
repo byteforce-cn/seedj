@@ -1,7 +1,6 @@
 package cn.byteforce.seedj.infra.jdbc.lock;
 
 import cn.byteforce.seedj.core.Migration;
-
 import java.util.List;
 
 /**
@@ -20,7 +19,11 @@ public final class PostgresLockMigrations {
      * @return 迁移列表
      */
     public static List<Migration> all() {
-        return List.of(new Migration(1, "create lock lease table", """
+        return List.of(
+                new Migration(
+                        1,
+                        "create lock lease table",
+                        """
                 CREATE TABLE seedj_lock_lease (
                     lock_key   VARCHAR(255) PRIMARY KEY,
                     owner      UUID         NOT NULL,

@@ -14,9 +14,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/**
- * 视图映射：元结构、snake_case、类型转换与失败语义。
- */
+/** 视图映射：元结构、snake_case、类型转换与失败语义。 */
 class ViewMapperTest {
 
     private static final Instant NOW = Instant.parse("2026-11-06T09:00:00Z");
@@ -51,8 +49,10 @@ class ViewMapperTest {
     @Test
     @DisplayName("字段名已经是 camelCase 时直接命中，不再下钻 snake_case")
     void camelCaseFieldWins() {
-        TemporalRow row = row(new LinkedHashMap<>(Map.of(
-                "employeeNo", "E-direct", "employee_no", "E-snake")));
+        TemporalRow row =
+                row(
+                        new LinkedHashMap<>(
+                                Map.of("employeeNo", "E-direct", "employee_no", "E-snake")));
 
         SimpleView view = (SimpleView) mapper.map(row, SimpleView.class);
 
@@ -91,8 +91,7 @@ class ViewMapperTest {
         assertThat(view.active()).isTrue();
         assertThat(view.joined()).isEqualTo(LocalDate.parse("2026-10-01"));
         assertThat(view.seenAt()).isEqualTo(Instant.parse("2026-10-01T00:00:00Z"));
-        assertThat(view.owner()).isEqualTo(
-                UUID.fromString("018f2e3a-0000-7000-8000-000000000003"));
+        assertThat(view.owner()).isEqualTo(UUID.fromString("018f2e3a-0000-7000-8000-000000000003"));
         assertThat(view.label()).isEqualTo("42");
     }
 
@@ -133,44 +132,63 @@ class ViewMapperTest {
     }
 
     private static TemporalRow row(Map<String, Object> fields) {
-        return new TemporalRow("employee",
-                new ObjectVersion(ID, 7, NOW, NOW.plusSeconds(3600), NOW,
-                        NOW.plusSeconds(7200), ACTOR, NOW, ACTOR, NOW.plusSeconds(60)),
+        return new TemporalRow(
+                "employee",
+                new ObjectVersion(
+                        ID,
+                        7,
+                        NOW,
+                        NOW.plusSeconds(3600),
+                        NOW,
+                        NOW.plusSeconds(7200),
+                        ACTOR,
+                        NOW,
+                        ACTOR,
+                        NOW.plusSeconds(60)),
                 fields);
     }
 
     /** 全字段视图。 */
-    record FullView(UUID id, long version, Instant validFrom, Instant validTo,
-                    Instant recordedAt, Instant supersededAt, UUID createdBy, Instant createdAt,
-                    UUID updatedBy, Instant updatedAt, String employeeNo, String name) {
-    }
+    record FullView(
+            UUID id,
+            long version,
+            Instant validFrom,
+            Instant validTo,
+            Instant recordedAt,
+            Instant supersededAt,
+            UUID createdBy,
+            Instant createdAt,
+            UUID updatedBy,
+            Instant updatedAt,
+            String employeeNo,
+            String name) {}
 
     /** 最小视图。 */
-    record SimpleView(String employeeNo) {
-    }
+    record SimpleView(String employeeNo) {}
 
     /** 可空字段。 */
-    record NullableView(String name) {
-    }
+    record NullableView(String name) {}
 
     /** primitive 缺值。 */
-    record PrimitiveView(int count) {
-    }
+    record PrimitiveView(int count) {}
 
     /** 转换目标。 */
-    record ConvertedView(int countInt, long countLong, BigDecimal amount, boolean active,
-                         LocalDate joined, Instant seenAt, UUID owner, String label) {
-    }
+    record ConvertedView(
+            int countInt,
+            long countLong,
+            BigDecimal amount,
+            boolean active,
+            LocalDate joined,
+            Instant seenAt,
+            UUID owner,
+            String label) {}
 
     /** 数字转换目标。 */
-    record NumericView(int countInt, long countLong, BigDecimal amount) {
-    }
+    record NumericView(int countInt, long countLong, BigDecimal amount) {}
 
     /** 非 record。 */
-    static final class NotARecord {
-    }
+    static final class NotARecord {}
 
     /** 不支持的目标类型。 */
-    record UnsupportedView(double value) {
-    }
+    record UnsupportedView(double value) {}
 }

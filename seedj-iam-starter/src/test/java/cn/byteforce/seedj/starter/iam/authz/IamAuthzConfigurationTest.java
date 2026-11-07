@@ -1,5 +1,8 @@
 package cn.byteforce.seedj.starter.iam.authz;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+
 import cn.byteforce.seedj.core.security.CallerProvider;
 import cn.byteforce.seedj.iam.IamRole;
 import cn.byteforce.seedj.iam.authz.IamBindingStore;
@@ -16,38 +19,39 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
-
 /** 授权契约装配：存储 provider 推断、条件属性与关闭开关。 */
 class IamAuthzConfigurationTest {
 
-    private final ApplicationContextRunner runner = new ApplicationContextRunner()
-            .withUserConfiguration(IamAuthzConfiguration.class, BaseConfiguration.class);
+    private final ApplicationContextRunner runner =
+            new ApplicationContextRunner()
+                    .withUserConfiguration(IamAuthzConfiguration.class, BaseConfiguration.class);
 
     @Test
     @DisplayName("默认装配内存绑定存储与契约服务 bean")
     void defaultsToMemoryStore() {
-        runner.run(context -> {
-            assertThat(context).hasNotFailed();
-            assertThat(context.getBean(IamBindingStore.class))
-                    .isInstanceOf(InMemoryIamBindingStore.class);
-            assertThat(context).hasSingleBean(IamContractAuthorizationService.class);
-            assertThat(context).hasSingleBean(IamAuthorizationController.class);
-            assertThat(context).hasSingleBean(CallerProvider.class);
-            assertThat(context.getBean(SodRuleSet.class).rules()).isNotEmpty();
-            assertThat(context.getBean(AuthzProperties.class).enabled()).isTrue();
-        });
+        runner.run(
+                context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context.getBean(IamBindingStore.class))
+                            .isInstanceOf(InMemoryIamBindingStore.class);
+                    assertThat(context).hasSingleBean(IamContractAuthorizationService.class);
+                    assertThat(context).hasSingleBean(IamAuthorizationController.class);
+                    assertThat(context).hasSingleBean(CallerProvider.class);
+                    assertThat(context.getBean(SodRuleSet.class).rules()).isNotEmpty();
+                    assertThat(context.getBean(AuthzProperties.class).enabled()).isTrue();
+                });
     }
 
     @Test
     @DisplayName("seedj.authz.provider=memory 显式选择内存实现")
     void explicitMemoryProvider() {
-        runner.withPropertyValues("seedj.authz.provider=memory").run(context -> {
-            assertThat(context).hasNotFailed();
-            assertThat(context.getBean(IamBindingStore.class))
-                    .isInstanceOf(InMemoryIamBindingStore.class);
-        });
+        runner.withPropertyValues("seedj.authz.provider=memory")
+                .run(
+                        context -> {
+                            assertThat(context).hasNotFailed();
+                            assertThat(context.getBean(IamBindingStore.class))
+                                    .isInstanceOf(InMemoryIamBindingStore.class);
+                        });
     }
 
     @Test
@@ -55,45 +59,52 @@ class IamAuthzConfigurationTest {
     void jdbcStoreInfersPostgresProvider() {
         new ApplicationContextRunner()
                 .withUserConfiguration(IamAuthzConfiguration.class, JdbcConfiguration.class)
-                .run(context -> {
-                    assertThat(context).hasNotFailed();
-                    assertThat(context.getBean(IamBindingStore.class))
-                            .isInstanceOf(JdbcIamBindingStore.class);
-                });
+                .run(
+                        context -> {
+                            assertThat(context).hasNotFailed();
+                            assertThat(context.getBean(IamBindingStore.class))
+                                    .isInstanceOf(JdbcIamBindingStore.class);
+                        });
     }
 
     @Test
     @DisplayName("provider=postgres 但缺少 JdbcTemplate 时启动失败")
     void postgresWithoutJdbcTemplateFails() {
-        runner.withPropertyValues("seedj.authz.provider=postgres").run(context -> {
-            assertThat(context).hasFailed();
-            assertThat(context.getStartupFailure())
-                    .rootCause()
-                    .isInstanceOf(IllegalStateException.class)
-                    .hasMessageContaining("requires a DataSource/JdbcTemplate");
-        });
+        runner.withPropertyValues("seedj.authz.provider=postgres")
+                .run(
+                        context -> {
+                            assertThat(context).hasFailed();
+                            assertThat(context.getStartupFailure())
+                                    .rootCause()
+                                    .isInstanceOf(IllegalStateException.class)
+                                    .hasMessageContaining("requires a DataSource/JdbcTemplate");
+                        });
     }
 
     @Test
     @DisplayName("未知 provider 启动失败")
     void unknownProviderFails() {
-        runner.withPropertyValues("seedj.authz.provider=redis").run(context -> {
-            assertThat(context).hasFailed();
-            assertThat(context.getStartupFailure())
-                    .rootCause()
-                    .isInstanceOf(IllegalStateException.class)
-                    .hasMessageContaining("unknown seedj.authz.provider: redis");
-        });
+        runner.withPropertyValues("seedj.authz.provider=redis")
+                .run(
+                        context -> {
+                            assertThat(context).hasFailed();
+                            assertThat(context.getStartupFailure())
+                                    .rootCause()
+                                    .isInstanceOf(IllegalStateException.class)
+                                    .hasMessageContaining("unknown seedj.authz.provider: redis");
+                        });
     }
 
     @Test
     @DisplayName("seedj.authz.enabled=false 关闭整个装配")
     void disabledSwitchBacksOff() {
-        runner.withPropertyValues("seedj.authz.enabled=false").run(context -> {
-            assertThat(context).hasNotFailed();
-            assertThat(context).doesNotHaveBean(IamBindingStore.class);
-            assertThat(context).doesNotHaveBean(IamAuthorizationController.class);
-        });
+        runner.withPropertyValues("seedj.authz.enabled=false")
+                .run(
+                        context -> {
+                            assertThat(context).hasNotFailed();
+                            assertThat(context).doesNotHaveBean(IamBindingStore.class);
+                            assertThat(context).doesNotHaveBean(IamAuthorizationController.class);
+                        });
     }
 
     @Test
@@ -101,10 +112,12 @@ class IamAuthzConfigurationTest {
     void customBindingStoreWins() {
         InMemoryIamBindingStore custom = new InMemoryIamBindingStore();
 
-        runner.withBean(IamBindingStore.class, () -> custom).run(context -> {
-            assertThat(context).hasNotFailed();
-            assertThat(context.getBean(IamBindingStore.class)).isSameAs(custom);
-        });
+        runner.withBean(IamBindingStore.class, () -> custom)
+                .run(
+                        context -> {
+                            assertThat(context).hasNotFailed();
+                            assertThat(context.getBean(IamBindingStore.class)).isSameAs(custom);
+                        });
     }
 
     @Test
@@ -128,8 +141,8 @@ class IamAuthzConfigurationTest {
         IamAuthorizationRepository iamAuthorizationRepository() {
             InMemoryIamAuthorizationRepository repository =
                     new InMemoryIamAuthorizationRepository();
-            repository.createRole(IamRole.create("r-1", "default", "approver", "审批人", "",
-                    null, false));
+            repository.createRole(
+                    IamRole.create("r-1", "default", "approver", "审批人", "", null, false));
             return repository;
         }
     }
@@ -139,8 +152,22 @@ class IamAuthzConfigurationTest {
 
         @Bean
         IamProperties iamProperties() {
-            return new IamProperties(null, null, "default", IamProperties.Store.JDBC, null,
-                    null, null, null, null, null, null, null, null, null, null);
+            return new IamProperties(
+                    null,
+                    null,
+                    "default",
+                    IamProperties.Store.JDBC,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null);
         }
 
         @Bean

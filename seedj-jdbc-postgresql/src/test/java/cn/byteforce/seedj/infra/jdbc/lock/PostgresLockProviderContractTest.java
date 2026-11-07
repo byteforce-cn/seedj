@@ -37,8 +37,9 @@ class PostgresLockProviderContractTest extends cn.byteforce.seedj.lock.LockProvi
 
     @BeforeAll
     static void initialize() {
-        DriverManagerDataSource dataSource = new DriverManagerDataSource(
-                POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
+        DriverManagerDataSource dataSource =
+                new DriverManagerDataSource(
+                        POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
         jdbc = new JdbcTemplate(dataSource);
         new PostgresLockSchemaCapability(new JdbcMigrationRunner(dataSource)).initialize();
     }
@@ -61,18 +62,23 @@ class PostgresLockProviderContractTest extends cn.byteforce.seedj.lock.LockProvi
         CountDownLatch start = new CountDownLatch(1);
         ExecutorService pool = Executors.newFixedThreadPool(2);
         try {
-            Future<Optional<LockLease>> a = pool.submit(() -> {
-                start.await(5, TimeUnit.SECONDS);
-                return first.tryAcquire("order:race", Duration.ofSeconds(30));
-            });
-            Future<Optional<LockLease>> b = pool.submit(() -> {
-                start.await(5, TimeUnit.SECONDS);
-                return second.tryAcquire("order:race", Duration.ofSeconds(30));
-            });
+            Future<Optional<LockLease>> a =
+                    pool.submit(
+                            () -> {
+                                start.await(5, TimeUnit.SECONDS);
+                                return first.tryAcquire("order:race", Duration.ofSeconds(30));
+                            });
+            Future<Optional<LockLease>> b =
+                    pool.submit(
+                            () -> {
+                                start.await(5, TimeUnit.SECONDS);
+                                return second.tryAcquire("order:race", Duration.ofSeconds(30));
+                            });
             start.countDown();
 
-            long winners = (a.get(30, TimeUnit.SECONDS).isPresent() ? 1 : 0)
-                    + (b.get(30, TimeUnit.SECONDS).isPresent() ? 1 : 0);
+            long winners =
+                    (a.get(30, TimeUnit.SECONDS).isPresent() ? 1 : 0)
+                            + (b.get(30, TimeUnit.SECONDS).isPresent() ? 1 : 0);
             assertThat(winners).isEqualTo(1);
         } finally {
             pool.shutdownNow();

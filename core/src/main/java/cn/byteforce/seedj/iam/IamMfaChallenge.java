@@ -3,8 +3,8 @@ package cn.byteforce.seedj.iam;
 import java.time.Instant;
 
 /**
- * Short-lived native-auth MFA challenge. The opaque token is never stored; only
- * its SHA-256 hash is.
+ * Short-lived native-auth MFA challenge. The opaque token is never stored; only its SHA-256 hash
+ * is.
  */
 public record IamMfaChallenge(
         String id,
@@ -37,13 +37,21 @@ public record IamMfaChallenge(
     }
 
     public IamMfaChallenge withAttempt() {
-        return new IamMfaChallenge(id, userId, clientId, deviceId, tokenHash, expiresAt,
-                consumed, attempts + 1, maxAttempts);
+        return new IamMfaChallenge(
+                id,
+                userId,
+                clientId,
+                deviceId,
+                tokenHash,
+                expiresAt,
+                consumed,
+                attempts + 1,
+                maxAttempts);
     }
 
     public IamMfaChallenge markConsumed() {
-        return new IamMfaChallenge(id, userId, clientId, deviceId, tokenHash, expiresAt,
-                true, attempts, maxAttempts);
+        return new IamMfaChallenge(
+                id, userId, clientId, deviceId, tokenHash, expiresAt, true, attempts, maxAttempts);
     }
 
     private static String requireText(String value, String name) {

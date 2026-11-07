@@ -1,25 +1,21 @@
 package cn.byteforce.seedj.starter.audit;
 
 import cn.byteforce.seedj.audit.Audited;
-
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * {@code @Audited} 的解析与缺省推导。反射结果按命令类缓存。
- */
+/** {@code @Audited} 的解析与缺省推导。反射结果按命令类缓存。 */
 final class AuditedCommands {
 
     private static final Map<Class<?>, Optional<Audited>> CACHE = new ConcurrentHashMap<>();
 
-    private AuditedCommands() {
-    }
+    private AuditedCommands() {}
 
     static Optional<Audited> find(Class<?> commandType) {
-        return CACHE.computeIfAbsent(commandType,
-                type -> Optional.ofNullable(type.getAnnotation(Audited.class)));
+        return CACHE.computeIfAbsent(
+                commandType, type -> Optional.ofNullable(type.getAnnotation(Audited.class)));
     }
 
     static String resourceType(Audited audited, Class<?> commandType) {

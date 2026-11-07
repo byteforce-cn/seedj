@@ -24,15 +24,20 @@ public final class HrEmployeeModule implements ObjectModuleConfigurer {
     public void configure(ObjectModules modules) {
         modules.object("hr_employee", "hr_employee")
                 .readPermission("hr.employee.read")
-                .field("employee_no", FieldType.TEXT).required()
-                .field("name", FieldType.TEXT).required()
-                .field("department", FieldType.TEXT).required()
-                .field("position", FieldType.TEXT).required()
-                .field("hire_date", FieldType.DATE).required()
+                .field("employee_no", FieldType.TEXT)
+                .required()
+                .field("name", FieldType.TEXT)
+                .required()
+                .field("department", FieldType.TEXT)
+                .required()
+                .field("position", FieldType.TEXT)
+                .required()
+                .field("hire_date", FieldType.DATE)
+                .required()
                 .command("hr.employee.onboard", OnboardEmployeeCommand.class)
-                    .permission("hr.employee.write")
-                    .agent(onboarding)
-                    .commandField("employee_id")
-                    .emits("hr.employee.onboarded");
+                .permission("hr.employee.write")
+                .agent(onboarding)
+                .commandField("employee_id")
+                .emits("hr.employee.onboarded");
     }
 }

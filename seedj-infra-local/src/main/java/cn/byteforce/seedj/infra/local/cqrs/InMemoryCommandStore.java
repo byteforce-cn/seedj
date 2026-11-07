@@ -3,7 +3,6 @@ package cn.byteforce.seedj.infra.local.cqrs;
 import cn.byteforce.seedj.cqrs.CommandRecord;
 import cn.byteforce.seedj.cqrs.CommandStatus;
 import cn.byteforce.seedj.cqrs.spi.CommandStore;
-
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
@@ -13,8 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * 内存命令存储（单进程，不跨服务共享）。
  *
- * <p>{@code insert}/{@code complete} 在同一个对象锁内完成“检查 + 写入”，
- * 保证幂等键唯一与终态不可覆盖；{@code find} 无锁读取不可变记录。</p>
+ * <p>{@code insert}/{@code complete} 在同一个对象锁内完成“检查 + 写入”， 保证幂等键唯一与终态不可覆盖；{@code find} 无锁读取不可变记录。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -60,8 +58,12 @@ public final class InMemoryCommandStore implements CommandStore {
             return;
         }
         if (existing.status() != CommandStatus.PENDING) {
-            throw new IllegalStateException("command record already completed: "
-                    + record.id() + " (" + existing.status().wireName() + ")");
+            throw new IllegalStateException(
+                    "command record already completed: "
+                            + record.id()
+                            + " ("
+                            + existing.status().wireName()
+                            + ")");
         }
         if (!record.isTerminal()) {
             throw new IllegalStateException("complete requires a terminal record: " + record.id());
@@ -86,13 +88,14 @@ public final class InMemoryCommandStore implements CommandStore {
     @Override
     public synchronized long expirePending(Instant now) {
         java.util.List<UUID> expired = new java.util.ArrayList<>();
-        byId.forEach((id, record) -> {
-            if (record.status() == CommandStatus.PENDING
-                    && record.leaseUntil() != null
-                    && record.leaseUntil().isBefore(now)) {
-                expired.add(id);
-            }
-        });
+        byId.forEach(
+                (id, record) -> {
+                    if (record.status() == CommandStatus.PENDING
+                            && record.leaseUntil() != null
+                            && record.leaseUntil().isBefore(now)) {
+                        expired.add(id);
+                    }
+                });
         for (UUID id : expired) {
             CommandRecord record = byId.remove(id);
             if (record != null) {
@@ -102,9 +105,7 @@ public final class InMemoryCommandStore implements CommandStore {
         return expired.size();
     }
 
-    /**
-     * 清空全部记录（测试用）。
-     */
+    /** 清空全部记录（测试用）。 */
     public void clear() {
         byId.clear();
         byKey.clear();

@@ -4,7 +4,6 @@ import cn.byteforce.seedj.core.security.ScopeKeyCatalog;
 import cn.byteforce.seedj.cqrs.CommandRegistration;
 import cn.byteforce.seedj.read.ReadModel;
 import cn.byteforce.seedj.read.ReadModelRegistry;
-
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -29,9 +28,12 @@ public final class ObjectModuleRegistry implements ReadModelRegistry {
 
     private final ScopeKeyCatalog scopeKeys;
 
-    ObjectModuleRegistry(Map<String, ReadModel> models, List<QueryDeclaration> queries,
-                         List<CommandDeclaration> commandDeclarations,
-                         List<CommandRegistration> commands, ScopeKeyCatalog scopeKeys) {
+    ObjectModuleRegistry(
+            Map<String, ReadModel> models,
+            List<QueryDeclaration> queries,
+            List<CommandDeclaration> commandDeclarations,
+            List<CommandRegistration> commands,
+            ScopeKeyCatalog scopeKeys) {
         this.models = Collections.unmodifiableMap(new LinkedHashMap<>(models));
         this.queries = List.copyOf(queries);
         this.commandDeclarations = List.copyOf(commandDeclarations);
@@ -51,8 +53,9 @@ public final class ObjectModuleRegistry implements ReadModelRegistry {
      * @return 读模型
      */
     public ReadModel require(String objectType) {
-        return find(objectType).orElseThrow(
-                () -> new IllegalArgumentException("unknown object type: " + objectType));
+        return find(objectType)
+                .orElseThrow(
+                        () -> new IllegalArgumentException("unknown object type: " + objectType));
     }
 
     @Override

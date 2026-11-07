@@ -28,13 +28,13 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.jwt.JwtException;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -45,7 +45,9 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 /** HR 的 PostgreSQL 模式：迁移、schema 对齐、HTTP 黄金路径与并发创建。 */
 @Testcontainers
-@SpringBootTest(classes = HrServer.class, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(
+        classes = HrServer.class,
+        webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
 @ActiveProfiles({"postgres", "test"})
 @Import(HrServerPostgresIT.JwtConfig.class)
@@ -78,58 +80,78 @@ class HrServerPostgresIT {
         }
     }
 
-    @Autowired
-    private MockMvc mvc;
+    @Autowired private MockMvc mvc;
 
-    @Autowired
-    private JdbcTemplate jdbc;
+    @Autowired private JdbcTemplate jdbc;
 
-    @Autowired
-    private ObjectModuleRegistry modules;
+    @Autowired private ObjectModuleRegistry modules;
 
-    @Autowired
-    private TemporalStore store;
+    @Autowired private TemporalStore store;
 
     @Test
     @DisplayName("迁移历史包含 hr-employee scope")
     void migrationHistoryHasHrScope() {
-        Integer count = jdbc.queryForObject(
-                "SELECT count(*) FROM seedj_schema_history WHERE scope = 'hr-employee'",
-                Integer.class);
+        Integer count =
+                jdbc.queryForObject(
+                        "SELECT count(*) FROM seedj_schema_history WHERE scope = 'hr-employee'",
+                        Integer.class);
         assertThat(count).isEqualTo(2);
     }
 
     @Test
     @DisplayName("information_schema 列与 ObjectSchema 完全一致")
     void informationSchemaMatchesObjectSchema() {
-        List<String> columns = jdbc.queryForList(
-                        "SELECT column_name FROM information_schema.columns"
-                                + " WHERE table_name = 'hr_employee' ORDER BY column_name",
-                        String.class).stream()
-                .filter(column -> !ObjectSchema.META_FIELDS.contains(column))
-                .toList();
-        List<String> expected = modules.require("employee").schema().fields().stream()
-                .map(field -> field.name()).sorted().toList();
+        List<String> columns =
+                jdbc
+                        .queryForList(
+                                "SELECT column_name FROM information_schema.columns"
+                                        + " WHERE table_name = 'hr_employee' ORDER BY column_name",
+                                String.class)
+                        .stream()
+                        .filter(column -> !ObjectSchema.META_FIELDS.contains(column))
+                        .toList();
+        List<String> expected =
+                modules.require("employee").schema().fields().stream()
+                        .map(field -> field.name())
+                        .sorted()
+                        .toList();
 
         assertThat(columns).containsExactlyElementsOf(expected);
-        assertThat(columns).containsAll(List.of("employee_no", "name", "status", "hire_date",
-                "employment_type", "work_location", "contact", "id_type", "id_number_hash",
-                "org_unit_id", "terminated_at", "terminated_reason"));
+        assertThat(columns)
+                .containsAll(
+                        List.of(
+                                "employee_no",
+                                "name",
+                                "status",
+                                "hire_date",
+                                "employment_type",
+                                "work_location",
+                                "contact",
+                                "id_type",
+                                "id_number_hash",
+                                "org_unit_id",
+                                "terminated_at",
+                                "terminated_reason"));
     }
 
     @Test
     @DisplayName("create 202 / get 200 / as_of 读回 v1")
     void createGetAndAsOf() throws Exception {
-        String created = mvc.perform(post("/commands/hr.employee.create")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
+        String created =
+                mvc.perform(
+                                post("/commands/hr.employee.create")
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content(
+                                                """
                                 {"type":"hr.employee.create",
                                  "payload":{"name":"张三","hire_date":"2026-10-01",
                                             "id_number":"110101199001011234"},
                                  "idempotency_key":"pg-1"}
                                 """))
-                .andExpect(status().isAccepted())
-                .andReturn().getResponse().getContentAsString();
+                        .andExpect(status().isAccepted())
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString();
         String id = JsonPath.read(created, "$.locator");
 
         mvc.perform(get("/objects/employee/" + id))
@@ -137,17 +159,19 @@ class HrServerPostgresIT {
                 .andExpect(jsonPath("$.data.employee_no").isNotEmpty())
                 .andExpect(jsonPath("$.data.id_number_hash").doesNotExist());
 
-        mvc.perform(post("/commands/hr.employee.update")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
+        mvc.perform(
+                        post("/commands/hr.employee.update")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
                                 {"type":"hr.employee.update",
                                  "payload":{"employee_id":"%s","name":"张三丰"},
                                  "idempotency_key":"pg-2"}
-                                """.formatted(id)))
+                                """
+                                                .formatted(id)))
                 .andExpect(status().isAccepted());
 
-        mvc.perform(get("/objects/employee/" + id)
-                        .queryParam("as_of", "2026-10-01T12:00:00Z"))
+        mvc.perform(get("/objects/employee/" + id).queryParam("as_of", "2026-10-01T12:00:00Z"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.name").value("张三"))
                 .andExpect(jsonPath("$.version").value(1));
@@ -156,40 +180,51 @@ class HrServerPostgresIT {
     @Test
     @DisplayName("并发更新同 expected version：一个 202 一个 409，最终版本 2")
     void concurrentUpdatesWithSameExpectedVersionHaveOneWinner() throws Exception {
-        String created = mvc.perform(post("/commands/hr.employee.create")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
+        String created =
+                mvc.perform(
+                                post("/commands/hr.employee.create")
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content(
+                                                """
                                 {"type":"hr.employee.create",
                                  "payload":{"name":"并发更新","hire_date":"2026-10-01",
                                             "org_unit_id":"11111111-1111-1111-1111-111111111111"},
                                  "idempotency_key":"pg-concurrent-create"}
                                 """))
-                .andExpect(status().isAccepted())
-                .andReturn().getResponse().getContentAsString();
+                        .andExpect(status().isAccepted())
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString();
         String id = JsonPath.read(created, "$.locator");
 
         CountDownLatch start = new CountDownLatch(1);
         ExecutorService pool = Executors.newFixedThreadPool(2);
         try {
-            var task = (java.util.concurrent.Callable<Integer>) () -> {
-                String name = Thread.currentThread().getName();
-                start.await(5, TimeUnit.SECONDS);
-                return mvc.perform(post("/commands/hr.employee.update")
-                                .header("If-Match", "\"1\"")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content("""
+            var task =
+                    (java.util.concurrent.Callable<Integer>)
+                            () -> {
+                                String name = Thread.currentThread().getName();
+                                start.await(5, TimeUnit.SECONDS);
+                                return mvc.perform(
+                                                post("/commands/hr.employee.update")
+                                                        .header("If-Match", "\"1\"")
+                                                        .contentType(MediaType.APPLICATION_JSON)
+                                                        .content(
+                                                                """
                                         {"type":"hr.employee.update",
                                          "payload":{"employee_id":"%s","name":"%s"},
                                          "idempotency_key":"pg-concurrent-%s"}
-                                        """.formatted(id, name, name)))
-                        .andReturn().getResponse().getStatus();
-            };
+                                        """
+                                                                        .formatted(id, name, name)))
+                                        .andReturn()
+                                        .getResponse()
+                                        .getStatus();
+                            };
             Future<Integer> first = pool.submit(task);
             Future<Integer> second = pool.submit(task);
             start.countDown();
 
-            assertThat(List.of(first.get(30, TimeUnit.SECONDS),
-                            second.get(30, TimeUnit.SECONDS)))
+            assertThat(List.of(first.get(30, TimeUnit.SECONDS), second.get(30, TimeUnit.SECONDS)))
                     .containsExactlyInAnyOrder(202, 409);
             mvc.perform(get("/objects/employee/" + id))
                     .andExpect(status().isOk())
@@ -204,31 +239,53 @@ class HrServerPostgresIT {
     void concurrentCreateSameIdHasOneWinner() throws Exception {
         UUID id = UUID.randomUUID();
         Instant now = Instant.parse("2026-10-08T09:00:00Z");
-        Map<String, Object> fields = Map.of("employee_no", "EMP-900001",
-                "name", "并发", "status", "pending_onboarding",
-                "hire_date", java.time.LocalDate.of(2026, 10, 1));
+        Map<String, Object> fields =
+                Map.of(
+                        "employee_no",
+                        "EMP-900001",
+                        "name",
+                        "并发",
+                        "status",
+                        "pending_onboarding",
+                        "hire_date",
+                        java.time.LocalDate.of(2026, 10, 1));
         CountDownLatch start = new CountDownLatch(1);
         ExecutorService pool = Executors.newFixedThreadPool(2);
         try {
-            var task = (java.util.concurrent.Callable<Boolean>) () -> {
-                start.await(5, TimeUnit.SECONDS);
-                try {
-                    AppendResult result = store.append(AppendRequest.create("employee", id, now,
-                            null, UUID.randomUUID(), fields));
-                    return result.appended().version().version() == 1;
-                } catch (RuntimeException expected) {
-                    return false;
-                }
-            };
+            var task =
+                    (java.util.concurrent.Callable<Boolean>)
+                            () -> {
+                                start.await(5, TimeUnit.SECONDS);
+                                try {
+                                    AppendResult result =
+                                            store.append(
+                                                    AppendRequest.create(
+                                                            "employee",
+                                                            id,
+                                                            now,
+                                                            null,
+                                                            UUID.randomUUID(),
+                                                            fields));
+                                    return result.appended().version().version() == 1;
+                                } catch (RuntimeException expected) {
+                                    return false;
+                                }
+                            };
             Future<Boolean> first = pool.submit(task);
             Future<Boolean> second = pool.submit(task);
             start.countDown();
 
-            long winners = (first.get(30, TimeUnit.SECONDS) ? 1 : 0)
-                    + (second.get(30, TimeUnit.SECONDS) ? 1 : 0);
+            long winners =
+                    (first.get(30, TimeUnit.SECONDS) ? 1 : 0)
+                            + (second.get(30, TimeUnit.SECONDS) ? 1 : 0);
             assertThat(winners).isEqualTo(1);
-            assertThat(store.find("employee", id, TemporalQuery.current(),
-                        cn.byteforce.seedj.domain.ScopePredicate.all())).isPresent();
+            assertThat(
+                            store.find(
+                                    "employee",
+                                    id,
+                                    TemporalQuery.current(),
+                                    cn.byteforce.seedj.domain.ScopePredicate.all()))
+                    .isPresent();
         } finally {
             pool.shutdownNow();
         }

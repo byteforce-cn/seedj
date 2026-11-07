@@ -1,9 +1,7 @@
 package cn.byteforce.seedj.infra.local.id;
 
-import cn.byteforce.seedj.id.IdGenerator;
-
 import cn.byteforce.seedj.core.clock.Clock;
-
+import cn.byteforce.seedj.id.IdGenerator;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
@@ -11,11 +9,10 @@ import java.util.concurrent.ThreadLocalRandom;
 /**
  * UUIDv7 生成器（RFC 9562）：48 位毫秒时间戳 + 版本 7 + 毫秒内计数器 + 62 位随机数。
  *
- * <p>同一毫秒内通过 12 位计数器保证严格递增；计数器溢出（4096 条/毫秒）时把时间戳
- * 推进 1 毫秒并清零计数器。时钟回拨时沿用上次时间戳并继续自增计数器，
- * 因此生成的 ID 始终单调递增。</p>
+ * <p>同一毫秒内通过 12 位计数器保证严格递增；计数器溢出（4096 条/毫秒）时把时间戳 推进 1 毫秒并清零计数器。时钟回拨时沿用上次时间戳并继续自增计数器， 因此生成的 ID
+ * 始终单调递增。
  *
- * <p>标识按字符串比较即按生成顺序比较，可直接用于对象、事件与审计条目的排序。</p>
+ * <p>标识按字符串比较即按生成顺序比较，可直接用于对象、事件与审计条目的排序。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -63,9 +60,7 @@ public final class Uuid7IdGenerator implements IdGenerator<UUID> {
                 counter = 0;
             }
         }
-        long most = ((lastMillis & TIMESTAMP_MASK) << 16)
-                | VERSION_BITS
-                | (counter & COUNTER_MASK);
+        long most = ((lastMillis & TIMESTAMP_MASK) << 16) | VERSION_BITS | (counter & COUNTER_MASK);
         long least = (ThreadLocalRandom.current().nextLong() & RANDOM_MASK) | VARIANT_BITS;
         return new UUID(most, least);
     }

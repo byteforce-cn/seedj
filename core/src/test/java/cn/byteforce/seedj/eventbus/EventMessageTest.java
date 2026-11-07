@@ -1,22 +1,20 @@
 package cn.byteforce.seedj.eventbus;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import cn.byteforce.seedj.domain.event.DomainEvent;
 import cn.byteforce.seedj.domain.event.EventType;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
 class EventMessageTest {
 
     @EventType(value = "order.cancelled", version = 3)
-    record OrderCancelled(String orderId) implements DomainEvent {
-    }
+    record OrderCancelled(String orderId) implements DomainEvent {}
 
     @Test
     @DisplayName("领域事件 → 消息：eventType/version 来自 @EventType，topic 默认等于逻辑名")
@@ -47,8 +45,8 @@ class EventMessageTest {
     @DisplayName("equals/hashCode 按内容比较 payload")
     void equalityUsesPayloadContent() {
         Instant at = Instant.parse("2026-01-01T00:00:00Z");
-        EventMessage a = new EventMessage("e1", "t", "k", "t", 1, new byte[]{1, 2}, Map.of(), at);
-        EventMessage b = new EventMessage("e1", "t", "k", "t", 1, new byte[]{1, 2}, Map.of(), at);
+        EventMessage a = new EventMessage("e1", "t", "k", "t", 1, new byte[] {1, 2}, Map.of(), at);
+        EventMessage b = new EventMessage("e1", "t", "k", "t", 1, new byte[] {1, 2}, Map.of(), at);
 
         assertThat(a).isEqualTo(b).hasSameHashCodeAs(b);
     }
@@ -56,9 +54,13 @@ class EventMessageTest {
     @Test
     @DisplayName("非法消息在构造期失败")
     void validation() {
-        assertThatThrownBy(() -> new EventMessage("e1", "t", null, "t", 0, new byte[0], null, Instant.now()))
+        assertThatThrownBy(
+                        () ->
+                                new EventMessage(
+                                        "e1", "t", null, "t", 0, new byte[0], null, Instant.now()))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new EventMessage("e1", "t", null, "t", 1, null, null, Instant.now()))
+        assertThatThrownBy(
+                        () -> new EventMessage("e1", "t", null, "t", 1, null, null, Instant.now()))
                 .isInstanceOf(NullPointerException.class);
     }
 

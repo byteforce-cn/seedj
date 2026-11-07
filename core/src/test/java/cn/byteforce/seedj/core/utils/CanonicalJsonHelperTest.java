@@ -1,20 +1,16 @@
 package cn.byteforce.seedj.core.utils;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.math.BigDecimal;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.JsonNodeFactory;
 
-import java.math.BigDecimal;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
-/**
- * 规范化 JSON：确定性键序、转义、数字字面量与深度防护。
- */
+/** 规范化 JSON：确定性键序、转义、数字字面量与深度防护。 */
 class CanonicalJsonHelperTest {
 
     private static final JsonNodeFactory NODES = JsonNodeFactory.instance;
@@ -50,8 +46,9 @@ class CanonicalJsonHelperTest {
     @DisplayName("字符串转义覆盖引号、反斜杠、控制字符与非 ASCII")
     void canonicalizeEscapesStrings() {
         String text = "\"" + "\\" + "\b\f\n\r\t" + (char) 1 + "汉";
-        String expected = "\"" + "\\\"" + "\\\\" + "\\b" + "\\f" + "\\n" + "\\r" + "\\t"
-                + "\\" + "u0001" + "汉" + "\"";
+        String expected =
+                "\"" + "\\\"" + "\\\\" + "\\b" + "\\f" + "\\n" + "\\r" + "\\t" + "\\" + "u0001"
+                        + "汉" + "\"";
 
         assertThat(CanonicalJsonHelper.canonicalize(NODES.textNode(text))).isEqualTo(expected);
     }
@@ -75,8 +72,10 @@ class CanonicalJsonHelperTest {
         assertThatThrownBy(() -> CanonicalJsonHelper.canonicalize(NODES.numberNode(Double.NaN)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("NaN/Infinity");
-        assertThatThrownBy(() -> CanonicalJsonHelper.canonicalize(
-                NODES.numberNode(Double.POSITIVE_INFINITY)))
+        assertThatThrownBy(
+                        () ->
+                                CanonicalJsonHelper.canonicalize(
+                                        NODES.numberNode(Double.POSITIVE_INFINITY)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("NaN/Infinity");
     }

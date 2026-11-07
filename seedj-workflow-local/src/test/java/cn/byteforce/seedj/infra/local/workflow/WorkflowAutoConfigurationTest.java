@@ -1,30 +1,32 @@
 package cn.byteforce.seedj.infra.local.workflow;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import cn.byteforce.seedj.workflow.spi.WorkflowCapabilities;
 import cn.byteforce.seedj.workflow.spi.WorkflowProvider;
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
-import java.time.Instant;
-import java.util.List;
-import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
 class WorkflowAutoConfigurationTest {
 
-    private final ApplicationContextRunner runner = new ApplicationContextRunner()
-            .withConfiguration(AutoConfigurations.of(WorkflowAutoConfiguration.class));
+    private final ApplicationContextRunner runner =
+            new ApplicationContextRunner()
+                    .withConfiguration(AutoConfigurations.of(WorkflowAutoConfiguration.class));
 
     @Test
     void providesMemoryProviderByDefault() {
-        runner.run(context -> {
-            assertThat(context).hasSingleBean(WorkflowProvider.class);
-            assertThat(context.getBean("memory")).isInstanceOf(InMemoryWorkflowProvider.class);
-            assertThat(context.getBean(WorkflowProperties.class).getProvider())
-                    .isEqualTo("memory");
-        });
+        runner.run(
+                context -> {
+                    assertThat(context).hasSingleBean(WorkflowProvider.class);
+                    assertThat(context.getBean("memory"))
+                            .isInstanceOf(InMemoryWorkflowProvider.class);
+                    assertThat(context.getBean(WorkflowProperties.class).getProvider())
+                            .isEqualTo("memory");
+                });
     }
 
     @Test
@@ -42,15 +44,16 @@ class WorkflowAutoConfigurationTest {
     @Test
     void userBeanWins() {
         runner.withBean(WorkflowProvider.class, StubProvider::new)
-                .run(context -> assertThat(context.getBean(WorkflowProvider.class))
-                        .isInstanceOf(StubProvider.class));
+                .run(
+                        context ->
+                                assertThat(context.getBean(WorkflowProvider.class))
+                                        .isInstanceOf(StubProvider.class));
     }
 
     private static final class StubProvider implements WorkflowProvider {
 
         @Override
-        public void register(cn.byteforce.seedj.workflow.spi.WorkflowDefinition definition) {
-        }
+        public void register(cn.byteforce.seedj.workflow.spi.WorkflowDefinition definition) {}
 
         @Override
         public Optional<cn.byteforce.seedj.workflow.spi.WorkflowDefinition> findDefinition(
@@ -124,7 +127,6 @@ class WorkflowAutoConfigurationTest {
         }
 
         @Override
-        public void close() {
-        }
+        public void close() {}
     }
 }

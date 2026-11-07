@@ -2,7 +2,6 @@ package cn.byteforce.seedj.iam.spi;
 
 import cn.byteforce.seedj.iam.IamPermission;
 import cn.byteforce.seedj.iam.IamRole;
-
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;

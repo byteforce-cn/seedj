@@ -1,18 +1,15 @@
 package cn.byteforce.seedj.iam.authz;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
-/**
- * 授权值类型：检查结果、解析结果、属性拉取、条件项与 SoD 规则。
- */
+/** 授权值类型：检查结果、解析结果、属性拉取、条件项与 SoD 规则。 */
 class IamAuthzValueTypesTest {
 
     private static final Instant NOW = Instant.parse("2026-01-01T00:00:00Z");
@@ -27,8 +24,10 @@ class IamAuthzValueTypesTest {
         assertThat(result.reasonCode()).isEqualTo("ALLOWED");
         assertThat(result.attributeState()).isEqualTo(AttributeState.NOT_REQUIRED);
 
-        assertThat(new IamCheckResult(false, "stale", "ATTRIBUTE_STALE", AttributeState.STALE)
-                .attributeState()).isEqualTo(AttributeState.STALE);
+        assertThat(
+                        new IamCheckResult(false, "stale", "ATTRIBUTE_STALE", AttributeState.STALE)
+                                .attributeState())
+                .isEqualTo(AttributeState.STALE);
 
         assertThatThrownBy(() -> new IamCheckResult(true, null, "ALLOWED", null))
                 .isInstanceOf(NullPointerException.class)
@@ -47,8 +46,8 @@ class IamAuthzValueTypesTest {
         assertThat(empty.permissions()).isEmpty();
         assertThat(empty.sodWarnings()).isEmpty();
 
-        IamResolution populated = new IamResolution(List.of("admin"), List.of("order:read"),
-                List.of("SOD-003"));
+        IamResolution populated =
+                new IamResolution(List.of("admin"), List.of("order:read"), List.of("SOD-003"));
         assertThat(populated.roles()).containsExactly("admin");
         assertThat(populated.permissions()).containsExactly("order:read");
         assertThat(populated.sodWarnings()).containsExactly("SOD-003");
@@ -65,8 +64,8 @@ class IamAuthzValueTypesTest {
         assertThat(unavailable.state()).isEqualTo(AttributeState.SOURCE_UNAVAILABLE);
         assertThat(unavailable.snapshot()).isNull();
 
-        AttributeSnapshot snapshot = new AttributeSnapshot("alice", NOW, NOW, null, "hr", "v1",
-                Map.of());
+        AttributeSnapshot snapshot =
+                new AttributeSnapshot("alice", NOW, NOW, null, "hr", "v1", Map.of());
         AttributeLookup fresh = new AttributeLookup(AttributeState.FRESH, snapshot);
         assertThat(fresh.state()).isEqualTo(AttributeState.FRESH);
         assertThat(fresh.snapshot()).isSameAs(snapshot);
@@ -105,8 +104,8 @@ class IamAuthzValueTypesTest {
     @Test
     @DisplayName("IamCondition：logic 小写归一化，只接受 all/any，terms 非空")
     void condition() {
-        IamConditionTerm term = new IamConditionTerm("department", IamConditionOperator.EQ,
-                List.of("D001"));
+        IamConditionTerm term =
+                new IamConditionTerm("department", IamConditionOperator.EQ, List.of("D001"));
 
         IamCondition condition = new IamCondition("ALL", List.of(term));
         assertThat(condition.logic()).isEqualTo("all");
@@ -129,15 +128,16 @@ class IamAuthzValueTypesTest {
     @Test
     @DisplayName("IamConditionTerm：属性与运算必填，候选值非空")
     void conditionTerm() {
-        IamConditionTerm term = new IamConditionTerm("department", IamConditionOperator.IN,
-                List.of("D001", "D002"));
+        IamConditionTerm term =
+                new IamConditionTerm(
+                        "department", IamConditionOperator.IN, List.of("D001", "D002"));
 
         assertThat(term.attribute()).isEqualTo("department");
         assertThat(term.op()).isEqualTo(IamConditionOperator.IN);
         assertThat(term.values()).containsExactly("D001", "D002");
 
-        assertThatThrownBy(() -> new IamConditionTerm(" ", IamConditionOperator.EQ,
-                List.of("x"))).isInstanceOf(IllegalArgumentException.class)
+        assertThatThrownBy(() -> new IamConditionTerm(" ", IamConditionOperator.EQ, List.of("x")))
+                .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("attribute");
         assertThatThrownBy(() -> new IamConditionTerm("a", null, List.of("x")))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -153,8 +153,12 @@ class IamAuthzValueTypesTest {
     @Test
     @DisplayName("IamPermissionCondition：权限非空白且条件必填")
     void permissionCondition() {
-        IamCondition condition = new IamCondition("all", List.of(
-                new IamConditionTerm("department", IamConditionOperator.EQ, List.of("D001"))));
+        IamCondition condition =
+                new IamCondition(
+                        "all",
+                        List.of(
+                                new IamConditionTerm(
+                                        "department", IamConditionOperator.EQ, List.of("D001"))));
 
         IamPermissionCondition binding = new IamPermissionCondition("order:read", condition);
         assertThat(binding.permission()).isEqualTo("order:read");
@@ -173,9 +177,13 @@ class IamAuthzValueTypesTest {
     @Test
     @DisplayName("SodRule：至少两条冲突权限，scope/enforcement 必填")
     void sodRule() {
-        SodRule rule = new SodRule("SOD-001", "采购申请与审批分离",
-                List.of("purchase.request.create", "purchase.request.approve"),
-                SodScope.SAME_DEPARTMENT, SodEnforcement.PREVENT);
+        SodRule rule =
+                new SodRule(
+                        "SOD-001",
+                        "采购申请与审批分离",
+                        List.of("purchase.request.create", "purchase.request.approve"),
+                        SodScope.SAME_DEPARTMENT,
+                        SodEnforcement.PREVENT);
 
         assertThat(rule.id()).isEqualTo("SOD-001");
         assertThat(rule.name()).isEqualTo("采购申请与审批分离");
@@ -187,24 +195,63 @@ class IamAuthzValueTypesTest {
         assertThat(SodScope.SAME_ORGANIZATION.scopeKey()).isEqualTo("organization");
         assertThat(SodScope.SAME_WAREHOUSE.scopeKey()).isEqualTo("warehouse");
 
-        assertThatThrownBy(() -> new SodRule(null, "n", List.of("a", "b"),
-                SodScope.SAME_DEPARTMENT, SodEnforcement.PREVENT))
-                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("id");
-        assertThatThrownBy(() -> new SodRule("SOD-001", " ", List.of("a", "b"),
-                SodScope.SAME_DEPARTMENT, SodEnforcement.PREVENT))
-                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("name");
-        assertThatThrownBy(() -> new SodRule("SOD-001", "n", null,
-                SodScope.SAME_DEPARTMENT, SodEnforcement.PREVENT))
+        assertThatThrownBy(
+                        () ->
+                                new SodRule(
+                                        null,
+                                        "n",
+                                        List.of("a", "b"),
+                                        SodScope.SAME_DEPARTMENT,
+                                        SodEnforcement.PREVENT))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("id");
+        assertThatThrownBy(
+                        () ->
+                                new SodRule(
+                                        "SOD-001",
+                                        " ",
+                                        List.of("a", "b"),
+                                        SodScope.SAME_DEPARTMENT,
+                                        SodEnforcement.PREVENT))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("name");
+        assertThatThrownBy(
+                        () ->
+                                new SodRule(
+                                        "SOD-001",
+                                        "n",
+                                        null,
+                                        SodScope.SAME_DEPARTMENT,
+                                        SodEnforcement.PREVENT))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("two conflicting");
-        assertThatThrownBy(() -> new SodRule("SOD-001", "n", List.of("a"),
-                SodScope.SAME_DEPARTMENT, SodEnforcement.PREVENT))
+        assertThatThrownBy(
+                        () ->
+                                new SodRule(
+                                        "SOD-001",
+                                        "n",
+                                        List.of("a"),
+                                        SodScope.SAME_DEPARTMENT,
+                                        SodEnforcement.PREVENT))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new SodRule("SOD-001", "n", List.of("a", "b"),
-                null, SodEnforcement.PREVENT))
-                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("scope");
-        assertThatThrownBy(() -> new SodRule("SOD-001", "n", List.of("a", "b"),
-                SodScope.SAME_DEPARTMENT, null))
+        assertThatThrownBy(
+                        () ->
+                                new SodRule(
+                                        "SOD-001",
+                                        "n",
+                                        List.of("a", "b"),
+                                        null,
+                                        SodEnforcement.PREVENT))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("scope");
+        assertThatThrownBy(
+                        () ->
+                                new SodRule(
+                                        "SOD-001",
+                                        "n",
+                                        List.of("a", "b"),
+                                        SodScope.SAME_DEPARTMENT,
+                                        null))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -216,7 +263,8 @@ class IamAuthzValueTypesTest {
 
         SodRuleSet defaults = SodRuleSet.defaults();
         assertThat(defaults.rules()).hasSize(3);
-        assertThat(defaults.rules()).extracting(SodRule::id)
+        assertThat(defaults.rules())
+                .extracting(SodRule::id)
                 .containsExactly("SOD-001", "SOD-002", "SOD-003");
         assertThat(defaults.rules().get(2).enforcement()).isEqualTo(SodEnforcement.WARN);
     }
@@ -229,7 +277,9 @@ class IamAuthzValueTypesTest {
         assertThat(finding.ruleId()).isEqualTo("SOD-001");
         assertThat(finding.enforcement()).isEqualTo(SodEnforcement.WARN);
         assertThat(finding.permissions()).isEmpty();
-        assertThat(new SodFinding("SOD-002", SodEnforcement.PREVENT, List.of("a", "b"))
-                .permissions()).containsExactly("a", "b");
+        assertThat(
+                        new SodFinding("SOD-002", SodEnforcement.PREVENT, List.of("a", "b"))
+                                .permissions())
+                .containsExactly("a", "b");
     }
 }

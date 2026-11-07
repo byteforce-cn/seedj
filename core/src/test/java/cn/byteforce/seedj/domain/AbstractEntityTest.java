@@ -1,17 +1,16 @@
 package cn.byteforce.seedj.domain;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
 /**
  * 实体判等契约：<b>类型 + 标识</b>，缺一不可。
  *
- * <p>类型参与判等是 CQRS 的硬要求：{@code Order(1)} 与 {@code Invoice(1)} 落在
- * 不同的流、不同的仓储、不同的投影行；如果只比较标识，二者会被 {@code Set}/{@code Map}
- * 静默合并，读侧出现"串流"而没有任何编译期或运行期提示。
+ * <p>类型参与判等是 CQRS 的硬要求：{@code Order(1)} 与 {@code Invoice(1)} 落在 不同的流、不同的仓储、不同的投影行；如果只比较标识，二者会被
+ * {@code Set}/{@code Map} 静默合并，读侧出现"串流"而没有任何编译期或运行期提示。
  */
 class AbstractEntityTest {
 

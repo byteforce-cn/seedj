@@ -28,6 +28,10 @@ npm ci && npm run docs:lint && npm run docs:build && npm run docs:nav
 仓库脚本默认离线（`MAVEN_FLAGS=-o`）；首次构建去掉该变量，或先执行
 `./mvnw -B dependency:go-offline`。CI 使用 `MAVEN_FLAGS=""`。
 
+**本地请用 JDK 21。** CI 的格式化与编译行为以 JDK 21 为准，其他 JDK 版本可能给出不同结果。
+`spotless` 会把结果缓存在 `target/spotless-index`；怀疑本地与 CI 不一致时，删掉该缓存再跑
+`./mvnw -B spotless:check`。
+
 ## 代码约定
 
 - 格式由 `spotless`（google-java-format）统一，`verify.sh` 会检查；本地可跑

@@ -2,7 +2,6 @@ package cn.byteforce.seedj.starter.iam.scim;
 
 import cn.byteforce.seedj.iam.IamErrorCode;
 import cn.byteforce.seedj.iam.IamException;
-
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -15,14 +14,11 @@ public final class ScimSupport {
     public static final String CONTENT_TYPE = "application/scim+json";
     public static final String USER_SCHEMA = "urn:ietf:params:scim:schemas:core:2.0:User";
     public static final String GROUP_SCHEMA = "urn:ietf:params:scim:schemas:core:2.0:Group";
-    public static final String LIST_SCHEMA =
-            "urn:ietf:params:scim:api:messages:2.0:ListResponse";
+    public static final String LIST_SCHEMA = "urn:ietf:params:scim:api:messages:2.0:ListResponse";
     public static final String ERROR_SCHEMA = "urn:ietf:params:scim:api:messages:2.0:Error";
-    public static final String PATCH_SCHEMA =
-            "urn:ietf:params:scim:api:messages:2.0:PatchOp";
+    public static final String PATCH_SCHEMA = "urn:ietf:params:scim:api:messages:2.0:PatchOp";
 
-    private ScimSupport() {
-    }
+    private ScimSupport() {}
 
     public static String string(Object value) {
         return value == null ? null : String.valueOf(value);
@@ -59,7 +55,8 @@ public final class ScimSupport {
 
     public static void checkVersion(Long expected, long actual) {
         if (expected != null && expected != actual) {
-            throw new IamException(IamErrorCode.SCIM_PRECONDITION_FAILED,
+            throw new IamException(
+                    IamErrorCode.SCIM_PRECONDITION_FAILED,
                     "resource version mismatch: expected " + expected + ", actual " + actual);
         }
     }
@@ -76,13 +73,13 @@ public final class ScimSupport {
         try {
             return Long.parseLong(value);
         } catch (NumberFormatException e) {
-            throw new IamException(IamErrorCode.SCIM_BAD_REQUEST,
-                    "invalid If-Match/ETag value: " + header);
+            throw new IamException(
+                    IamErrorCode.SCIM_BAD_REQUEST, "invalid If-Match/ETag value: " + header);
         }
     }
 
-    public static Map<String, Object> meta(String resourceType, String location, long version,
-                                           Instant created, Instant modified) {
+    public static Map<String, Object> meta(
+            String resourceType, String location, long version, Instant created, Instant modified) {
         Map<String, Object> meta = new LinkedHashMap<>();
         meta.put("resourceType", resourceType);
         meta.put("location", location);

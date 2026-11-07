@@ -7,13 +7,6 @@ import cn.byteforce.seedj.iam.IamGroupQuery;
 import cn.byteforce.seedj.iam.IamPage;
 import cn.byteforce.seedj.iam.IamUser;
 import cn.byteforce.seedj.iam.spi.IamGroupRepository;
-import org.springframework.dao.DuplicateKeyException;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
-import org.springframework.jdbc.datasource.DataSourceTransactionManager;
-import org.springframework.transaction.support.TransactionTemplate;
-
-import javax.sql.DataSource;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -22,6 +15,12 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import javax.sql.DataSource;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /** PostgreSQL SCIM group store. Membership writes are transactional. */
 public class JdbcIamGroupRepository implements IamGroupRepository {
@@ -39,7 +38,8 @@ public class JdbcIamGroupRepository implements IamGroupRepository {
     @Override
     public Optional<IamGroup> findById(String id) {
         return jdbc.query("SELECT * FROM iam_group WHERE id = ?", MAPPER, id).stream()
-                .findFirst().map(this::withMembers);
+                .findFirst()
+                .map(this::withMembers);
     }
 
     @Override
@@ -47,11 +47,18 @@ public class JdbcIamGroupRepository implements IamGroupRepository {
         if (displayName == null) {
             return Optional.empty();
         }
-        return jdbc.query("""
+        return jdbc
+                .query(
+                        """
                 SELECT * FROM iam_group
                 WHERE tenant_id = ? AND lower(display_name) = lower(?)
-                """, MAPPER, tenant(tenantId), displayName).stream()
-                .findFirst().map(this::withMembers);
+                """,
+                        MAPPER,
+                        tenant(tenantId),
+                        displayName)
+                .stream()
+                .findFirst()
+                .map(this::withMembers);
     }
 
     @Override
@@ -60,45 +67,68 @@ public class JdbcIamGroupRepository implements IamGroupRepository {
         List<Object> base = new ArrayList<>();
         base.add(tenant(query.tenantId()));
         base.addAll(filter.arguments());
-        Long total = jdbc.queryForObject("""
+        Long total =
+                jdbc.queryForObject(
+                        """
                 SELECT count(*) FROM iam_group WHERE tenant_id = ? AND (%s)
-                """.formatted(filter.where()), Long.class, base.toArray());
+                """
+                                .formatted(filter.where()),
+                        Long.class,
+                        base.toArray());
 
         List<Object> args = new ArrayList<>(base);
         args.add(query.count());
         args.add(query.startIndex() - 1);
-        List<IamGroup> groups = jdbc.query("""
+        List<IamGroup> groups =
+                jdbc
+                        .query(
+                                """
                 SELECT * FROM iam_group
                 WHERE tenant_id = ? AND (%s)
                 ORDER BY lower(display_name), id
                 LIMIT ? OFFSET ?
-                """.formatted(filter.where()), MAPPER, args.toArray()).stream()
-                .map(this::withMembers).toList();
-        return new IamPage<>(groups, total == null ? 0 : total.intValue(),
-                query.startIndex(), groups.size());
+                """
+                                        .formatted(filter.where()),
+                                MAPPER,
+                                args.toArray())
+                        .stream()
+                        .map(this::withMembers)
+                        .toList();
+        return new IamPage<>(
+                groups, total == null ? 0 : total.intValue(), query.startIndex(), groups.size());
     }
 
     @Override
     public IamGroup create(IamGroup group) {
         try {
-            transactions.executeWithoutResult(status -> {
-                jdbc.update("""
+            transactions.executeWithoutResult(
+                    status -> {
+                        jdbc.update(
+                                """
                         INSERT INTO iam_group
                             (id, tenant_id, display_name, external_id, version, created_at, updated_at)
                         VALUES (?, ?, ?, ?, ?, ?, ?)
-                        """, group.id(), group.tenantId(), group.displayName(), group.externalId(),
-                        group.version(), java.sql.Timestamp.from(group.createdAt()),
-                        java.sql.Timestamp.from(group.updatedAt()));
-                for (String memberId : group.memberIds()) {
-                    jdbc.update("""
+                        """,
+                                group.id(),
+                                group.tenantId(),
+                                group.displayName(),
+                                group.externalId(),
+                                group.version(),
+                                java.sql.Timestamp.from(group.createdAt()),
+                                java.sql.Timestamp.from(group.updatedAt()));
+                        for (String memberId : group.memberIds()) {
+                            jdbc.update(
+                                    """
                             INSERT INTO iam_group_member (group_id, user_id)
                             VALUES (?, ?) ON CONFLICT DO NOTHING
-                            """, group.id(), memberId);
-                }
-            });
+                            """,
+                                    group.id(),
+                                    memberId);
+                        }
+                    });
         } catch (DuplicateKeyException e) {
-            throw new IamException(IamErrorCode.GROUP_CONFLICT,
-                    "group already exists: " + group.displayName(), e);
+            throw new IamException(
+                    IamErrorCode.GROUP_CONFLICT, "group already exists: " + group.displayName(), e);
         }
         return group;
     }
@@ -106,31 +136,46 @@ public class JdbcIamGroupRepository implements IamGroupRepository {
     @Override
     public IamGroup update(IamGroup group) {
         try {
-            transactions.executeWithoutResult(status -> {
-            int updated = jdbc.update("""
+            transactions.executeWithoutResult(
+                    status -> {
+                        int updated =
+                                jdbc.update(
+                                        """
                     UPDATE iam_group
                     SET display_name = ?, external_id = ?, version = version + 1, updated_at = now()
                     WHERE id = ? AND version = ?
-                    """, group.displayName(), group.externalId(), group.id(), group.version());
-            if (updated == 0) {
-                boolean exists = Boolean.TRUE.equals(jdbc.queryForObject(
-                        "SELECT EXISTS(SELECT 1 FROM iam_group WHERE id = ?)",
-                        Boolean.class, group.id()));
-                throw new IamException(exists ? IamErrorCode.CONFLICT : IamErrorCode.GROUP_NOT_FOUND,
-                        exists ? "group version conflict: " + group.id()
-                                : "group not found: " + group.id());
-            }
-            jdbc.update("DELETE FROM iam_group_member WHERE group_id = ?", group.id());
-            for (String memberId : group.memberIds()) {
-                    jdbc.update("""
+                    """,
+                                        group.displayName(),
+                                        group.externalId(),
+                                        group.id(),
+                                        group.version());
+                        if (updated == 0) {
+                            boolean exists =
+                                    Boolean.TRUE.equals(
+                                            jdbc.queryForObject(
+                                                    "SELECT EXISTS(SELECT 1 FROM iam_group WHERE id = ?)",
+                                                    Boolean.class,
+                                                    group.id()));
+                            throw new IamException(
+                                    exists ? IamErrorCode.CONFLICT : IamErrorCode.GROUP_NOT_FOUND,
+                                    exists
+                                            ? "group version conflict: " + group.id()
+                                            : "group not found: " + group.id());
+                        }
+                        jdbc.update("DELETE FROM iam_group_member WHERE group_id = ?", group.id());
+                        for (String memberId : group.memberIds()) {
+                            jdbc.update(
+                                    """
                             INSERT INTO iam_group_member (group_id, user_id)
                             VALUES (?, ?) ON CONFLICT DO NOTHING
-                            """, group.id(), memberId);
-                }
-            });
+                            """,
+                                    group.id(),
+                                    memberId);
+                        }
+                    });
         } catch (DuplicateKeyException e) {
-            throw new IamException(IamErrorCode.GROUP_CONFLICT,
-                    "group already exists: " + group.displayName(), e);
+            throw new IamException(
+                    IamErrorCode.GROUP_CONFLICT, "group already exists: " + group.displayName(), e);
         }
         return findById(group.id()).orElseThrow();
     }
@@ -142,31 +187,40 @@ public class JdbcIamGroupRepository implements IamGroupRepository {
 
     @Override
     public Set<String> findMemberIds(String groupId) {
-        return new LinkedHashSet<>(jdbc.queryForList(
-                "SELECT user_id FROM iam_group_member WHERE group_id = ? ORDER BY user_id",
-                String.class, groupId));
+        return new LinkedHashSet<>(
+                jdbc.queryForList(
+                        "SELECT user_id FROM iam_group_member WHERE group_id = ? ORDER BY user_id",
+                        String.class,
+                        groupId));
     }
 
     @Override
     public Set<String> findGroupIdsForUser(String userId) {
-        return new LinkedHashSet<>(jdbc.queryForList("""
+        return new LinkedHashSet<>(
+                jdbc.queryForList(
+                        """
                 SELECT group_id FROM iam_group_member WHERE user_id = ? ORDER BY group_id
-                """, String.class, userId));
+                """,
+                        String.class,
+                        userId));
     }
 
     @Override
     public void addMember(String groupId, String userId) {
-        jdbc.update("""
+        jdbc.update(
+                """
                 INSERT INTO iam_group_member (group_id, user_id)
                 VALUES (?, ?) ON CONFLICT DO NOTHING
-                """, groupId, userId);
+                """,
+                groupId,
+                userId);
         touch(groupId);
     }
 
     @Override
     public void removeMember(String groupId, String userId) {
-        jdbc.update("DELETE FROM iam_group_member WHERE group_id = ? AND user_id = ?",
-                groupId, userId);
+        jdbc.update(
+                "DELETE FROM iam_group_member WHERE group_id = ? AND user_id = ?", groupId, userId);
         touch(groupId);
     }
 
@@ -175,7 +229,8 @@ public class JdbcIamGroupRepository implements IamGroupRepository {
     }
 
     private void touch(String groupId) {
-        jdbc.update("UPDATE iam_group SET version = version + 1, updated_at = now() WHERE id = ?",
+        jdbc.update(
+                "UPDATE iam_group SET version = version + 1, updated_at = now() WHERE id = ?",
                 groupId);
     }
 

@@ -1,15 +1,14 @@
 package cn.byteforce.seedj.domain;
 
-import cn.byteforce.seedj.core.exception.ContractErrorCode;
-import cn.byteforce.seedj.core.exception.ContractException;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
-import java.util.ArrayList;
-import java.util.List;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import cn.byteforce.seedj.core.exception.ContractErrorCode;
+import cn.byteforce.seedj.core.exception.ContractException;
+import java.util.ArrayList;
+import java.util.List;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
 /** 过滤器 AST 的构造期校验与不可变性。 */
 class TemporalFilterTest {
@@ -31,8 +30,11 @@ class TemporalFilterTest {
     @DisplayName("非法字段名在构造期失败")
     void illegalFieldIsRejected() {
         assertThatThrownBy(() -> new TemporalFilter.Eq("Bad", "x"))
-                .isInstanceOfSatisfying(ContractException.class, error ->
-                        assertThat(error.code()).isEqualTo(ContractErrorCode.INVALID_PAYLOAD));
+                .isInstanceOfSatisfying(
+                        ContractException.class,
+                        error ->
+                                assertThat(error.code())
+                                        .isEqualTo(ContractErrorCode.INVALID_PAYLOAD));
         assertThatThrownBy(() -> new TemporalFilter.Ne("1bad", "x"))
                 .isInstanceOf(ContractException.class);
         assertThatThrownBy(() -> new TemporalFilter.In("bad-name", List.of("x")))
@@ -78,11 +80,13 @@ class TemporalFilterTest {
     void compositeRejectsNull() {
         assertThatThrownBy(() -> new TemporalFilter.And(null))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new TemporalFilter.And(java.util.Arrays.asList(
-                (TemporalFilter) null)))
+        assertThatThrownBy(
+                        () ->
+                                new TemporalFilter.And(
+                                        java.util.Arrays.asList((TemporalFilter) null)))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new TemporalFilter.Or(java.util.Arrays.asList(
-                (TemporalFilter) null)))
+        assertThatThrownBy(
+                        () -> new TemporalFilter.Or(java.util.Arrays.asList((TemporalFilter) null)))
                 .isInstanceOf(NullPointerException.class);
         assertThatThrownBy(() -> new TemporalFilter.Not(null))
                 .isInstanceOf(NullPointerException.class);

@@ -15,7 +15,6 @@ import cn.byteforce.seedj.iam.PolicyOperandSource;
 import cn.byteforce.seedj.iam.spi.IamPolicyRepository;
 import cn.byteforce.seedj.module.ObjectModuleRegistry;
 import cn.byteforce.seedj.read.ReadModel;
-
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -26,12 +25,10 @@ import java.util.Set;
 /**
  * 把 IAM 的 ALLOW/DENY 策略编译成受限行范围谓词。
  *
- * <p>只有 {@code subject.*}、{@code environment.*} 与字面量可以折叠成常量；
- * {@code resource.<field>} 保留为谓词变量；字段对字段比较、未知 context key、
- * 未知字段与不支持的算子都在编译期失败。</p>
+ * <p>只有 {@code subject.*}、{@code environment.*} 与字面量可以折叠成常量； {@code resource.<field>}
+ * 保留为谓词变量；字段对字段比较、未知 context key、 未知字段与不支持的算子都在编译期失败。
  *
- * <p>语义：ALLOW 之间 OR，DENY 取反后 AND；没有 ALLOW 结果是 {@link ScopePredicate.None}，
- * 绝不默认放行。</p>
+ * <p>语义：ALLOW 之间 OR，DENY 取反后 AND；没有 ALLOW 结果是 {@link ScopePredicate.None}， 绝不默认放行。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -50,11 +47,11 @@ public final class PolicyScopeCompiler {
      * 构造编译器。
      *
      * @param policies 策略仓库
-     * @param modules  模块注册表
-     * @param keys     已声明请求事实 key
+     * @param modules 模块注册表
+     * @param keys 已声明请求事实 key
      */
-    public PolicyScopeCompiler(IamPolicyRepository policies, ObjectModuleRegistry modules,
-                               ScopeKeyCatalog keys) {
+    public PolicyScopeCompiler(
+            IamPolicyRepository policies, ObjectModuleRegistry modules, ScopeKeyCatalog keys) {
         this.policies = Objects.requireNonNull(policies, "policies");
         this.modules = Objects.requireNonNull(modules, "modules");
         this.keys = Objects.requireNonNull(keys, "keys");
@@ -64,23 +61,28 @@ public final class PolicyScopeCompiler {
      * 编译某对象在请求上下文中的行范围。
      *
      * @param objectType 对象类型
-     * @param caller     调用方
-     * @param context    请求事实
+     * @param caller 调用方
+     * @param context 请求事实
      * @return 谓词（没有 ALLOW 时为 {@code None}）
      */
     public ScopePredicate compile(String objectType, Caller caller, ScopeContext context) {
         Objects.requireNonNull(caller, "caller");
         Objects.requireNonNull(context, "context");
-        ReadModel model = modules.find(objectType).orElseThrow(
-                () -> new IllegalArgumentException("unknown object type: " + objectType));
+        ReadModel model =
+                modules.find(objectType)
+                        .orElseThrow(
+                                () ->
+                                        new IllegalArgumentException(
+                                                "unknown object type: " + objectType));
         List<ScopePredicate> allows = new ArrayList<>();
         List<ScopePredicate> denyParts = new ArrayList<>();
         for (IamPolicy policy : policies.findEnabled(caller.tenantId())) {
             if (!matches(policy.actions(), READ) || !matches(policy.resources(), objectType)) {
                 continue;
             }
-            ScopePredicate condition = compileCondition(policy.condition(), model.schema(),
-                    caller, context, policy.id());
+            ScopePredicate condition =
+                    compileCondition(
+                            policy.condition(), model.schema(), caller, context, policy.id());
             if (policy.effect() == IamPolicyEffect.ALLOW) {
                 allows.add(condition);
             } else {
@@ -100,11 +102,10 @@ public final class PolicyScopeCompiler {
         return result;
     }
 
-    /**
-     * 启动期校验全部启用策略；未知字段/context key/算子/字段对字段比较都失败。
-     */
+    /** 启动期校验全部启用策略；未知字段/context key/算子/字段对字段比较都失败。 */
     public void validateAll() {
-        for (IamPolicy policy : policies.findEnabled(cn.byteforce.seedj.iam.IamUser.DEFAULT_TENANT)) {
+        for (IamPolicy policy :
+                policies.findEnabled(cn.byteforce.seedj.iam.IamUser.DEFAULT_TENANT)) {
             if (!matches(policy.actions(), READ)) {
                 continue;
             }
@@ -116,28 +117,47 @@ public final class PolicyScopeCompiler {
         }
     }
 
-    private ScopePredicate compileCondition(PolicyCondition condition, ObjectSchema schema,
-                                            Caller caller, ScopeContext context,
-                                            String policyId) {
+    private ScopePredicate compileCondition(
+            PolicyCondition condition,
+            ObjectSchema schema,
+            Caller caller,
+            ScopeContext context,
+            String policyId) {
         return switch (condition) {
             case PolicyCondition.Always ignored -> ScopePredicate.all();
-            case PolicyCondition.And and -> ScopePredicates.and(and.conditions().stream()
-                    .map(part -> compileCondition(part, schema, caller, context, policyId))
-                    .toList());
-            case PolicyCondition.Or or -> ScopePredicates.or(or.conditions().stream()
-                    .map(part -> compileCondition(part, schema, caller, context, policyId))
-                    .toList());
-            case PolicyCondition.Not not -> ScopePredicate.not(
-                    compileCondition(not.condition(), schema, caller, context, policyId));
-            case PolicyCondition.Exists exists -> exists(exists, schema, caller, context,
-                    policyId);
-            case PolicyCondition.Compare compare -> compare(compare, schema, caller, context,
-                    policyId);
+            case PolicyCondition.And and ->
+                    ScopePredicates.and(
+                            and.conditions().stream()
+                                    .map(
+                                            part ->
+                                                    compileCondition(
+                                                            part, schema, caller, context,
+                                                            policyId))
+                                    .toList());
+            case PolicyCondition.Or or ->
+                    ScopePredicates.or(
+                            or.conditions().stream()
+                                    .map(
+                                            part ->
+                                                    compileCondition(
+                                                            part, schema, caller, context,
+                                                            policyId))
+                                    .toList());
+            case PolicyCondition.Not not ->
+                    ScopePredicate.not(
+                            compileCondition(not.condition(), schema, caller, context, policyId));
+            case PolicyCondition.Exists exists -> exists(exists, schema, caller, context, policyId);
+            case PolicyCondition.Compare compare ->
+                    compare(compare, schema, caller, context, policyId);
         };
     }
 
-    private ScopePredicate exists(PolicyCondition.Exists exists, ObjectSchema schema,
-                                  Caller caller, ScopeContext context, String policyId) {
+    private ScopePredicate exists(
+            PolicyCondition.Exists exists,
+            ObjectSchema schema,
+            Caller caller,
+            ScopeContext context,
+            String policyId) {
         PolicyOperand operand = exists.operand();
         if (operand.source() == PolicyOperandSource.RESOURCE) {
             requireField(schema, operand.path(), policyId);
@@ -147,10 +167,15 @@ public final class PolicyScopeCompiler {
         return value == null ? ScopePredicate.none() : ScopePredicate.all();
     }
 
-    private ScopePredicate compare(PolicyCondition.Compare compare, ObjectSchema schema,
-                                   Caller caller, ScopeContext context, String policyId) {
+    private ScopePredicate compare(
+            PolicyCondition.Compare compare,
+            ObjectSchema schema,
+            Caller caller,
+            ScopeContext context,
+            String policyId) {
         PolicyComparisonOperator operator = compare.operator();
-        if (operator != PolicyComparisonOperator.EQ && operator != PolicyComparisonOperator.NE
+        if (operator != PolicyComparisonOperator.EQ
+                && operator != PolicyComparisonOperator.NE
                 && operator != PolicyComparisonOperator.IN) {
             throw unsupported(policyId, "operator " + operator);
         }
@@ -164,7 +189,8 @@ public final class PolicyScopeCompiler {
         if (!leftResource && !rightResource) {
             Object leftValue = constant(left, caller, context, policyId);
             Object rightValue = constant(right, caller, context, policyId);
-            return constantCompare(operator, leftValue, rightValue) ? ScopePredicate.all()
+            return constantCompare(operator, leftValue, rightValue)
+                    ? ScopePredicate.all()
                     : ScopePredicate.none();
         }
         if (leftResource) {
@@ -180,8 +206,8 @@ public final class PolicyScopeCompiler {
         return predicate(operator, right.path(), value, policyId);
     }
 
-    private static ScopePredicate predicate(PolicyComparisonOperator operator, String field,
-                                            Object value, String policyId) {
+    private static ScopePredicate predicate(
+            PolicyComparisonOperator operator, String field, Object value, String policyId) {
         if (value == null) {
             return ScopePredicate.none();
         }
@@ -198,8 +224,8 @@ public final class PolicyScopeCompiler {
         };
     }
 
-    private Object constant(PolicyOperand operand, Caller caller, ScopeContext context,
-                            String policyId) {
+    private Object constant(
+            PolicyOperand operand, Caller caller, ScopeContext context, String policyId) {
         return switch (operand.source()) {
             case LITERAL -> operand.literal();
             case SUBJECT -> subjectValue(caller, operand.path());
@@ -213,8 +239,9 @@ public final class PolicyScopeCompiler {
         try {
             keys.require(path);
         } catch (IllegalArgumentException error) {
-            throw new IllegalArgumentException("policy " + policyId
-                    + " references undeclared environment key: " + path, error);
+            throw new IllegalArgumentException(
+                    "policy " + policyId + " references undeclared environment key: " + path,
+                    error);
         }
         Object value = context.get(path).orElse(null);
         if (value == null) {
@@ -223,8 +250,8 @@ public final class PolicyScopeCompiler {
         try {
             return keys.require(path).type().validate(path, value);
         } catch (IllegalArgumentException error) {
-            throw new IllegalArgumentException("policy " + policyId
-                    + " environment key " + path + " has wrong type", error);
+            throw new IllegalArgumentException(
+                    "policy " + policyId + " environment key " + path + " has wrong type", error);
         }
     }
 
@@ -242,18 +269,17 @@ public final class PolicyScopeCompiler {
         };
     }
 
-    private void validateCondition(PolicyCondition condition, ObjectSchema schema,
-                                   String policyId) {
+    private void validateCondition(
+            PolicyCondition condition, ObjectSchema schema, String policyId) {
         switch (condition) {
-            case PolicyCondition.Always ignored -> {
-            }
-            case PolicyCondition.And and -> and.conditions().forEach(part ->
-                    validateCondition(part, schema, policyId));
-            case PolicyCondition.Or or -> or.conditions().forEach(part ->
-                    validateCondition(part, schema, policyId));
+            case PolicyCondition.Always ignored -> {}
+            case PolicyCondition.And and ->
+                    and.conditions().forEach(part -> validateCondition(part, schema, policyId));
+            case PolicyCondition.Or or ->
+                    or.conditions().forEach(part -> validateCondition(part, schema, policyId));
             case PolicyCondition.Not not -> validateCondition(not.condition(), schema, policyId);
-            case PolicyCondition.Exists exists -> validateOperand(exists.operand(), schema,
-                    policyId);
+            case PolicyCondition.Exists exists ->
+                    validateOperand(exists.operand(), schema, policyId);
             case PolicyCondition.Compare compare -> {
                 if (compare.operator() != PolicyComparisonOperator.EQ
                         && compare.operator() != PolicyComparisonOperator.NE
@@ -265,8 +291,9 @@ public final class PolicyScopeCompiler {
                 if (leftResource && rightResource) {
                     throw unsupported(policyId, "field-to-field comparison");
                 }
-                if (!leftResource && !rightResource && compare.operator()
-                        == PolicyComparisonOperator.IN) {
+                if (!leftResource
+                        && !rightResource
+                        && compare.operator() == PolicyComparisonOperator.IN) {
                     // constant-only IN is valid; nothing else to check
                 }
                 validateOperand(compare.left(), schema, policyId);
@@ -282,36 +309,38 @@ public final class PolicyScopeCompiler {
                 try {
                     keys.require(operand.path());
                 } catch (IllegalArgumentException error) {
-                    throw new IllegalArgumentException("policy " + policyId
-                            + " references undeclared environment key: " + operand.path(),
+                    throw new IllegalArgumentException(
+                            "policy "
+                                    + policyId
+                                    + " references undeclared environment key: "
+                                    + operand.path(),
                             error);
                 }
             }
             case ACTION -> throw unsupported(policyId, "action operand is not supported");
-            case SUBJECT, LITERAL -> {
-            }
+            case SUBJECT, LITERAL -> {}
         }
     }
 
     private static void requireField(ObjectSchema schema, String field, String policyId) {
         if (schema.field(field).isEmpty()) {
-            throw new IllegalArgumentException("policy " + policyId
-                    + " references unknown resource field: " + field);
+            throw new IllegalArgumentException(
+                    "policy " + policyId + " references unknown resource field: " + field);
         }
     }
 
     private static IllegalArgumentException unsupported(String policyId, String detail) {
-        return new IllegalArgumentException("policy " + policyId + " is not compilable: "
-                + detail);
+        return new IllegalArgumentException("policy " + policyId + " is not compilable: " + detail);
     }
 
-    private static boolean constantCompare(PolicyComparisonOperator operator, Object left,
-                                           Object right) {
+    private static boolean constantCompare(
+            PolicyComparisonOperator operator, Object left, Object right) {
         return switch (operator) {
             case EQ -> equal(left, right);
             case NE -> !equal(left, right);
-            case IN -> right instanceof Collection<?> values
-                    && values.stream().anyMatch(value -> equal(left, value));
+            case IN ->
+                    right instanceof Collection<?> values
+                            && values.stream().anyMatch(value -> equal(left, value));
             default -> false;
         };
     }
@@ -322,8 +351,7 @@ public final class PolicyScopeCompiler {
         }
         if (left instanceof Collection<?> leftValues
                 && right instanceof Collection<?> rightValues) {
-            return leftValues.size() == rightValues.size()
-                    && leftValues.containsAll(rightValues);
+            return leftValues.size() == rightValues.size() && leftValues.containsAll(rightValues);
         }
         if (left instanceof Collection<?> leftValues) {
             return leftValues.stream().anyMatch(value -> equal(value, right));

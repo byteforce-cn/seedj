@@ -1,14 +1,12 @@
 package cn.byteforce.seedj.infra.jdbc.outbox.wiring;
 
-import org.springframework.boot.context.properties.ConfigurationProperties;
-
 import java.time.Duration;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
  * Outbox 装配配置（{@code seedj.outbox.*}）。
  *
- * <p>存储实现的选择在实现模块：{@code seedj.outbox.provider=postgres}
- * （seedj-jdbc-postgresql）。
+ * <p>存储实现的选择在实现模块：{@code seedj.outbox.provider=postgres} （seedj-jdbc-postgresql）。
  */
 @ConfigurationProperties(prefix = "seedj.outbox")
 public class OutboxProperties {

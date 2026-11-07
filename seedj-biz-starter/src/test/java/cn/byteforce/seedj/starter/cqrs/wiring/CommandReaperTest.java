@@ -1,16 +1,15 @@
 package cn.byteforce.seedj.starter.cqrs.wiring;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import cn.byteforce.seedj.cqrs.CommandRecord;
 import cn.byteforce.seedj.infra.local.cqrs.InMemoryCommandStore;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
-import org.junit.jupiter.api.Test;
-
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import org.junit.jupiter.api.Test;
 
 class CommandReaperTest {
 
@@ -21,8 +20,16 @@ class CommandReaperTest {
     private static final String FINGERPRINT = "a".repeat(64);
 
     private static CommandRecord pending(String key, Instant leaseUntil) {
-        return CommandRecord.pending(UUID.randomUUID(), "probe.command", NOW, ISSUER,
-                Map.of(), key, FINGERPRINT, NOW, leaseUntil);
+        return CommandRecord.pending(
+                UUID.randomUUID(),
+                "probe.command",
+                NOW,
+                ISSUER,
+                Map.of(),
+                key,
+                FINGERPRINT,
+                NOW,
+                leaseUntil);
     }
 
     @Test
@@ -55,8 +62,11 @@ class CommandReaperTest {
         store.insert(expired);
         new CommandReaper(store, () -> NOW, null).reap();
 
-        assertThatThrownBy(() -> store.complete(expired.accepted(UUID.randomUUID(), 1L,
-                java.util.List.of())))
+        assertThatThrownBy(
+                        () ->
+                                store.complete(
+                                        expired.accepted(
+                                                UUID.randomUUID(), 1L, java.util.List.of())))
                 .isInstanceOf(IllegalStateException.class);
     }
 
@@ -78,7 +88,6 @@ class CommandReaperTest {
 
         new CommandReaper(store, () -> NOW, metrics).reap();
 
-        assertThat(metrics.get("seedj.command.pending.expired").counter().count())
-                .isEqualTo(1.0);
+        assertThat(metrics.get("seedj.command.pending.expired").counter().count()).isEqualTo(1.0);
     }
 }

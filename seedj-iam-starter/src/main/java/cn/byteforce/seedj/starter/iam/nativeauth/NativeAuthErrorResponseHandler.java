@@ -3,15 +3,14 @@ package cn.byteforce.seedj.starter.iam.nativeauth;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.oauth2.server.authorization.web.authentication.OAuth2ErrorAuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import tools.jackson.databind.json.JsonMapper;
-
-import java.io.IOException;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 /** Adds mfa_token/mfa_methods to the standard OAuth2 error response. */
 public class NativeAuthErrorResponseHandler implements AuthenticationFailureHandler {
@@ -22,8 +21,10 @@ public class NativeAuthErrorResponseHandler implements AuthenticationFailureHand
             new OAuth2ErrorAuthenticationFailureHandler();
 
     @Override
-    public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response,
-                                        AuthenticationException exception)
+    public void onAuthenticationFailure(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            AuthenticationException exception)
             throws IOException, ServletException {
         if (exception instanceof NativeAuthMfaRequiredException mfa) {
             Map<String, Object> body = new LinkedHashMap<>();

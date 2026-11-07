@@ -1,26 +1,24 @@
 package cn.byteforce.seedj.cqrs.spi;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.cqrs.CommandRecord;
 import cn.byteforce.seedj.cqrs.CommandStatus;
-import cn.byteforce.seedj.core.exception.ContractErrorCode;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
 /**
  * {@link CommandStore} 契约测试套件。
  *
- * <p>实现方提供 {@link #store()} 与 {@link #reset()}。所有用例必须通过：
- * 内存实现与 PostgreSQL 实现跑同一套断言。</p>
+ * <p>实现方提供 {@link #store()} 与 {@link #reset()}。所有用例必须通过： 内存实现与 PostgreSQL 实现跑同一套断言。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -42,9 +40,7 @@ public abstract class CommandStoreContractTest {
      */
     protected abstract CommandStore store();
 
-    /**
-     * 清空存储，保证用例隔离。
-     */
+    /** 清空存储，保证用例隔离。 */
     protected abstract void reset();
 
     @BeforeEach
@@ -60,15 +56,19 @@ public abstract class CommandStoreContractTest {
         return pending(id, ISSUER, idempotencyKey, payload);
     }
 
-    protected CommandRecord pending(UUID id, UUID issuer, String idempotencyKey,
-                                    Map<String, Object> payload) {
+    protected CommandRecord pending(
+            UUID id, UUID issuer, String idempotencyKey, Map<String, Object> payload) {
         return pending(id, issuer, idempotencyKey, payload, NOW.plusSeconds(60));
     }
 
-    protected CommandRecord pending(UUID id, UUID issuer, String idempotencyKey,
-                                    Map<String, Object> payload, Instant leaseUntil) {
-        return CommandRecord.pending(id, TYPE, NOW, issuer, payload, idempotencyKey,
-                FINGERPRINT, NOW, leaseUntil);
+    protected CommandRecord pending(
+            UUID id,
+            UUID issuer,
+            String idempotencyKey,
+            Map<String, Object> payload,
+            Instant leaseUntil) {
+        return CommandRecord.pending(
+                id, TYPE, NOW, issuer, payload, idempotencyKey, FINGERPRINT, NOW, leaseUntil);
     }
 
     @Test
@@ -136,12 +136,15 @@ public abstract class CommandStoreContractTest {
 
         store().complete(pending.accepted(locator, 2L, List.of(eventId)));
 
-        assertThat(store().find(pending.id())).get().satisfies(row -> {
-            assertThat(row.status()).isEqualTo(CommandStatus.ACCEPTED);
-            assertThat(row.locator()).isEqualTo(locator);
-            assertThat(row.version()).isEqualTo(2L);
-            assertThat(row.eventIds()).containsExactly(eventId);
-        });
+        assertThat(store().find(pending.id()))
+                .get()
+                .satisfies(
+                        row -> {
+                            assertThat(row.status()).isEqualTo(CommandStatus.ACCEPTED);
+                            assertThat(row.locator()).isEqualTo(locator);
+                            assertThat(row.version()).isEqualTo(2L);
+                            assertThat(row.eventIds()).containsExactly(eventId);
+                        });
     }
 
     @Test
@@ -152,12 +155,15 @@ public abstract class CommandStoreContractTest {
 
         store().complete(pending.accepted("emp-1", 1L, List.of()));
 
-        assertThat(store().find(pending.id())).get().satisfies(row -> {
-            assertThat(row.status()).isEqualTo(CommandStatus.ACCEPTED);
-            assertThat(row.locator()).isNull();
-            assertThat(row.targetRef()).isEqualTo("emp-1");
-            assertThat(row.version()).isEqualTo(1L);
-        });
+        assertThat(store().find(pending.id()))
+                .get()
+                .satisfies(
+                        row -> {
+                            assertThat(row.status()).isEqualTo(CommandStatus.ACCEPTED);
+                            assertThat(row.locator()).isNull();
+                            assertThat(row.targetRef()).isEqualTo("emp-1");
+                            assertThat(row.version()).isEqualTo(1L);
+                        });
     }
 
     @Test
@@ -168,13 +174,16 @@ public abstract class CommandStoreContractTest {
 
         store().complete(pending.rejected(ContractErrorCode.TEMPORAL_VIOLATION, "bad range"));
 
-        assertThat(store().find(pending.id())).get().satisfies(row -> {
-            assertThat(row.status()).isEqualTo(CommandStatus.REJECTED);
-            assertThat(row.rejectionCode()).isEqualTo("EIS-400-003");
-            assertThat(row.rejectionReason()).isEqualTo("bad range");
-            assertThat(row.locator()).isNull();
-            assertThat(row.version()).isNull();
-        });
+        assertThat(store().find(pending.id()))
+                .get()
+                .satisfies(
+                        row -> {
+                            assertThat(row.status()).isEqualTo(CommandStatus.REJECTED);
+                            assertThat(row.rejectionCode()).isEqualTo("EIS-400-003");
+                            assertThat(row.rejectionReason()).isEqualTo("bad range");
+                            assertThat(row.locator()).isNull();
+                            assertThat(row.version()).isNull();
+                        });
     }
 
     @Test
@@ -187,7 +196,8 @@ public abstract class CommandStoreContractTest {
         store().complete(accepted);
         store().complete(accepted);
 
-        assertThat(store().find(pending.id())).get()
+        assertThat(store().find(pending.id()))
+                .get()
                 .extracting(CommandRecord::status)
                 .isEqualTo(CommandStatus.ACCEPTED);
     }
@@ -199,19 +209,26 @@ public abstract class CommandStoreContractTest {
         store().insert(pending);
         store().complete(pending.accepted(UUID.randomUUID(), 1L, List.of()));
 
-        assertThatThrownBy(() -> store().complete(
-                pending.rejected(ContractErrorCode.TEMPORAL_VIOLATION, "late")))
+        assertThatThrownBy(
+                        () ->
+                                store().complete(
+                                                pending.rejected(
+                                                        ContractErrorCode.TEMPORAL_VIOLATION,
+                                                        "late")))
                 .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
     @DisplayName("complete 不存在的记录失败")
     void completingMissingRecordFails() {
-        assertThatThrownBy(() -> store().complete(pending("k-9").accepted(
-                UUID.randomUUID(), 1L, List.of())))
+        assertThatThrownBy(
+                        () ->
+                                store().complete(
+                                                pending("k-9")
+                                                        .accepted(
+                                                                UUID.randomUUID(), 1L, List.of())))
                 .isInstanceOf(IllegalStateException.class);
     }
-
 
     @Test
     @DisplayName("abandon 移除 pending 并释放幂等键")
@@ -236,7 +253,8 @@ public abstract class CommandStoreContractTest {
 
         store().abandon(pending.id());
 
-        assertThat(store().find(pending.id())).get()
+        assertThat(store().find(pending.id()))
+                .get()
                 .extracting(CommandRecord::status)
                 .isEqualTo(CommandStatus.ACCEPTED);
     }
@@ -244,12 +262,13 @@ public abstract class CommandStoreContractTest {
     @Test
     @DisplayName("expirePending 只删除租约过期的 PENDING，并释放幂等键")
     void expirePendingDeletesOnlyExpiredPending() {
-        CommandRecord expired = pending(UUID.randomUUID(), ISSUER, "k-expired", Map.of(),
-                NOW.minusSeconds(1));
-        CommandRecord active = pending(UUID.randomUUID(), ISSUER, "k-active", Map.of(),
-                NOW.plusSeconds(60));
-        CommandRecord terminal = pending(UUID.randomUUID(), ISSUER, "k-terminal", Map.of(),
-                NOW.minusSeconds(1)).accepted(UUID.randomUUID(), 1L, List.of());
+        CommandRecord expired =
+                pending(UUID.randomUUID(), ISSUER, "k-expired", Map.of(), NOW.minusSeconds(1));
+        CommandRecord active =
+                pending(UUID.randomUUID(), ISSUER, "k-active", Map.of(), NOW.plusSeconds(60));
+        CommandRecord terminal =
+                pending(UUID.randomUUID(), ISSUER, "k-terminal", Map.of(), NOW.minusSeconds(1))
+                        .accepted(UUID.randomUUID(), 1L, List.of());
         store().insert(expired);
         store().insert(active);
         store().insert(terminal);

@@ -3,14 +3,11 @@ package cn.byteforce.seedj.it.fixture.hr;
 import cn.byteforce.seedj.eventbus.EventEnvelope;
 import cn.byteforce.seedj.eventbus.EventSubscriber;
 import cn.byteforce.seedj.eventbus.EventSubscription;
-import org.springframework.stereotype.Component;
-
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import org.springframework.stereotype.Component;
 
-/**
- * 仅测试用的 HR 消费者：验证跨服务 subscribe / 消费组 / ack 全链路。
- */
+/** 仅测试用的 HR 消费者：验证跨服务 subscribe / 消费组 / ack 全链路。 */
 @Component
 public class HrEventSubscriber implements EventSubscriber<HrOrderPlaced> {
 

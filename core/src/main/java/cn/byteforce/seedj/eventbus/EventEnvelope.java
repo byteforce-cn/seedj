@@ -1,7 +1,6 @@
 package cn.byteforce.seedj.eventbus;
 
 import cn.byteforce.seedj.domain.event.DomainEvent;
-
 import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;

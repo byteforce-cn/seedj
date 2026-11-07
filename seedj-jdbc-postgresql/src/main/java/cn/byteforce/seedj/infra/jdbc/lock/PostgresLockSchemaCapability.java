@@ -3,7 +3,6 @@ package cn.byteforce.seedj.infra.jdbc.lock;
 import cn.byteforce.seedj.core.InfrastructureCapability;
 import cn.byteforce.seedj.core.Migration;
 import cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner;
-
 import java.util.List;
 
 /**

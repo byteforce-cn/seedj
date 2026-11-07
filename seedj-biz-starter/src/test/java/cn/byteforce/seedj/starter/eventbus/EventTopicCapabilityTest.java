@@ -1,5 +1,10 @@
 package cn.byteforce.seedj.starter.eventbus;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import cn.byteforce.seedj.core.InfrastructureErrorCode;
 import cn.byteforce.seedj.core.InfrastructureException;
 import cn.byteforce.seedj.domain.event.DomainEvent;
@@ -9,24 +14,16 @@ import cn.byteforce.seedj.eventbus.EventMessage;
 import cn.byteforce.seedj.eventbus.EventSubscriber;
 import cn.byteforce.seedj.eventbus.EventSubscription;
 import cn.byteforce.seedj.eventbus.spi.EventBusTransport;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.ObjectProvider;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.ObjectProvider;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
-/**
- * topic 能力：订阅/配置声明的 topic 必须在启动期就存在。
- */
+/** topic 能力：订阅/配置声明的 topic 必须在启动期就存在。 */
 class EventTopicCapabilityTest {
 
     @Test
@@ -43,8 +40,11 @@ class EventTopicCapabilityTest {
     void topicsMergeConfigurationAndSubscriptions() {
         EventBusProperties properties = new EventBusProperties();
         properties.setTopics(List.of("audit.trail", "order.paid"));
-        EventTopicCapability capability = capability(new RecordingBus(), properties,
-                new Subscriber("order.paid", "order.cancelled", "audit.trail"));
+        EventTopicCapability capability =
+                capability(
+                        new RecordingBus(),
+                        properties,
+                        new Subscriber("order.paid", "order.cancelled", "audit.trail"));
 
         assertThat(capability.topics())
                 .containsExactly("audit.trail", "order.paid", "order.cancelled");
@@ -53,10 +53,11 @@ class EventTopicCapabilityTest {
     @Test
     @DisplayName("没有 transport 时能力视为就绪，初始化与校验都不做事")
     void noTransportIsReady() {
-        EventTopicCapability capability = new EventTopicCapability(
-                transportProvider(null),
-                subscriberProvider(List.of(new Subscriber("order.paid"))),
-                new EventBusProperties());
+        EventTopicCapability capability =
+                new EventTopicCapability(
+                        transportProvider(null),
+                        subscriberProvider(List.of(new Subscriber("order.paid"))),
+                        new EventBusProperties());
 
         assertThat(capability.isReady()).isTrue();
         capability.initialize();
@@ -69,8 +70,7 @@ class EventTopicCapabilityTest {
         RecordingBus bus = new RecordingBus();
         EventBusProperties properties = new EventBusProperties();
         properties.setTopics(List.of("audit.trail"));
-        EventTopicCapability capability = capability(bus, properties,
-                new Subscriber("order.paid"));
+        EventTopicCapability capability = capability(bus, properties, new Subscriber("order.paid"));
 
         capability.initialize();
 
@@ -82,15 +82,21 @@ class EventTopicCapabilityTest {
     void validateFailsWhenTopicMissing() {
         RecordingBus bus = new RecordingBus();
         bus.existing.add("order.paid");
-        EventTopicCapability capability = capability(bus, new EventBusProperties(),
-                new Subscriber("order.paid", "order.cancelled"));
+        EventTopicCapability capability =
+                capability(
+                        bus,
+                        new EventBusProperties(),
+                        new Subscriber("order.paid", "order.cancelled"));
 
         assertThat(capability.isReady()).isFalse();
         assertThatThrownBy(capability::validate)
-                .isInstanceOfSatisfying(InfrastructureException.class, e -> {
-                    assertThat(e.code()).isEqualTo(InfrastructureErrorCode.NOT_READY.name());
-                    assertThat(e.getMessage()).contains("order.cancelled");
-                });
+                .isInstanceOfSatisfying(
+                        InfrastructureException.class,
+                        e -> {
+                            assertThat(e.code())
+                                    .isEqualTo(InfrastructureErrorCode.NOT_READY.name());
+                            assertThat(e.getMessage()).contains("order.cancelled");
+                        });
     }
 
     @Test
@@ -98,22 +104,26 @@ class EventTopicCapabilityTest {
     void validatePassesWhenAllTopicsExist() {
         RecordingBus bus = new RecordingBus();
         bus.existing.addAll(Set.of("order.paid", "order.cancelled"));
-        EventTopicCapability capability = capability(bus, new EventBusProperties(),
-                new Subscriber("order.paid", "order.cancelled"));
+        EventTopicCapability capability =
+                capability(
+                        bus,
+                        new EventBusProperties(),
+                        new Subscriber("order.paid", "order.cancelled"));
 
         assertThat(capability.isReady()).isTrue();
         capability.validate();
         assertThat(bus.ensured).isEmpty();
     }
 
-    private static EventTopicCapability capability(RecordingBus bus, EventBusProperties properties,
-                                                   EventSubscriber<?>... subscribers) {
-        return new EventTopicCapability(transportProvider(bus),
-                subscriberProvider(List.of(subscribers)), properties);
+    private static EventTopicCapability capability(
+            RecordingBus bus, EventBusProperties properties, EventSubscriber<?>... subscribers) {
+        return new EventTopicCapability(
+                transportProvider(bus), subscriberProvider(List.of(subscribers)), properties);
     }
 
     @SuppressWarnings("unchecked")
-    private static ObjectProvider<EventBusTransport> transportProvider(EventBusTransport transport) {
+    private static ObjectProvider<EventBusTransport> transportProvider(
+            EventBusTransport transport) {
         ObjectProvider<EventBusTransport> provider = mock(ObjectProvider.class);
         when(provider.getIfAvailable()).thenReturn(transport);
         return provider;
@@ -128,8 +138,7 @@ class EventTopicCapabilityTest {
     }
 
     @EventType("test.topic.event")
-    static final class TopicEvent implements DomainEvent {
-    }
+    static final class TopicEvent implements DomainEvent {}
 
     static final class Subscriber implements EventSubscriber<TopicEvent> {
 
@@ -145,8 +154,7 @@ class EventTopicCapabilityTest {
         }
 
         @Override
-        public void onEvent(EventEnvelope<TopicEvent> envelope) {
-        }
+        public void onEvent(EventEnvelope<TopicEvent> envelope) {}
     }
 
     static final class RecordingBus implements EventBusTransport {

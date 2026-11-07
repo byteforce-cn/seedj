@@ -2,7 +2,6 @@ package cn.byteforce.seedj.eventbus;
 
 import cn.byteforce.seedj.domain.event.DomainEvent;
 import cn.byteforce.seedj.domain.event.EventTypeRegistry;
-
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Map;
@@ -11,8 +10,7 @@ import java.util.Objects;
 /**
  * 一条待投递的事件消息。
  *
- * <p>{@code sequence} 刻意<b>不在</b>这里：分区内顺序由投递机制分配，
- * 业务方不需要（也无法）知道。
+ * <p>{@code sequence} 刻意<b>不在</b>这里：分区内顺序由投递机制分配， 业务方不需要（也无法）知道。
  *
  * <p>{@code eventId} 是幂等键：同一个 {@code eventId} 重复写入只会落一份。
  */
@@ -51,24 +49,37 @@ public record EventMessage(
      * @return 新消息，其余字段不变
      */
     public EventMessage withHeaders(Map<String, String> headers) {
-        return new EventMessage(eventId, topic, partitionKey, eventType, eventVersion, payload,
-                headers, occurredAt);
+        return new EventMessage(
+                eventId,
+                topic,
+                partitionKey,
+                eventType,
+                eventVersion,
+                payload,
+                headers,
+                occurredAt);
     }
 
     /** 最简单的消息：eventId 由调用方的 {@link cn.byteforce.seedj.id.IdGenerator} 产生。 */
-    public static EventMessage of(String eventId, String topic, String partitionKey, byte[] payload) {
-        return new EventMessage(eventId, topic, partitionKey,
-                topic, 1, payload, Map.of(), Instant.now());
+    public static EventMessage of(
+            String eventId, String topic, String partitionKey, byte[] payload) {
+        return new EventMessage(
+                eventId, topic, partitionKey, topic, 1, payload, Map.of(), Instant.now());
     }
 
     /** 领域事件 → 消息：eventType/version 来自 {@code @EventType}，校验只做一次。 */
-    public static EventMessage of(String eventId, String topic, String partitionKey,
-                                  DomainEvent event, byte[] payload) {
+    public static EventMessage of(
+            String eventId, String topic, String partitionKey, DomainEvent event, byte[] payload) {
         Objects.requireNonNull(event, "event");
-        return new EventMessage(eventId, topic, partitionKey,
+        return new EventMessage(
+                eventId,
+                topic,
+                partitionKey,
                 EventTypeRegistry.logicalName(event.getClass()),
                 EventTypeRegistry.schemaVersion(event.getClass()),
-                payload, Map.of(), Instant.now());
+                payload,
+                Map.of(),
+                Instant.now());
     }
 
     /** topic 等于事件逻辑名（约定：一个事件类型一个 topic）。 */
@@ -96,16 +107,29 @@ public record EventMessage(
 
     @Override
     public int hashCode() {
-        int result = Objects.hash(eventId, topic, partitionKey, eventType, eventVersion, headers, occurredAt);
+        int result =
+                Objects.hash(
+                        eventId, topic, partitionKey, eventType, eventVersion, headers, occurredAt);
         return 31 * result + Arrays.hashCode(payload);
     }
 
     /** 脱敏：不输出 payload。 */
     @Override
     public String toString() {
-        return "EventMessage{eventId='" + eventId + "', topic='" + topic
-                + "', partitionKey='" + partitionKey + "', eventType='" + eventType
-                + "', eventVersion=" + eventVersion + ", payloadBytes=" + payload.length
-                + ", occurredAt=" + occurredAt + '}';
+        return "EventMessage{eventId='"
+                + eventId
+                + "', topic='"
+                + topic
+                + "', partitionKey='"
+                + partitionKey
+                + "', eventType='"
+                + eventType
+                + "', eventVersion="
+                + eventVersion
+                + ", payloadBytes="
+                + payload.length
+                + ", occurredAt="
+                + occurredAt
+                + '}';
     }
 }

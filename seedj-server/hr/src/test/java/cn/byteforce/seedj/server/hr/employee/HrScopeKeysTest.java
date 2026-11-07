@@ -28,8 +28,15 @@ class HrScopeKeysTest {
     }
 
     private static Caller caller(Map<String, Object> attributes) {
-        return new Caller("018f2e3a-0000-7000-8000-000000000021", "tester", "default",
-                Set.of(), Set.of("hr.employee.write"), Set.of(), Set.of(Caller.DEFAULT_AMR),
-                Caller.DEFAULT_ACR, attributes);
+        return new Caller(
+                "018f2e3a-0000-7000-8000-000000000021",
+                "tester",
+                "default",
+                Set.of(),
+                Set.of("hr.employee.write"),
+                Set.of(),
+                Set.of(Caller.DEFAULT_AMR),
+                Caller.DEFAULT_ACR,
+                attributes);
     }
 }

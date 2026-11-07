@@ -5,6 +5,16 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.regex.Pattern;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseCookie;
@@ -20,35 +30,23 @@ import org.springframework.security.web.authentication.logout.SecurityContextLog
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import java.io.IOException;
-import java.net.URI;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Set;
-import java.util.regex.Pattern;
-
 /**
  * 在 Spring Authorization Server 端点过滤器之前，对授权请求做 RFC 6749 / OIDC Core 的前置校验。
  *
- * <p>补齐 SAS 7.1.1 默认链中被 {@code AuthorizationFilter} 提前截断的语义：</p>
+ * <p>补齐 SAS 7.1.1 默认链中被 {@code AuthorizationFilter} 提前截断的语义：
+ *
  * <ul>
- *   <li>RFC 6749 §4.1.2.1：client_id / redirect_uri 非法时 400，且绝不重定向到非法 URI；</li>
- *   <li>OIDC Core §3.1.2.6：{@code prompt=none} 时未登录返回 {@code login_required}，
- *       需要同意返回 {@code consent_required}；</li>
- *   <li>OIDC Core §3.1.2.6 / §3.1.2.1：{@code prompt=login} 与 {@code max_age} 强制重新认证；</li>
- *   <li>RFC 6749 §3.1.2.1：不支持的 {@code response_type} 以重定向错误返回
- *       {@code unsupported_response_type}；</li>
- *   <li>RFC 6749 §3.1.2.1：不支持/重复参数返回 {@code invalid_request}；</li>
- *   <li>RFC 6749 §3.3：重复或非法 {@code scope} 返回 {@code invalid_scope}；</li>
- *   <li>RFC 7636 §4.2：{@code code_challenge} 长度与字符集校验；S256 固定 43 字符。</li>
+ *   <li>RFC 6749 §4.1.2.1：client_id / redirect_uri 非法时 400，且绝不重定向到非法 URI；
+ *   <li>OIDC Core §3.1.2.6：{@code prompt=none} 时未登录返回 {@code login_required}， 需要同意返回 {@code
+ *       consent_required}；
+ *   <li>OIDC Core §3.1.2.6 / §3.1.2.1：{@code prompt=login} 与 {@code max_age} 强制重新认证；
+ *   <li>RFC 6749 §3.1.2.1：不支持的 {@code response_type} 以重定向错误返回 {@code unsupported_response_type}；
+ *   <li>RFC 6749 §3.1.2.1：不支持/重复参数返回 {@code invalid_request}；
+ *   <li>RFC 6749 §3.3：重复或非法 {@code scope} 返回 {@code invalid_scope}；
+ *   <li>RFC 7636 §4.2：{@code code_challenge} 长度与字符集校验；S256 固定 43 字符。
  * </ul>
  *
- * <p>强制重新认证时，把去掉 {@code prompt}/{@code max_age} 的原始授权 URL 写入短期
- * HttpOnly Cookie，登录成功处理器读取后回跳，避免重复触发。</p>
+ * <p>强制重新认证时，把去掉 {@code prompt}/{@code max_age} 的原始授权 URL 写入短期 HttpOnly Cookie，登录成功处理器读取后回跳，避免重复触发。
  */
 public final class AuthorizationRequestConformanceFilter extends OncePerRequestFilter {
 
@@ -57,22 +55,33 @@ public final class AuthorizationRequestConformanceFilter extends OncePerRequestF
     private static final Set<String> SUPPORTED_RESPONSE_MODES = Set.of("query");
     private static final Pattern CODE_CHALLENGE_PATTERN =
             Pattern.compile("[A-Za-z0-9\\-._~]{43,128}");
-    private static final Pattern SCOPE_PATTERN =
-            Pattern.compile("[\\x21\\x23-\\x5B\\x5D-\\x7E]+");
+    private static final Pattern SCOPE_PATTERN = Pattern.compile("[\\x21\\x23-\\x5B\\x5D-\\x7E]+");
 
     private static final String[] SINGLETON_PARAMETERS = {
-            "response_type", "client_id", "redirect_uri", "scope", "state", "nonce",
-            "code_challenge", "code_challenge_method", "response_mode", "prompt", "max_age",
-            "login_hint", "acr_values", "claims"
+        "response_type",
+        "client_id",
+        "redirect_uri",
+        "scope",
+        "state",
+        "nonce",
+        "code_challenge",
+        "code_challenge_method",
+        "response_mode",
+        "prompt",
+        "max_age",
+        "login_hint",
+        "acr_values",
+        "claims"
     };
 
     private final RegisteredClientRepository registeredClients;
     private final OAuth2AuthorizationConsentService consentService;
     private final AuthorizationServerSettings settings;
 
-    public AuthorizationRequestConformanceFilter(RegisteredClientRepository registeredClients,
-                                                 OAuth2AuthorizationConsentService consentService,
-                                                 AuthorizationServerSettings settings) {
+    public AuthorizationRequestConformanceFilter(
+            RegisteredClientRepository registeredClients,
+            OAuth2AuthorizationConsentService consentService,
+            AuthorizationServerSettings settings) {
         this.registeredClients = registeredClients;
         this.consentService = consentService;
         this.settings = settings;
@@ -96,8 +105,9 @@ public final class AuthorizationRequestConformanceFilter extends OncePerRequestF
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
-                                    FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(
+            HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+            throws ServletException, IOException {
         Map<String, String[]> params = new LinkedHashMap<>(request.getParameterMap());
 
         String clientId = first(params, "client_id");
@@ -125,8 +135,13 @@ public final class AuthorizationRequestConformanceFilter extends OncePerRequestF
             return;
         }
 
-        AuthorizationRequest authorizationRequest = new AuthorizationRequest(
-                client, redirectUri, first(params, "response_type"), first(params, "state"), params);
+        AuthorizationRequest authorizationRequest =
+                new AuthorizationRequest(
+                        client,
+                        redirectUri,
+                        first(params, "response_type"),
+                        first(params, "state"),
+                        params);
 
         ValidationError error = validate(authorizationRequest);
         if (error != null) {
@@ -140,13 +155,19 @@ public final class AuthorizationRequestConformanceFilter extends OncePerRequestF
 
         if (prompts.contains("none")) {
             if (!authenticated || isMaxAgeExceeded(request, maxAge)) {
-                redirectError(authorizationRequest, response,
-                        new ValidationError("login_required", "prompt=none requires an authenticated session"));
+                redirectError(
+                        authorizationRequest,
+                        response,
+                        new ValidationError(
+                                "login_required", "prompt=none requires an authenticated session"));
                 return;
             }
             if (consentRequired(authorizationRequest)) {
-                redirectError(authorizationRequest, response,
-                        new ValidationError("consent_required", "prompt=none requires existing consent"));
+                redirectError(
+                        authorizationRequest,
+                        response,
+                        new ValidationError(
+                                "consent_required", "prompt=none requires existing consent"));
                 return;
             }
             filterChain.doFilter(request, response);
@@ -380,10 +401,12 @@ public final class AuthorizationRequestConformanceFilter extends OncePerRequestF
     // Responses
     // ------------------------------------------------------------------
 
-    private void redirectError(AuthorizationRequest request, HttpServletResponse response,
-                               ValidationError error) throws IOException {
-        UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(request.redirectUri())
-                .queryParam("error", error.error());
+    private void redirectError(
+            AuthorizationRequest request, HttpServletResponse response, ValidationError error)
+            throws IOException {
+        UriComponentsBuilder builder =
+                UriComponentsBuilder.fromUriString(request.redirectUri())
+                        .queryParam("error", error.error());
         if (error.description() != null) {
             builder.queryParam("error_description", error.description());
         }
@@ -399,25 +422,32 @@ public final class AuthorizationRequestConformanceFilter extends OncePerRequestF
         response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        response.getWriter().write("{\"error\":\"" + jsonEscape(error)
-                + "\",\"error_description\":\"" + jsonEscape(description) + "\"}");
+        response.getWriter()
+                .write(
+                        "{\"error\":\""
+                                + jsonEscape(error)
+                                + "\",\"error_description\":\""
+                                + jsonEscape(description)
+                                + "\"}");
     }
 
     private void forceReauthentication(HttpServletRequest request, HttpServletResponse response)
             throws IOException {
         String target = reauthenticationTarget(request);
-        ResponseCookie cookie = ResponseCookie.from(REAUTH_COOKIE,
-                        URLEncoder.encode(target, StandardCharsets.UTF_8))
-                .httpOnly(true)
-                .secure(request.isSecure())
-                .path("/")
-                .maxAge(Duration.ofMinutes(5))
-                .sameSite("Lax")
-                .build();
+        ResponseCookie cookie =
+                ResponseCookie.from(
+                                REAUTH_COOKIE, URLEncoder.encode(target, StandardCharsets.UTF_8))
+                        .httpOnly(true)
+                        .secure(request.isSecure())
+                        .path("/")
+                        .maxAge(Duration.ofMinutes(5))
+                        .sameSite("Lax")
+                        .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null && authentication.isAuthenticated()
+        if (authentication != null
+                && authentication.isAuthenticated()
                 && !(authentication instanceof AnonymousAuthenticationToken)) {
             new SecurityContextLogoutHandler().logout(request, response, authentication);
         }
@@ -429,15 +459,20 @@ public final class AuthorizationRequestConformanceFilter extends OncePerRequestF
     }
 
     private static String reauthenticationTarget(HttpServletRequest request) {
-        UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(request.getRequestURL().toString());
-        request.getParameterMap().forEach((name, values) -> {
-            if ("prompt".equals(name) || "max_age".equals(name) || "continue".equals(name)) {
-                return;
-            }
-            for (String value : values) {
-                builder.queryParam(name, value);
-            }
-        });
+        UriComponentsBuilder builder =
+                UriComponentsBuilder.fromUriString(request.getRequestURL().toString());
+        request.getParameterMap()
+                .forEach(
+                        (name, values) -> {
+                            if ("prompt".equals(name)
+                                    || "max_age".equals(name)
+                                    || "continue".equals(name)) {
+                                return;
+                            }
+                            for (String value : values) {
+                                builder.queryParam(name, value);
+                            }
+                        });
         return builder.build().encode().toUriString();
     }
 
@@ -445,13 +480,12 @@ public final class AuthorizationRequestConformanceFilter extends OncePerRequestF
         return value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
-    private record AuthorizationRequest(RegisteredClient client,
-                                        String redirectUri,
-                                        String responseType,
-                                        String state,
-                                        Map<String, String[]> params) {
-    }
+    private record AuthorizationRequest(
+            RegisteredClient client,
+            String redirectUri,
+            String responseType,
+            String state,
+            Map<String, String[]> params) {}
 
-    private record ValidationError(String error, String description) {
-    }
+    private record ValidationError(String error, String description) {}
 }

@@ -1,5 +1,8 @@
 package cn.byteforce.seedj.starter.iam.scim;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.InstanceOfAssertFactories.MAP;
+
 import cn.byteforce.seedj.iam.IamErrorCode;
 import cn.byteforce.seedj.iam.IamUser;
 import cn.byteforce.seedj.iam.spi.IamPasswordHasher;
@@ -11,49 +14,50 @@ import cn.byteforce.seedj.infra.local.iam.InMemoryIamUserRepository;
 import cn.byteforce.seedj.starter.iam.IamProperties;
 import cn.byteforce.seedj.starter.iam.identity.IamIdentityService;
 import cn.byteforce.seedj.starter.iam.identity.IamPasswordHasherAdapter;
-import org.junit.jupiter.api.Test;
-import org.springframework.security.crypto.factory.PasswordEncoderFactories;
-
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.InstanceOfAssertFactories.MAP;
+import org.junit.jupiter.api.Test;
+import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 
 class ScimUserServiceTest {
 
     private final InMemoryIamUserRepository users = new InMemoryIamUserRepository();
     private final InMemoryIamGroupRepository groups = new InMemoryIamGroupRepository();
     private final InMemoryIamTokenRevoker revoker = new InMemoryIamTokenRevoker();
-    private final IamPasswordHasher hasher = new IamPasswordHasherAdapter(
-            PasswordEncoderFactories.createDelegatingPasswordEncoder());
+    private final IamPasswordHasher hasher =
+            new IamPasswordHasherAdapter(
+                    PasswordEncoderFactories.createDelegatingPasswordEncoder());
     private final AtomicLong seq = new AtomicLong();
     private final IdGenerator<String> idGenerator = () -> "id-" + seq.incrementAndGet();
-    private final IamIdentityService identities = new IamIdentityService(users, hasher, revoker,
-            new InMemoryIamAuditSink(), idGenerator);
+    private final IamIdentityService identities =
+            new IamIdentityService(users, hasher, revoker, new InMemoryIamAuditSink(), idGenerator);
     private final IamProperties properties = IamProperties.defaults();
-    private final ScimUserService service = new ScimUserService(users, groups, hasher, identities,
-            properties, idGenerator);
+    private final ScimUserService service =
+            new ScimUserService(users, groups, hasher, identities, properties, idGenerator);
 
     @Test
     void createRequiresUserName() {
-        ScimAssertions.assertIamError(() -> service.create(Map.of("displayName", "Alice")),
-                IamErrorCode.SCIM_BAD_REQUEST, "userName is required");
-        ScimAssertions.assertIamError(() -> service.create(Map.of("userName", "   ")),
-                IamErrorCode.SCIM_BAD_REQUEST, "userName is required");
+        ScimAssertions.assertIamError(
+                () -> service.create(Map.of("displayName", "Alice")),
+                IamErrorCode.SCIM_BAD_REQUEST,
+                "userName is required");
+        ScimAssertions.assertIamError(
+                () -> service.create(Map.of("userName", "   ")),
+                IamErrorCode.SCIM_BAD_REQUEST,
+                "userName is required");
     }
 
     @Test
     void createGeneratesPasswordWhenOmittedAndHashesSuppliedOne() {
         Map<String, Object> generated = service.create(Map.of("userName", "alice"));
-        Map<String, Object> explicit = service.create(Map.of("userName", "bob",
-                "password", "bob-password"));
+        Map<String, Object> explicit =
+                service.create(Map.of("userName", "bob", "password", "bob-password"));
 
-        String generatedHash = users.findPasswordHash(String.valueOf(generated.get("id")))
-                .orElseThrow();
-        String explicitHash = users.findPasswordHash(String.valueOf(explicit.get("id")))
-                .orElseThrow();
+        String generatedHash =
+                users.findPasswordHash(String.valueOf(generated.get("id"))).orElseThrow();
+        String explicitHash =
+                users.findPasswordHash(String.valueOf(explicit.get("id"))).orElseThrow();
         assertThat(generatedHash).startsWith("{").isNotEqualTo(explicitHash);
         assertThat(hasher.matches("bob-password", explicitHash)).isTrue();
         assertThat(hasher.matches("", generatedHash)).isFalse();
@@ -61,23 +65,34 @@ class ScimUserServiceTest {
 
     @Test
     void createMapsNestedNameEmailExternalIdAndActive() {
-        Map<String, Object> created = service.create(Map.of(
-                "userName", "alice",
-                "externalId", "ext-1",
-                "active", false,
-                "name", Map.of("givenName", "Alice", "familyName", "Ng"),
-                "emails", List.of(Map.of("value", "alice@example.com", "primary", true))));
+        Map<String, Object> created =
+                service.create(
+                        Map.of(
+                                "userName",
+                                "alice",
+                                "externalId",
+                                "ext-1",
+                                "active",
+                                false,
+                                "name",
+                                Map.of("givenName", "Alice", "familyName", "Ng"),
+                                "emails",
+                                List.of(Map.of("value", "alice@example.com", "primary", true))));
 
-        assertThat(created).containsEntry("userName", "alice")
+        assertThat(created)
+                .containsEntry("userName", "alice")
                 .containsEntry("externalId", "ext-1")
                 .containsEntry("displayName", "Alice Ng")
                 .containsEntry("active", false);
-        assertThat(created.get("name")).asInstanceOf(MAP).containsEntry("givenName", "Alice")
+        assertThat(created.get("name"))
+                .asInstanceOf(MAP)
+                .containsEntry("givenName", "Alice")
                 .containsEntry("familyName", "Ng");
         assertThat((List<?>) created.get("emails")).hasSize(1);
         @SuppressWarnings("unchecked")
         Map<String, Object> meta = (Map<String, Object>) created.get("meta");
-        assertThat(meta).containsEntry("resourceType", "User")
+        assertThat(meta)
+                .containsEntry("resourceType", "User")
                 .containsEntry("location", "/scim/v2/Users/" + created.get("id"))
                 .containsEntry("version", "W/\"0\"");
         assertThat(meta.get("created")).isNotNull();
@@ -86,21 +101,24 @@ class ScimUserServiceTest {
 
     @Test
     void createPrefersFormattedNameAndAcceptsSingleEmailObject() {
-        Map<String, Object> created = service.create(Map.of(
-                "userName", "alice",
-                "name", Map.of("givenName", "Alice", "formatted", "Alice N."),
-                "emails", Map.of("value", "alice@example.com")));
+        Map<String, Object> created =
+                service.create(
+                        Map.of(
+                                "userName", "alice",
+                                "name", Map.of("givenName", "Alice", "formatted", "Alice N."),
+                                "emails", Map.of("value", "alice@example.com")));
 
         assertThat(created.get("displayName")).isEqualTo("Alice N.");
-        assertThat(created.get("emails")).isEqualTo(
-                List.of(Map.of("value", "alice@example.com", "primary", true)));
+        assertThat(created.get("emails"))
+                .isEqualTo(List.of(Map.of("value", "alice@example.com", "primary", true)));
     }
 
     @Test
     void createFallsBackToUserNameOnlyProfile() {
         Map<String, Object> created = service.create(Map.of("userName", "alice"));
 
-        assertThat(created).doesNotContainKey("displayName")
+        assertThat(created)
+                .doesNotContainKey("displayName")
                 .doesNotContainKey("name")
                 .doesNotContainKey("emails")
                 .doesNotContainKey("externalId");
@@ -110,23 +128,34 @@ class ScimUserServiceTest {
     void createRejectsDuplicateUserName() {
         service.create(Map.of("userName", "alice"));
 
-        ScimAssertions.assertIamError(() -> service.create(Map.of("userName", "alice")),
-                IamErrorCode.USER_CONFLICT, "user already exists: alice");
+        ScimAssertions.assertIamError(
+                () -> service.create(Map.of("userName", "alice")),
+                IamErrorCode.USER_CONFLICT,
+                "user already exists: alice");
     }
 
     @Test
     void updateChangesProfileAndDeactivatesSessions() {
-        Map<String, Object> created = service.create(Map.of("userName", "alice",
-                "name", Map.of("givenName", "Alice")));
+        Map<String, Object> created =
+                service.create(Map.of("userName", "alice", "name", Map.of("givenName", "Alice")));
         String id = String.valueOf(created.get("id"));
 
-        Map<String, Object> updated = service.update(id, Map.of(
-                "userName", "alice.ng",
-                "displayName", "Alice Ng",
-                "emails", List.of(Map.of("value", "alice@example.com")),
-                "active", false), "W/\"0\"");
+        Map<String, Object> updated =
+                service.update(
+                        id,
+                        Map.of(
+                                "userName",
+                                "alice.ng",
+                                "displayName",
+                                "Alice Ng",
+                                "emails",
+                                List.of(Map.of("value", "alice@example.com")),
+                                "active",
+                                false),
+                        "W/\"0\"");
 
-        assertThat(updated).containsEntry("userName", "alice.ng")
+        assertThat(updated)
+                .containsEntry("userName", "alice.ng")
                 .containsEntry("displayName", "Alice Ng")
                 .containsEntry("active", false);
         assertThat(revoker.isRevoked("alice.ng")).isTrue();
@@ -141,10 +170,14 @@ class ScimUserServiceTest {
         Map<String, Object> created = service.create(Map.of("userName", "alice"));
         String id = String.valueOf(created.get("id"));
 
-        ScimAssertions.assertIamError(() -> service.update(id, Map.of("userName", "alice"), "W/\"7\""),
-                IamErrorCode.SCIM_PRECONDITION_FAILED, "resource version mismatch");
-        ScimAssertions.assertIamError(() -> service.update(id, Map.of("userName", "alice"), "not-a-number"),
-                IamErrorCode.SCIM_BAD_REQUEST, "invalid If-Match/ETag value");
+        ScimAssertions.assertIamError(
+                () -> service.update(id, Map.of("userName", "alice"), "W/\"7\""),
+                IamErrorCode.SCIM_PRECONDITION_FAILED,
+                "resource version mismatch");
+        ScimAssertions.assertIamError(
+                () -> service.update(id, Map.of("userName", "alice"), "not-a-number"),
+                IamErrorCode.SCIM_BAD_REQUEST,
+                "invalid If-Match/ETag value");
     }
 
     @Test
@@ -152,21 +185,23 @@ class ScimUserServiceTest {
         Map<String, Object> created = service.create(Map.of("userName", "alice"));
         String id = String.valueOf(created.get("id"));
 
-        ScimAssertions.assertIamError(() -> service.update(id, Map.of("displayName", "Alice"), null),
-                IamErrorCode.SCIM_BAD_REQUEST, "userName is required");
+        ScimAssertions.assertIamError(
+                () -> service.update(id, Map.of("displayName", "Alice"), null),
+                IamErrorCode.SCIM_BAD_REQUEST,
+                "userName is required");
     }
 
     @Test
     void updateReplacesPasswordAndRevokesSessions() {
-        Map<String, Object> created = service.create(Map.of("userName", "alice",
-                "password", "alice-password"));
+        Map<String, Object> created =
+                service.create(Map.of("userName", "alice", "password", "alice-password"));
         String id = String.valueOf(created.get("id"));
 
-        Map<String, Object> updated = service.update(id, Map.of("userName", "alice",
-                "password", "new-password"), null);
+        Map<String, Object> updated =
+                service.update(id, Map.of("userName", "alice", "password", "new-password"), null);
 
-        assertThat(hasher.matches("new-password",
-                users.findPasswordHash(id).orElseThrow())).isTrue();
+        assertThat(hasher.matches("new-password", users.findPasswordHash(id).orElseThrow()))
+                .isTrue();
         assertThat(revoker.isRevoked("alice")).isTrue();
         @SuppressWarnings("unchecked")
         Map<String, Object> meta = (Map<String, Object>) updated.get("meta");
@@ -179,8 +214,10 @@ class ScimUserServiceTest {
         Map<String, Object> created = service.create(Map.of("userName", "alice"));
         String id = String.valueOf(created.get("id"));
 
-        ScimAssertions.assertIamError(() -> service.update(id, Map.of("userName", "bob"), null),
-                IamErrorCode.USER_CONFLICT, "user already exists: bob");
+        ScimAssertions.assertIamError(
+                () -> service.update(id, Map.of("userName", "bob"), null),
+                IamErrorCode.USER_CONFLICT,
+                "user already exists: bob");
     }
 
     @Test
@@ -188,14 +225,34 @@ class ScimUserServiceTest {
         Map<String, Object> created = service.create(Map.of("userName", "alice"));
         String id = String.valueOf(created.get("id"));
 
-        Map<String, Object> patched = service.patch(id, Map.of("Operations", List.of(Map.of(
-                "op", "replace",
-                "value", Map.of("userName", "alice2", "externalId", "ext-9",
-                        "displayName", "Alice Two",
-                        "emails", List.of(Map.of("value", "alice2@example.com")),
-                        "active", "false")))), null);
+        Map<String, Object> patched =
+                service.patch(
+                        id,
+                        Map.of(
+                                "Operations",
+                                List.of(
+                                        Map.of(
+                                                "op",
+                                                "replace",
+                                                "value",
+                                                Map.of(
+                                                        "userName",
+                                                        "alice2",
+                                                        "externalId",
+                                                        "ext-9",
+                                                        "displayName",
+                                                        "Alice Two",
+                                                        "emails",
+                                                        List.of(
+                                                                Map.of(
+                                                                        "value",
+                                                                        "alice2@example.com")),
+                                                        "active",
+                                                        "false")))),
+                        null);
 
-        assertThat(patched).containsEntry("userName", "alice2")
+        assertThat(patched)
+                .containsEntry("userName", "alice2")
                 .containsEntry("externalId", "ext-9")
                 .containsEntry("displayName", "Alice Two")
                 .containsEntry("active", false);
@@ -203,42 +260,95 @@ class ScimUserServiceTest {
 
     @Test
     void patchUpdatesNameSubAttributesAndRemovesValues() {
-        Map<String, Object> created = service.create(Map.of("userName", "alice",
-                "externalId", "ext-1",
-                "name", Map.of("givenName", "Alice", "familyName", "Ng"),
-                "emails", List.of(Map.of("value", "alice@example.com"))));
+        Map<String, Object> created =
+                service.create(
+                        Map.of(
+                                "userName",
+                                "alice",
+                                "externalId",
+                                "ext-1",
+                                "name",
+                                Map.of("givenName", "Alice", "familyName", "Ng"),
+                                "emails",
+                                List.of(Map.of("value", "alice@example.com"))));
         String id = String.valueOf(created.get("id"));
 
-        service.patch(id, Map.of("Operations", List.of(
-                Map.of("op", "replace", "path", "name.givenName", "value", "Alicia"))), null);
-        Map<String, Object> patched = service.patch(id, Map.of("Operations", List.of(
-                Map.of("op", "replace", "path", "name.familyName", "value", "Wong"),
-                Map.of("op", "remove", "path", "externalId"),
-                Map.of("op", "replace", "path", "emails.value",
-                        "value", Map.of("value", "alicia@example.com")))), null);
+        service.patch(
+                id,
+                Map.of(
+                        "Operations",
+                        List.of(
+                                Map.of(
+                                        "op",
+                                        "replace",
+                                        "path",
+                                        "name.givenName",
+                                        "value",
+                                        "Alicia"))),
+                null);
+        Map<String, Object> patched =
+                service.patch(
+                        id,
+                        Map.of(
+                                "Operations",
+                                List.of(
+                                        Map.of(
+                                                "op",
+                                                "replace",
+                                                "path",
+                                                "name.familyName",
+                                                "value",
+                                                "Wong"),
+                                        Map.of("op", "remove", "path", "externalId"),
+                                        Map.of(
+                                                "op",
+                                                "replace",
+                                                "path",
+                                                "emails.value",
+                                                "value",
+                                                Map.of("value", "alicia@example.com")))),
+                        null);
 
-        assertThat(patched.get("name")).asInstanceOf(MAP).containsEntry("givenName", "Alicia")
+        assertThat(patched.get("name"))
+                .asInstanceOf(MAP)
+                .containsEntry("givenName", "Alicia")
                 .containsEntry("familyName", "Wong");
         // displayName is already set, so sub-attribute updates keep the formatted name.
         assertThat(patched.get("displayName")).isEqualTo("Alice Ng");
         assertThat(patched).doesNotContainKey("externalId");
-        assertThat(patched.get("emails")).isEqualTo(
-                List.of(Map.of("value", "alicia@example.com", "primary", true)));
+        assertThat(patched.get("emails"))
+                .isEqualTo(List.of(Map.of("value", "alicia@example.com", "primary", true)));
     }
 
     @Test
     void patchReplacesPasswordAndDeactivates() {
-        Map<String, Object> created = service.create(Map.of("userName", "alice",
-                "password", "alice-password"));
+        Map<String, Object> created =
+                service.create(Map.of("userName", "alice", "password", "alice-password"));
         String id = String.valueOf(created.get("id"));
 
-        service.patch(id, Map.of("Operations", List.of(Map.of("op", "replace",
-                "path", "password", "value", "patched-password"))), null);
-        Map<String, Object> patched = service.patch(id, Map.of("Operations", List.of(
-                Map.of("op", "replace", "path", "active", "value", false))), null);
+        service.patch(
+                id,
+                Map.of(
+                        "Operations",
+                        List.of(
+                                Map.of(
+                                        "op",
+                                        "replace",
+                                        "path",
+                                        "password",
+                                        "value",
+                                        "patched-password"))),
+                null);
+        Map<String, Object> patched =
+                service.patch(
+                        id,
+                        Map.of(
+                                "Operations",
+                                List.of(Map.of("op", "replace", "path", "active", "value", false))),
+                        null);
 
-        assertThat(hasher.matches("patched-password",
-                users.findPasswordHash(id).orElseThrow())).isTrue();
+        assertThat(hasher.matches("patched-password", users.findPasswordHash(id).orElseThrow()))
+                .isTrue();
         assertThat(patched.get("active")).isEqualTo(false);
         assertThat(revoker.isRevoked("alice")).isTrue();
     }
@@ -248,17 +358,47 @@ class ScimUserServiceTest {
         Map<String, Object> created = service.create(Map.of("userName", "alice"));
         String id = String.valueOf(created.get("id"));
 
-        ScimAssertions.assertIamError(() -> service.patch(id, Map.of("Operations", List.of(Map.of(
-                        "op", "replace", "path", "nickName", "value", "Al"))), null),
-                IamErrorCode.SCIM_PATCH_INVALID, "unsupported PATCH path: nickName");
-        ScimAssertions.assertIamError(() -> service.patch(id, Map.of("Operations", List.of(Map.of(
-                        "op", "replace", "value", "not-an-object"))), null),
-                IamErrorCode.SCIM_PATCH_INVALID, "PATCH without path requires an object value");
-        ScimAssertions.assertIamError(() -> service.patch(id, Map.of("Operations", List.of(Map.of(
-                        "path", "active", "value", false))), null),
-                IamErrorCode.SCIM_PATCH_INVALID, "invalid SCIM PATCH");
-        ScimAssertions.assertIamError(() -> service.patch(id, "not-a-list", null),
-                IamErrorCode.SCIM_PATCH_INVALID, "invalid SCIM PATCH");
+        ScimAssertions.assertIamError(
+                () ->
+                        service.patch(
+                                id,
+                                Map.of(
+                                        "Operations",
+                                        List.of(
+                                                Map.of(
+                                                        "op",
+                                                        "replace",
+                                                        "path",
+                                                        "nickName",
+                                                        "value",
+                                                        "Al"))),
+                                null),
+                IamErrorCode.SCIM_PATCH_INVALID,
+                "unsupported PATCH path: nickName");
+        ScimAssertions.assertIamError(
+                () ->
+                        service.patch(
+                                id,
+                                Map.of(
+                                        "Operations",
+                                        List.of(Map.of("op", "replace", "value", "not-an-object"))),
+                                null),
+                IamErrorCode.SCIM_PATCH_INVALID,
+                "PATCH without path requires an object value");
+        ScimAssertions.assertIamError(
+                () ->
+                        service.patch(
+                                id,
+                                Map.of(
+                                        "Operations",
+                                        List.of(Map.of("path", "active", "value", false))),
+                                null),
+                IamErrorCode.SCIM_PATCH_INVALID,
+                "invalid SCIM PATCH");
+        ScimAssertions.assertIamError(
+                () -> service.patch(id, "not-a-list", null),
+                IamErrorCode.SCIM_PATCH_INVALID,
+                "invalid SCIM PATCH");
     }
 
     @Test
@@ -266,8 +406,20 @@ class ScimUserServiceTest {
         Map<String, Object> created = service.create(Map.of("userName", "alice"));
         String id = String.valueOf(created.get("id"));
 
-        Map<String, Object> patched = service.patch(id, Map.of("Operations", List.of(
-                Map.of("op", "replace", "path", "name.familyName", "value", "Ng"))), null);
+        Map<String, Object> patched =
+                service.patch(
+                        id,
+                        Map.of(
+                                "Operations",
+                                List.of(
+                                        Map.of(
+                                                "op",
+                                                "replace",
+                                                "path",
+                                                "name.familyName",
+                                                "value",
+                                                "Ng"))),
+                        null);
 
         assertThat(patched.get("displayName")).isEqualTo("Ng");
         assertThat(patched.get("name")).asInstanceOf(MAP).containsEntry("familyName", "Ng");
@@ -278,10 +430,23 @@ class ScimUserServiceTest {
         Map<String, Object> created = service.create(Map.of("userName", "alice"));
         String id = String.valueOf(created.get("id"));
 
-        Map<String, Object> patched = service.patch(id, Map.of("Operations", List.of(
-                Map.of("op", "replace", "path", "name",
-                        "value", Map.of("givenName", "Alice", "familyName", "Ng")),
-                Map.of("op", "replace", "path", "emails", "value", List.of()))), null);
+        Map<String, Object> patched =
+                service.patch(
+                        id,
+                        Map.of(
+                                "Operations",
+                                List.of(
+                                        Map.of(
+                                                "op",
+                                                "replace",
+                                                "path",
+                                                "name",
+                                                "value",
+                                                Map.of("givenName", "Alice", "familyName", "Ng")),
+                                        Map.of(
+                                                "op", "replace", "path", "emails", "value",
+                                                List.of()))),
+                        null);
 
         assertThat(patched.get("name")).asInstanceOf(MAP).containsEntry("givenName", "Alice");
         assertThat(patched.get("displayName")).isEqualTo("Alice Ng");
@@ -296,7 +461,8 @@ class ScimUserServiceTest {
 
         assertThat(users.findById(id)).isEmpty();
         assertThat(revoker.isRevoked("alice")).isTrue();
-        ScimAssertions.assertIamError(() -> service.get(id), IamErrorCode.USER_NOT_FOUND, "user not found: " + id);
+        ScimAssertions.assertIamError(
+                () -> service.get(id), IamErrorCode.USER_NOT_FOUND, "user not found: " + id);
     }
 
     @Test
@@ -304,8 +470,10 @@ class ScimUserServiceTest {
         Map<String, Object> created = service.create(Map.of("userName", "alice"));
         String id = String.valueOf(created.get("id"));
 
-        ScimAssertions.assertIamError(() -> service.delete(id, "W/\"5\""),
-                IamErrorCode.SCIM_PRECONDITION_FAILED, "resource version mismatch");
+        ScimAssertions.assertIamError(
+                () -> service.delete(id, "W/\"5\""),
+                IamErrorCode.SCIM_PRECONDITION_FAILED,
+                "resource version mismatch");
         assertThat(users.findById(id)).isPresent();
     }
 
@@ -317,7 +485,8 @@ class ScimUserServiceTest {
 
         Map<String, Object> page = service.list("userName co \"o\"", 1, 1);
 
-        assertThat(page).containsEntry("totalResults", 2)
+        assertThat(page)
+                .containsEntry("totalResults", 2)
                 .containsEntry("startIndex", 1)
                 .containsEntry("itemsPerPage", 1);
         assertThat((List<?>) page.get("Resources")).hasSize(1);
@@ -328,13 +497,16 @@ class ScimUserServiceTest {
     void mapIncludesGroupMemberships() {
         Map<String, Object> user = service.create(Map.of("userName", "alice"));
         String userId = String.valueOf(user.get("id"));
-        var group = groups.create(cn.byteforce.seedj.iam.IamGroup.create("g-1", "default",
-                "sales", null, java.util.Set.of(userId)));
+        var group =
+                groups.create(
+                        cn.byteforce.seedj.iam.IamGroup.create(
+                                "g-1", "default", "sales", null, java.util.Set.of(userId)));
 
         Map<String, Object> mapped = service.map(users.findById(userId).orElseThrow());
 
-        assertThat((List<?>) mapped.get("groups")).singleElement().asInstanceOf(
-                org.assertj.core.api.InstanceOfAssertFactories.MAP)
+        assertThat((List<?>) mapped.get("groups"))
+                .singleElement()
+                .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.MAP)
                 .containsEntry("value", group.id())
                 .containsEntry("display", "sales")
                 .containsEntry("$ref", "/scim/v2/Groups/" + group.id());
@@ -342,14 +514,16 @@ class ScimUserServiceTest {
 
     @Test
     void requireFailsForUnknownId() {
-        ScimAssertions.assertIamError(() -> service.require("missing"), IamErrorCode.USER_NOT_FOUND,
+        ScimAssertions.assertIamError(
+                () -> service.require("missing"),
+                IamErrorCode.USER_NOT_FOUND,
                 "user not found: missing");
     }
 
     @Test
     void createsUserRecordWithCanonicalTenantAndAttributes() {
-        Map<String, Object> created = service.create(Map.of("userName", "alice",
-                "name", Map.of("givenName", "Alice")));
+        Map<String, Object> created =
+                service.create(Map.of("userName", "alice", "name", Map.of("givenName", "Alice")));
         IamUser stored = users.findById(String.valueOf(created.get("id"))).orElseThrow();
 
         assertThat(stored.tenantId()).isEqualTo(IamProperties.defaults().tenantId());

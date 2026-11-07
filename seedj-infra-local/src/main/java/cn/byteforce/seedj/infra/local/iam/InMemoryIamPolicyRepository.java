@@ -1,9 +1,7 @@
 package cn.byteforce.seedj.infra.local.iam;
 
-
 import cn.byteforce.seedj.iam.IamPolicy;
 import cn.byteforce.seedj.iam.spi.IamPolicyRepository;
-
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -25,9 +23,20 @@ public class InMemoryIamPolicyRepository implements IamPolicyRepository {
                     cn.byteforce.seedj.iam.IamErrorCode.CONFLICT,
                     "policy version conflict: expected " + current.version());
         }
-        IamPolicy saved = current == null ? policy : new IamPolicy(policy.id(), policy.tenantId(),
-                policy.name(), policy.effect(), policy.priority(), policy.actions(),
-                policy.resources(), policy.condition(), policy.enabled(), current.version() + 1);
+        IamPolicy saved =
+                current == null
+                        ? policy
+                        : new IamPolicy(
+                                policy.id(),
+                                policy.tenantId(),
+                                policy.name(),
+                                policy.effect(),
+                                policy.priority(),
+                                policy.actions(),
+                                policy.resources(),
+                                policy.condition(),
+                                policy.enabled(),
+                                current.version() + 1);
         policies.put(saved.id(), saved);
         bumpEpoch(saved.tenantId());
         return saved;

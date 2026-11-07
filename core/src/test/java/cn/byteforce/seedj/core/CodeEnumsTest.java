@@ -1,11 +1,10 @@
 package cn.byteforce.seedj.core;
 
-import org.junit.jupiter.api.Test;
-
-import java.util.Map;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.util.Map;
+import org.junit.jupiter.api.Test;
 
 /**
  * {@link CodeEnums} 契约测试：按 code 查找、必填校验与不可变映射。

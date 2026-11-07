@@ -1,28 +1,27 @@
 package cn.byteforce.seedj.infra.local.pki;
 
-import cn.byteforce.seedj.pki.PkiProvider;
+import static org.assertj.core.api.Assertions.assertThat;
 
+import cn.byteforce.seedj.pki.PkiProvider;
+import java.nio.file.Path;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
-import java.nio.file.Path;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
 class PkiAutoConfigurationTest {
 
-    private final ApplicationContextRunner runner = new ApplicationContextRunner()
-            .withConfiguration(AutoConfigurations.of(PkiAutoConfiguration.class));
+    private final ApplicationContextRunner runner =
+            new ApplicationContextRunner()
+                    .withConfiguration(AutoConfigurations.of(PkiAutoConfiguration.class));
 
     private String[] properties(Path dir) {
-        return new String[]{
-                "seedj.pki.revocation-store=" + dir.resolve("pki-state.properties"),
-                "seedj.pki.ca-resource=classpath:certs/pki-test-ca.p12",
-                "seedj.pki.ca-password=test-password",
-                "seedj.pki.ca-alias=pki-test-ca"
+        return new String[] {
+            "seedj.pki.revocation-store=" + dir.resolve("pki-state.properties"),
+            "seedj.pki.ca-resource=classpath:certs/pki-test-ca.p12",
+            "seedj.pki.ca-password=test-password",
+            "seedj.pki.ca-alias=pki-test-ca"
         };
     }
 

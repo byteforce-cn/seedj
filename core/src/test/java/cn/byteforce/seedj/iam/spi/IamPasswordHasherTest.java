@@ -1,13 +1,11 @@
 package cn.byteforce.seedj.iam.spi;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-/**
- * 密码哈希端口：{value} 前缀即视为已编码，避免重复哈希。
- */
+/** 密码哈希端口：{value} 前缀即视为已编码，避免重复哈希。 */
 class IamPasswordHasherTest {
 
     @Test

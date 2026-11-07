@@ -12,9 +12,9 @@ public interface ContextSink {
     /**
      * 写入一个事实。
      *
-     * @param key   声明 key
+     * @param key 声明 key
      * @param value 值
-     * @param <T>   值类型
+     * @param <T> 值类型
      */
     <T> void put(ScopeKey<T> key, T value);
 }

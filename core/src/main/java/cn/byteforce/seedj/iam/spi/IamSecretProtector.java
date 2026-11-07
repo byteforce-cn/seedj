@@ -1,8 +1,8 @@
 package cn.byteforce.seedj.iam.spi;
 
 /**
- * Envelope encryption for TOTP secrets and JWK private material.
- * {@code context} is authenticated data (for example the user id).
+ * Envelope encryption for TOTP secrets and JWK private material. {@code context} is authenticated
+ * data (for example the user id).
  */
 public interface IamSecretProtector {
 

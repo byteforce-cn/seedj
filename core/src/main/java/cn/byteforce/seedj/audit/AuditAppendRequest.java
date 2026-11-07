@@ -1,14 +1,12 @@
 package cn.byteforce.seedj.audit;
 
-import tools.jackson.databind.JsonNode;
-
 import java.util.List;
+import tools.jackson.databind.JsonNode;
 
 /**
  * 审计追加请求。
  *
- * <p>动作 = 命令类型；resource 由运行时按内核语义推导；payload 由调用方按契约
- * 构造（契约固定为 {@code {command_id, event_ids}}）。</p>
+ * <p>动作 = 命令类型；resource 由运行时按内核语义推导；payload 由调用方按契约 构造（契约固定为 {@code {command_id, event_ids}}）。
  *
  * @param <ID> 审计标识类型
  * @author ByteForce
@@ -31,29 +29,34 @@ public final class AuditAppendRequest<ID> {
     /**
      * 构造 v1.0 追加请求（不承诺事件摘要）。
      *
-     * @param action       动作（命令类型）
-     * @param actor        操作人
+     * @param action 动作（命令类型）
+     * @param actor 操作人
      * @param resourceType 资源类型
-     * @param resourceId   资源 ID（可空）
-     * @param payload      载荷（可为空）
+     * @param resourceId 资源 ID（可空）
+     * @param payload 载荷（可为空）
      */
-    public AuditAppendRequest(String action, ID actor, String resourceType, ID resourceId,
-                              JsonNode payload) {
+    public AuditAppendRequest(
+            String action, ID actor, String resourceType, ID resourceId, JsonNode payload) {
         this(action, actor, resourceType, resourceId, payload, null);
     }
 
     /**
      * 构造 v1.1 追加请求。
      *
-     * @param action       动作（命令类型）
-     * @param actor        操作人
+     * @param action 动作（命令类型）
+     * @param actor 操作人
      * @param resourceType 资源类型
-     * @param resourceId   资源 ID（可空）
-     * @param payload      载荷（可为空）
-     * @param events       事件投影（{@code null} = 不使用 v1.1 公式；空列表 = 承诺空投影）
+     * @param resourceId 资源 ID（可空）
+     * @param payload 载荷（可为空）
+     * @param events 事件投影（{@code null} = 不使用 v1.1 公式；空列表 = 承诺空投影）
      */
-    public AuditAppendRequest(String action, ID actor, String resourceType, ID resourceId,
-                              JsonNode payload, List<AuditEvent> events) {
+    public AuditAppendRequest(
+            String action,
+            ID actor,
+            String resourceType,
+            ID resourceId,
+            JsonNode payload,
+            List<AuditEvent> events) {
         this.action = action;
         this.actor = actor;
         this.resourceType = resourceType;

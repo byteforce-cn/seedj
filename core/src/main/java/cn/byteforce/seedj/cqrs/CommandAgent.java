@@ -1,15 +1,14 @@
 package cn.byteforce.seedj.cqrs;
 
 import cn.byteforce.seedj.cqrs.spi.TransactionRunner;
-import cn.byteforce.seedj.lock.LockLease;
-import cn.byteforce.seedj.lock.LockProvider;
 import cn.byteforce.seedj.domain.AbstractAggregateRoot;
 import cn.byteforce.seedj.domain.Repository;
 import cn.byteforce.seedj.domain.event.DomainEvent;
 import cn.byteforce.seedj.domain.event.EventTypeRegistry;
 import cn.byteforce.seedj.domain.exception.AggregateNotFoundException;
 import cn.byteforce.seedj.eventbus.EventPublisher;
-
+import cn.byteforce.seedj.lock.LockLease;
+import cn.byteforce.seedj.lock.LockProvider;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.time.Duration;
@@ -37,22 +36,19 @@ import java.util.concurrent.atomic.AtomicReference;
  * </pre>
  *
  * <p>三个静默失败点由顺序消除，而不是靠文档：
+ *
  * <ul>
- *   <li><b>事件丢失</b>：先取后存；</li>
- *   <li><b>半个事务</b>：先存后发，且发布与保存在同一事务内；</li>
- *   <li><b>锁提前释放</b>：锁在 {@code transactionRunner.inTransaction(...)} 之外获取与释放，
- *       提交完成之后才解锁。</li>
+ *   <li><b>事件丢失</b>：先取后存；
+ *   <li><b>半个事务</b>：先存后发，且发布与保存在同一事务内；
+ *   <li><b>锁提前释放</b>：锁在 {@code transactionRunner.inTransaction(...)} 之外获取与释放， 提交完成之后才解锁。
  * </ul>
  *
- * <p><b>重试</b>：{@code CONCURRENCY_CONFLICT} 时重新加载并重新 {@link #handle}，最多
- * {@code maxAttempts} 次；拦截器只执行一次，事件只在成功提交后发布一次。
- * {@link #handle} 必须可重复执行（重试会拿到全新实例）。
+ * <p><b>重试</b>：{@code CONCURRENCY_CONFLICT} 时重新加载并重新 {@link #handle}，最多 {@code maxAttempts}
+ * 次；拦截器只执行一次，事件只在成功提交后发布一次。 {@link #handle} 必须可重复执行（重试会拿到全新实例）。
  *
- * <p><b>聚合不认识 {@link Command}</b>：{@link #handle} 调用聚合自己的业务方法。
- * 领域层不依赖应用层。
+ * <p><b>聚合不认识 {@link Command}</b>：{@link #handle} 调用聚合自己的业务方法。 领域层不依赖应用层。
  *
- * <p><b>一条命令一条聚合</b>：{@link Command#aggregateId()} 是必填项，多聚合命令在类型层面
- * 写不出来，只能拆 saga。
+ * <p><b>一条命令一条聚合</b>：{@link Command#aggregateId()} 是必填项，多聚合命令在类型层面 写不出来，只能拆 saga。
  *
  * @param <C> 命令类型
  * @param <T> 聚合类型
@@ -70,8 +66,8 @@ public abstract class CommandAgent<C extends Command<ID>, T extends AbstractAggr
      * @param lockTtl 锁租约，必须大于一次"加载 + 处理 + 保存 + 发布"的耗时
      * @param maxAttempts 并发冲突时的最大尝试次数
      * @param interceptors 拦截器，靠前的在外层
-     * @param audit 命令审计 seam；{@link #accepted} 在事务内调用，未启用审计时由装配层注入
-     *              {@code DisabledCommandAudit}，不在契约里静默
+     * @param audit 命令审计 seam；{@link #accepted} 在事务内调用，未启用审计时由装配层注入 {@code
+     *     DisabledCommandAudit}，不在契约里静默
      * @param <ID> 聚合标识类型
      */
     public record Options<ID>(
@@ -95,42 +91,45 @@ public abstract class CommandAgent<C extends Command<ID>, T extends AbstractAggr
             interceptors = interceptors == null ? List.of() : List.copyOf(interceptors);
         }
 
-        /**
-         * 无锁、无事务、3 次尝试、无审计：只适合内存存储或测试。
-         */
+        /** 无锁、无事务、3 次尝试、无审计：只适合内存存储或测试。 */
         public static <ID> Options<ID> defaults() {
-            return new Options<>(TransactionRunner.direct(), LockProvider.disabled(),
-                    Duration.ofSeconds(30), 3, List.of(), CommandAudit.noop());
+            return new Options<>(
+                    TransactionRunner.direct(),
+                    LockProvider.disabled(),
+                    Duration.ofSeconds(30),
+                    3,
+                    List.of(),
+                    CommandAudit.noop());
         }
 
         public Options<ID> withLockProvider(LockProvider lockProvider) {
-            return new Options<>(transactionRunner, lockProvider, lockTtl, maxAttempts,
-                    interceptors, audit);
+            return new Options<>(
+                    transactionRunner, lockProvider, lockTtl, maxAttempts, interceptors, audit);
         }
 
         public Options<ID> withTransactionRunner(TransactionRunner transactionRunner) {
-            return new Options<>(transactionRunner, lockProvider, lockTtl, maxAttempts,
-                    interceptors, audit);
+            return new Options<>(
+                    transactionRunner, lockProvider, lockTtl, maxAttempts, interceptors, audit);
         }
 
         public Options<ID> withLockTtl(Duration lockTtl) {
-            return new Options<>(transactionRunner, lockProvider, lockTtl, maxAttempts,
-                    interceptors, audit);
+            return new Options<>(
+                    transactionRunner, lockProvider, lockTtl, maxAttempts, interceptors, audit);
         }
 
         public Options<ID> withMaxAttempts(int maxAttempts) {
-            return new Options<>(transactionRunner, lockProvider, lockTtl, maxAttempts,
-                    interceptors, audit);
+            return new Options<>(
+                    transactionRunner, lockProvider, lockTtl, maxAttempts, interceptors, audit);
         }
 
         public Options<ID> withInterceptors(List<CommandInterceptor<ID>> interceptors) {
-            return new Options<>(transactionRunner, lockProvider, lockTtl, maxAttempts,
-                    interceptors, audit);
+            return new Options<>(
+                    transactionRunner, lockProvider, lockTtl, maxAttempts, interceptors, audit);
         }
 
         public Options<ID> withAudit(CommandAudit audit) {
-            return new Options<>(transactionRunner, lockProvider, lockTtl, maxAttempts,
-                    interceptors, audit);
+            return new Options<>(
+                    transactionRunner, lockProvider, lockTtl, maxAttempts, interceptors, audit);
         }
     }
 
@@ -144,13 +143,16 @@ public abstract class CommandAgent<C extends Command<ID>, T extends AbstractAggr
 
     private final Class<C> commandType;
 
-    protected CommandAgent(Repository<T, ID> repository, EventPublisher publisher,
-                           IdCodec<ID> codec) {
+    protected CommandAgent(
+            Repository<T, ID> repository, EventPublisher publisher, IdCodec<ID> codec) {
         this(repository, publisher, codec, Options.defaults());
     }
 
-    protected CommandAgent(Repository<T, ID> repository, EventPublisher publisher,
-                           IdCodec<ID> codec, Options<ID> options) {
+    protected CommandAgent(
+            Repository<T, ID> repository,
+            EventPublisher publisher,
+            IdCodec<ID> codec,
+            Options<ID> options) {
         this.repository = Objects.requireNonNull(repository, "repository");
         this.publisher = Objects.requireNonNull(publisher, "publisher");
         this.codec = Objects.requireNonNull(codec, "codec");
@@ -186,8 +188,7 @@ public abstract class CommandAgent<C extends Command<ID>, T extends AbstractAggr
         Objects.requireNonNull(command, "command");
         @SuppressWarnings("unchecked")
         Command<ID> typed = (Command<ID>) command;
-        return codec.encode(Objects.requireNonNull(typed.aggregateId(),
-                "command.aggregateId()"));
+        return codec.encode(Objects.requireNonNull(typed.aggregateId(), "command.aggregateId()"));
     }
 
     @SuppressWarnings("unchecked")
@@ -210,42 +211,34 @@ public abstract class CommandAgent<C extends Command<ID>, T extends AbstractAggr
             }
             current = current.getSuperclass();
         }
-        throw new IllegalStateException(
-                "cannot resolve command type for " + agentType.getName());
+        throw new IllegalStateException("cannot resolve command type for " + agentType.getName());
     }
 
-    /**
-     * 聚合的稳定逻辑名，用于构造锁键。必须与仓储的流类型名一致。
-     */
+    /** 聚合的稳定逻辑名，用于构造锁键。必须与仓储的流类型名一致。 */
     protected abstract String aggregateType();
 
     /**
-     * 流不存在时是否允许创建。修改型命令返回 {@code false}（默认），
-     * 这样拼错的标识会直接报 {@link AggregateNotFoundException}，而不是静默建出一个新聚合。
+     * 流不存在时是否允许创建。修改型命令返回 {@code false}（默认）， 这样拼错的标识会直接报 {@link
+     * AggregateNotFoundException}，而不是静默建出一个新聚合。
      */
     protected boolean createsOnEmpty() {
         return false;
     }
 
-    /**
-     * 流不存在且 {@link #createsOnEmpty()} 为真时创建聚合，并把初始事件 {@code raise} 出来。
-     */
+    /** 流不存在且 {@link #createsOnEmpty()} 为真时创建聚合，并把初始事件 {@code raise} 出来。 */
     protected T create(ID id, C command) {
         throw new AggregateNotFoundException(aggregateType(), id);
     }
 
-    /**
-     * 流已存在时让聚合处理命令。必须可重复执行（并发冲突重试会重新调用）。
-     */
+    /** 流已存在时让聚合处理命令。必须可重复执行（并发冲突重试会重新调用）。 */
     protected abstract void handle(T aggregate, C command);
 
     /**
      * 在统一信封内执行一条已解码的命令。
      *
-     * <p>包内入口：只由 {@link CommandRuntime} 调用。业务事务、锁与重试仍由本类保证；
-     * 命令记录终态在同一事务内完成，审计在其之前。</p>
+     * <p>包内入口：只由 {@link CommandRuntime} 调用。业务事务、锁与重试仍由本类保证； 命令记录终态在同一事务内完成，审计在其之前。
      *
-     * @param command    已解码命令
+     * @param command 已解码命令
      * @param invocation 信封上下文
      * @return 接受态命令记录
      * @throws CqrsException 锁被占用（{@code LOCK_BUSY}）或重试耗尽（{@code CONCURRENCY_CONFLICT}）
@@ -261,45 +254,47 @@ public abstract class CommandAgent<C extends Command<ID>, T extends AbstractAggr
         ID id = Objects.requireNonNull(command.aggregateId(), "command.aggregateId()");
         AtomicReference<CommandRecord> completed = new AtomicReference<>();
 
-        CommandInvocation<ID> leaf = new CommandInvocation<>() {
-            @Override
-            public Command<ID> command() {
-                return command;
-            }
+        CommandInvocation<ID> leaf =
+                new CommandInvocation<>() {
+                    @Override
+                    public Command<ID> command() {
+                        return command;
+                    }
 
-            @Override
-            public ID aggregateId() {
-                return id;
-            }
+                    @Override
+                    public ID aggregateId() {
+                        return id;
+                    }
 
-            @Override
-            public ID proceed() {
-                completed.set(dispatch(command, id, invocation));
-                return id;
-            }
-        };
+                    @Override
+                    public ID proceed() {
+                        completed.set(dispatch(command, id, invocation));
+                        return id;
+                    }
+                };
 
         CommandInvocation<ID> chain = leaf;
         List<CommandInterceptor<ID>> interceptors = options.interceptors();
         for (int i = interceptors.size() - 1; i >= 0; i--) {
             CommandInterceptor<ID> interceptor = interceptors.get(i);
             CommandInvocation<ID> inner = chain;
-            chain = new CommandInvocation<>() {
-                @Override
-                public Command<ID> command() {
-                    return inner.command();
-                }
+            chain =
+                    new CommandInvocation<>() {
+                        @Override
+                        public Command<ID> command() {
+                            return inner.command();
+                        }
 
-                @Override
-                public ID aggregateId() {
-                    return inner.aggregateId();
-                }
+                        @Override
+                        public ID aggregateId() {
+                            return inner.aggregateId();
+                        }
 
-                @Override
-                public ID proceed() {
-                    return interceptor.around(inner);
-                }
-            };
+                        @Override
+                        public ID proceed() {
+                            return interceptor.around(inner);
+                        }
+                    };
         }
 
         try {
@@ -327,7 +322,7 @@ public abstract class CommandAgent<C extends Command<ID>, T extends AbstractAggr
      * 业务拒绝（可审计）与技术故障（指标负责）的分界。
      *
      * <p>{@code CONCURRENCY_CONFLICT} 会被模板重试；{@code AuditException} 说明审计
-     * 本身失败；存储/序列化异常是技术故障——三者都不算“被拒绝的命令”。</p>
+     * 本身失败；存储/序列化异常是技术故障——三者都不算“被拒绝的命令”。
      */
     private static boolean isBusinessRejection(Throwable error) {
         if (error instanceof CqrsException cqrs) {
@@ -341,33 +336,44 @@ public abstract class CommandAgent<C extends Command<ID>, T extends AbstractAggr
 
         for (int attempt = 1; ; attempt++) {
             try (LockLease ignored = acquire(lockKey)) {
-                return options.transactionRunner().inTransaction(() -> {
-                    T aggregate = loadOrCreate(id, command, invocation);
-                    // 结果状态也要在写范围内：创建与更新共用同一条检查。
-                    AggregateScope.requireWithin(aggregate, invocation.writeScope(),
-                            invocation.schema());
-                    // 先取事件再保存：save 成功后聚合会清空待提交列表。
-                    List<DomainEvent> events = aggregate.peekDomainEvents();
-                    requireDeclaredEvents(events, invocation.registration().emits());
-                    EventVisibility.requireVisible(events, invocation.schema(),
-                            invocation.jsonMapper());
-                    repository.save(aggregate);
-                    List<UUID> eventIds = new ArrayList<>(events.size());
-                    for (DomainEvent event : events) {
-                        UUID eventId = invocation.idGenerator().id();
-                        publisher.publish(event, eventId);
-                        eventIds.add(eventId);
-                    }
-                    // 审计与终态都在事务内：任一失败都会让事件流一起回滚。
-                    options.audit().accepted(command, invocation.targetRef());
-                    CommandRecord accepted = invocation.pending().accepted(
-                            invocation.targetRef(), aggregate.version(), eventIds);
-                    invocation.commandStore().complete(accepted);
-                    return accepted;
-                });
+                return options.transactionRunner()
+                        .inTransaction(
+                                () -> {
+                                    T aggregate = loadOrCreate(id, command, invocation);
+                                    // 结果状态也要在写范围内：创建与更新共用同一条检查。
+                                    AggregateScope.requireWithin(
+                                            aggregate,
+                                            invocation.writeScope(),
+                                            invocation.schema());
+                                    // 先取事件再保存：save 成功后聚合会清空待提交列表。
+                                    List<DomainEvent> events = aggregate.peekDomainEvents();
+                                    requireDeclaredEvents(
+                                            events, invocation.registration().emits());
+                                    EventVisibility.requireVisible(
+                                            events, invocation.schema(), invocation.jsonMapper());
+                                    repository.save(aggregate);
+                                    List<UUID> eventIds = new ArrayList<>(events.size());
+                                    for (DomainEvent event : events) {
+                                        UUID eventId = invocation.idGenerator().id();
+                                        publisher.publish(event, eventId);
+                                        eventIds.add(eventId);
+                                    }
+                                    // 审计与终态都在事务内：任一失败都会让事件流一起回滚。
+                                    options.audit().accepted(command, invocation.targetRef());
+                                    CommandRecord accepted =
+                                            invocation
+                                                    .pending()
+                                                    .accepted(
+                                                            invocation.targetRef(),
+                                                            aggregate.version(),
+                                                            eventIds);
+                                    invocation.commandStore().complete(accepted);
+                                    return accepted;
+                                });
             } catch (CqrsException e) {
-                boolean retry = e.getErrorCode() == CqrsErrorCode.CONCURRENCY_CONFLICT
-                        && attempt < options.maxAttempts();
+                boolean retry =
+                        e.getErrorCode() == CqrsErrorCode.CONCURRENCY_CONFLICT
+                                && attempt < options.maxAttempts();
                 if (!retry) {
                     throw e;
                 }
@@ -380,8 +386,7 @@ public abstract class CommandAgent<C extends Command<ID>, T extends AbstractAggr
         if (existing.isPresent()) {
             T aggregate = existing.get();
             // 修改型命令先检查当前状态；结果状态由 dispatch 再查一次。
-            AggregateScope.requireWithin(aggregate, invocation.writeScope(),
-                    invocation.schema());
+            AggregateScope.requireWithin(aggregate, invocation.writeScope(), invocation.schema());
             handle(aggregate, command);
             return aggregate;
         }

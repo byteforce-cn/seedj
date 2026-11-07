@@ -5,8 +5,8 @@ import java.util.Locale;
 /**
  * 命令记录的状态。
  *
- * <p>线格式使用小写名（{@code pending} / {@code accepted} / {@code rejected}），
- * 数据库与 HTTP 响应都使用线格式；Java 枚举名只用于代码内比较。</p>
+ * <p>线格式使用小写名（{@code pending} / {@code accepted} / {@code rejected}）， 数据库与 HTTP 响应都使用线格式；Java
+ * 枚举名只用于代码内比较。
  *
  * @author ByteForce
  * @since 1.0.0

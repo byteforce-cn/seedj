@@ -1,23 +1,22 @@
 package cn.byteforce.seedj.starter.iam.identity;
 
 import cn.byteforce.seedj.core.security.SecurityAuditEvent;
+import cn.byteforce.seedj.core.security.SecurityAuditSink;
 import cn.byteforce.seedj.iam.IamErrorCode;
 import cn.byteforce.seedj.iam.IamException;
 import cn.byteforce.seedj.iam.IamRecoveryCode;
 import cn.byteforce.seedj.iam.IamTotpState;
 import cn.byteforce.seedj.iam.IamUser;
-import cn.byteforce.seedj.starter.iam.IamProperties;
-import cn.byteforce.seedj.core.security.SecurityAuditSink;
 import cn.byteforce.seedj.iam.spi.IamPasswordHasher;
 import cn.byteforce.seedj.iam.spi.IamSecretProtector;
 import cn.byteforce.seedj.iam.spi.IamTotpRepository;
-import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.iam.spi.IamUserRepository;
 import cn.byteforce.seedj.iam.totp.Base32;
 import cn.byteforce.seedj.iam.totp.TotpAlgorithm;
 import cn.byteforce.seedj.iam.totp.TotpEnrollment;
 import cn.byteforce.seedj.iam.totp.TotpGenerator;
-
+import cn.byteforce.seedj.id.IdGenerator;
+import cn.byteforce.seedj.starter.iam.IamProperties;
 import java.security.SecureRandom;
 import java.time.Clock;
 import java.util.ArrayList;
@@ -39,10 +38,15 @@ public class IamTotpService {
     private final Clock clock;
     private final IdGenerator<String> idGenerator;
 
-    public IamTotpService(IamTotpRepository totp, IamUserRepository users,
-                          IamSecretProtector protector, IamPasswordHasher hasher,
-                          IamProperties.Totp properties, SecurityAuditSink audit, Clock clock,
-                          IdGenerator<String> idGenerator) {
+    public IamTotpService(
+            IamTotpRepository totp,
+            IamUserRepository users,
+            IamSecretProtector protector,
+            IamPasswordHasher hasher,
+            IamProperties.Totp properties,
+            SecurityAuditSink audit,
+            Clock clock,
+            IdGenerator<String> idGenerator) {
         this.totp = totp;
         this.users = users;
         this.protector = protector;
@@ -57,18 +61,31 @@ public class IamTotpService {
         IamUser user = requireUser(userId);
         IamTotpState existing = totp.findTotp(userId).orElse(null);
         if (existing != null && existing.confirmed()) {
-            throw new IamException(IamErrorCode.TOTP_ALREADY_ENROLLED,
-                    "TOTP is already enabled for this user");
+            throw new IamException(
+                    IamErrorCode.TOTP_ALREADY_ENROLLED, "TOTP is already enabled for this user");
         }
         byte[] secret = new byte[20];
         RANDOM.nextBytes(secret);
         String encoded = Base32.encode(secret);
-        IamTotpState state = new IamTotpState(userId, user.tenantId(), protector.keyName(),
-                protector.protect(encoded, userId), false, -1, clock.instant(), null);
+        IamTotpState state =
+                new IamTotpState(
+                        userId,
+                        user.tenantId(),
+                        protector.keyName(),
+                        protector.protect(encoded, userId),
+                        false,
+                        -1,
+                        clock.instant(),
+                        null);
         totp.saveTotp(state);
-        String uri = TotpGenerator.otpauthUri(properties.issuer(), user.userName(), encoded,
-                properties.digits(), (int) properties.period().toSeconds(),
-                TotpAlgorithm.SHA1);
+        String uri =
+                TotpGenerator.otpauthUri(
+                        properties.issuer(),
+                        user.userName(),
+                        encoded,
+                        properties.digits(),
+                        (int) properties.period().toSeconds(),
+                        TotpAlgorithm.SHA1);
         audit(user, "mfa.totp.enroll", "PENDING", "");
         return new TotpEnrollment(encoded, uri);
     }
@@ -76,21 +93,36 @@ public class IamTotpService {
     /** Confirms the pending enrollment and returns recovery codes exactly once. */
     public List<String> confirm(String userId, String code) {
         IamUser user = requireUser(userId);
-        IamTotpState state = totp.findTotp(userId).orElseThrow(() -> new IamException(
-                IamErrorCode.TOTP_NOT_ENROLLED, "TOTP enrollment has not started"));
+        IamTotpState state =
+                totp.findTotp(userId)
+                        .orElseThrow(
+                                () ->
+                                        new IamException(
+                                                IamErrorCode.TOTP_NOT_ENROLLED,
+                                                "TOTP enrollment has not started"));
         if (state.confirmed()) {
-            throw new IamException(IamErrorCode.TOTP_ALREADY_ENROLLED,
-                    "TOTP is already enabled for this user");
+            throw new IamException(
+                    IamErrorCode.TOTP_ALREADY_ENROLLED, "TOTP is already enabled for this user");
         }
         byte[] secret = Base32.decode(protector.reveal(state.secretCiphertext(), userId));
-        TotpGenerator.Result result = TotpGenerator.verify(secret, code, clock.instant(),
-                properties.window(), properties.digits(), (int) properties.period().toSeconds(),
-                TotpAlgorithm.SHA1, state.lastUsedStep());
+        TotpGenerator.Result result =
+                TotpGenerator.verify(
+                        secret,
+                        code,
+                        clock.instant(),
+                        properties.window(),
+                        properties.digits(),
+                        (int) properties.period().toSeconds(),
+                        TotpAlgorithm.SHA1,
+                        state.lastUsedStep());
         if (!result.valid()) {
-            audit(user, "mfa.totp.confirm", "FAILURE",
+            audit(
+                    user,
+                    "mfa.totp.confirm",
+                    "FAILURE",
                     result.replayed() ? "replay" : "invalid code");
-            throw new IamException(result.replayed() ? IamErrorCode.TOTP_REPLAY
-                    : IamErrorCode.TOTP_INVALID,
+            throw new IamException(
+                    result.replayed() ? IamErrorCode.TOTP_REPLAY : IamErrorCode.TOTP_INVALID,
                     result.replayed() ? "TOTP code already used" : "invalid TOTP code");
         }
 
@@ -109,8 +141,8 @@ public class IamTotpService {
 
     public TotpStatus status(String userId) {
         IamTotpState state = totp.findTotp(userId).orElse(null);
-        long remaining = totp.findRecoveryCodes(userId).stream()
-                .filter(code -> !code.used()).count();
+        long remaining =
+                totp.findRecoveryCodes(userId).stream().filter(code -> !code.used()).count();
         return new TotpStatus(state != null && state.confirmed(), (int) remaining);
     }
 
@@ -120,17 +152,29 @@ public class IamTotpService {
 
     public void verify(String userId, String code) {
         IamUser user = requireUser(userId);
-        IamTotpState state = totp.findTotp(userId).filter(IamTotpState::confirmed)
-                .orElseThrow(() -> new IamException(IamErrorCode.TOTP_NOT_ENROLLED,
-                        "TOTP is not enabled"));
+        IamTotpState state =
+                totp.findTotp(userId)
+                        .filter(IamTotpState::confirmed)
+                        .orElseThrow(
+                                () ->
+                                        new IamException(
+                                                IamErrorCode.TOTP_NOT_ENROLLED,
+                                                "TOTP is not enabled"));
         byte[] secret = Base32.decode(protector.reveal(state.secretCiphertext(), userId));
-        TotpGenerator.Result result = TotpGenerator.verify(secret, code, clock.instant(),
-                properties.window(), properties.digits(), (int) properties.period().toSeconds(),
-                TotpAlgorithm.SHA1, state.lastUsedStep());
+        TotpGenerator.Result result =
+                TotpGenerator.verify(
+                        secret,
+                        code,
+                        clock.instant(),
+                        properties.window(),
+                        properties.digits(),
+                        (int) properties.period().toSeconds(),
+                        TotpAlgorithm.SHA1,
+                        state.lastUsedStep());
         if (!result.valid()) {
             audit(user, "mfa.totp.verify", "FAILURE", result.replayed() ? "replay" : "invalid");
-            throw new IamException(result.replayed() ? IamErrorCode.TOTP_REPLAY
-                    : IamErrorCode.TOTP_INVALID,
+            throw new IamException(
+                    result.replayed() ? IamErrorCode.TOTP_REPLAY : IamErrorCode.TOTP_INVALID,
                     result.replayed() ? "TOTP code already used" : "invalid TOTP code");
         }
         if (!totp.advanceLastUsedStep(userId, result.step())) {
@@ -171,8 +215,11 @@ public class IamTotpService {
     }
 
     private IamUser requireUser(String userId) {
-        return users.findById(userId).orElseThrow(
-                () -> new IamException(IamErrorCode.USER_NOT_FOUND, "user not found: " + userId));
+        return users.findById(userId)
+                .orElseThrow(
+                        () ->
+                                new IamException(
+                                        IamErrorCode.USER_NOT_FOUND, "user not found: " + userId));
     }
 
     private static String recoveryCode() {
@@ -188,12 +235,21 @@ public class IamTotpService {
             return;
         }
         try {
-            audit.record(new SecurityAuditEvent(idGenerator.id(), user.tenantId(), user.id(), action, "user",
-                    user.id(), outcome, reason, clock.instant(), Map.of()));
+            audit.record(
+                    new SecurityAuditEvent(
+                            idGenerator.id(),
+                            user.tenantId(),
+                            user.id(),
+                            action,
+                            "user",
+                            user.id(),
+                            outcome,
+                            reason,
+                            clock.instant(),
+                            Map.of()));
         } catch (RuntimeException ignored) {
         }
     }
 
-    public record TotpStatus(boolean enabled, int recoveryCodesRemaining) {
-    }
+    public record TotpStatus(boolean enabled, int recoveryCodesRemaining) {}
 }

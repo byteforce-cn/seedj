@@ -1,10 +1,9 @@
 package cn.byteforce.seedj.starter.iam.security;
 
-import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
-import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
-
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
+import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 
 /** Empty-start in-memory client repository; clients are inserted by the bootstrap runner. */
 public class IamInMemoryRegisteredClientRepository implements RegisteredClientRepository {

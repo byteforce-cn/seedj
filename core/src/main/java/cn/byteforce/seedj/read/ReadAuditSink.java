@@ -22,7 +22,6 @@ public interface ReadAuditSink {
      * @return 不记录任何事件的 sink
      */
     static ReadAuditSink noop() {
-        return event -> {
-        };
+        return event -> {};
     }
 }

@@ -1,17 +1,16 @@
 package cn.byteforce.seedj.starter.iam.security;
 
-import cn.byteforce.seedj.starter.iam.IamProperties;
 import cn.byteforce.seedj.id.IdGenerator;
+import cn.byteforce.seedj.starter.iam.IamProperties;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.oauth2.core.oidc.OidcScopes;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.security.oauth2.server.authorization.settings.ClientSettings;
 import org.springframework.security.oauth2.server.authorization.settings.TokenSettings;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
 
 /** Builds SAS clients from IAM properties and the explicitly enabled demo set. */
 public final class IamClientFactory {
@@ -25,11 +24,10 @@ public final class IamClientFactory {
             org.springframework.security.crypto.factory.PasswordEncoderFactories
                     .createDelegatingPasswordEncoder();
 
-    private IamClientFactory() {
-    }
+    private IamClientFactory() {}
 
-    public static List<RegisteredClient> fromProperties(IamProperties properties,
-                                                        IdGenerator<String> idGenerator) {
+    public static List<RegisteredClient> fromProperties(
+            IamProperties properties, IdGenerator<String> idGenerator) {
         List<RegisteredClient> clients = new ArrayList<>();
         for (IamProperties.Client client : properties.clients()) {
             clients.add(build(client, properties, idGenerator.id()));
@@ -44,11 +42,12 @@ public final class IamClientFactory {
         return clients;
     }
 
-    private static RegisteredClient build(IamProperties.Client client, IamProperties properties,
-                                          String id) {
-        RegisteredClient.Builder builder = RegisteredClient.withId(id)
-                .clientId(client.clientId())
-                .clientName(client.clientId());
+    private static RegisteredClient build(
+            IamProperties.Client client, IamProperties properties, String id) {
+        RegisteredClient.Builder builder =
+                RegisteredClient.withId(id)
+                        .clientId(client.clientId())
+                        .clientName(client.clientId());
         if (client.clientSecret() != null && !client.clientSecret().isBlank()) {
             String secret = client.clientSecret();
             builder.clientSecret(secret.startsWith("{") ? secret : DEMO_ENCODER.encode(secret));
@@ -59,9 +58,10 @@ public final class IamClientFactory {
         }
         client.redirectUris().forEach(builder::redirectUri);
         client.scopes().forEach(builder::scope);
-        ClientSettings.Builder settings = ClientSettings.builder()
-                .requireProofKey(client.requireProofKey())
-                .requireAuthorizationConsent(client.requireConsent());
+        ClientSettings.Builder settings =
+                ClientSettings.builder()
+                        .requireProofKey(client.requireProofKey())
+                        .requireAuthorizationConsent(client.requireConsent());
         if (client.x509SubjectDn() != null && !client.x509SubjectDn().isBlank()) {
             settings.x509CertificateSubjectDN(client.x509SubjectDn());
         }
@@ -82,10 +82,11 @@ public final class IamClientFactory {
                 .scope(OidcScopes.OPENID)
                 .scope(OidcScopes.PROFILE)
                 .scope("read")
-                .clientSettings(ClientSettings.builder()
-                        .requireAuthorizationConsent(true)
-                        .requireProofKey(true)
-                        .build())
+                .clientSettings(
+                        ClientSettings.builder()
+                                .requireAuthorizationConsent(true)
+                                .requireProofKey(true)
+                                .build())
                 .tokenSettings(tokenSettings(properties))
                 .build();
     }
@@ -101,11 +102,12 @@ public final class IamClientFactory {
                 .scope(OidcScopes.OPENID)
                 .scope(OidcScopes.PROFILE)
                 .scope("read")
-                .clientSettings(ClientSettings.builder()
-                        .requireAuthorizationConsent(true)
-                        .requireProofKey(true)
-                        .x509CertificateSubjectDN(TLS_CLIENT_SUBJECT_DN)
-                        .build())
+                .clientSettings(
+                        ClientSettings.builder()
+                                .requireAuthorizationConsent(true)
+                                .requireProofKey(true)
+                                .x509CertificateSubjectDN(TLS_CLIENT_SUBJECT_DN)
+                                .build())
                 .tokenSettings(tokenSettings(properties))
                 .build();
     }
@@ -119,10 +121,11 @@ public final class IamClientFactory {
                 .scope(OidcScopes.OPENID)
                 .scope(OidcScopes.PROFILE)
                 .scope("offline_access")
-                .clientSettings(ClientSettings.builder()
-                        .requireAuthorizationConsent(false)
-                        .requireProofKey(false)
-                        .build())
+                .clientSettings(
+                        ClientSettings.builder()
+                                .requireAuthorizationConsent(false)
+                                .requireProofKey(false)
+                                .build())
                 .tokenSettings(tokenSettings(properties))
                 .build();
     }

@@ -1,18 +1,17 @@
 package cn.byteforce.seedj.starter.iam.web;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+
 import jakarta.servlet.FilterChain;
+import java.security.cert.X509Certificate;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
-
-import java.security.cert.X509Certificate;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
 
 /** RFC 6749 §3.2 / RFC 7662 / RFC 7009 参数级兜底的行为测试。 */
 class EndpointParameterConformanceFilterTest {
@@ -23,8 +22,9 @@ class EndpointParameterConformanceFilterTest {
     @BeforeEach
     void setUp() {
         chainInvoked.set(false);
-        filter = new EndpointParameterConformanceFilter(
-                AuthorizationServerSettings.builder().issuer("https://iam.test").build());
+        filter =
+                new EndpointParameterConformanceFilter(
+                        AuthorizationServerSettings.builder().issuer("https://iam.test").build());
     }
 
     @Test
@@ -37,8 +37,14 @@ class EndpointParameterConformanceFilterTest {
 
     @Test
     void duplicateTokenParameterIsBadRequest() throws Exception {
-        MockHttpServletResponse response = run(request("/oauth2/token",
-                "grant_type", "authorization_code", "grant_type", "refresh_token"));
+        MockHttpServletResponse response =
+                run(
+                        request(
+                                "/oauth2/token",
+                                "grant_type",
+                                "authorization_code",
+                                "grant_type",
+                                "refresh_token"));
 
         assertJsonError(response, "invalid_request");
         assertThat(response.getContentAsString()).contains("duplicate parameter: grant_type");
@@ -46,8 +52,8 @@ class EndpointParameterConformanceFilterTest {
 
     @Test
     void duplicateIntrospectionParameterIsBadRequest() throws Exception {
-        MockHttpServletResponse response = run(request("/oauth2/introspect",
-                "token", "a", "token", "b"));
+        MockHttpServletResponse response =
+                run(request("/oauth2/introspect", "token", "a", "token", "b"));
 
         assertJsonError(response, "invalid_request");
         assertThat(response.getContentAsString()).contains("duplicate parameter: token");
@@ -55,15 +61,16 @@ class EndpointParameterConformanceFilterTest {
 
     @Test
     void duplicateRevocationParameterIsBadRequest() throws Exception {
-        MockHttpServletResponse response = run(request("/oauth2/revoke",
-                "token", "a", "token", "b"));
+        MockHttpServletResponse response =
+                run(request("/oauth2/revoke", "token", "a", "token", "b"));
 
         assertJsonError(response, "invalid_request");
     }
 
     @Test
     void tokenWithoutClientAuthenticationIsInvalidClient() throws Exception {
-        MockHttpServletResponse response = run(request("/oauth2/token", "grant_type", "client_credentials"));
+        MockHttpServletResponse response =
+                run(request("/oauth2/token", "grant_type", "client_credentials"));
 
         assertJsonError(response, "invalid_client");
         assertThat(response.getContentAsString()).contains("client authentication is required");
@@ -71,9 +78,15 @@ class EndpointParameterConformanceFilterTest {
 
     @Test
     void clientCertificateAloneIsNotClientAuthentication() throws Exception {
-        MockHttpServletRequest request = request("/oauth2/token", "grant_type", "client_credentials",
-                "client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer");
-        request.setAttribute("jakarta.servlet.request.X509Certificate",
+        MockHttpServletRequest request =
+                request(
+                        "/oauth2/token",
+                        "grant_type",
+                        "client_credentials",
+                        "client_assertion_type",
+                        "urn:ietf:params:oauth:client-assertion-type:jwt-bearer");
+        request.setAttribute(
+                "jakarta.servlet.request.X509Certificate",
                 new X509Certificate[] {mock(X509Certificate.class)});
 
         MockHttpServletResponse response = run(request);
@@ -83,7 +96,8 @@ class EndpointParameterConformanceFilterTest {
 
     @Test
     void basicAuthenticationIsAccepted() throws Exception {
-        MockHttpServletRequest request = request("/oauth2/token", "grant_type", "client_credentials");
+        MockHttpServletRequest request =
+                request("/oauth2/token", "grant_type", "client_credentials");
         request.addHeader(HttpHeaders.AUTHORIZATION, "Basic d2ViOnNlY3JldA==");
 
         run(request);
@@ -100,7 +114,13 @@ class EndpointParameterConformanceFilterTest {
 
     @Test
     void clientAssertionParameterIsAccepted() throws Exception {
-        run(request("/oauth2/token", "grant_type", "authorization_code", "client_assertion", "jwt"));
+        run(
+                request(
+                        "/oauth2/token",
+                        "grant_type",
+                        "authorization_code",
+                        "client_assertion",
+                        "jwt"));
 
         assertThat(chainInvoked).isTrue();
     }

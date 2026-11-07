@@ -2,7 +2,6 @@ package cn.byteforce.seedj.infra.jdbc.domain;
 
 import cn.byteforce.seedj.domain.FieldType;
 import cn.byteforce.seedj.domain.ScopePredicate;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -10,25 +9,22 @@ import java.util.Objects;
 /**
  * 把受限谓词编译成参数化 SQL 片段。
  *
- * <p>字段白名单是表的全部领域列（不是 {@code filterableColumns}）：行范围允许使用
- * 未开放给业务过滤的字段，但仍必须是 schema 声明过的字段。{@code Eq/In} 先按
- * {@link FieldType} 转换，再转成 JDBC 值，参数顺序与占位符一致。</p>
+ * <p>字段白名单是表的全部领域列（不是 {@code filterableColumns}）：行范围允许使用 未开放给业务过滤的字段，但仍必须是 schema 声明过的字段。{@code
+ * Eq/In} 先按 {@link FieldType} 转换，再转成 JDBC 值，参数顺序与占位符一致。
  *
- * <p>{@code Not} 编译为 {@code (p) IS NOT TRUE}，保持二值语义：字段为 {@code NULL}
- * 时取反仍为真。</p>
+ * <p>{@code Not} 编译为 {@code (p) IS NOT TRUE}，保持二值语义：字段为 {@code NULL} 时取反仍为真。
  *
  * @author ByteForce
  * @since 1.0.0
  */
 final class ScopeSql {
 
-    private ScopeSql() {
-    }
+    private ScopeSql() {}
 
     /**
      * 编译结果。
      *
-     * @param sql  不含外层括号的 SQL 片段
+     * @param sql 不含外层括号的 SQL 片段
      * @param args 与占位符顺序一致的 JDBC 参数
      */
     record Clause(String sql, List<Object> args) {
@@ -43,7 +39,7 @@ final class ScopeSql {
      * 编译谓词。
      *
      * @param predicate 谓词
-     * @param table     目标表
+     * @param table 目标表
      * @return SQL 片段与参数
      */
     static Clause compile(ScopePredicate predicate, TemporalTable table) {
@@ -81,8 +77,7 @@ final class ScopeSql {
         for (Object value : in.values()) {
             args.add(jdbcValue(in.field(), value, table));
         }
-        String placeholders = String.join(", ",
-                java.util.Collections.nCopies(args.size(), "?"));
+        String placeholders = String.join(", ", java.util.Collections.nCopies(args.size(), "?"));
         return new Clause(in.field() + " IN (" + placeholders + ")", args);
     }
 
@@ -91,8 +86,8 @@ final class ScopeSql {
         return new Clause(notNull.field() + " IS NOT NULL", List.of());
     }
 
-    private static Clause join(List<ScopePredicate> parts, TemporalTable table,
-                               String separator, String identity) {
+    private static Clause join(
+            List<ScopePredicate> parts, TemporalTable table, String separator, String identity) {
         if (parts.isEmpty()) {
             return new Clause(identity, List.of());
         }

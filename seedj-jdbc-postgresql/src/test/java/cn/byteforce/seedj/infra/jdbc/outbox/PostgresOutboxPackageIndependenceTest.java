@@ -1,7 +1,6 @@
 package cn.byteforce.seedj.infra.jdbc.outbox;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -9,12 +8,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-/**
- * 形状门禁：PostgreSQL outbox 适配器不得依赖 eventbus。
- */
+/** 形状门禁：PostgreSQL outbox 适配器不得依赖 eventbus。 */
 class PostgresOutboxPackageIndependenceTest {
 
     private static final String EVENTBUS_IMPORT = "import cn.byteforce.seedj.eventbus";
@@ -27,12 +24,12 @@ class PostgresOutboxPackageIndependenceTest {
 
         List<String> offenders;
         try (Stream<Path> files = Files.walk(root)) {
-            offenders = files
-                    .filter(path -> path.toString().endsWith(".java"))
-                    .filter(PostgresOutboxPackageIndependenceTest::importsEventBus)
-                    .map(Path::toString)
-                    .sorted()
-                    .toList();
+            offenders =
+                    files.filter(path -> path.toString().endsWith(".java"))
+                            .filter(PostgresOutboxPackageIndependenceTest::importsEventBus)
+                            .map(Path::toString)
+                            .sorted()
+                            .toList();
         }
 
         assertThat(offenders).as("outbox JDBC files importing eventbus").isEmpty();

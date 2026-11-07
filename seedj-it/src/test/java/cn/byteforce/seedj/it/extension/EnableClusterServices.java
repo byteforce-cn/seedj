@@ -8,8 +8,10 @@ import java.lang.annotation.Target;
 
 /**
  * 指定当前测试需要启动的集群服务。
- * <p>不标注该注解，或 value 为空，等价于启动全部服务（向后兼容）。</p>
- * <p>只要点名了任意后端服务，IAM 会被自动加入（JWT issuer 依赖）。</p>
+ *
+ * <p>不标注该注解，或 value 为空，等价于启动全部服务（向后兼容）。
+ *
+ * <p>只要点名了任意后端服务，IAM 会被自动加入（JWT issuer 依赖）。
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)

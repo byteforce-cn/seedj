@@ -1,89 +1,98 @@
 package cn.byteforce.seedj.cqrs;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import cn.byteforce.seedj.audit.AuditErrorCode;
 import cn.byteforce.seedj.audit.AuditException;
 import cn.byteforce.seedj.cqrs.spi.CommandStore;
 import cn.byteforce.seedj.cqrs.spi.TransactionRunner;
 import cn.byteforce.seedj.domain.AbstractAggregateRoot;
-import cn.byteforce.seedj.domain.Repository;
-import cn.byteforce.seedj.domain.event.DomainEvent;
 import cn.byteforce.seedj.domain.FieldType;
 import cn.byteforce.seedj.domain.ObjectSchema;
+import cn.byteforce.seedj.domain.Repository;
 import cn.byteforce.seedj.domain.ScopePredicate;
+import cn.byteforce.seedj.domain.event.DomainEvent;
 import cn.byteforce.seedj.domain.event.EventApplier;
 import cn.byteforce.seedj.eventbus.EventMessage;
 import cn.byteforce.seedj.eventbus.EventPublisher;
 import cn.byteforce.seedj.lock.LockProvider;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import tools.jackson.databind.json.JsonMapper;
-
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import tools.jackson.databind.json.JsonMapper;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
-/**
- * 命令审计 seam 的位置契约：accepted 在事务内且只在成功路径上调用；
- * rejected 只在业务拒绝时调用，且在事务外。
- */
+/** 命令审计 seam 的位置契约：accepted 在事务内且只在成功路径上调用； rejected 只在业务拒绝时调用，且在事务外。 */
 class CommandAgentAuditTest {
 
     private static final UUID ISSUER = UUID.fromString("018f2e3a-0000-7000-8000-000000000001");
 
     private static final JsonMapper JSON = JsonMapper.builder().build();
 
-    private static final ObjectSchema SCHEMA = ObjectSchema.builder("test_counter", "counter")
-            .field("counter_id", FieldType.TEXT)
-            .build();
+    private static final ObjectSchema SCHEMA =
+            ObjectSchema.builder("test_counter", "counter")
+                    .field("counter_id", FieldType.TEXT)
+                    .build();
 
-    private static final CommandRegistration REGISTRATION = new CommandRegistration(
-            CommandDescriptor.builder().type("test.counter.touch")
-                    .objectType("test_counter").payloadType(Cmd.class)
-                    .permission("test.counter.write").build(),
-            new NoopHandler(), SCHEMA);
+    private static final CommandRegistration REGISTRATION =
+            new CommandRegistration(
+                    CommandDescriptor.builder()
+                            .type("test.counter.touch")
+                            .objectType("test_counter")
+                            .payloadType(Cmd.class)
+                            .permission("test.counter.write")
+                            .build(),
+                    new NoopHandler(),
+                    SCHEMA);
 
     private final List<String> trace = new ArrayList<>();
 
     private final RecordingAudit audit = new RecordingAudit(trace);
 
-    private final TransactionRunner transactionRunner = new TransactionRunner() {
-        @Override
-        public <R> R inTransaction(java.util.function.Supplier<R> work) {
-            trace.add("tx:begin");
-            try {
-                return work.get();
-            } finally {
-                trace.add("tx:end");
-            }
-        }
-    };
+    private final TransactionRunner transactionRunner =
+            new TransactionRunner() {
+                @Override
+                public <R> R inTransaction(java.util.function.Supplier<R> work) {
+                    trace.add("tx:begin");
+                    try {
+                        return work.get();
+                    } finally {
+                        trace.add("tx:end");
+                    }
+                }
+            };
 
     private TestAgent agent(CommandAudit commandAudit) {
-        return new TestAgent(new InMemoryRepository(trace), new NoopPublisher(trace),
-                commandAudit, transactionRunner, trace);
+        return new TestAgent(
+                new InMemoryRepository(trace),
+                new NoopPublisher(trace),
+                commandAudit,
+                transactionRunner,
+                trace);
     }
 
     @Test
     @DisplayName("accepted 在事务内、save 与 publish 之后调用")
     void acceptedRunsLastInsideTransaction() {
-        RecordingAudit txAware = new RecordingAudit(trace) {
-            @Override
-            public void accepted(Command<?> command, String resourceId) {
-                super.accepted(command, resourceId);
-                assertThat(trace).contains("tx:begin").doesNotContain("tx:end");
-            }
-        };
+        RecordingAudit txAware =
+                new RecordingAudit(trace) {
+                    @Override
+                    public void accepted(Command<?> command, String resourceId) {
+                        super.accepted(command, resourceId);
+                        assertThat(trace).contains("tx:begin").doesNotContain("tx:end");
+                    }
+                };
 
         run(agent(txAware), new Cmd("a-1", Kind.OK));
 
-        assertThat(trace).containsExactly(
-                "tx:begin", "load:a-1", "save", "publish", "audit:accepted:a-1", "tx:end");
+        assertThat(trace)
+                .containsExactly(
+                        "tx:begin", "load:a-1", "save", "publish", "audit:accepted:a-1", "tx:end");
     }
 
     @Test
@@ -108,26 +117,41 @@ class CommandAgentAuditTest {
     @Test
     @DisplayName("审计失败原样上抛，且不会被误记成业务拒绝")
     void auditFailureIsNotRecordedAsRejection() {
-        CommandAudit failing = new CommandAudit() {
-            @Override
-            public void accepted(Command<?> command, String resourceId) {
-                throw new AuditException(AuditErrorCode.APPEND_FAILED, "audit store down");
-            }
-        };
+        CommandAudit failing =
+                new CommandAudit() {
+                    @Override
+                    public void accepted(Command<?> command, String resourceId) {
+                        throw new AuditException(AuditErrorCode.APPEND_FAILED, "audit store down");
+                    }
+                };
 
         assertThatThrownBy(() -> run(agent(failing), new Cmd("a-4", Kind.OK)))
                 .isInstanceOf(AuditException.class);
     }
 
     private CommandRecord run(TestAgent agent, Cmd command) {
-        CommandRecord pending = CommandRecord.pending(UUID.randomUUID(), "test.counter.touch",
-                java.time.Instant.parse("2026-11-07T09:00:00Z"), ISSUER,
-                Map.of("counter_id", command.counterId()), "k-" + UUID.randomUUID(),
-                "a".repeat(64), java.time.Instant.parse("2026-11-07T09:00:00Z"));
+        CommandRecord pending =
+                CommandRecord.pending(
+                        UUID.randomUUID(),
+                        "test.counter.touch",
+                        java.time.Instant.parse("2026-11-07T09:00:00Z"),
+                        ISSUER,
+                        Map.of("counter_id", command.counterId()),
+                        "k-" + UUID.randomUUID(),
+                        "a".repeat(64),
+                        java.time.Instant.parse("2026-11-07T09:00:00Z"));
         CommandStore store = new CommandRuntimeTest.FakeCommands();
         store.insert(pending);
-        return agent.executeWithin(command, new AgentInvocation(command.counterId(), pending,
-                SCHEMA, REGISTRATION, ScopePredicate.all(), JSON, store));
+        return agent.executeWithin(
+                command,
+                new AgentInvocation(
+                        command.counterId(),
+                        pending,
+                        SCHEMA,
+                        REGISTRATION,
+                        ScopePredicate.all(),
+                        JSON,
+                        store));
     }
 
     // ---------------------------------------------------------------- fixtures
@@ -145,7 +169,11 @@ class CommandAgentAuditTest {
         }
     }
 
-    enum Kind { OK, REJECT, BOOM }
+    enum Kind {
+        OK,
+        REJECT,
+        BOOM
+    }
 
     record Cmd(String counterId, Kind kind) implements Command<String> {
         @Override
@@ -154,8 +182,7 @@ class CommandAgentAuditTest {
         }
     }
 
-    record Touched(String counterId) implements DomainEvent {
-    }
+    record Touched(String counterId) implements DomainEvent {}
 
     static final class Counter extends AbstractAggregateRoot<String>
             implements EventApplier<Touched> {
@@ -179,11 +206,23 @@ class CommandAgentAuditTest {
 
     static final class TestAgent extends CommandAgent<Cmd, Counter, String> {
 
-        TestAgent(Repository<Counter, String> repository, EventPublisher publisher,
-                  CommandAudit audit, TransactionRunner runner, List<String> trace) {
-            super(repository, publisher, IdCodecs.strings(),
-                    new Options<>(runner, LockProvider.disabled(), Duration.ofSeconds(5),
-                            1, List.of(), audit));
+        TestAgent(
+                Repository<Counter, String> repository,
+                EventPublisher publisher,
+                CommandAudit audit,
+                TransactionRunner runner,
+                List<String> trace) {
+            super(
+                    repository,
+                    publisher,
+                    IdCodecs.strings(),
+                    new Options<>(
+                            runner,
+                            LockProvider.disabled(),
+                            Duration.ofSeconds(5),
+                            1,
+                            List.of(),
+                            audit));
         }
 
         @Override
@@ -194,8 +233,9 @@ class CommandAgentAuditTest {
         @Override
         protected void handle(Counter aggregate, Cmd command) {
             switch (command.kind()) {
-                case REJECT -> throw new CqrsException(CqrsErrorCode.COMMAND_REJECTED,
-                        "already onboarded");
+                case REJECT ->
+                        throw new CqrsException(
+                                CqrsErrorCode.COMMAND_REJECTED, "already onboarded");
                 case BOOM -> throw new IllegalStateException("boom");
                 case OK -> aggregate.touch();
             }

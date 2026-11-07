@@ -1,15 +1,14 @@
 package cn.byteforce.seedj.starter.iam.scim;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import cn.byteforce.seedj.iam.IamErrorCode;
 import cn.byteforce.seedj.iam.IamException;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-
-import java.util.List;
-import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 class ScimExceptionHandlerTest {
 
@@ -30,7 +29,9 @@ class ScimExceptionHandlerTest {
 
     @Test
     void mapsPreconditionAndAuthCodes() {
-        assertResponse(IamErrorCode.SCIM_PRECONDITION_FAILED, HttpStatus.PRECONDITION_FAILED,
+        assertResponse(
+                IamErrorCode.SCIM_PRECONDITION_FAILED,
+                HttpStatus.PRECONDITION_FAILED,
                 "versionMismatch");
         assertResponse(IamErrorCode.SCIM_UNAUTHORIZED, HttpStatus.UNAUTHORIZED, "invalidValue");
     }
@@ -44,15 +45,16 @@ class ScimExceptionHandlerTest {
     }
 
     private void assertResponse(IamErrorCode code, HttpStatus status, String scimType) {
-        ResponseEntity<Map<String, Object>> response = handler.handle(
-                new IamException(code, "detail for " + code));
+        ResponseEntity<Map<String, Object>> response =
+                handler.handle(new IamException(code, "detail for " + code));
 
         assertThat(response.getStatusCode()).isEqualTo(status);
         assertThat(response.getHeaders().getContentType()).isNotNull();
         assertThat(response.getHeaders().getContentType().toString())
                 .isEqualTo(ScimSupport.CONTENT_TYPE);
         Map<String, Object> body = response.getBody();
-        assertThat(body).containsEntry("schemas", List.of(ScimSupport.ERROR_SCHEMA))
+        assertThat(body)
+                .containsEntry("schemas", List.of(ScimSupport.ERROR_SCHEMA))
                 .containsEntry("detail", "detail for " + code)
                 .containsEntry("status", String.valueOf(status.value()));
         if (scimType == null) {

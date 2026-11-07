@@ -5,8 +5,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Imported by {@code @EnableIamServer}; deliberately contains no component scan
- * and no {@code @SpringBootApplication} semantics.
+ * Imported by {@code @EnableIamServer}; deliberately contains no component scan and no
+ * {@code @SpringBootApplication} semantics.
  */
 @Configuration(proxyBeanMethods = false)
 public class IamEnablementConfiguration {

@@ -3,7 +3,6 @@ package cn.byteforce.seedj.starter.read;
 import cn.byteforce.seedj.core.utils.FieldNames;
 import cn.byteforce.seedj.domain.ObjectVersion;
 import cn.byteforce.seedj.domain.TemporalRow;
-
 import java.lang.reflect.Constructor;
 import java.lang.reflect.RecordComponent;
 import java.math.BigDecimal;
@@ -17,8 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * 行 → record 视图映射：默认 snake_case ↔ camelCase，元结构从 {@link ObjectVersion} 取。
  *
- * <p>组件没有对应字段时为 {@code null}；primitive 组件缺值直接失败，不静默给 0。
- * 不支持接口投影，避免第二套映射语义。</p>
+ * <p>组件没有对应字段时为 {@code null}；primitive 组件缺值直接失败，不静默给 0。 不支持接口投影，避免第二套映射语义。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -30,15 +28,15 @@ public final class ViewMapper {
     /**
      * 映射一行。
      *
-     * @param row      渲染后的行
+     * @param row 渲染后的行
      * @param viewType record 视图类型
      * @return 视图实例
      */
     public Object map(TemporalRow row, Class<?> viewType) {
         Objects.requireNonNull(row, "row");
         Objects.requireNonNull(viewType, "viewType");
-        Constructor<?> constructor = constructors.computeIfAbsent(viewType,
-                ViewMapper::constructor);
+        Constructor<?> constructor =
+                constructors.computeIfAbsent(viewType, ViewMapper::constructor);
         RecordComponent[] components = constructor.getDeclaringClass().getRecordComponents();
         Object[] args = new Object[components.length];
         for (int i = 0; i < components.length; i++) {
@@ -48,21 +46,20 @@ public final class ViewMapper {
         try {
             return constructor.newInstance(args);
         } catch (ReflectiveOperationException error) {
-            throw new IllegalStateException("cannot map " + row.objectType() + " to "
-                    + viewType.getName(), error);
+            throw new IllegalStateException(
+                    "cannot map " + row.objectType() + " to " + viewType.getName(), error);
         }
     }
 
     private static Constructor<?> constructor(Class<?> viewType) {
         if (!viewType.isRecord()) {
-            throw new IllegalArgumentException("view type must be a record: "
-                    + viewType.getName());
+            throw new IllegalArgumentException("view type must be a record: " + viewType.getName());
         }
         try {
-            return viewType.getDeclaredConstructor(java.util.Arrays.stream(
-                            viewType.getRecordComponents())
-                    .map(RecordComponent::getType)
-                    .toArray(Class<?>[]::new));
+            return viewType.getDeclaredConstructor(
+                    java.util.Arrays.stream(viewType.getRecordComponents())
+                            .map(RecordComponent::getType)
+                            .toArray(Class<?>[]::new));
         } catch (NoSuchMethodException error) {
             throw new IllegalStateException("record canonical constructor is missing", error);
         }
@@ -71,21 +68,23 @@ public final class ViewMapper {
     private static Object value(TemporalRow row, RecordComponent component) {
         String name = component.getName();
         ObjectVersion version = row.version();
-        Object value = switch (name) {
-            case "id" -> version.id();
-            case "version" -> version.version();
-            case "validFrom" -> version.validFrom();
-            case "validTo" -> version.validTo();
-            case "recordedAt" -> version.recordedAt();
-            case "supersededAt" -> version.supersededAt();
-            case "createdBy" -> version.createdBy();
-            case "createdAt" -> version.createdAt();
-            case "updatedBy" -> version.updatedBy();
-            case "updatedAt" -> version.updatedAt();
-            default -> row.fields().containsKey(name)
-                    ? row.fields().get(name)
-                    : row.fields().get(FieldNames.snakeCase(name));
-        };
+        Object value =
+                switch (name) {
+                    case "id" -> version.id();
+                    case "version" -> version.version();
+                    case "validFrom" -> version.validFrom();
+                    case "validTo" -> version.validTo();
+                    case "recordedAt" -> version.recordedAt();
+                    case "supersededAt" -> version.supersededAt();
+                    case "createdBy" -> version.createdBy();
+                    case "createdAt" -> version.createdAt();
+                    case "updatedBy" -> version.updatedBy();
+                    case "updatedAt" -> version.updatedAt();
+                    default ->
+                            row.fields().containsKey(name)
+                                    ? row.fields().get(name)
+                                    : row.fields().get(FieldNames.snakeCase(name));
+                };
         return convert(value, component.getType(), name);
     }
 
@@ -104,16 +103,17 @@ public final class ViewMapper {
             return String.valueOf(value);
         }
         if (type == Integer.class || type == int.class) {
-            return value instanceof Number number ? number.intValue()
+            return value instanceof Number number
+                    ? number.intValue()
                     : Integer.valueOf(value.toString());
         }
         if (type == Long.class || type == long.class) {
-            return value instanceof Number number ? number.longValue()
+            return value instanceof Number number
+                    ? number.longValue()
                     : Long.valueOf(value.toString());
         }
         if (type == BigDecimal.class) {
-            return value instanceof BigDecimal decimal ? decimal
-                    : new BigDecimal(value.toString());
+            return value instanceof BigDecimal decimal ? decimal : new BigDecimal(value.toString());
         }
         if (type == Boolean.class || type == boolean.class) {
             return value instanceof Boolean bool ? bool : Boolean.valueOf(value.toString());
@@ -127,8 +127,12 @@ public final class ViewMapper {
         if (type == UUID.class) {
             return value instanceof UUID uuid ? uuid : UUID.fromString(value.toString());
         }
-        throw new IllegalArgumentException("cannot convert field " + field + " from "
-                + value.getClass().getName() + " to " + type.getName());
+        throw new IllegalArgumentException(
+                "cannot convert field "
+                        + field
+                        + " from "
+                        + value.getClass().getName()
+                        + " to "
+                        + type.getName());
     }
-
 }

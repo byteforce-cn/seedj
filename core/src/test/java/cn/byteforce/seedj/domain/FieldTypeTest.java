@@ -1,22 +1,19 @@
 package cn.byteforce.seedj.domain;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.UUID;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
-/**
- * 字段类型：PostgreSQL 列类型映射与外部值的宽松/失败关闭转换。
- */
+/** 字段类型：PostgreSQL 列类型映射与外部值的宽松/失败关闭转换。 */
 class FieldTypeTest {
 
     private static final UUID ID = UUID.fromString("018f2e3a-1234-7000-8000-000000000001");
@@ -57,10 +54,12 @@ class FieldTypeTest {
         assertThat(FieldType.INTEGER.coerce(new BigDecimal("7.9"))).isEqualTo(7);
         assertThat(FieldType.INTEGER.coerce(" 12 ")).isEqualTo(12);
         assertThatThrownBy(() -> FieldType.INTEGER.coerce("twelve"))
-                .isInstanceOfSatisfying(ContractException.class, error -> {
-                    assertThat(error.code()).isEqualTo(ContractErrorCode.INVALID_PAYLOAD);
-                    assertThat(error.reason()).contains("invalid integer value: twelve");
-                });
+                .isInstanceOfSatisfying(
+                        ContractException.class,
+                        error -> {
+                            assertThat(error.code()).isEqualTo(ContractErrorCode.INVALID_PAYLOAD);
+                            assertThat(error.reason()).contains("invalid integer value: twelve");
+                        });
     }
 
     @Test
@@ -70,8 +69,11 @@ class FieldTypeTest {
         assertThat(FieldType.LONG.coerce(9)).isEqualTo(9L);
         assertThat(FieldType.LONG.coerce("9")).isEqualTo(9L);
         assertThatThrownBy(() -> FieldType.LONG.coerce("nine"))
-                .isInstanceOfSatisfying(ContractException.class, error ->
-                        assertThat(error.code()).isEqualTo(ContractErrorCode.INVALID_PAYLOAD));
+                .isInstanceOfSatisfying(
+                        ContractException.class,
+                        error ->
+                                assertThat(error.code())
+                                        .isEqualTo(ContractErrorCode.INVALID_PAYLOAD));
     }
 
     @Test
@@ -82,8 +84,9 @@ class FieldTypeTest {
         assertThat(FieldType.DECIMAL.coerce(2.5d)).isEqualTo(new BigDecimal("2.5"));
         assertThat(FieldType.DECIMAL.coerce(" 3.1400 ")).isEqualTo(new BigDecimal("3.1400"));
         assertThatThrownBy(() -> FieldType.DECIMAL.coerce("pi"))
-                .isInstanceOfSatisfying(ContractException.class, error ->
-                        assertThat(error.reason()).contains("invalid decimal value"));
+                .isInstanceOfSatisfying(
+                        ContractException.class,
+                        error -> assertThat(error.reason()).contains("invalid decimal value"));
     }
 
     @Test
@@ -93,10 +96,12 @@ class FieldTypeTest {
         assertThat(FieldType.BOOLEAN.coerce("true")).isEqualTo(Boolean.TRUE);
         assertThat(FieldType.BOOLEAN.coerce(" FALSE ")).isEqualTo(Boolean.FALSE);
         assertThatThrownBy(() -> FieldType.BOOLEAN.coerce("yes"))
-                .isInstanceOfSatisfying(ContractException.class, error -> {
-                    assertThat(error.code()).isEqualTo(ContractErrorCode.INVALID_PAYLOAD);
-                    assertThat(error.reason()).contains("invalid boolean value: yes");
-                });
+                .isInstanceOfSatisfying(
+                        ContractException.class,
+                        error -> {
+                            assertThat(error.code()).isEqualTo(ContractErrorCode.INVALID_PAYLOAD);
+                            assertThat(error.reason()).contains("invalid boolean value: yes");
+                        });
     }
 
     @Test
@@ -107,8 +112,11 @@ class FieldTypeTest {
         assertThat(FieldType.DATE.coerce(java.sql.Date.valueOf(date))).isEqualTo(date);
         assertThat(FieldType.DATE.coerce(" 2026-01-05 ")).isEqualTo(date);
         assertThatThrownBy(() -> FieldType.DATE.coerce("05/01/2026"))
-                .isInstanceOfSatisfying(ContractException.class, error ->
-                        assertThat(error.code()).isEqualTo(ContractErrorCode.INVALID_PAYLOAD));
+                .isInstanceOfSatisfying(
+                        ContractException.class,
+                        error ->
+                                assertThat(error.code())
+                                        .isEqualTo(ContractErrorCode.INVALID_PAYLOAD));
     }
 
     @Test
@@ -120,8 +128,9 @@ class FieldTypeTest {
                 .isEqualTo(instant);
         assertThat(FieldType.TIMESTAMP.coerce("2026-01-05T10:15:30Z")).isEqualTo(instant);
         assertThatThrownBy(() -> FieldType.TIMESTAMP.coerce("tomorrow"))
-                .isInstanceOfSatisfying(ContractException.class, error ->
-                        assertThat(error.reason()).contains("invalid timestamp value"));
+                .isInstanceOfSatisfying(
+                        ContractException.class,
+                        error -> assertThat(error.reason()).contains("invalid timestamp value"));
     }
 
     @Test
@@ -130,7 +139,8 @@ class FieldTypeTest {
         assertThat(FieldType.UUID.coerce(ID)).isSameAs(ID);
         assertThat(FieldType.UUID.coerce(" " + ID + " ")).isEqualTo(ID);
         assertThatThrownBy(() -> FieldType.UUID.coerce("not-a-uuid"))
-                .isInstanceOfSatisfying(ContractException.class, error ->
-                        assertThat(error.reason()).contains("invalid uuid value"));
+                .isInstanceOfSatisfying(
+                        ContractException.class,
+                        error -> assertThat(error.reason()).contains("invalid uuid value"));
     }
 }

@@ -3,8 +3,8 @@ package cn.byteforce.seedj.iam;
 import java.time.Instant;
 
 /**
- * A signing key in JWK JSON form. {@code privateJwk} is empty for retired keys;
- * when present it is already protected by the implementation (JDBC encrypts it).
+ * A signing key in JWK JSON form. {@code privateJwk} is empty for retired keys; when present it is
+ * already protected by the implementation (JDBC encrypts it).
  */
 public record IamSigningKey(
         String kid,

@@ -1,7 +1,6 @@
 package cn.byteforce.seedj.codegen;
 
 import cn.byteforce.seedj.domain.Privacy;
-
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -11,17 +10,18 @@ import java.lang.annotation.Target;
 /**
  * record 组件的字段约束；未标注的组件按「可选、可读、可进事件」处理。
  *
- * <p>类型映射（由组件 Java 类型推导，不提供覆盖开关）：</p>
+ * <p>类型映射（由组件 Java 类型推导，不提供覆盖开关）：
+ *
  * <ul>
- *   <li>{@code String}/{@code char}/{@code Character}/枚举 → {@code TEXT}</li>
- *   <li>{@code int}/{@code Integer} → {@code INTEGER}；{@code long}/{@code Long} → {@code LONG}</li>
- *   <li>{@code BigDecimal}/{@code double}/{@code float} 及其包装类型 → {@code DECIMAL}</li>
- *   <li>{@code boolean}/{@code Boolean} → {@code BOOLEAN}</li>
- *   <li>{@code LocalDate} → {@code DATE}；{@code Instant}/{@code OffsetDateTime} → {@code TIMESTAMP}</li>
- *   <li>{@code UUID} → {@code UUID}</li>
+ *   <li>{@code String}/{@code char}/{@code Character}/枚举 → {@code TEXT}
+ *   <li>{@code int}/{@code Integer} → {@code INTEGER}；{@code long}/{@code Long} → {@code LONG}
+ *   <li>{@code BigDecimal}/{@code double}/{@code float} 及其包装类型 → {@code DECIMAL}
+ *   <li>{@code boolean}/{@code Boolean} → {@code BOOLEAN}
+ *   <li>{@code LocalDate} → {@code DATE}；{@code Instant}/{@code OffsetDateTime} → {@code TIMESTAMP}
+ *   <li>{@code UUID} → {@code UUID}
  * </ul>
  *
- * <p>字段名默认把 camelCase 组件名转成 snake_case；需要例外时用 {@link #name()}。</p>
+ * <p>字段名默认把 camelCase 组件名转成 snake_case；需要例外时用 {@link #name()}。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -97,7 +97,7 @@ public @interface SeedjField {
     /**
      * 值必须匹配的正则（仅 TEXT）；空串表示不限制。
      *
-     * <p>只支持 JSON Schema 与 POSIX 都兼容的子集：字符类、量词、锚点。</p>
+     * <p>只支持 JSON Schema 与 POSIX 都兼容的子集：字符类、量词、锚点。
      *
      * @return 正则
      */

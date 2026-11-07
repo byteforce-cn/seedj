@@ -1,5 +1,16 @@
 package cn.byteforce.seedj.starter.iam.autoconfigure;
 
+import cn.byteforce.seedj.core.security.SecurityAuditSink;
+import cn.byteforce.seedj.iam.spi.IamAuthorizationRepository;
+import cn.byteforce.seedj.iam.spi.IamGroupRepository;
+import cn.byteforce.seedj.iam.spi.IamPolicyRepository;
+import cn.byteforce.seedj.iam.spi.IamSecretProtector;
+import cn.byteforce.seedj.iam.spi.IamSigningKeyStore;
+import cn.byteforce.seedj.iam.spi.IamTokenRevoker;
+import cn.byteforce.seedj.iam.spi.IamTotpRepository;
+import cn.byteforce.seedj.iam.spi.IamUserRepository;
+import cn.byteforce.seedj.id.IdGenerator;
+import cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner;
 import cn.byteforce.seedj.infra.jdbc.iam.IamSchemaCapability;
 import cn.byteforce.seedj.infra.jdbc.iam.JdbcIamAuditSink;
 import cn.byteforce.seedj.infra.jdbc.iam.JdbcIamAuthorizationRepository;
@@ -10,16 +21,7 @@ import cn.byteforce.seedj.infra.jdbc.iam.JdbcIamTokenRevoker;
 import cn.byteforce.seedj.infra.jdbc.iam.JdbcIamTotpRepository;
 import cn.byteforce.seedj.infra.jdbc.iam.JdbcIamUserRepository;
 import cn.byteforce.seedj.infra.jdbc.iam.OAuth2SchemaCapability;
-import cn.byteforce.seedj.core.security.SecurityAuditSink;
-import cn.byteforce.seedj.iam.spi.IamAuthorizationRepository;
-import cn.byteforce.seedj.iam.spi.IamGroupRepository;
-import cn.byteforce.seedj.iam.spi.IamPolicyRepository;
-import cn.byteforce.seedj.iam.spi.IamSecretProtector;
-import cn.byteforce.seedj.iam.spi.IamSigningKeyStore;
-import cn.byteforce.seedj.iam.spi.IamTokenRevoker;
-import cn.byteforce.seedj.iam.spi.IamTotpRepository;
-import cn.byteforce.seedj.iam.spi.IamUserRepository;
-import cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner;
+import javax.sql.DataSource;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -27,15 +29,15 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
 import org.springframework.context.annotation.Bean;
-import cn.byteforce.seedj.id.IdGenerator;
 import org.springframework.jdbc.core.JdbcTemplate;
-
-import javax.sql.DataSource;
 
 /** PostgreSQL-backed IAM store. Fails fast when the DataSource is absent. */
 @AutoConfiguration(after = DataSourceAutoConfiguration.class)
 @ConditionalOnBean({IamEnabledMarker.class, DataSource.class})
-@ConditionalOnProperty(prefix = "seedj.iam", name = "enabled", havingValue = "true",
+@ConditionalOnProperty(
+        prefix = "seedj.iam",
+        name = "enabled",
+        havingValue = "true",
         matchIfMissing = true)
 @ConditionalOnProperty(prefix = "seedj.iam", name = "store", havingValue = "jdbc")
 @ConditionalOnClass({JdbcTemplate.class, DataSource.class})
@@ -103,12 +105,16 @@ public class IamJdbcStoreConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(IamSigningKeyStore.class)
-    @ConditionalOnProperty(prefix = "seedj.iam.jwk", name = "provider",
-            havingValue = "jdbc", matchIfMissing = true)
-    IamSigningKeyStore iamSigningKeyStore(JdbcTemplate jdbc, DataSource dataSource,
-                                          IamSecretProtector protector,
-                                          IdGenerator<String> idGenerator) {
+    @ConditionalOnProperty(
+            prefix = "seedj.iam.jwk",
+            name = "provider",
+            havingValue = "jdbc",
+            matchIfMissing = true)
+    IamSigningKeyStore iamSigningKeyStore(
+            JdbcTemplate jdbc,
+            DataSource dataSource,
+            IamSecretProtector protector,
+            IdGenerator<String> idGenerator) {
         return new JdbcIamSigningKeyStore(jdbc, dataSource, protector, idGenerator);
     }
-
 }

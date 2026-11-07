@@ -1,18 +1,15 @@
 package cn.byteforce.seedj.iam;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
-/**
- * IAM 目录模型：角色、权限、分页、SCIM 查询、恢复码、主体与异常。
- */
+/** IAM 目录模型：角色、权限、分页、SCIM 查询、恢复码、主体与异常。 */
 class IamDirectoryModelTest {
 
     @Test
@@ -34,8 +31,18 @@ class IamDirectoryModelTest {
         assertThat(child.code()).isEqualTo("admin");
         assertThat(child.builtIn()).isTrue();
 
-        assertThat(new IamRole("r-2", "tenant-a", "auditor", "Auditor", "reads logs", null,
-                false, -1).version()).isZero();
+        assertThat(
+                        new IamRole(
+                                        "r-2",
+                                        "tenant-a",
+                                        "auditor",
+                                        "Auditor",
+                                        "reads logs",
+                                        null,
+                                        false,
+                                        -1)
+                                .version())
+                .isZero();
 
         assertThatThrownBy(() -> IamRole.create(null, null, "admin", null, null, null, false))
                 .isInstanceOf(NullPointerException.class);
@@ -148,9 +155,11 @@ class IamDirectoryModelTest {
         assertThat(used.createdAt()).isEqualTo(code.createdAt());
 
         assertThatThrownBy(() -> new IamRecoveryCode(null, "h", false, null))
-                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("userId");
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("userId");
         assertThatThrownBy(() -> new IamRecoveryCode("u-1", " ", false, null))
-                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("codeHash");
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("codeHash");
     }
 
     @Test
@@ -163,8 +172,8 @@ class IamDirectoryModelTest {
         assertThat(authorization.groups()).isEmpty();
         assertThat(IamSubjectAuthorization.empty().roles()).isEmpty();
 
-        IamSubjectAuthorization populated = new IamSubjectAuthorization(Set.of("admin"),
-                Set.of("order:read"), Set.of("g-1"));
+        IamSubjectAuthorization populated =
+                new IamSubjectAuthorization(Set.of("admin"), Set.of("order:read"), Set.of("g-1"));
         assertThat(populated.roles()).containsExactly("admin");
         assertThatThrownBy(() -> populated.roles().add("x"))
                 .isInstanceOf(UnsupportedOperationException.class);
@@ -185,10 +194,14 @@ class IamDirectoryModelTest {
         assertThat(subject.acr()).isEqualTo("urn:seedj:acr:pwd");
         assertThat(subject.attributes()).isEmpty();
 
-        IamUser user = IamUser.create("u-1", "tenant-a", "alice", "Alice", "a@example.com", true)
-                .withProfile("Alice", "a@example.com", Map.of("dept", "sales"));
-        IamSubject fromUser = IamSubject.from(user, new IamSubjectAuthorization(Set.of("admin"),
-                Set.of("order:read"), Set.of("g-1")));
+        IamUser user =
+                IamUser.create("u-1", "tenant-a", "alice", "Alice", "a@example.com", true)
+                        .withProfile("Alice", "a@example.com", Map.of("dept", "sales"));
+        IamSubject fromUser =
+                IamSubject.from(
+                        user,
+                        new IamSubjectAuthorization(
+                                Set.of("admin"), Set.of("order:read"), Set.of("g-1")));
 
         assertThat(fromUser.userId()).isEqualTo("u-1");
         assertThat(fromUser.username()).isEqualTo("alice");

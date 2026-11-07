@@ -1,8 +1,6 @@
 package cn.byteforce.seedj.core;
 
-/**
- * 基础设施生命周期与迁移相关的错误码。
- */
+/** 基础设施生命周期与迁移相关的错误码。 */
 public enum InfrastructureErrorCode implements ErrorDescriptor {
 
     /** 必需能力初始化失败。 */

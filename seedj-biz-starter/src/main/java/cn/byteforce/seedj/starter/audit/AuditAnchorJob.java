@@ -1,17 +1,15 @@
 package cn.byteforce.seedj.starter.audit;
 
 import cn.byteforce.seedj.audit.AuditChain;
+import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 
-import java.util.Objects;
-
 /**
  * 可选定时锚定：把当前链头导出到 {@link cn.byteforce.seedj.audit.AuditAnchor}。
  *
- * <p>默认关闭（{@code seedj.audit.anchor.enabled=false}）。失败时记录 ERROR 并
- * 向上抛出，不做静默吞掉；调度线程会继续下一轮。</p>
+ * <p>默认关闭（{@code seedj.audit.anchor.enabled=false}）。失败时记录 ERROR 并 向上抛出，不做静默吞掉；调度线程会继续下一轮。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -31,10 +29,9 @@ public final class AuditAnchorJob {
         this.chain = Objects.requireNonNull(chain, "chain");
     }
 
-    /**
-     * 锚定当前链头。
-     */
-    @Scheduled(fixedDelayString = "${seedj.audit.anchor.interval-millis:3600000}",
+    /** 锚定当前链头。 */
+    @Scheduled(
+            fixedDelayString = "${seedj.audit.anchor.interval-millis:3600000}",
             initialDelayString = "${seedj.audit.anchor.initial-delay-millis:0}")
     public void anchor() {
         try {

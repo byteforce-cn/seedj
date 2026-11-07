@@ -1,14 +1,13 @@
 package cn.byteforce.seedj.infra.local.iam;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import cn.byteforce.seedj.iam.authz.AttributeLookup;
 import cn.byteforce.seedj.iam.authz.AttributeSnapshot;
 import cn.byteforce.seedj.iam.authz.AttributeState;
-import org.junit.jupiter.api.Test;
-
 import java.time.Instant;
 import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
 
 /** 内存属性源：按业务时点与记录时点选取最新快照，并区分缺失/不可达。 */
 class InMemoryIamAttributeSourceTest {
@@ -49,10 +48,18 @@ class InMemoryIamAttributeSourceTest {
 
     @Test
     void ignoresSnapshotsRecordedAfterRecordedTime() {
-        source.save(new AttributeSnapshot("alice", T0, T0.plusSeconds(120), null, "hr", "v1",
-                Map.of("department", "Ops")));
-        source.save(new AttributeSnapshot("alice", T0, T0, null, "hr", "v1",
-                Map.of("department", "Eng")));
+        source.save(
+                new AttributeSnapshot(
+                        "alice",
+                        T0,
+                        T0.plusSeconds(120),
+                        null,
+                        "hr",
+                        "v1",
+                        Map.of("department", "Ops")));
+        source.save(
+                new AttributeSnapshot(
+                        "alice", T0, T0, null, "hr", "v1", Map.of("department", "Eng")));
 
         AttributeLookup lookup = source.lookup("alice", T0, T0.plusSeconds(30));
 
@@ -61,8 +68,15 @@ class InMemoryIamAttributeSourceTest {
 
     @Test
     void expiredSnapshotIsStale() {
-        source.save(new AttributeSnapshot("alice", T0, T0, T0.plusSeconds(60), "hr", "v1",
-                Map.of("department", "Eng")));
+        source.save(
+                new AttributeSnapshot(
+                        "alice",
+                        T0,
+                        T0,
+                        T0.plusSeconds(60),
+                        "hr",
+                        "v1",
+                        Map.of("department", "Eng")));
 
         assertThat(source.lookup("alice", T0.plusSeconds(120), null).state())
                 .isEqualTo(AttributeState.STALE);
@@ -81,8 +95,8 @@ class InMemoryIamAttributeSourceTest {
         assertThat(source.lookup("bob", T0, null).state()).isEqualTo(AttributeState.MISSING);
     }
 
-    private static AttributeSnapshot snapshot(String principal, Instant asOf, Instant expiresAt,
-                                              Map<String, Object> attributes) {
+    private static AttributeSnapshot snapshot(
+            String principal, Instant asOf, Instant expiresAt, Map<String, Object> attributes) {
         return new AttributeSnapshot(principal, asOf, asOf, expiresAt, "hr", "v1", attributes);
     }
 }

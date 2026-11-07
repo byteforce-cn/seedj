@@ -1,19 +1,21 @@
 package cn.byteforce.seedj.starter.iam.authz;
 
+import cn.byteforce.seedj.core.security.Caller;
+import cn.byteforce.seedj.core.security.CallerProvider;
+import cn.byteforce.seedj.iam.IamErrorCode;
+import cn.byteforce.seedj.iam.IamException;
 import cn.byteforce.seedj.iam.authz.AttributeLookup;
 import cn.byteforce.seedj.iam.authz.AttributeSnapshot;
 import cn.byteforce.seedj.iam.authz.AttributeState;
 import cn.byteforce.seedj.iam.authz.IamCheckResult;
 import cn.byteforce.seedj.iam.authz.IamResolution;
-
-import cn.byteforce.seedj.core.security.Caller;
-import cn.byteforce.seedj.core.security.CallerProvider;
-import cn.byteforce.seedj.iam.IamErrorCode;
-import cn.byteforce.seedj.iam.IamException;
 import cn.byteforce.seedj.security.AuthorizationDecision;
 import cn.byteforce.seedj.security.AuthorizationDecisionPoint;
 import cn.byteforce.seedj.security.AuthorizationRequest;
 import cn.byteforce.seedj.security.AuthorizationSubject;
+import java.time.Instant;
+import java.util.Map;
+import java.util.Set;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -24,10 +26,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.time.Instant;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * 授权契约 HTTP 面：/resolve、/check、/principals/{id}/attributes。
@@ -55,21 +53,22 @@ public class IamAuthorizationController {
      * @param service 契约服务
      * @param callers 当前调用方
      */
-    public IamAuthorizationController(IamContractAuthorizationService service,
-                                      ObjectProvider<CallerProvider> callers) {
+    public IamAuthorizationController(
+            IamContractAuthorizationService service, ObjectProvider<CallerProvider> callers) {
         this(service, service, callers);
     }
 
     /**
      * 构造控制器。
      *
-     * @param service   契约服务（/resolve 与属性端点）
+     * @param service 契约服务（/resolve 与属性端点）
      * @param decisions 唯一授权决策点（/check）
-     * @param callers   当前调用方
+     * @param callers 当前调用方
      */
-    public IamAuthorizationController(IamContractAuthorizationService service,
-                                      AuthorizationDecisionPoint decisions,
-                                      ObjectProvider<CallerProvider> callers) {
+    public IamAuthorizationController(
+            IamContractAuthorizationService service,
+            AuthorizationDecisionPoint decisions,
+            ObjectProvider<CallerProvider> callers) {
         this.service = service;
         this.decisions = decisions;
         this.callers = callers;
@@ -84,15 +83,20 @@ public class IamAuthorizationController {
     @PostMapping(path = "/resolve", consumes = MediaType.APPLICATION_JSON_VALUE)
     public IamAuthorizationDtos.ResolveResponse resolve(
             @RequestBody IamAuthorizationDtos.ResolveRequest request) {
-        if (request.principal() == null || request.principal().isBlank()
+        if (request.principal() == null
+                || request.principal().isBlank()
                 || request.asOf() == null) {
-            throw new IamException(IamErrorCode.SCIM_BAD_REQUEST,
-                    "principal and as_of are required");
+            throw new IamException(
+                    IamErrorCode.SCIM_BAD_REQUEST, "principal and as_of are required");
         }
-        IamResolution resolution = service.resolve(request.principal(), request.asOf(), null,
-                request.scope() == null ? Map.of() : request.scope());
-        return new IamAuthorizationDtos.ResolveResponse(resolution.roles(),
-                resolution.permissions(), resolution.sodWarnings());
+        IamResolution resolution =
+                service.resolve(
+                        request.principal(),
+                        request.asOf(),
+                        null,
+                        request.scope() == null ? Map.of() : request.scope());
+        return new IamAuthorizationDtos.ResolveResponse(
+                resolution.roles(), resolution.permissions(), resolution.sodWarnings());
     }
 
     /**
@@ -104,45 +108,81 @@ public class IamAuthorizationController {
     @PostMapping(path = "/check", consumes = MediaType.APPLICATION_JSON_VALUE)
     public IamAuthorizationDtos.CheckResponse check(
             @RequestBody IamAuthorizationDtos.CheckRequest request) {
-        if (request.principal() == null || request.principal().isBlank()
-                || request.permission() == null || request.permission().isBlank()
+        if (request.principal() == null
+                || request.principal().isBlank()
+                || request.permission() == null
+                || request.permission().isBlank()
                 || request.asOf() == null) {
-            throw new IamException(IamErrorCode.SCIM_BAD_REQUEST,
-                    "principal, permission and as_of are required");
+            throw new IamException(
+                    IamErrorCode.SCIM_BAD_REQUEST, "principal, permission and as_of are required");
         }
         IamAuthorizationDtos.AttributeContext context = request.attributes();
         Map<String, Object> provided = context == null ? null : context.snapshot();
         AttributeState state = context == null ? null : parseState(context.attributeState());
-        boolean resourceAware = request.resourceType() != null
-                || request.resourceId() != null
-                || (request.resourceAttributes() != null
-                        && !request.resourceAttributes().isEmpty());
+        boolean resourceAware =
+                request.resourceType() != null
+                        || request.resourceId() != null
+                        || (request.resourceAttributes() != null
+                                && !request.resourceAttributes().isEmpty());
         if (!resourceAware) {
-            IamCheckResult result = service.check(request.principal(), request.permission(),
-                    request.asOf(), null, provided, state);
-            return new IamAuthorizationDtos.CheckResponse(result.allowed(), result.reason(),
-                    result.reasonCode(), result.attributeState().wireName());
+            IamCheckResult result =
+                    service.check(
+                            request.principal(),
+                            request.permission(),
+                            request.asOf(),
+                            null,
+                            provided,
+                            state);
+            return new IamAuthorizationDtos.CheckResponse(
+                    result.allowed(),
+                    result.reason(),
+                    result.reasonCode(),
+                    result.attributeState().wireName());
         }
-        AuthorizationDecision decision = decisions.decide(new AuthorizationRequest(
-                new AuthorizationSubject(request.principal(), request.principal(), "default",
-                        Set.of(), Set.of(), Set.of(), Set.of(), "", Map.of()),
-                request.permission(),
-                request.resourceType() == null ? "permission" : request.resourceType(),
-                request.resourceId(),
-                request.resourceAttributes() == null ? Map.of() : request.resourceAttributes(),
-                request.asOf(), Map.of()));
-        IamCheckResult attributes = service.check(request.principal(), request.permission(),
-                request.asOf(), null, provided, state);
-        return new IamAuthorizationDtos.CheckResponse(decision.allowed(), decision.reason(),
-                decision.reasonCode(), attributes.attributeState().wireName());
+        AuthorizationDecision decision =
+                decisions.decide(
+                        new AuthorizationRequest(
+                                new AuthorizationSubject(
+                                        request.principal(),
+                                        request.principal(),
+                                        "default",
+                                        Set.of(),
+                                        Set.of(),
+                                        Set.of(),
+                                        Set.of(),
+                                        "",
+                                        Map.of()),
+                                request.permission(),
+                                request.resourceType() == null
+                                        ? "permission"
+                                        : request.resourceType(),
+                                request.resourceId(),
+                                request.resourceAttributes() == null
+                                        ? Map.of()
+                                        : request.resourceAttributes(),
+                                request.asOf(),
+                                Map.of()));
+        IamCheckResult attributes =
+                service.check(
+                        request.principal(),
+                        request.permission(),
+                        request.asOf(),
+                        null,
+                        provided,
+                        state);
+        return new IamAuthorizationDtos.CheckResponse(
+                decision.allowed(),
+                decision.reason(),
+                decision.reasonCode(),
+                attributes.attributeState().wireName());
     }
 
     /**
      * 拉取主体属性快照（仅服务身份）。
      *
-     * @param principalId   主体
-     * @param asOf          业务时点
-     * @param recordedAsOf  系统时点
+     * @param principalId 主体
+     * @param asOf 业务时点
+     * @param recordedAsOf 系统时点
      * @return 快照或失败状态
      */
     @GetMapping("/principals/{principalId}/attributes")
@@ -151,34 +191,57 @@ public class IamAuthorizationController {
             @RequestParam("as_of") Instant asOf,
             @RequestParam(name = "recorded_as_of", required = false) Instant recordedAsOf) {
         if (!trustedService()) {
-            return ResponseEntity.status(403).body(Map.of(
-                    "reason_code", "ATTRIBUTE_CALLER_VIOLATION",
-                    "message", "trusted service permission required"));
+            return ResponseEntity.status(403)
+                    .body(
+                            Map.of(
+                                    "reason_code", "ATTRIBUTE_CALLER_VIOLATION",
+                                    "message", "trusted service permission required"));
         }
         AttributeLookup lookup = service.attributes(principalId, asOf, recordedAsOf);
         if (lookup.state() == AttributeState.MISSING) {
-            return ResponseEntity.status(409).body(Map.of(
-                    "reason_code", "ATTRIBUTE_MISSING",
-                    "principal", principalId,
-                    "as_of", asOf.toString()));
+            return ResponseEntity.status(409)
+                    .body(
+                            Map.of(
+                                    "reason_code",
+                                    "ATTRIBUTE_MISSING",
+                                    "principal",
+                                    principalId,
+                                    "as_of",
+                                    asOf.toString()));
         }
         if (lookup.state() == AttributeState.SOURCE_UNAVAILABLE) {
-            return ResponseEntity.status(503).body(Map.of(
-                    "reason_code", "ATTRIBUTE_SOURCE_UNAVAILABLE",
-                    "principal", principalId,
-                    "as_of", asOf.toString()));
+            return ResponseEntity.status(503)
+                    .body(
+                            Map.of(
+                                    "reason_code",
+                                    "ATTRIBUTE_SOURCE_UNAVAILABLE",
+                                    "principal",
+                                    principalId,
+                                    "as_of",
+                                    asOf.toString()));
         }
         AttributeSnapshot snapshot = lookup.snapshot();
         if (snapshot == null) {
-            return ResponseEntity.status(409).body(Map.of(
-                    "reason_code", "ATTRIBUTE_MISSING",
-                    "principal", principalId,
-                    "as_of", asOf.toString()));
+            return ResponseEntity.status(409)
+                    .body(
+                            Map.of(
+                                    "reason_code",
+                                    "ATTRIBUTE_MISSING",
+                                    "principal",
+                                    principalId,
+                                    "as_of",
+                                    asOf.toString()));
         }
-        return ResponseEntity.ok(new IamAuthorizationDtos.AttributesResponse(
-                snapshot.principal(), snapshot.asOf(), snapshot.recordedAt(),
-                snapshot.expiresAt(), snapshot.source(), snapshot.sourceVersion(),
-                lookup.state().wireName(), snapshot.snapshot()));
+        return ResponseEntity.ok(
+                new IamAuthorizationDtos.AttributesResponse(
+                        snapshot.principal(),
+                        snapshot.asOf(),
+                        snapshot.recordedAt(),
+                        snapshot.expiresAt(),
+                        snapshot.source(),
+                        snapshot.sourceVersion(),
+                        lookup.state().wireName(),
+                        snapshot.snapshot()));
     }
 
     private boolean trustedService() {
@@ -187,8 +250,9 @@ public class IamAuthorizationController {
             return false;
         }
         Caller caller = provider.find().orElse(null);
-        return caller != null && (caller.hasPermission(ATTRIBUTES_PERMISSION)
-                || caller.hasPermission(IAM_ATTRIBUTES_PERMISSION));
+        return caller != null
+                && (caller.hasPermission(ATTRIBUTES_PERMISSION)
+                        || caller.hasPermission(IAM_ATTRIBUTES_PERMISSION));
     }
 
     private static AttributeState parseState(String value) {

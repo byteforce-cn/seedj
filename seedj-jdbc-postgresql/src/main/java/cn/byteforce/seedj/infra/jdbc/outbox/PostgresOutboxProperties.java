@@ -2,9 +2,7 @@ package cn.byteforce.seedj.infra.jdbc.outbox;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-/**
- * PostgreSQL outbox 存储配置（{@code seedj.outbox.store.*}）。
- */
+/** PostgreSQL outbox 存储配置（{@code seedj.outbox.store.*}）。 */
 @ConfigurationProperties(prefix = "seedj.outbox.store")
 public class PostgresOutboxProperties {
 

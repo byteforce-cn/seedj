@@ -10,8 +10,7 @@ import org.slf4j.LoggerFactory;
 /**
  * 默认读审计：结构化日志 + Micrometer 计数；持久化由业务覆盖 {@link ReadAuditSink}。
  *
- * <p>没有 {@link MeterRegistry} 时只写日志。审计失败由 {@code ReadGateway} 捕获，
- * 不阻断读。</p>
+ * <p>没有 {@link MeterRegistry} 时只写日志。审计失败由 {@code ReadGateway} 捕获， 不阻断读。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -36,8 +35,13 @@ final class LoggingReadAuditSink implements ReadAuditSink {
                     .register(meters)
                     .increment();
         }
-        LOG.info("seedj: read object={} operation={} caller={} rows={} scope={} policies={}",
-                event.objectType(), event.operation(), event.callerId(),
-                event.rowIds().size(), event.scopeDigest(), event.policyIds());
+        LOG.info(
+                "seedj: read object={} operation={} caller={} rows={} scope={} policies={}",
+                event.objectType(),
+                event.operation(),
+                event.callerId(),
+                event.rowIds().size(),
+                event.scopeDigest(),
+                event.policyIds());
     }
 }

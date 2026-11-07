@@ -9,13 +9,11 @@ import java.util.regex.Pattern;
 /**
  * 受限行范围谓词 AST：业务范围与策略引擎共同贡献、只能收窄。
  *
- * <p>字段必须是 {@link ObjectSchema} 声明过的字段；{@code Eq/In} 的值在求值与 SQL
- * 编译时按 {@link FieldType} 转换。{@code Not} 是二值逻辑：{@code Not(p)} 为真当且
- * 仅当 {@code p} 为假，字段为 {@code null} 时也成立。</p>
+ * <p>字段必须是 {@link ObjectSchema} 声明过的字段；{@code Eq/In} 的值在求值与 SQL 编译时按 {@link FieldType} 转换。{@code
+ * Not} 是二值逻辑：{@code Not(p)} 为真当且 仅当 {@code p} 为假，字段为 {@code null} 时也成立。
  *
- * <p>构造期做归一化：{@code Eq(null)} 与空 {@code In} 变成 {@link None}；
- * {@code In} 丢弃 {@code null} 元素且上限 1000；{@code and/or} 扁平化、去重并按
- * 布尔代数化简。直接构造 record 时不做化简，只校验结构。</p>
+ * <p>构造期做归一化：{@code Eq(null)} 与空 {@code In} 变成 {@link None}； {@code In} 丢弃 {@code null} 元素且上限
+ * 1000；{@code and/or} 扁平化、去重并按 布尔代数化简。直接构造 record 时不做化简，只校验结构。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -23,12 +21,10 @@ import java.util.regex.Pattern;
 public sealed interface ScopePredicate {
 
     /** 允许全部行（只允许业务显式返回，框架不提供默认值）。 */
-    record All() implements ScopePredicate {
-    }
+    record All() implements ScopePredicate {}
 
     /** 不允许任何行。 */
-    record None() implements ScopePredicate {
-    }
+    record None() implements ScopePredicate {}
 
     /**
      * 字段等于常量。
@@ -45,7 +41,7 @@ public sealed interface ScopePredicate {
     /**
      * 字段属于常量集合。
      *
-     * @param field  字段名
+     * @param field 字段名
      * @param values 常量集合（不可变、已去 null、最多 1000 个）
      */
     record In(String field, List<?> values) implements ScopePredicate {
@@ -55,8 +51,10 @@ public sealed interface ScopePredicate {
             values = values.stream().filter(Objects::nonNull).toList();
             if (values.size() > ScopePredicates.MAX_IN_VALUES) {
                 throw new IllegalArgumentException(
-                        "in predicate supports at most " + ScopePredicates.MAX_IN_VALUES
-                                + " values, got: " + values.size());
+                        "in predicate supports at most "
+                                + ScopePredicates.MAX_IN_VALUES
+                                + " values, got: "
+                                + values.size());
             }
         }
     }
@@ -137,7 +135,7 @@ public sealed interface ScopePredicate {
     /**
      * 字段属于集合；丢弃 {@code null}，空集合归一为 {@link #none()}。
      *
-     * @param field  字段名
+     * @param field 字段名
      * @param values 常量集合
      * @return 谓词
      */
@@ -202,8 +200,7 @@ public sealed interface ScopePredicate {
 
         private static final Pattern IDENTIFIER = Pattern.compile("^[a-z][a-z0-9_]*$");
 
-        private Fields() {
-        }
+        private Fields() {}
 
         static String require(String field) {
             if (field == null || !IDENTIFIER.matcher(field).matches()) {
@@ -216,8 +213,7 @@ public sealed interface ScopePredicate {
     /** 子谓词列表的共享防御性复制。 */
     final class Parts {
 
-        private Parts() {
-        }
+        private Parts() {}
 
         static List<ScopePredicate> copy(List<ScopePredicate> parts) {
             Objects.requireNonNull(parts, "parts");

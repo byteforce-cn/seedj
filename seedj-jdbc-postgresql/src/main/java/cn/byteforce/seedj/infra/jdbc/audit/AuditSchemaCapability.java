@@ -3,14 +3,12 @@ package cn.byteforce.seedj.infra.jdbc.audit;
 import cn.byteforce.seedj.core.InfrastructureCapability;
 import cn.byteforce.seedj.core.Migration;
 import cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner;
-
 import java.util.List;
 
 /**
  * 保证 audit_entry / audit_head / 迁移历史表一定存在。
  *
- * <p>由 {@code InfrastructureInitializer} 在启动期调用；required=true，迁移失败
- * 阻断应用启动，而不是等到第一条命令才报错。</p>
+ * <p>由 {@code InfrastructureInitializer} 在启动期调用；required=true，迁移失败 阻断应用启动，而不是等到第一条命令才报错。
  */
 public class AuditSchemaCapability implements InfrastructureCapability {
 

@@ -3,8 +3,8 @@ package cn.byteforce.seedj.iam;
 import java.time.Instant;
 
 /**
- * Encrypted TOTP enrollment. {@code secretCiphertext} is always protected by an
- * {@code IamSecretProtector}; plaintext secrets never reach this type.
+ * Encrypted TOTP enrollment. {@code secretCiphertext} is always protected by an {@code
+ * IamSecretProtector}; plaintext secrets never reach this type.
  */
 public record IamTotpState(
         String userId,
@@ -26,13 +26,20 @@ public record IamTotpState(
     }
 
     public IamTotpState confirmed(Instant at) {
-        return new IamTotpState(userId, tenantId, keyName, secretCiphertext, true,
-                lastUsedStep, createdAt, at);
+        return new IamTotpState(
+                userId, tenantId, keyName, secretCiphertext, true, lastUsedStep, createdAt, at);
     }
 
     public IamTotpState withLastUsedStep(long step) {
-        return new IamTotpState(userId, tenantId, keyName, secretCiphertext, confirmed,
-                step, createdAt, confirmedAt);
+        return new IamTotpState(
+                userId,
+                tenantId,
+                keyName,
+                secretCiphertext,
+                confirmed,
+                step,
+                createdAt,
+                confirmedAt);
     }
 
     private static String requireText(String value, String name) {

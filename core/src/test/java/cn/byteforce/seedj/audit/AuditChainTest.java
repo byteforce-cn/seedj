@@ -1,18 +1,17 @@
 package cn.byteforce.seedj.audit;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import cn.byteforce.seedj.audit.spi.AuditStore;
 import cn.byteforce.seedj.core.clock.Clock;
 import cn.byteforce.seedj.id.IdGenerator;
-import org.junit.jupiter.api.Test;
-import tools.jackson.databind.json.JsonMapper;
-
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
+import tools.jackson.databind.json.JsonMapper;
 
 class AuditChainTest {
 
@@ -29,8 +28,13 @@ class AuditChainTest {
         List<AuditHead> anchored = new ArrayList<>();
         AuditChain<UUID> chain = new AuditChain<>(store, clock, anchored::add, ids);
 
-        chain.append(new AuditAppendRequest<>("voucher.create", ACTOR, "voucher", RESOURCE,
-                JsonMapper.builder().build().readTree("{\"amount\":\"100.00\"}")));
+        chain.append(
+                new AuditAppendRequest<>(
+                        "voucher.create",
+                        ACTOR,
+                        "voucher",
+                        RESOURCE,
+                        JsonMapper.builder().build().readTree("{\"amount\":\"100.00\"}")));
 
         assertThat(store.entries).hasSize(1);
         AuditEntry<UUID> entry = store.entries.get(0);
@@ -53,20 +57,35 @@ class AuditChainTest {
     void verifierReportsSequenceGapAndTamperedHash() {
         FakeAuditStore store = new FakeAuditStore();
         AtomicLong idSequence = new AtomicLong();
-        AuditChain<UUID> chain = new AuditChain<>(store, () -> NOW, head -> {
-        }, () -> new UUID(0, idSequence.incrementAndGet()));
+        AuditChain<UUID> chain =
+                new AuditChain<>(
+                        store,
+                        () -> NOW,
+                        head -> {},
+                        () -> new UUID(0, idSequence.incrementAndGet()));
         JsonMapper mapper = JsonMapper.builder().build();
         chain.append(new AuditAppendRequest<>("a", ACTOR, "t", null, mapper.createObjectNode()));
         chain.append(new AuditAppendRequest<>("b", ACTOR, "t", null, mapper.createObjectNode()));
 
         assertThat(chain.verify()).isEmpty();
 
-        AuditEntry<UUID> tampered = new AuditEntry<>(store.entries.get(0).getId(), 5,
-                store.entries.get(0).getTimestamp(), ACTOR, "a", "t", null,
-                mapper.createObjectNode(), "deadbeef", CanonicalHasher.GENESIS_PREV_HASH, null);
+        AuditEntry<UUID> tampered =
+                new AuditEntry<>(
+                        store.entries.get(0).getId(),
+                        5,
+                        store.entries.get(0).getTimestamp(),
+                        ACTOR,
+                        "a",
+                        "t",
+                        null,
+                        mapper.createObjectNode(),
+                        "deadbeef",
+                        CanonicalHasher.GENESIS_PREV_HASH,
+                        null);
         store.entries.set(0, tampered);
 
-        assertThat(chain.verify()).extracting(AuditVerifier.AuditViolation::getType)
+        assertThat(chain.verify())
+                .extracting(AuditVerifier.AuditViolation::getType)
                 .contains("sequence_gap", "invalid_hash");
     }
 

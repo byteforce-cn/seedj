@@ -6,7 +6,6 @@ import cn.byteforce.seedj.domain.ScopePredicate;
 import cn.byteforce.seedj.domain.TemporalRow;
 import cn.byteforce.seedj.domain.event.CommandEvent;
 import cn.byteforce.seedj.id.IdGenerator;
-
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -18,8 +17,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * 一次命令执行的上文：目标、当前行、时间、操作者与写范围。
  *
- * <p>{@link #event(String, Map)} 自动分配事件 id 与幂等键
- * {@code commandId:type:index}；index 在单次命令内递增。</p>
+ * <p>{@link #event(String, Map)} 自动分配事件 id 与幂等键 {@code commandId:type:index}；index 在单次命令内递增。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -51,39 +49,54 @@ public final class CommandContext {
     /**
      * 构造上下文。
      *
-     * @param commandId  命令 ID
-     * @param targetId   目标对象 ID
-     * @param current    当前行
-     * @param now        系统时间
-     * @param actor      操作者
-     * @param caller     调用方
+     * @param commandId 命令 ID
+     * @param targetId 目标对象 ID
+     * @param current 当前行
+     * @param now 系统时间
+     * @param actor 操作者
+     * @param caller 调用方
      * @param writeScope 写范围
-     * @param schema     对象 schema
-     * @param ids        事件 id 生成器
+     * @param schema 对象 schema
+     * @param ids 事件 id 生成器
      */
-    public CommandContext(UUID commandId, UUID targetId, Optional<TemporalRow> current,
-                          Instant now, UUID actor, Caller caller, ScopePredicate writeScope,
-                          ObjectSchema schema, IdGenerator<UUID> ids) {
+    public CommandContext(
+            UUID commandId,
+            UUID targetId,
+            Optional<TemporalRow> current,
+            Instant now,
+            UUID actor,
+            Caller caller,
+            ScopePredicate writeScope,
+            ObjectSchema schema,
+            IdGenerator<UUID> ids) {
         this(commandId, targetId, current, now, actor, caller, writeScope, schema, ids, null);
     }
 
     /**
      * 构造上下文（带期望版本）。
      *
-     * @param commandId       命令 ID
-     * @param targetId        目标对象 ID
-     * @param current         当前行
-     * @param now             系统时间
-     * @param actor           操作者
-     * @param caller          调用方
-     * @param writeScope      写范围
-     * @param schema          对象 schema
-     * @param ids             事件 id 生成器
+     * @param commandId 命令 ID
+     * @param targetId 目标对象 ID
+     * @param current 当前行
+     * @param now 系统时间
+     * @param actor 操作者
+     * @param caller 调用方
+     * @param writeScope 写范围
+     * @param schema 对象 schema
+     * @param ids 事件 id 生成器
      * @param expectedVersion 期望版本；{@code null} 不校验
      */
-    public CommandContext(UUID commandId, UUID targetId, Optional<TemporalRow> current,
-                          Instant now, UUID actor, Caller caller, ScopePredicate writeScope,
-                          ObjectSchema schema, IdGenerator<UUID> ids, Long expectedVersion) {
+    public CommandContext(
+            UUID commandId,
+            UUID targetId,
+            Optional<TemporalRow> current,
+            Instant now,
+            UUID actor,
+            Caller caller,
+            ScopePredicate writeScope,
+            ObjectSchema schema,
+            IdGenerator<UUID> ids,
+            Long expectedVersion) {
         this.commandId = Objects.requireNonNull(commandId, "commandId");
         this.targetId = Objects.requireNonNull(targetId, "targetId");
         this.current = Objects.requireNonNull(current, "current");
@@ -140,13 +153,21 @@ public final class CommandContext {
     /**
      * 构造一条事件。
      *
-     * @param type    事件类型
+     * @param type 事件类型
      * @param payload 载荷
      * @return 事件
      */
     public CommandEvent event(String type, Map<String, Object> payload) {
         int index = eventIndex.getAndIncrement();
-        return new CommandEvent(ids.id(), type, now, now, actor, List.of(targetId), payload,
-                commandId + ":" + type + ":" + index, 1);
+        return new CommandEvent(
+                ids.id(),
+                type,
+                now,
+                now,
+                actor,
+                List.of(targetId),
+                payload,
+                commandId + ":" + type + ":" + index,
+                1);
     }
 }

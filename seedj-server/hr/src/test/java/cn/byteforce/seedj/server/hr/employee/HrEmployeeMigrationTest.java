@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 /**
  * V1 冻结门禁：签入的 literal SQL 是发布契约，任何改动都会让已有库 checksum 冲突。
  *
- * <p>加字段请新增 V2；改 V1 只能通过本测试的显式失败来推动一次迁移方案评审。</p>
+ * <p>加字段请新增 V2；改 V1 只能通过本测试的显式失败来推动一次迁移方案评审。
  */
 class HrEmployeeMigrationTest {
 
@@ -38,16 +38,17 @@ class HrEmployeeMigrationTest {
         assertThat(sql).contains("CREATE FUNCTION hr_employee_as_of_valid");
         assertThat(sql).contains("CREATE FUNCTION hr_employee_as_of_recorded");
         assertThat(sql).contains("CREATE FUNCTION hr_employee_as_of_bitemporal");
-        for (String column : java.util.List.of(
-                "employee_no TEXT",
-                "name TEXT",
-                "status TEXT",
-                "hire_date DATE",
-                "employment_type TEXT",
-                "work_location TEXT",
-                "phone TEXT",
-                "id_number_hash TEXT",
-                "org_unit_id TEXT")) {
+        for (String column :
+                java.util.List.of(
+                        "employee_no TEXT",
+                        "name TEXT",
+                        "status TEXT",
+                        "hire_date DATE",
+                        "employment_type TEXT",
+                        "work_location TEXT",
+                        "phone TEXT",
+                        "id_number_hash TEXT",
+                        "org_unit_id TEXT")) {
             assertThat(sql).as("column %s is in V1", column).contains(column);
         }
     }

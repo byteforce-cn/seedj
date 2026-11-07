@@ -1,16 +1,15 @@
 package cn.byteforce.seedj.domain;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
 /** keyset 游标线格式：字段 + base64 值 + ID。 */
 class PageCursorTest {
@@ -43,8 +42,11 @@ class PageCursorTest {
     @DisplayName("空值编码后解析为 null")
     void blankValueBecomesNull() {
         UUID id = UUID.randomUUID();
-        String encoded = "name:" + Base64.getUrlEncoder().withoutPadding()
-                .encodeToString(new byte[0]) + ':' + id;
+        String encoded =
+                "name:"
+                        + Base64.getUrlEncoder().withoutPadding().encodeToString(new byte[0])
+                        + ':'
+                        + id;
 
         assertThat(PageCursor.parse(encoded).sortValue()).isNull();
     }
@@ -53,15 +55,26 @@ class PageCursorTest {
     @DisplayName("非法游标在解析期失败")
     void invalidCursorIsRejected() {
         assertThatThrownBy(() -> PageCursor.parse(null))
-                .isInstanceOfSatisfying(ContractException.class, error ->
-                        assertThat(error.code()).isEqualTo(ContractErrorCode.INVALID_PAYLOAD));
+                .isInstanceOfSatisfying(
+                        ContractException.class,
+                        error ->
+                                assertThat(error.code())
+                                        .isEqualTo(ContractErrorCode.INVALID_PAYLOAD));
         assertThatThrownBy(() -> PageCursor.parse("not-a-cursor"))
                 .isInstanceOf(ContractException.class);
         assertThatThrownBy(() -> PageCursor.parse("name:!!!!:not-a-uuid"))
                 .isInstanceOf(ContractException.class);
-        assertThatThrownBy(() -> PageCursor.parse("name:"
-                + Base64.getUrlEncoder().encodeToString("x".getBytes(StandardCharsets.UTF_8))
-                + ":00000000-0000-0000-0000-000000000000:extra"))
+        assertThatThrownBy(
+                        () ->
+                                PageCursor.parse(
+                                        "name:"
+                                                + Base64.getUrlEncoder()
+                                                        .encodeToString(
+                                                                "x"
+                                                                        .getBytes(
+                                                                                StandardCharsets
+                                                                                        .UTF_8))
+                                                + ":00000000-0000-0000-0000-000000000000:extra"))
                 .isInstanceOf(ContractException.class);
     }
 

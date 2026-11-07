@@ -3,9 +3,8 @@ package cn.byteforce.seedj.infra.jdbc.workflow;
 /**
  * 工作流持久化表的冻结 DDL。
  *
- * <p>表按“定义 / 实例 / 任务 / 历史 / 定时器”拆分；实例与任务是当前状态，历史是
- * 只追加事件，定时器是到期扫描队列。JSONB 只承载 Provider 自定义详情，调用方
- * 不解析；查询列（状态、due_at、instance_id）单独建列与索引。</p>
+ * <p>表按“定义 / 实例 / 任务 / 历史 / 定时器”拆分；实例与任务是当前状态，历史是 只追加事件，定时器是到期扫描队列。JSONB 只承载 Provider 自定义详情，调用方
+ * 不解析；查询列（状态、due_at、instance_id）单独建列与索引。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -15,8 +14,7 @@ public final class WorkflowMigrations {
     /** 工作流迁移 scope。 */
     public static final String SCOPE = "workflow";
 
-    private WorkflowMigrations() {
-    }
+    private WorkflowMigrations() {}
 
     /**
      * 第一版工作流 schema。

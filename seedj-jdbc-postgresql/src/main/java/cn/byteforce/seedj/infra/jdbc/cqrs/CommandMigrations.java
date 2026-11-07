@@ -1,7 +1,6 @@
 package cn.byteforce.seedj.infra.jdbc.cqrs;
 
 import cn.byteforce.seedj.core.Migration;
-
 import java.util.List;
 
 /**
@@ -12,15 +11,17 @@ import java.util.List;
  */
 final class CommandMigrations {
 
-    private CommandMigrations() {
-    }
+    private CommandMigrations() {}
 
     static List<Migration> all() {
         return List.of(v1(), v2());
     }
 
     static Migration v1() {
-        return new Migration(1, "command record table", """
+        return new Migration(
+                1,
+                "command record table",
+                """
                 CREATE TABLE IF NOT EXISTS command_record (
                     id                  UUID           PRIMARY KEY,
                     type                VARCHAR(128)   NOT NULL,
@@ -58,13 +59,15 @@ final class CommandMigrations {
     }
 
     /**
-     * V2：事件溯源命令的聚合标识文本。V1 行 locator 非空、target_ref 为 null，
-     * 仍满足放宽后的 ACCEPTED 约束，无需回填。
+     * V2：事件溯源命令的聚合标识文本。V1 行 locator 非空、target_ref 为 null， 仍满足放宽后的 ACCEPTED 约束，无需回填。
      *
      * @return 迁移
      */
     static Migration v2() {
-        return new Migration(2, "command record target ref", """
+        return new Migration(
+                2,
+                "command record target ref",
+                """
                 ALTER TABLE command_record ADD COLUMN IF NOT EXISTS target_ref VARCHAR(255);
                 ALTER TABLE command_record DROP CONSTRAINT IF EXISTS ck_command_record_accepted;
                 ALTER TABLE command_record ADD CONSTRAINT ck_command_record_accepted CHECK (

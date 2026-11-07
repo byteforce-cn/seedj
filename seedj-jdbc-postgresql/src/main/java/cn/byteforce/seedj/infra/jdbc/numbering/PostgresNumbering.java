@@ -1,18 +1,16 @@
 package cn.byteforce.seedj.infra.jdbc.numbering;
 
 import cn.byteforce.seedj.numbering.Numbering;
-import org.springframework.jdbc.core.JdbcTemplate;
-
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
  * PostgreSQL 编号服务：每个 scope 一条独立 sequence。
  *
- * <p>首次使用某 scope 时执行 {@code CREATE SEQUENCE IF NOT EXISTS}；后续直接
- * {@code nextval}。多实例并发安全由数据库序列保证。</p>
+ * <p>首次使用某 scope 时执行 {@code CREATE SEQUENCE IF NOT EXISTS}；后续直接 {@code nextval}。多实例并发安全由数据库序列保证。
  *
  * @author ByteForce
  * @since 1.0.0

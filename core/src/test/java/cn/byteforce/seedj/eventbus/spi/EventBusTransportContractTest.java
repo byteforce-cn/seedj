@@ -1,20 +1,17 @@
 package cn.byteforce.seedj.eventbus.spi;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import cn.byteforce.seedj.eventbus.EventMessage;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.ExecutionException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.nio.charset.StandardCharsets;
-import java.util.concurrent.ExecutionException;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
-/**
- * EventBusTransport 契约测试套件。
- */
+/** EventBusTransport 契约测试套件。 */
 public abstract class EventBusTransportContractTest {
 
     protected EventBusTransport transport;
@@ -34,13 +31,15 @@ public abstract class EventBusTransportContractTest {
     }
 
     protected static EventMessage message(String eventId) {
-        return EventMessage.of(eventId, "topic", "key", ("payload-" + eventId).getBytes(StandardCharsets.UTF_8));
+        return EventMessage.of(
+                eventId, "topic", "key", ("payload-" + eventId).getBytes(StandardCharsets.UTF_8));
     }
 
     @Test
     @DisplayName("send 正常完成")
     void sendCompletes() {
-        assertThat(transport.send(message("e1")).toCompletableFuture()).succeedsWithin(java.time.Duration.ofSeconds(5));
+        assertThat(transport.send(message("e1")).toCompletableFuture())
+                .succeedsWithin(java.time.Duration.ofSeconds(5));
     }
 
     @Test

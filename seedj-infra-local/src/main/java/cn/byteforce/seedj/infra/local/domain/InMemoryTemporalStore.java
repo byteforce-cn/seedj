@@ -9,17 +9,16 @@ import cn.byteforce.seedj.domain.ObjectSchema;
 import cn.byteforce.seedj.domain.ObjectSchemaRegistry;
 import cn.byteforce.seedj.domain.ObjectVersion;
 import cn.byteforce.seedj.domain.Page;
+import cn.byteforce.seedj.domain.PageCursor;
 import cn.byteforce.seedj.domain.ScopePredicate;
 import cn.byteforce.seedj.domain.ScopePredicates;
-import cn.byteforce.seedj.domain.PageCursor;
+import cn.byteforce.seedj.domain.Sealing;
 import cn.byteforce.seedj.domain.SortDirection;
 import cn.byteforce.seedj.domain.TemporalFilter;
-import cn.byteforce.seedj.domain.TemporalSearch;
-import cn.byteforce.seedj.domain.Sealing;
 import cn.byteforce.seedj.domain.TemporalQuery;
 import cn.byteforce.seedj.domain.TemporalRow;
+import cn.byteforce.seedj.domain.TemporalSearch;
 import cn.byteforce.seedj.domain.TemporalStore;
-
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -32,8 +31,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * 内存双时间轴对象存储（单进程，不跨服务共享）。
  *
- * <p>语义与 PostgreSQL 实现一致：封口/追加都委托 {@link Sealing}，
- * 每个对象的版本列表独立加锁，保证同一对象的封口与追加原子。</p>
+ * <p>语义与 PostgreSQL 实现一致：封口/追加都委托 {@link Sealing}， 每个对象的版本列表独立加锁，保证同一对象的封口与追加原子。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -58,7 +56,7 @@ public final class InMemoryTemporalStore implements TemporalStore {
     /**
      * 构造内存存储。
      *
-     * @param clock   取时入口
+     * @param clock 取时入口
      * @param schemas 对象 schema 注册表
      */
     public InMemoryTemporalStore(Clock clock, ObjectSchemaRegistry schemas) {
@@ -67,8 +65,8 @@ public final class InMemoryTemporalStore implements TemporalStore {
     }
 
     @Override
-    public Optional<TemporalRow> find(String objectType, UUID id, TemporalQuery query,
-                                      ScopePredicate scope) {
+    public Optional<TemporalRow> find(
+            String objectType, UUID id, TemporalQuery query, ScopePredicate scope) {
         Objects.requireNonNull(objectType, "objectType");
         Objects.requireNonNull(id, "id");
         Objects.requireNonNull(query, "query");
@@ -78,16 +76,18 @@ public final class InMemoryTemporalStore implements TemporalStore {
             return Optional.empty();
         }
         synchronized (versions) {
-            Optional<TemporalRow> hit = versions.stream()
-                    .filter(row -> matches(row.version(), query))
-                    .max(Comparator.comparingLong(row -> row.version().version()))
-                    .filter(row -> matchesScope(row, scope));
-            if (hit.isPresent() && query.minVersion() != null
+            Optional<TemporalRow> hit =
+                    versions.stream()
+                            .filter(row -> matches(row.version(), query))
+                            .max(Comparator.comparingLong(row -> row.version().version()))
+                            .filter(row -> matchesScope(row, scope));
+            if (hit.isPresent()
+                    && query.minVersion() != null
                     && hit.get().version().version() < query.minVersion()) {
                 long readable = hit.get().version().version();
-                throw new ContractException(ContractErrorCode.READ_MODEL_NOT_READY,
-                        "readable version " + readable + " is below required "
-                                + query.minVersion(),
+                throw new ContractException(
+                        ContractErrorCode.READ_MODEL_NOT_READY,
+                        "readable version " + readable + " is below required " + query.minVersion(),
                         Map.of("minVersion", query.minVersion(), "readableVersion", readable),
                         null);
             }
@@ -98,13 +98,15 @@ public final class InMemoryTemporalStore implements TemporalStore {
     @Override
     public AppendResult append(AppendRequest request) {
         Objects.requireNonNull(request, "request");
-        List<TemporalRow> versions = rows.computeIfAbsent(
-                new Key(request.objectType(), request.id()), key -> new ArrayList<>());
+        List<TemporalRow> versions =
+                rows.computeIfAbsent(
+                        new Key(request.objectType(), request.id()), key -> new ArrayList<>());
         synchronized (versions) {
-            TemporalRow current = versions.stream()
-                    .filter(row -> row.version().supersededAt() == null)
-                    .findFirst()
-                    .orElse(null);
+            TemporalRow current =
+                    versions.stream()
+                            .filter(row -> row.version().supersededAt() == null)
+                            .findFirst()
+                            .orElse(null);
             requireExpectedVersion(request, current);
             AppendResult result = Sealing.next(request, current, clock.now());
             result.superseded().ifPresent(old -> replace(versions, old));
@@ -120,9 +122,11 @@ public final class InMemoryTemporalStore implements TemporalStore {
         }
         long actual = current == null ? 0 : current.version().version();
         if (expected.longValue() != actual) {
-            throw new ContractException(ContractErrorCode.VERSION_CONFLICT,
+            throw new ContractException(
+                    ContractErrorCode.VERSION_CONFLICT,
                     "expected version " + expected + " but current is " + actual,
-                    Map.of("expected_version", expected, "current_version", actual), null);
+                    Map.of("expected_version", expected, "current_version", actual),
+                    null);
         }
     }
 
@@ -139,36 +143,50 @@ public final class InMemoryTemporalStore implements TemporalStore {
         }
 
         List<TemporalRow> matched = new ArrayList<>();
-        rows.forEach((key, versions) -> {
-            if (!key.objectType().equals(search.objectType())) {
-                return;
-            }
-            synchronized (versions) {
-                versions.stream()
-                        .filter(row -> matches(row.version(), search.asOf(),
-                                search.recordedAsOf()))
-                        .max(Comparator.comparingLong(row -> row.version().version()))
-                        .filter(row -> matchesScope(row, scope))
-                        .filter(row -> matchesFilters(row, filters))
-                        .filter(row -> matchesFilters(row, search.filters(), schema))
-                        .ifPresent(matched::add);
-            }
-        });
+        rows.forEach(
+                (key, versions) -> {
+                    if (!key.objectType().equals(search.objectType())) {
+                        return;
+                    }
+                    synchronized (versions) {
+                        versions.stream()
+                                .filter(
+                                        row ->
+                                                matches(
+                                                        row.version(),
+                                                        search.asOf(),
+                                                        search.recordedAsOf()))
+                                .max(Comparator.comparingLong(row -> row.version().version()))
+                                .filter(row -> matchesScope(row, scope))
+                                .filter(row -> matchesFilters(row, filters))
+                                .filter(row -> matchesFilters(row, search.filters(), schema))
+                                .ifPresent(matched::add);
+                    }
+                });
         matched.sort(comparator(sortField, search.direction()));
         long total = matched.size();
         List<TemporalRow> visible = matched;
         if (search.cursor() != null) {
-            visible = matched.stream()
-                    .filter(row -> afterCursor(row, search.cursor(), sortField,
-                            search.direction(), schema))
-                    .toList();
+            visible =
+                    matched.stream()
+                            .filter(
+                                    row ->
+                                            afterCursor(
+                                                    row,
+                                                    search.cursor(),
+                                                    sortField,
+                                                    search.direction(),
+                                                    schema))
+                            .toList();
         }
         int from = (int) Math.min(search.page().offset(), visible.size());
         int to = Math.min(from + search.page().size(), visible.size());
         boolean hasMore = to < visible.size();
         List<TemporalRow> items = List.copyOf(visible.subList(from, to));
-        PageCursor next = hasMore && !items.isEmpty()
-                ? cursorOf(items.get(items.size() - 1), sortField) : null;
+        PageCursor next =
+                hasMore && !items.isEmpty()
+                        ? cursorOf(items.get(items.size() - 1), sortField)
+                        : null;
         return new Page<>(items, total, search.page().page(), search.page().size(), next);
     }
 
@@ -178,13 +196,16 @@ public final class InMemoryTemporalStore implements TemporalStore {
         }
         requireSchema(search.objectType(), schema);
         Map<String, Object> filters = new java.util.LinkedHashMap<>();
-        search.equals().forEach((field, value) -> {
-            if (!schema.filterableFields().contains(field)) {
-                throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
-                        "unknown or non-filterable field: " + field);
-            }
-            filters.put(field, schema.requireField(field).type().coerce(value));
-        });
+        search.equals()
+                .forEach(
+                        (field, value) -> {
+                            if (!schema.filterableFields().contains(field)) {
+                                throw new ContractException(
+                                        ContractErrorCode.INVALID_PAYLOAD,
+                                        "unknown or non-filterable field: " + field);
+                            }
+                            filters.put(field, schema.requireField(field).type().coerce(value));
+                        });
         return filters;
     }
 
@@ -194,16 +215,16 @@ public final class InMemoryTemporalStore implements TemporalStore {
         }
         requireSchema(null, schema);
         if (!schema.sortableFields().contains(field)) {
-            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
-                    "unknown or non-sortable field: " + field);
+            throw new ContractException(
+                    ContractErrorCode.INVALID_PAYLOAD, "unknown or non-sortable field: " + field);
         }
         return field;
     }
 
     private static void requireSchema(String objectType, ObjectSchema schema) {
         if (schema == null) {
-            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
-                    "object type has no schema: " + objectType);
+            throw new ContractException(
+                    ContractErrorCode.INVALID_PAYLOAD, "object type has no schema: " + objectType);
         }
     }
 
@@ -217,8 +238,8 @@ public final class InMemoryTemporalStore implements TemporalStore {
         return true;
     }
 
-    private static boolean matchesFilters(TemporalRow row, java.util.List<TemporalFilter> filters,
-                                          ObjectSchema schema) {
+    private static boolean matchesFilters(
+            TemporalRow row, java.util.List<TemporalFilter> filters, ObjectSchema schema) {
         for (TemporalFilter filter : filters) {
             if (!matchesFilter(row.fields(), filter, schema)) {
                 return false;
@@ -227,8 +248,8 @@ public final class InMemoryTemporalStore implements TemporalStore {
         return true;
     }
 
-    private static boolean matchesFilter(Map<String, Object> fields, TemporalFilter filter,
-                                         ObjectSchema schema) {
+    private static boolean matchesFilter(
+            Map<String, Object> fields, TemporalFilter filter, ObjectSchema schema) {
         return switch (filter) {
             case TemporalFilter.Eq eq -> {
                 Object value = typed(schema, eq.field(), eq.value());
@@ -244,7 +265,8 @@ public final class InMemoryTemporalStore implements TemporalStore {
                 if (actual == null || in.values().isEmpty()) {
                     yield false;
                 }
-                yield in.values().stream().map(value -> typed(schema, in.field(), value))
+                yield in.values().stream()
+                        .map(value -> typed(schema, in.field(), value))
                         .anyMatch(actual::equals);
             }
             case TemporalFilter.Gt gt -> compare(fields, gt.field(), gt.value(), schema) > 0;
@@ -262,19 +284,19 @@ public final class InMemoryTemporalStore implements TemporalStore {
             }
             case TemporalFilter.Like like -> {
                 Object actual = fields.get(like.field());
-                yield actual != null && likePattern(like.pattern())
-                        .matcher(String.valueOf(actual)).matches();
+                yield actual != null
+                        && likePattern(like.pattern()).matcher(String.valueOf(actual)).matches();
             }
-            case TemporalFilter.And and -> and.parts().stream()
-                    .allMatch(part -> matchesFilter(fields, part, schema));
-            case TemporalFilter.Or or -> or.parts().stream()
-                    .anyMatch(part -> matchesFilter(fields, part, schema));
+            case TemporalFilter.And and ->
+                    and.parts().stream().allMatch(part -> matchesFilter(fields, part, schema));
+            case TemporalFilter.Or or ->
+                    or.parts().stream().anyMatch(part -> matchesFilter(fields, part, schema));
             case TemporalFilter.Not not -> !matchesFilter(fields, not.part(), schema);
         };
     }
 
-    private static int compare(Map<String, Object> fields, String field, Object expected,
-                               ObjectSchema schema) {
+    private static int compare(
+            Map<String, Object> fields, String field, Object expected, ObjectSchema schema) {
         Object actual = fields.get(field);
         if (actual == null) {
             return -1;
@@ -307,12 +329,12 @@ public final class InMemoryTemporalStore implements TemporalStore {
                 default -> regex.append(java.util.regex.Pattern.quote(String.valueOf(c)));
             }
         }
-        return java.util.regex.Pattern.compile(regex.append('$').toString(),
-                java.util.regex.Pattern.DOTALL);
+        return java.util.regex.Pattern.compile(
+                regex.append('$').toString(), java.util.regex.Pattern.DOTALL);
     }
 
-    private static void requireFilterable(java.util.List<TemporalFilter> filters,
-                                          ObjectSchema schema) {
+    private static void requireFilterable(
+            java.util.List<TemporalFilter> filters, ObjectSchema schema) {
         for (TemporalFilter filter : filters) {
             switch (filter) {
                 case TemporalFilter.Eq eq -> requireFilterable(eq.field(), schema);
@@ -326,27 +348,34 @@ public final class InMemoryTemporalStore implements TemporalStore {
                 case TemporalFilter.Like like -> requireFilterable(like.field(), schema);
                 case TemporalFilter.And and -> requireFilterable(and.parts(), schema);
                 case TemporalFilter.Or or -> requireFilterable(or.parts(), schema);
-                case TemporalFilter.Not not -> requireFilterable(java.util.List.of(not.part()), schema);
+                case TemporalFilter.Not not ->
+                        requireFilterable(java.util.List.of(not.part()), schema);
             }
         }
     }
 
     private static void requireFilterable(String field, ObjectSchema schema) {
         if (!schema.filterableFields().contains(field)) {
-            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
-                    "unknown or non-filterable field: " + field);
+            throw new ContractException(
+                    ContractErrorCode.INVALID_PAYLOAD, "unknown or non-filterable field: " + field);
         }
     }
 
-    private static boolean afterCursor(TemporalRow row, PageCursor cursor, String sortField,
-                                       SortDirection direction, ObjectSchema schema) {
+    private static boolean afterCursor(
+            TemporalRow row,
+            PageCursor cursor,
+            String sortField,
+            SortDirection direction,
+            ObjectSchema schema) {
         if (sortField == null) {
             int idCompare = row.version().id().compareTo(cursor.id());
             return direction == SortDirection.DESC ? idCompare < 0 : idCompare > 0;
         }
         Object actual = row.fields().get(sortField);
-        Object expected = cursor.sortValue() == null ? null
-                : schema.requireField(sortField).type().coerce(cursor.sortValue());
+        Object expected =
+                cursor.sortValue() == null
+                        ? null
+                        : schema.requireField(sortField).type().coerce(cursor.sortValue());
         if (actual == null || expected == null) {
             return false;
         }
@@ -372,23 +401,24 @@ public final class InMemoryTemporalStore implements TemporalStore {
         if (field == null) {
             comparator = Comparator.comparing(row -> row.version().id());
         } else {
-            comparator = (left, right) -> {
-                Object a = left.fields().get(field);
-                Object b = right.fields().get(field);
-                if (a == null || b == null) {
-                    return a == null ? (b == null ? 0 : 1) : -1;
-                }
-                if (a instanceof Comparable comparable && a.getClass().isInstance(b)) {
-                    return comparable.compareTo(b);
-                }
-                return String.valueOf(a).compareTo(String.valueOf(b));
-            };
+            comparator =
+                    (left, right) -> {
+                        Object a = left.fields().get(field);
+                        Object b = right.fields().get(field);
+                        if (a == null || b == null) {
+                            return a == null ? (b == null ? 0 : 1) : -1;
+                        }
+                        if (a instanceof Comparable comparable && a.getClass().isInstance(b)) {
+                            return comparable.compareTo(b);
+                        }
+                        return String.valueOf(a).compareTo(String.valueOf(b));
+                    };
         }
         return direction == SortDirection.DESC ? comparator.reversed() : comparator;
     }
 
-    private static boolean matches(ObjectVersion version, java.time.Instant asOf,
-                                   java.time.Instant recordedAsOf) {
+    private static boolean matches(
+            ObjectVersion version, java.time.Instant asOf, java.time.Instant recordedAsOf) {
         return matches(version, new TemporalQuery(asOf, recordedAsOf, null));
     }
 
@@ -414,15 +444,17 @@ public final class InMemoryTemporalStore implements TemporalStore {
         if (scope instanceof ScopePredicate.None) {
             return false;
         }
-        ObjectSchema schema = schemas.find(row.objectType()).orElseThrow(
-                () -> new ContractException(ContractErrorCode.INVALID_PAYLOAD,
-                        "object type has no schema: " + row.objectType()));
+        ObjectSchema schema =
+                schemas.find(row.objectType())
+                        .orElseThrow(
+                                () ->
+                                        new ContractException(
+                                                ContractErrorCode.INVALID_PAYLOAD,
+                                                "object type has no schema: " + row.objectType()));
         return ScopePredicates.matches(row, scope, schema);
     }
 
-    /**
-     * 清空全部对象（测试用）。
-     */
+    /** 清空全部对象（测试用）。 */
     public void clear() {
         rows.clear();
     }
@@ -449,6 +481,5 @@ public final class InMemoryTemporalStore implements TemporalStore {
         throw new IllegalStateException("sealed row not found: " + sealed.version().id());
     }
 
-    private record Key(String objectType, UUID id) {
-    }
+    private record Key(String objectType, UUID id) {}
 }

@@ -1,16 +1,13 @@
 package cn.byteforce.seedj.iam;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
-import java.time.Instant;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/**
- * 认证状态模型：MFA challenge 生命周期、TOTP 加密状态与签名密钥轮换。
- */
+import java.time.Instant;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+/** 认证状态模型：MFA challenge 生命周期、TOTP 加密状态与签名密钥轮换。 */
 class IamCredentialStateTest {
 
     private static final Instant NOW = Instant.parse("2026-02-01T08:00:00Z");
@@ -18,8 +15,8 @@ class IamCredentialStateTest {
     @Test
     @DisplayName("IamMfaChallenge：默认 5 次上限、5 分钟有效期，设备 ID 归一化")
     void mfaChallengeDefaults() {
-        IamMfaChallenge challenge = new IamMfaChallenge("c-1", "u-1", "client-1", null,
-                "sha256", null, false, -1, 0);
+        IamMfaChallenge challenge =
+                new IamMfaChallenge("c-1", "u-1", "client-1", null, "sha256", null, false, -1, 0);
 
         assertThat(challenge.id()).isEqualTo("c-1");
         assertThat(challenge.userId()).isEqualTo("u-1");
@@ -35,8 +32,9 @@ class IamCredentialStateTest {
     @Test
     @DisplayName("IamMfaChallenge：expired 以 now >= expiresAt 判定")
     void mfaChallengeExpiry() {
-        IamMfaChallenge challenge = new IamMfaChallenge("c-1", "u-1", "client-1", "device-1",
-                "sha256", NOW, false, 0, 3);
+        IamMfaChallenge challenge =
+                new IamMfaChallenge(
+                        "c-1", "u-1", "client-1", "device-1", "sha256", NOW, false, 0, 3);
 
         assertThat(challenge.expired(NOW.minusSeconds(1))).isFalse();
         assertThat(challenge.expired(NOW)).isTrue();
@@ -46,8 +44,9 @@ class IamCredentialStateTest {
     @Test
     @DisplayName("IamMfaChallenge：attempts 累加到达上限后 locked，consumed 独立")
     void mfaChallengeAttemptsAndLock() {
-        IamMfaChallenge challenge = new IamMfaChallenge("c-1", "u-1", "client-1", "device-1",
-                "sha256", NOW, false, 0, 2);
+        IamMfaChallenge challenge =
+                new IamMfaChallenge(
+                        "c-1", "u-1", "client-1", "device-1", "sha256", NOW, false, 0, 2);
 
         assertThat(challenge.locked()).isFalse();
         IamMfaChallenge first = challenge.withAttempt();
@@ -70,23 +69,26 @@ class IamCredentialStateTest {
     @Test
     @DisplayName("IamMfaChallenge：id/userId/clientId/tokenHash 必填")
     void mfaChallengeValidation() {
-        assertThatThrownBy(() -> new IamMfaChallenge(null, "u-1", "c", null, "h", NOW, false,
-                0, 1)).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("id");
-        assertThatThrownBy(() -> new IamMfaChallenge("c-1", " ", "c", null, "h", NOW, false,
-                0, 1)).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("userId");
-        assertThatThrownBy(() -> new IamMfaChallenge("c-1", "u-1", "", null, "h", NOW, false,
-                0, 1)).isInstanceOf(IllegalArgumentException.class)
+        assertThatThrownBy(() -> new IamMfaChallenge(null, "u-1", "c", null, "h", NOW, false, 0, 1))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("id");
+        assertThatThrownBy(() -> new IamMfaChallenge("c-1", " ", "c", null, "h", NOW, false, 0, 1))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("userId");
+        assertThatThrownBy(() -> new IamMfaChallenge("c-1", "u-1", "", null, "h", NOW, false, 0, 1))
+                .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("clientId");
-        assertThatThrownBy(() -> new IamMfaChallenge("c-1", "u-1", "c", null, null, NOW, false,
-                0, 1)).isInstanceOf(IllegalArgumentException.class)
+        assertThatThrownBy(
+                        () -> new IamMfaChallenge("c-1", "u-1", "c", null, null, NOW, false, 0, 1))
+                .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("tokenHash");
     }
 
     @Test
     @DisplayName("IamTotpState：lastUsedStep 下限 -1，确认与推进 step")
     void totpState() {
-        IamTotpState state = new IamTotpState("u-1", null, "totp-key", "ciphertext", false,
-                -10, null, null);
+        IamTotpState state =
+                new IamTotpState("u-1", null, "totp-key", "ciphertext", false, -10, null, null);
 
         assertThat(state.userId()).isEqualTo("u-1");
         assertThat(state.tenantId()).isEqualTo(IamUser.DEFAULT_TENANT);
@@ -109,9 +111,11 @@ class IamCredentialStateTest {
         assertThat(advanced.keyName()).isEqualTo("totp-key");
 
         assertThatThrownBy(() -> new IamTotpState(null, null, "k", "c", false, 0, NOW, null))
-                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("userId");
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("userId");
         assertThatThrownBy(() -> new IamTotpState("u-1", null, " ", "c", false, 0, NOW, null))
-                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("keyName");
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("keyName");
         assertThatThrownBy(() -> new IamTotpState("u-1", null, "k", "", false, 0, NOW, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("secretCiphertext");
@@ -120,8 +124,8 @@ class IamCredentialStateTest {
     @Test
     @DisplayName("IamSigningKey：仅活跃且含私钥可签名，retire 清空私钥")
     void signingKey() {
-        IamSigningKey key = new IamSigningKey("kid-1", null, "{\"kty\":\"RSA\"}", null, true,
-                null, null);
+        IamSigningKey key =
+                new IamSigningKey("kid-1", null, "{\"kty\":\"RSA\"}", null, true, null, null);
 
         assertThat(key.kid()).isEqualTo("kid-1");
         assertThat(key.algorithm()).isEqualTo("RS256");
@@ -132,8 +136,8 @@ class IamCredentialStateTest {
         assertThat(key.retiredAt()).isNull();
         assertThat(key.canSign()).isFalse();
 
-        IamSigningKey signable = new IamSigningKey("kid-2", "ES256", "{}", "{\"d\":\"x\"}", true,
-                NOW, null);
+        IamSigningKey signable =
+                new IamSigningKey("kid-2", "ES256", "{}", "{\"d\":\"x\"}", true, NOW, null);
         assertThat(signable.algorithm()).isEqualTo("ES256");
         assertThat(signable.canSign()).isTrue();
 
@@ -145,12 +149,16 @@ class IamCredentialStateTest {
         assertThat(retired.retiredAt()).isEqualTo(NOW.plusSeconds(10));
         assertThat(retired.createdAt()).isEqualTo(NOW);
 
-        assertThat(new IamSigningKey("kid-3", " ", "{}", "{\"d\":\"x\"}", false, NOW, null)
-                .canSign()).isFalse();
+        assertThat(
+                        new IamSigningKey("kid-3", " ", "{}", "{\"d\":\"x\"}", false, NOW, null)
+                                .canSign())
+                .isFalse();
 
         assertThatThrownBy(() -> new IamSigningKey(null, null, "{}", null, true, NOW, null))
-                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("kid");
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("kid");
         assertThatThrownBy(() -> new IamSigningKey("kid-1", null, " ", null, true, NOW, null))
-                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("publicJwk");
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("publicJwk");
     }
 }

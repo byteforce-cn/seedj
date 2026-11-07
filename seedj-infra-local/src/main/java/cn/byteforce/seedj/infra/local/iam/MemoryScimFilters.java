@@ -2,7 +2,6 @@ package cn.byteforce.seedj.infra.local.iam;
 
 import cn.byteforce.seedj.iam.ScimComparisonOperator;
 import cn.byteforce.seedj.iam.ScimFilter;
-
 import java.util.Collection;
 import java.util.Locale;
 import java.util.Map;
@@ -10,8 +9,7 @@ import java.util.Map;
 /** In-memory SCIM filter evaluation over a whitelisted attribute map. */
 final class MemoryScimFilters {
 
-    private MemoryScimFilters() {
-    }
+    private MemoryScimFilters() {}
 
     static boolean matches(ScimFilter filter, Map<String, Object> attributes) {
         if (filter == null) {

@@ -1,5 +1,11 @@
 package cn.byteforce.seedj.starter.eventbus;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.fail;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import cn.byteforce.seedj.core.InfrastructureException;
 import cn.byteforce.seedj.domain.event.DomainEvent;
 import cn.byteforce.seedj.domain.event.EventType;
@@ -15,12 +21,6 @@ import cn.byteforce.seedj.eventbus.spi.EventPayloadSerializer;
 import cn.byteforce.seedj.eventbus.spi.PollRequest;
 import cn.byteforce.seedj.eventbus.spi.ReceivedEvent;
 import cn.byteforce.seedj.starter.observability.TracePropagation;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.core.env.Environment;
-
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
@@ -35,12 +35,11 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
-import static org.assertj.core.api.Assertions.fail;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.core.env.Environment;
 
 /**
  * 消费容器生命周期与投递语义：启动探针、拉取、ack / retry / dead-letter、并发租约。
@@ -63,8 +62,8 @@ class EventConsumerContainerTest {
         EventBusProperties properties = properties();
         properties.getConsumer().setEnabled(false);
 
-        EventConsumerContainer container = start(stubs(store, serializer(), new EchoSubscriber()),
-                properties);
+        EventConsumerContainer container =
+                start(stubs(store, serializer(), new EchoSubscriber()), properties);
 
         container.pollAll();
 
@@ -76,8 +75,7 @@ class EventConsumerContainerTest {
     void idleWithoutStore() {
         FakeStore store = new FakeStore();
 
-        EventConsumerContainer container = start(
-                stubs(null, serializer(), new EchoSubscriber()));
+        EventConsumerContainer container = start(stubs(null, serializer(), new EchoSubscriber()));
 
         container.pollAll();
 
@@ -102,8 +100,15 @@ class EventConsumerContainerTest {
         FakeStore store = new FakeStore();
         RecordingMetrics metrics = new RecordingMetrics();
 
-        EventConsumerContainer container = start(new Stubs(store, serializer(), List.of(),
-                metrics, TracePropagation.noop(), mock(Environment.class)));
+        EventConsumerContainer container =
+                start(
+                        new Stubs(
+                                store,
+                                serializer(),
+                                List.of(),
+                                metrics,
+                                TracePropagation.noop(),
+                                mock(Environment.class)));
 
         container.pollAll();
 
@@ -115,20 +120,18 @@ class EventConsumerContainerTest {
     @DisplayName("成功处理 → ack + consumed，追踪作用域覆盖整段投递")
     void dispatchesThenAcks() {
         FakeStore store = new FakeStore();
-        store.enqueue(received("delivery-1", "billing", 1,
-                Map.of("traceparent", "00-abc-def-01")));
+        store.enqueue(received("delivery-1", "billing", 1, Map.of("traceparent", "00-abc-def-01")));
         EchoSubscriber subscriber = new EchoSubscriber();
         RecordingMetrics metrics = new RecordingMetrics();
         RecordingTrace tracing = new RecordingTrace();
 
-        EventConsumerContainer container = start(
-                stubs(store, serializer(), subscriber, metrics, tracing));
+        EventConsumerContainer container =
+                start(stubs(store, serializer(), subscriber, metrics, tracing));
 
         container.pollAll();
 
         awaitUntil(() -> store.acked.size() == 1);
-        assertThat(store.acked).extracting(ReceivedEvent::deliveryId)
-                .containsExactly("delivery-1");
+        assertThat(store.acked).extracting(ReceivedEvent::deliveryId).containsExactly("delivery-1");
         assertThat(store.retried).isEmpty();
         assertThat(store.deadLettered).isEmpty();
         assertThat(metrics.consumedCount).hasValue(1);
@@ -154,9 +157,15 @@ class EventConsumerContainerTest {
         Environment environment = mock(Environment.class);
         when(environment.getProperty("spring.application.name")).thenReturn("billing-service");
 
-        EventConsumerContainer container = start(new Stubs(store, serializer(),
-                new EchoSubscriber(null, "test.consumer.event"), EventBusMetrics.noop(),
-                TracePropagation.noop(), environment));
+        EventConsumerContainer container =
+                start(
+                        new Stubs(
+                                store,
+                                serializer(),
+                                new EchoSubscriber(null, "test.consumer.event"),
+                                EventBusMetrics.noop(),
+                                TracePropagation.noop(),
+                                environment));
 
         container.pollAll();
 
@@ -171,9 +180,15 @@ class EventConsumerContainerTest {
         Environment environment = mock(Environment.class);
         when(environment.getProperty("spring.application.name")).thenReturn("  ");
 
-        EventConsumerContainer container = start(new Stubs(store, serializer(),
-                new EchoSubscriber(null, "test.consumer.event"), EventBusMetrics.noop(),
-                TracePropagation.noop(), environment));
+        EventConsumerContainer container =
+                start(
+                        new Stubs(
+                                store,
+                                serializer(),
+                                new EchoSubscriber(null, "test.consumer.event"),
+                                EventBusMetrics.noop(),
+                                TracePropagation.noop(),
+                                environment));
 
         container.pollAll();
 
@@ -189,8 +204,13 @@ class EventConsumerContainerTest {
         properties.getConsumer().setBatchSize(2);
         properties.getConsumer().setLease(Duration.ofSeconds(7));
 
-        EventConsumerContainer container = start(stubs(store, serializer(),
-                new EchoSubscriber("billing", "test.consumer.event", 5)), properties);
+        EventConsumerContainer container =
+                start(
+                        stubs(
+                                store,
+                                serializer(),
+                                new EchoSubscriber("billing", "test.consumer.event", 5)),
+                        properties);
 
         container.pollAll();
 
@@ -208,8 +228,7 @@ class EventConsumerContainerTest {
         store.enqueue(received("delivery-1", "billing", 1, Map.of()));
         BlockingSubscriber subscriber = new BlockingSubscriber();
 
-        EventConsumerContainer container = start(
-                stubs(store, serializer(), subscriber));
+        EventConsumerContainer container = start(stubs(store, serializer(), subscriber));
 
         container.pollAll();
         assertThat(subscriber.started.await(5, TimeUnit.SECONDS)).isTrue();
@@ -231,10 +250,16 @@ class EventConsumerContainerTest {
         properties.getConsumer().setRetryBase(Duration.ofMillis(250));
         properties.getConsumer().setRetryMax(Duration.ofSeconds(10));
 
-        EventConsumerContainer container = start(stubs(store, serializer(),
-                new FailingSubscriber(new InfrastructureException(
-                        EventBusErrorCode.CONSUMER_FAILED, "backend down")),
-                metrics), properties);
+        EventConsumerContainer container =
+                start(
+                        stubs(
+                                store,
+                                serializer(),
+                                new FailingSubscriber(
+                                        new InfrastructureException(
+                                                EventBusErrorCode.CONSUMER_FAILED, "backend down")),
+                                metrics),
+                        properties);
 
         container.pollAll();
 
@@ -256,9 +281,16 @@ class EventConsumerContainerTest {
         FakeStore store = new FakeStore();
         store.enqueue(received("delivery-1", "billing", 1, Map.of()));
 
-        EventConsumerContainer container = start(stubs(store, serializer(),
-                new FailingSubscriber(new CompletionException(new InfrastructureException(
-                        EventBusErrorCode.CONSUMER_FAILED, "backend down")))));
+        EventConsumerContainer container =
+                start(
+                        stubs(
+                                store,
+                                serializer(),
+                                new FailingSubscriber(
+                                        new CompletionException(
+                                                new InfrastructureException(
+                                                        EventBusErrorCode.CONSUMER_FAILED,
+                                                        "backend down")))));
 
         container.pollAll();
 
@@ -278,9 +310,16 @@ class EventConsumerContainerTest {
         properties.getConsumer().setRetryBase(Duration.ofMillis(100));
         properties.getConsumer().setRetryMax(Duration.ofMillis(300));
 
-        EventConsumerContainer container = start(stubs(store, serializer(),
-                new FailingSubscriber(new InfrastructureException(
-                        EventBusErrorCode.CONSUMER_FAILED, "backend down"))), properties);
+        EventConsumerContainer container =
+                start(
+                        stubs(
+                                store,
+                                serializer(),
+                                new FailingSubscriber(
+                                        new InfrastructureException(
+                                                EventBusErrorCode.CONSUMER_FAILED,
+                                                "backend down"))),
+                        properties);
 
         container.pollAll();
 
@@ -298,9 +337,16 @@ class EventConsumerContainerTest {
         properties.getConsumer().setRetryBase(Duration.ofMillis(Long.MAX_VALUE / 2));
         properties.getConsumer().setRetryMax(Duration.ofSeconds(2));
 
-        EventConsumerContainer container = start(stubs(store, serializer(),
-                new FailingSubscriber(new InfrastructureException(
-                        EventBusErrorCode.CONSUMER_FAILED, "backend down"))), properties);
+        EventConsumerContainer container =
+                start(
+                        stubs(
+                                store,
+                                serializer(),
+                                new FailingSubscriber(
+                                        new InfrastructureException(
+                                                EventBusErrorCode.CONSUMER_FAILED,
+                                                "backend down"))),
+                        properties);
 
         container.pollAll();
 
@@ -315,10 +361,15 @@ class EventConsumerContainerTest {
         store.enqueue(received("delivery-1", "billing", 5, Map.of()));
         RecordingMetrics metrics = new RecordingMetrics();
 
-        EventConsumerContainer container = start(stubs(store, serializer(),
-                new FailingSubscriber(new InfrastructureException(
-                        EventBusErrorCode.CONSUMER_FAILED, "backend down")),
-                metrics));
+        EventConsumerContainer container =
+                start(
+                        stubs(
+                                store,
+                                serializer(),
+                                new FailingSubscriber(
+                                        new InfrastructureException(
+                                                EventBusErrorCode.CONSUMER_FAILED, "backend down")),
+                                metrics));
 
         container.pollAll();
 
@@ -335,8 +386,13 @@ class EventConsumerContainerTest {
         FakeStore store = new FakeStore();
         store.enqueue(received("delivery-1", "billing", 1, Map.of()));
 
-        EventConsumerContainer container = start(stubs(store, serializer(),
-                new FailingSubscriber(new IllegalArgumentException("bad payload"))));
+        EventConsumerContainer container =
+                start(
+                        stubs(
+                                store,
+                                serializer(),
+                                new FailingSubscriber(
+                                        new IllegalArgumentException("bad payload"))));
 
         container.pollAll();
 
@@ -353,27 +409,26 @@ class EventConsumerContainerTest {
     void deadLettersMismatchedPayloadType() {
         FakeStore store = new FakeStore();
         store.enqueue(received("delivery-1", "billing", 1, Map.of()));
-        EventPayloadSerializer wrongType = new EventPayloadSerializer() {
-            @Override
-            public byte[] serialize(Object payload) {
-                return new byte[0];
-            }
+        EventPayloadSerializer wrongType =
+                new EventPayloadSerializer() {
+                    @Override
+                    public byte[] serialize(Object payload) {
+                        return new byte[0];
+                    }
 
-            @Override
-            @SuppressWarnings("unchecked")
-            public <T> T deserialize(byte[] payload, Class<T> type) {
-                return (T) "not an event";
-            }
-        };
+                    @Override
+                    @SuppressWarnings("unchecked")
+                    public <T> T deserialize(byte[] payload, Class<T> type) {
+                        return (T) "not an event";
+                    }
+                };
 
-        EventConsumerContainer container = start(
-                stubs(store, wrongType, new EchoSubscriber()));
+        EventConsumerContainer container = start(stubs(store, wrongType, new EchoSubscriber()));
 
         container.pollAll();
 
         awaitUntil(() -> store.deadLettered.size() == 1);
-        assertThat(store.failures.get(0).errorType())
-                .isEqualTo(EventBusException.class.getName());
+        assertThat(store.failures.get(0).errorType()).isEqualTo(EventBusException.class.getName());
         assertThat(store.failures.get(0).errorMessage()).contains("but subscriber expects");
     }
 
@@ -384,15 +439,23 @@ class EventConsumerContainerTest {
         store.enqueue(received("delivery-1", "working", 1, Map.of()));
         RecordingMetrics metrics = new RecordingMetrics();
 
-        EventConsumerContainer container = start(new Stubs(store, serializer(),
-                List.of(new EchoSubscriber("working", "test.consumer.event"),
-                        new EchoSubscriber("broken", "test.consumer.event")),
-                metrics, TracePropagation.noop(), mock(Environment.class)));
+        EventConsumerContainer container =
+                start(
+                        new Stubs(
+                                store,
+                                serializer(),
+                                List.of(
+                                        new EchoSubscriber("working", "test.consumer.event"),
+                                        new EchoSubscriber("broken", "test.consumer.event")),
+                                metrics,
+                                TracePropagation.noop(),
+                                mock(Environment.class)));
 
         container.pollAll();
 
         awaitUntil(() -> store.acked.size() == 1);
-        assertThat(store.polls).extracting(PollRequest::group)
+        assertThat(store.polls)
+                .extracting(PollRequest::group)
                 .containsExactlyInAnyOrder("working", "broken");
         assertThat(metrics.pollFailedCount).hasValue(1);
         assertThat(metrics.consumedCount).hasValue(1);
@@ -407,8 +470,8 @@ class EventConsumerContainerTest {
         store.deadLetterError = new IllegalStateException("store down");
         RecordingMetrics metrics = new RecordingMetrics();
 
-        EventConsumerContainer container = start(
-                stubs(store, serializer(), new EchoSubscriber(), metrics));
+        EventConsumerContainer container =
+                start(stubs(store, serializer(), new EchoSubscriber(), metrics));
 
         container.pollAll();
 
@@ -418,10 +481,11 @@ class EventConsumerContainerTest {
         // 信号量必须归还：租约到期后消息会被重新领取，仍能再次投递。
         // 上一轮可能仍占着额度，因此反复驱动 pollAll 直到重新领取到。
         store.enqueue(received("delivery-2", "billing", 1, Map.of()));
-        awaitUntil(() -> {
-            container.pollAll();
-            return store.ackAttempts.get() == 2;
-        });
+        awaitUntil(
+                () -> {
+                    container.pollAll();
+                    return store.ackAttempts.get() == 2;
+                });
         assertThat(metrics.consumedCount).hasValue(0);
         assertThat(metrics.deadLetteredCount).hasValue(0);
     }
@@ -431,20 +495,32 @@ class EventConsumerContainerTest {
     void pollsEverySubscription() {
         FakeStore store = new FakeStore();
 
-        EventConsumerContainer container = start(new Stubs(store, serializer(),
-                List.of(new EchoSubscriber("billing", "order.paid"),
-                        new EchoSubscriber("search", "order.paid", "order.shipped")),
-                EventBusMetrics.noop(), TracePropagation.noop(), mock(Environment.class)));
+        EventConsumerContainer container =
+                start(
+                        new Stubs(
+                                store,
+                                serializer(),
+                                List.of(
+                                        new EchoSubscriber("billing", "order.paid"),
+                                        new EchoSubscriber(
+                                                "search", "order.paid", "order.shipped")),
+                                EventBusMetrics.noop(),
+                                TracePropagation.noop(),
+                                mock(Environment.class)));
 
         container.pollAll();
 
         assertThat(store.polls).hasSize(2);
-        assertThat(store.polls).extracting(PollRequest::group)
+        assertThat(store.polls)
+                .extracting(PollRequest::group)
                 .containsExactlyInAnyOrder("billing", "search");
-        assertThat(store.polls).filteredOn(request -> request.group().equals("search"))
+        assertThat(store.polls)
+                .filteredOn(request -> request.group().equals("search"))
                 .singleElement()
-                .satisfies(request -> assertThat(request.topics())
-                        .containsExactlyInAnyOrder("order.paid", "order.shipped"));
+                .satisfies(
+                        request ->
+                                assertThat(request.topics())
+                                        .containsExactlyInAnyOrder("order.paid", "order.shipped"));
     }
 
     @Test
@@ -452,8 +528,7 @@ class EventConsumerContainerTest {
     void closeIsIdempotentAndStopsPolling() {
         FakeStore store = new FakeStore();
 
-        EventConsumerContainer container = start(
-                stubs(store, serializer(), new EchoSubscriber()));
+        EventConsumerContainer container = start(stubs(store, serializer(), new EchoSubscriber()));
 
         container.close();
         container.close();
@@ -465,12 +540,15 @@ class EventConsumerContainerTest {
     @Test
     @DisplayName("未启动就 close() 不抛异常（调度器/线程池尚未创建）")
     void closeBeforeStartIsSafe() {
-        EventConsumerContainer container = new EventConsumerContainer(
-                storeProvider(null),
-                subscriberProvider(List.of()),
-                serializerProvider(null),
-                properties(), EventBusMetrics.noop(), TracePropagation.noop(),
-                mock(Environment.class));
+        EventConsumerContainer container =
+                new EventConsumerContainer(
+                        storeProvider(null),
+                        subscriberProvider(List.of()),
+                        serializerProvider(null),
+                        properties(),
+                        EventBusMetrics.noop(),
+                        TracePropagation.noop(),
+                        mock(Environment.class));
 
         assertThatCode(container::close).doesNotThrowAnyException();
         assertThatCode(container::close).doesNotThrowAnyException();
@@ -481,35 +559,54 @@ class EventConsumerContainerTest {
     }
 
     private EventConsumerContainer start(Stubs stubs, EventBusProperties properties) {
-        EventConsumerContainer container = new EventConsumerContainer(
-                storeProvider(stubs.stores), subscriberProvider(stubs.subscribers),
-                serializerProvider(stubs.serializer),
-                properties,
-                stubs.metrics == null ? EventBusMetrics.noop() : stubs.metrics,
-                stubs.tracing == null ? TracePropagation.noop() : stubs.tracing,
-                stubs.environment());
+        EventConsumerContainer container =
+                new EventConsumerContainer(
+                        storeProvider(stubs.stores),
+                        subscriberProvider(stubs.subscribers),
+                        serializerProvider(stubs.serializer),
+                        properties,
+                        stubs.metrics == null ? EventBusMetrics.noop() : stubs.metrics,
+                        stubs.tracing == null ? TracePropagation.noop() : stubs.tracing,
+                        stubs.environment());
         container.afterPropertiesSet();
         started.add(container);
         return container;
     }
 
-    private static Stubs stubs(EventConsumerStore store, EventPayloadSerializer serializer,
-                               EventSubscriber<?> subscriber) {
-        return new Stubs(store, serializer, subscriber, EventBusMetrics.noop(),
-                TracePropagation.noop(), mock(Environment.class));
-    }
-
-    private static Stubs stubs(EventConsumerStore store, EventPayloadSerializer serializer,
-                               EventSubscriber<?> subscriber, EventBusMetrics metrics) {
-        return new Stubs(store, serializer, subscriber, metrics, TracePropagation.noop(),
+    private static Stubs stubs(
+            EventConsumerStore store,
+            EventPayloadSerializer serializer,
+            EventSubscriber<?> subscriber) {
+        return new Stubs(
+                store,
+                serializer,
+                subscriber,
+                EventBusMetrics.noop(),
+                TracePropagation.noop(),
                 mock(Environment.class));
     }
 
-    private static Stubs stubs(EventConsumerStore store, EventPayloadSerializer serializer,
-                               EventSubscriber<?> subscriber, EventBusMetrics metrics,
-                               TracePropagation tracing) {
-        return new Stubs(store, serializer, subscriber, metrics, tracing,
+    private static Stubs stubs(
+            EventConsumerStore store,
+            EventPayloadSerializer serializer,
+            EventSubscriber<?> subscriber,
+            EventBusMetrics metrics) {
+        return new Stubs(
+                store,
+                serializer,
+                subscriber,
+                metrics,
+                TracePropagation.noop(),
                 mock(Environment.class));
+    }
+
+    private static Stubs stubs(
+            EventConsumerStore store,
+            EventPayloadSerializer serializer,
+            EventSubscriber<?> subscriber,
+            EventBusMetrics metrics,
+            TracePropagation tracing) {
+        return new Stubs(store, serializer, subscriber, metrics, tracing, mock(Environment.class));
     }
 
     private static EventBusProperties properties() {
@@ -519,14 +616,20 @@ class EventConsumerContainerTest {
         return properties;
     }
 
-    private static ReceivedEvent received(String deliveryId, String group, int attempts,
-                                          Map<String, String> headers) {
-        EventMessage message = new EventMessage("e-1", "test.consumer.event", "k-1",
-                "test.consumer.event", 1,
-                "{\"id\":\"e-1\"}".getBytes(StandardCharsets.UTF_8), headers,
-                Instant.parse("2026-01-01T00:00:00Z"));
-        return new ReceivedEvent(deliveryId, group, message, attempts,
-                Instant.parse("2026-01-01T00:01:00Z"));
+    private static ReceivedEvent received(
+            String deliveryId, String group, int attempts, Map<String, String> headers) {
+        EventMessage message =
+                new EventMessage(
+                        "e-1",
+                        "test.consumer.event",
+                        "k-1",
+                        "test.consumer.event",
+                        1,
+                        "{\"id\":\"e-1\"}".getBytes(StandardCharsets.UTF_8),
+                        headers,
+                        Instant.parse("2026-01-01T00:00:00Z"));
+        return new ReceivedEvent(
+                deliveryId, group, message, attempts, Instant.parse("2026-01-01T00:01:00Z"));
     }
 
     private static EventPayloadSerializer serializer() {
@@ -722,9 +825,7 @@ class EventConsumerContainerTest {
         }
     }
 
-    /**
-     * 组件集合：容器构造参数的可选/多值形态都在这里表达。
-     */
+    /** 组件集合：容器构造参数的可选/多值形态都在这里表达。 */
     static final class Stubs {
 
         final EventConsumerStore stores;
@@ -734,17 +835,29 @@ class EventConsumerContainerTest {
         final TracePropagation tracing;
         private final Environment environment;
 
-        Stubs(EventConsumerStore store, EventPayloadSerializer serializer,
-              EventSubscriber<?> subscriber, EventBusMetrics metrics, TracePropagation tracing,
-              Environment environment) {
-            this(store, serializer,
+        Stubs(
+                EventConsumerStore store,
+                EventPayloadSerializer serializer,
+                EventSubscriber<?> subscriber,
+                EventBusMetrics metrics,
+                TracePropagation tracing,
+                Environment environment) {
+            this(
+                    store,
+                    serializer,
                     subscriber == null ? List.of() : List.of(subscriber),
-                    metrics, tracing, environment);
+                    metrics,
+                    tracing,
+                    environment);
         }
 
-        Stubs(EventConsumerStore store, EventPayloadSerializer serializer,
-              List<EventSubscriber<?>> subscribers, EventBusMetrics metrics,
-              TracePropagation tracing, Environment environment) {
+        Stubs(
+                EventConsumerStore store,
+                EventPayloadSerializer serializer,
+                List<EventSubscriber<?>> subscribers,
+                EventBusMetrics metrics,
+                TracePropagation tracing,
+                Environment environment) {
             this.stores = store;
             this.serializer = serializer;
             this.subscribers = subscribers;
@@ -758,9 +871,7 @@ class EventConsumerContainerTest {
         }
     }
 
-    /**
-     * 指定 group 的轮询会抛错，其余 group 正常投递。
-     */
+    /** 指定 group 的轮询会抛错，其余 group 正常投递。 */
     static final class FlakyStore implements EventConsumerStore {
 
         private final String failingGroup;
@@ -799,12 +910,10 @@ class EventConsumerContainerTest {
         }
 
         @Override
-        public void retry(ReceivedEvent event, Duration delay, DeliveryFailure failure) {
-        }
+        public void retry(ReceivedEvent event, Duration delay, DeliveryFailure failure) {}
 
         @Override
-        public void deadLetter(ReceivedEvent event, DeliveryFailure failure) {
-        }
+        public void deadLetter(ReceivedEvent event, DeliveryFailure failure) {}
     }
 
     static final class FakeStore implements EventConsumerStore {

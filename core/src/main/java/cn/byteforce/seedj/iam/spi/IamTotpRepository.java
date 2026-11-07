@@ -3,7 +3,6 @@ package cn.byteforce.seedj.iam.spi;
 import cn.byteforce.seedj.iam.IamMfaChallenge;
 import cn.byteforce.seedj.iam.IamRecoveryCode;
 import cn.byteforce.seedj.iam.IamTotpState;
-
 import java.util.List;
 import java.util.Optional;
 

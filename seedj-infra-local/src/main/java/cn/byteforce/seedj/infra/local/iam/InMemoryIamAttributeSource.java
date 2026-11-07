@@ -3,7 +3,6 @@ package cn.byteforce.seedj.infra.local.iam;
 import cn.byteforce.seedj.iam.authz.AttributeLookup;
 import cn.byteforce.seedj.iam.authz.AttributeSnapshot;
 import cn.byteforce.seedj.iam.authz.IamAttributeSource;
-
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -24,18 +23,21 @@ public final class InMemoryIamAttributeSource implements IamAttributeSource {
     private final Set<String> unavailable = new HashSet<>();
 
     @Override
-    public synchronized AttributeLookup lookup(String principal, Instant asOf,
-                                               Instant recordedAsOf) {
+    public synchronized AttributeLookup lookup(
+            String principal, Instant asOf, Instant recordedAsOf) {
         if (unavailable.contains(principal)) {
             return AttributeLookup.unavailable();
         }
-        AttributeSnapshot selected = snapshots.stream()
-                .filter(snapshot -> snapshot.principal().equals(principal))
-                .filter(snapshot -> !snapshot.asOf().isAfter(asOf))
-                .filter(snapshot -> recordedAsOf == null
-                        || !snapshot.recordedAt().isAfter(recordedAsOf))
-                .max(Comparator.comparing(AttributeSnapshot::asOf))
-                .orElse(null);
+        AttributeSnapshot selected =
+                snapshots.stream()
+                        .filter(snapshot -> snapshot.principal().equals(principal))
+                        .filter(snapshot -> !snapshot.asOf().isAfter(asOf))
+                        .filter(
+                                snapshot ->
+                                        recordedAsOf == null
+                                                || !snapshot.recordedAt().isAfter(recordedAsOf))
+                        .max(Comparator.comparing(AttributeSnapshot::asOf))
+                        .orElse(null);
         if (selected == null) {
             return AttributeLookup.missing();
         }
@@ -60,9 +62,7 @@ public final class InMemoryIamAttributeSource implements IamAttributeSource {
         unavailable.add(principal);
     }
 
-    /**
-     * 清空全部数据（测试用）。
-     */
+    /** 清空全部数据（测试用）。 */
     public synchronized void clear() {
         snapshots.clear();
         unavailable.clear();
