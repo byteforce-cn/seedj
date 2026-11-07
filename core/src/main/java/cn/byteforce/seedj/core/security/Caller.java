@@ -1,6 +1,9 @@
 package cn.byteforce.seedj.core.security;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -82,5 +85,22 @@ public record Caller(
     /** 主体标识；空串视为缺失。 */
     public Optional<String> idIfPresent() {
         return id.isBlank() ? Optional.empty() : Optional.of(id);
+    }
+
+    /**
+     * 把集合型属性读成字符串列表；缺失或非集合返回空列表。
+     *
+     * <p>业务代码不需要直接 {@code attributes().get(...)} 再判断类型。只做展示/事实提取，
+     * 不做强制类型转换；需要结构化属性时在 core 增加明确类型。</p>
+     *
+     * @param name 属性名
+     * @return 字符串列表
+     */
+    public List<String> attributeStrings(String name) {
+        Object raw = attributes.get(name);
+        if (!(raw instanceof Collection<?> values)) {
+            return List.of();
+        }
+        return values.stream().filter(Objects::nonNull).map(String::valueOf).toList();
     }
 }

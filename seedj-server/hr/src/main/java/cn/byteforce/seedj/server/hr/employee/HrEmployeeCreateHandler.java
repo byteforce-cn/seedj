@@ -101,12 +101,8 @@ public final class HrEmployeeCreateHandler extends AbstractCommandHandler<HrEmpl
     }
 
     private static String firstOrgUnit(CommandContext ctx) {
-        Object raw = ctx.caller().attributes().get("org_units");
-        if (raw instanceof java.util.Collection<?> values) {
-            return values.stream().filter(java.util.Objects::nonNull)
-                    .map(String::valueOf).findFirst().orElse(null);
-        }
-        return null;
+        List<String> units = HrScopeKeys.callerOrgUnits(ctx.caller());
+        return units.isEmpty() ? null : units.get(0);
     }
 
     private static void requireName(String name) {

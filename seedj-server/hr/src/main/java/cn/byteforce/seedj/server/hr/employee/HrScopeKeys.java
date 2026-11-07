@@ -1,5 +1,6 @@
 package cn.byteforce.seedj.server.hr.employee;
 
+import cn.byteforce.seedj.core.security.Caller;
 import cn.byteforce.seedj.core.security.ScopeKey;
 
 import java.util.List;
@@ -18,6 +19,13 @@ public final class HrScopeKeys {
     public static final ScopeKey<List<String>> ORG_UNITS =
             new ScopeKey<>("org.units", LIST_STRING);
 
+    private static final String ORG_UNITS_ATTRIBUTE = "org_units";
+
     private HrScopeKeys() {
+    }
+
+    /** 从调用方属性解析组织单元；缺失或非集合时返回空列表。 */
+    public static List<String> callerOrgUnits(Caller caller) {
+        return caller.attributeStrings(ORG_UNITS_ATTRIBUTE);
     }
 }

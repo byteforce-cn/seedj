@@ -14,8 +14,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import java.util.Collection;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -94,12 +92,8 @@ public class HrEmployeeConfiguration {
      */
     @Bean
     public ContextWriter hrOrgUnitContextWriter() {
-        return (ContextSink sink, Caller caller) -> {
-            Object raw = caller.attributes().get("org_units");
-            List<String> units = raw instanceof Collection<?> values
-                    ? values.stream().map(String::valueOf).toList() : List.of();
-            sink.put(HrScopeKeys.ORG_UNITS, units);
-        };
+        return (ContextSink sink, Caller caller) ->
+                sink.put(HrScopeKeys.ORG_UNITS, HrScopeKeys.callerOrgUnits(caller));
     }
 
     /**
