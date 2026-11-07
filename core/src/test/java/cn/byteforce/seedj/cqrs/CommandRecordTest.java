@@ -130,4 +130,92 @@ class CommandRecordTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("fingerprint");
     }
+
+    @Test
+    @DisplayName("幂等键长度上限与空白校验")
+    void rejectsIllegalIdempotencyKey() {
+        assertThatThrownBy(() -> CommandRecord.pending(ID, "hr.employee.onboard", NOW, ISSUER,
+                Map.of(), " ", FINGERPRINT, NOW))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("idempotencyKey must not be blank");
+        assertThatThrownBy(() -> CommandRecord.pending(ID, "hr.employee.onboard", NOW, ISSUER,
+                Map.of(), "k".repeat(256), FINGERPRINT, NOW))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("longer than 255");
+    }
+
+    @Test
+    @DisplayName("pending 记录必须带租约且不得携带终态字段")
+    void pendingRecordGuards() {
+        assertThatThrownBy(() -> new CommandRecord(ID, "hr.employee.onboard", NOW, ISSUER,
+                Map.of(), "key-1", FINGERPRINT, CommandStatus.PENDING, null, null,
+                List.of(), null, null, NOW, null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("pending command requires a lease");
+        assertThatThrownBy(() -> new CommandRecord(ID, "hr.employee.onboard", NOW, ISSUER,
+                Map.of(), "key-1", FINGERPRINT, CommandStatus.PENDING, null, null,
+                List.of(), LOCATOR, null, NOW, NOW))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("pending command must not carry locator or version");
+        assertThatThrownBy(() -> new CommandRecord(ID, "hr.employee.onboard", NOW, ISSUER,
+                Map.of(), "key-1", FINGERPRINT, CommandStatus.PENDING, "EIS-400-003", "why",
+                List.of(), null, null, NOW, NOW))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("pending command must not carry rejection fields");
+    }
+
+    @Test
+    @DisplayName("accepted 记录拒绝零版本与拒绝字段")
+    void acceptedRecordGuards() {
+        assertThatThrownBy(() -> new CommandRecord(ID, "hr.employee.onboard", NOW, ISSUER,
+                Map.of(), "key-1", FINGERPRINT, CommandStatus.ACCEPTED, null, null,
+                List.of(), LOCATOR, 0L, NOW, NOW))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("version >= 1");
+        assertThatThrownBy(() -> new CommandRecord(ID, "hr.employee.onboard", NOW, ISSUER,
+                Map.of(), "key-1", FINGERPRINT, CommandStatus.ACCEPTED, "EIS-400-003", null,
+                List.of(), LOCATOR, 1L, NOW, NOW))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("must not carry rejection fields");
+    }
+
+    @Test
+    @DisplayName("rejected 记录拒绝 locator/version、非契约错误码与空原因")
+    void rejectedRecordGuards() {
+        assertThatThrownBy(() -> new CommandRecord(ID, "hr.employee.onboard", NOW, ISSUER,
+                Map.of(), "key-1", FINGERPRINT, CommandStatus.REJECTED, "EIS-400-003", "why",
+                List.of(), LOCATOR, null, NOW, NOW))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("must not carry locator or version");
+        assertThatThrownBy(() -> new CommandRecord(ID, "hr.employee.onboard", NOW, ISSUER,
+                Map.of(), "key-1", FINGERPRINT, CommandStatus.REJECTED, "OPAQUE-1", "why",
+                List.of(), null, null, NOW, NOW))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("contract error code");
+        assertThatThrownBy(() -> new CommandRecord(ID, "hr.employee.onboard", NOW, ISSUER,
+                Map.of(), "key-1", FINGERPRINT, CommandStatus.REJECTED, null, null,
+                List.of(), null, null, NOW, NOW))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("contract error code");
+        assertThatThrownBy(() -> new CommandRecord(ID, "hr.employee.onboard", NOW, ISSUER,
+                Map.of(), "key-1", FINGERPRINT, CommandStatus.REJECTED, "EIS-400-003", " ",
+                List.of(), null, null, NOW, NOW))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("rejection reason");
+    }
+
+    @Test
+    @DisplayName("租约为空时保留 null，非空时截断到微秒")
+    void leaseIsOptionalAndTruncated() {
+        Instant lease = NOW.plus(1, ChronoUnit.MICROS).plusNanos(999);
+        CommandRecord record = CommandRecord.pending(ID, "hr.employee.onboard", NOW, ISSUER,
+                Map.of(), "key-1", FINGERPRINT, NOW, lease);
+        CommandRecord withoutLease = new CommandRecord(ID, "hr.employee.onboard", NOW, ISSUER,
+                Map.of(), "key-1", FINGERPRINT, CommandStatus.ACCEPTED, null, null,
+                List.of(), LOCATOR, 1L, NOW, null);
+
+        assertThat(record.leaseUntil()).isEqualTo(NOW.plus(1, ChronoUnit.MICROS));
+        assertThat(withoutLease.leaseUntil()).isNull();
+        assertThat(withoutLease.eventIds()).isEmpty();
+    }
 }

@@ -271,6 +271,244 @@ class CommandRuntimeTest {
         assertThat(commands.records.get(0).status()).isEqualTo(CommandStatus.REJECTED);
     }
 
+    @Test
+    void insertRaceReplaysWinnerAndReportsOriginalResult() {
+        CountingHandler handler = new CountingHandler("D01", false);
+        CommandRecord winner = CommandRecord.pending(UUID.randomUUID(), "probe.update", NOW,
+                ACTOR, Map.of("employee_no", "E-1"), "key-1", "a".repeat(64), NOW)
+                .accepted(ID, 2L, List.of());
+        RacingCommands commands = new RacingCommands(winner);
+        CommandRuntime runtime = runtime(commands, new FakeObjects(), SNAKE);
+
+        assertThatThrownBy(() -> runtime.execute(submission(), registration(handler), CALLER,
+                ScopePredicate.all()))
+                .isInstanceOfSatisfying(ContractException.class, error -> {
+                    assertThat(error.code()).isEqualTo(ContractErrorCode.IDEMPOTENCY_CONFLICT);
+                    assertThat(error.details())
+                            .containsEntry("original_command_id", winner.id().toString());
+                    assertThat(error.details().get("original_result")).isInstanceOf(Map.class);
+                });
+        assertThat(handler.decideCalls).isZero();
+    }
+
+    @Test
+    void conflictWithRejectedWinnerReportsRejectionDetail() {
+        CountingHandler rejecting = new CountingHandler("D01", false) {
+            @Override
+            public AppendRequest decide(Payload command, CommandContext ctx) {
+                throw new ContractException(ContractErrorCode.COMMAND_REJECTED, "nope");
+            }
+        };
+        CommandRuntime runtime = runtime(new FakeCommands(), new FakeObjects(), SNAKE);
+        assertThatThrownBy(() -> runtime.execute(submission(), registration(rejecting), CALLER,
+                ScopePredicate.all())).isInstanceOf(ContractException.class);
+        java.util.Map<String, Object> otherPayload = new LinkedHashMap<>();
+        otherPayload.put("employee_no", "E-2");
+        CommandSubmission changed = new CommandSubmission("probe.update", otherPayload, "key-1",
+                List.of(), ACTOR);
+
+        assertThatThrownBy(() -> runtime.execute(changed, registration(rejecting), CALLER,
+                ScopePredicate.all()))
+                .isInstanceOfSatisfying(ContractException.class, error -> {
+                    assertThat(error.code()).isEqualTo(ContractErrorCode.IDEMPOTENCY_CONFLICT);
+                    assertThat(error.details()).containsKeys("original_result");
+                    assertThat(error.details().get("original_result").toString())
+                            .contains("rejected")
+                            .contains("EIS-400-");
+                });
+    }
+
+    @Test
+    void nullAppendRequestAbandonsPendingRecord() {
+        CountingHandler handler = new CountingHandler("D01", false) {
+            @Override
+            public AppendRequest decide(Payload command, CommandContext ctx) {
+                return null;
+            }
+        };
+        FakeCommands commands = new FakeCommands();
+        CommandRuntime runtime = runtime(commands, new FakeObjects(), SNAKE);
+
+        assertThatThrownBy(() -> runtime.execute(submission(), registration(handler), CALLER,
+                ScopePredicate.all()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("null append request");
+        assertThat(commands.records).isEmpty();
+    }
+
+    @Test
+    void decodeFailureIsInvalidPayload() {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("employee_no", List.of(1, 2, 3));
+        CommandSubmission submission = new CommandSubmission("probe.update", payload, "key-1",
+                List.of(), ACTOR);
+        CommandRuntime runtime = runtime(new FakeCommands(), new FakeObjects(), SNAKE);
+
+        assertThatThrownBy(() -> runtime.execute(submission,
+                registration(new CountingHandler("D01", false)), CALLER, ScopePredicate.all()))
+                .isInstanceOfSatisfying(ContractException.class, error -> {
+                    assertThat(error.code()).isEqualTo(ContractErrorCode.INVALID_PAYLOAD);
+                    assertThat(error.reason()).contains("invalid payload for probe.update");
+                });
+    }
+
+    @Test
+    void validatorIllegalArgumentBecomesInvalidPayload() {
+        CommandRegistration registration = new CommandRegistration(
+                CommandDescriptor.builder().type("probe.update").objectType("probe")
+                        .payloadType(Payload.class).permission("probe.write")
+                        .validator(command -> {
+                            throw new IllegalArgumentException("employee_no is required");
+                        }).build(),
+                new CountingHandler("D01", false), SCHEMA);
+        CommandRuntime runtime = runtime(new FakeCommands(), new FakeObjects(), SNAKE);
+
+        assertThatThrownBy(() -> runtime.execute(submission(), registration, CALLER,
+                ScopePredicate.all()))
+                .isInstanceOfSatisfying(ContractException.class, error -> {
+                    assertThat(error.code()).isEqualTo(ContractErrorCode.INVALID_PAYLOAD);
+                    assertThat(error.reason()).isEqualTo("employee_no is required");
+                });
+    }
+
+    @Test
+    void targetIdFailureAndNullBothMeanInvalidPayload() {
+        CommandRuntime runtime = runtime(new FakeCommands(), new FakeObjects(), SNAKE);
+        CountingHandler throwing = new CountingHandler("D01", false) {
+            @Override
+            public UUID targetId(Payload command) {
+                throw new IllegalStateException("cannot resolve");
+            }
+        };
+        CountingHandler nullReturning = new CountingHandler("D01", false) {
+            @Override
+            public UUID targetId(Payload command) {
+                return null;
+            }
+        };
+
+        assertThatThrownBy(() -> runtime.execute(submission(), registration(throwing), CALLER,
+                ScopePredicate.all()))
+                .isInstanceOfSatisfying(ContractException.class, error -> {
+                    assertThat(error.code()).isEqualTo(ContractErrorCode.INVALID_PAYLOAD);
+                    assertThat(error.reason()).isEqualTo("command target is required");
+                });
+        assertThatThrownBy(() -> runtime.execute(submission(), registration(nullReturning),
+                CALLER, ScopePredicate.all()))
+                .isInstanceOfSatisfying(ContractException.class, error ->
+                        assertThat(error.reason()).isEqualTo("command target is required"));
+    }
+
+    @Test
+    void eventWithoutSubjectsHasNoPartitionKey() {
+        CountingHandler handler = new CountingHandler("D01", false) {
+            @Override
+            public List<CommandEvent> events(Payload command, AppendResult result,
+                                             CommandContext ctx) {
+                return List.of(new CommandEvent(UUID.randomUUID(), "probe.updated", ctx.now(),
+                        ctx.now(), ctx.actor(), List.of(), Map.of(), "probe.update:1:0", 1));
+            }
+        };
+        List<cn.byteforce.seedj.outbox.OutboxRecord> written = new ArrayList<>();
+        CommandRuntime runtime = new CommandRuntime(new CommandRuntime.Options(
+                TransactionRunner.direct(), LockProvider.disabled(), Duration.ofSeconds(30),
+                new TestClock(NOW), () -> UUID.randomUUID(), new FakeCommands(), new FakeObjects(),
+                written::add, TemporalCommandAudit.noop(), SNAKE));
+
+        runtime.execute(submission(), registration(handler), CALLER, ScopePredicate.all());
+
+        assertThat(written).singleElement()
+                .satisfies(record -> assertThat(record.partitionKey()).isNull());
+    }
+
+    @Test
+    void rejectionPersistenceFailureIsSuppressed() {
+        CountingHandler handler = new CountingHandler("D01", false) {
+            @Override
+            public AppendRequest decide(Payload command, CommandContext ctx) {
+                throw new ContractException(ContractErrorCode.COMMAND_REJECTED, "nope");
+            }
+        };
+        FakeCommands commands = new FakeCommands() {
+            @Override
+            public void complete(CommandRecord record) {
+                throw new IllegalStateException("store down");
+            }
+        };
+        CommandRuntime runtime = runtime(commands, new FakeObjects(), SNAKE);
+
+        assertThatThrownBy(() -> runtime.execute(submission(), registration(handler), CALLER,
+                ScopePredicate.all()))
+                .isInstanceOfSatisfying(ContractException.class, error -> {
+                    assertThat(error.code()).isEqualTo(ContractErrorCode.COMMAND_REJECTED);
+                    assertThat(error.getSuppressed()).hasSize(1);
+                });
+    }
+
+    @Test
+    void runtimeExposesClockAndIdGenerator() {
+        AtomicLong sequence = new AtomicLong();
+        CommandRuntime runtime = new CommandRuntime(new CommandRuntime.Options(
+                TransactionRunner.direct(), LockProvider.disabled(), null, new TestClock(NOW),
+                () -> new UUID(0, sequence.incrementAndGet()), new FakeCommands(),
+                new FakeObjects(), OutboxWriter.discard(), TemporalCommandAudit.noop()));
+
+        assertThat(runtime.now()).isEqualTo(NOW);
+        assertThat(runtime.newId()).isEqualTo(new UUID(0, 1));
+    }
+
+    @Test
+    void optionsDefaultsAndGuards() {
+        CommandRuntime.Options defaults = new CommandRuntime.Options(null, null, null,
+                new TestClock(NOW), UUID::randomUUID, new FakeCommands(), new FakeObjects(),
+                OutboxWriter.discard(), TemporalCommandAudit.noop(), null, null);
+
+        assertThat(defaults.lockTtl()).isEqualTo(Duration.ofSeconds(30));
+        assertThat(defaults.pendingLease()).isEqualTo(Duration.ofSeconds(60));
+        assertThat(defaults.jsonMapper()).isNotNull();
+        assertThat(CommandRuntime.Options.forTests(new TestClock(NOW), UUID::randomUUID,
+                new FakeCommands(), new FakeObjects()).lockTtl())
+                .isEqualTo(Duration.ofSeconds(30));
+
+        assertThatThrownBy(() -> new CommandRuntime.Options(TransactionRunner.direct(),
+                LockProvider.disabled(), Duration.ZERO, new TestClock(NOW), UUID::randomUUID,
+                new FakeCommands(), new FakeObjects(), OutboxWriter.discard(),
+                TemporalCommandAudit.noop()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("lockTtl must be positive");
+        assertThatThrownBy(() -> new CommandRuntime.Options(TransactionRunner.direct(),
+                LockProvider.disabled(), Duration.ofSeconds(1), new TestClock(NOW),
+                UUID::randomUUID, new FakeCommands(), new FakeObjects(), OutboxWriter.discard(),
+                TemporalCommandAudit.noop(), SNAKE, Duration.ofSeconds(-1)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("pendingLease must be positive");
+        assertThatThrownBy(() -> new CommandRuntime.Options(TransactionRunner.direct(),
+                LockProvider.disabled(), Duration.ofSeconds(1), null, UUID::randomUUID,
+                new FakeCommands(), new FakeObjects(), OutboxWriter.discard(),
+                TemporalCommandAudit.noop()))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    static final class RacingCommands extends FakeCommands {
+
+        private final CommandRecord winner;
+
+        RacingCommands(CommandRecord winner) {
+            this.winner = winner;
+        }
+
+        @Override
+        public Optional<CommandRecord> findByIdempotencyKey(UUID issuer, String idempotencyKey) {
+            return records.isEmpty() ? Optional.empty() : Optional.of(winner);
+        }
+
+        @Override
+        public boolean insert(CommandRecord record) {
+            records.add(winner);
+            return false;
+        }
+    }
+
     private static TemporalRow row(String unit) {
         return new TemporalRow("probe", new ObjectVersion(ID, 1, NOW, null, NOW, null,
                 ACTOR, NOW, null, null), Map.of("org_unit_id", unit));
@@ -321,7 +559,7 @@ class CommandRuntimeTest {
     record Payload(String employeeNo, String idNumber) {
     }
 
-    static final class FakeCommands implements CommandStore {
+    static class FakeCommands implements CommandStore {
 
         final List<CommandRecord> records = new ArrayList<>();
 
@@ -372,7 +610,7 @@ class CommandRuntimeTest {
         }
     }
 
-    static final class FakeObjects implements TemporalStore {
+    static class FakeObjects implements TemporalStore {
 
         final Map<UUID, TemporalRow> current = new LinkedHashMap<>();
 

@@ -90,4 +90,125 @@ class IamTotpServiceTest {
 
         assertThat(service.status(alice.id()).enabled()).isFalse();
     }
+
+    @Test
+    void enrollTwiceIsRejectedOnceConfirmed() {
+        String code = TotpGenerator.generate(
+                Base32.decode(service.enroll(alice.id()).secret()), clock.instant(), 6, 30,
+                TotpAlgorithm.SHA1);
+        service.confirm(alice.id(), code);
+
+        assertThatThrownBy(() -> service.enroll(alice.id()))
+                .isInstanceOf(IamException.class)
+                .hasMessageContaining("already enabled")
+                .extracting(exception -> ((IamException) exception).getCode())
+                .isEqualTo(cn.byteforce.seedj.iam.IamErrorCode.TOTP_ALREADY_ENROLLED);
+    }
+
+    @Test
+    void confirmTwiceIsRejectedAfterTheFirstSuccess() {
+        String code = TotpGenerator.generate(
+                Base32.decode(service.enroll(alice.id()).secret()), clock.instant(), 6, 30,
+                TotpAlgorithm.SHA1);
+        service.confirm(alice.id(), code);
+
+        assertThatThrownBy(() -> service.confirm(alice.id(), code))
+                .isInstanceOf(IamException.class)
+                .hasMessageContaining("already enabled")
+                .extracting(exception -> ((IamException) exception).getCode())
+                .isEqualTo(cn.byteforce.seedj.iam.IamErrorCode.TOTP_ALREADY_ENROLLED);
+    }
+
+    @Test
+    void confirmRequiresAnEnrollmentAndAValidCode() {
+        assertThatThrownBy(() -> service.confirm(alice.id(), "123456"))
+                .isInstanceOf(IamException.class)
+                .hasMessageContaining("has not started");
+
+        service.enroll(alice.id());
+        assertThatThrownBy(() -> service.confirm(alice.id(), "000000"))
+                .isInstanceOf(IamException.class)
+                .hasMessage("invalid TOTP code")
+                .extracting(exception -> ((IamException) exception).getCode())
+                .isEqualTo(cn.byteforce.seedj.iam.IamErrorCode.TOTP_INVALID);
+        assertThat(service.isEnabled(alice.id())).isFalse();
+        assertThat(service.status(alice.id()).enabled()).isFalse();
+    }
+
+    @Test
+    void verifyRequiresConfirmedEnrollmentAndRejectsInvalidCodes() {
+        assertThatThrownBy(() -> service.verify(alice.id(), "123456"))
+                .isInstanceOf(IamException.class)
+                .hasMessageContaining("not enabled");
+
+        String code = TotpGenerator.generate(
+                Base32.decode(service.enroll(alice.id()).secret()), clock.instant(), 6, 30,
+                TotpAlgorithm.SHA1);
+        service.confirm(alice.id(), code);
+
+        assertThatThrownBy(() -> service.verify(alice.id(), "000000"))
+                .isInstanceOf(IamException.class)
+                .hasMessage("invalid TOTP code")
+                .extracting(exception -> ((IamException) exception).getCode())
+                .isEqualTo(cn.byteforce.seedj.iam.IamErrorCode.TOTP_INVALID);
+    }
+
+    @Test
+    void unknownUsersAreRejectedByEveryOperation() {
+        for (Runnable operation : new Runnable[] {
+                () -> service.enroll("ghost"),
+                () -> service.confirm("ghost", "123456"),
+                () -> service.verify("ghost", "123456"),
+                () -> service.verifyRecoveryCode("ghost", "code"),
+                () -> service.disable("ghost")}) {
+            assertThatThrownBy(operation::run)
+                    .isInstanceOf(IamException.class)
+                    .hasMessage("user not found: ghost")
+                    .extracting(exception -> ((IamException) exception).getCode())
+                    .isEqualTo(cn.byteforce.seedj.iam.IamErrorCode.USER_NOT_FOUND);
+        }
+    }
+
+    @Test
+    void toleratesMissingOrFailingAuditSinkAndNullClock() {
+        IamTotpService withoutAudit = new IamTotpService(totp, users, protector, hasher, properties,
+                null, null, idGenerator);
+        cn.byteforce.seedj.core.security.SecurityAuditSink failing = event -> {
+            throw new IllegalStateException("audit down");
+        };
+        IamTotpService withFailingAudit = new IamTotpService(totp, users, protector, hasher,
+                properties, failing, clock, idGenerator);
+
+        var enrollment = withoutAudit.enroll(alice.id());
+        String code = TotpGenerator.generate(Base32.decode(enrollment.secret()), Instant.now(), 6,
+                30, TotpAlgorithm.SHA1);
+
+        assertThat(withoutAudit.confirm(alice.id(), code)).hasSize(3);
+        assertThat(withoutAudit.status(alice.id()).enabled()).isTrue();
+
+        // A failing audit sink must not turn disable into an error.
+        withFailingAudit.disable(alice.id());
+
+        assertThat(withoutAudit.status(alice.id()).enabled()).isFalse();
+    }
+
+    @Test
+    void statusCountsOnlyUnusedRecoveryCodes() {
+        String code = TotpGenerator.generate(
+                Base32.decode(service.enroll(alice.id()).secret()), clock.instant(), 6, 30,
+                TotpAlgorithm.SHA1);
+        var codes = service.confirm(alice.id(), code);
+
+        assertThat(service.status(alice.id()).recoveryCodesRemaining()).isEqualTo(3);
+        service.verifyRecoveryCode(alice.id(), codes.get(0));
+        assertThat(service.status(alice.id()).recoveryCodesRemaining()).isEqualTo(2);
+        assertThatThrownBy(() -> service.verifyRecoveryCode(alice.id(), "INVALID-CODE"))
+                .isInstanceOf(IamException.class)
+                .hasMessage("invalid recovery code")
+                .extracting(exception -> ((IamException) exception).getCode())
+                .isEqualTo(cn.byteforce.seedj.iam.IamErrorCode.RECOVERY_CODE_INVALID);
+        assertThatThrownBy(() -> service.verifyRecoveryCode(alice.id(), null))
+                .isInstanceOf(IamException.class)
+                .hasMessage("invalid recovery code");
+    }
 }

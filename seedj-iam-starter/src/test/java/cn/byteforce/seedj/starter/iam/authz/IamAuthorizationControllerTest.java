@@ -1,11 +1,19 @@
 package cn.byteforce.seedj.starter.iam.authz;
 
+import cn.byteforce.seedj.iam.authz.AttributeLookup;
 import cn.byteforce.seedj.iam.authz.AttributeSnapshot;
+import cn.byteforce.seedj.iam.authz.AttributeState;
+import cn.byteforce.seedj.iam.authz.IamCondition;
+import cn.byteforce.seedj.iam.authz.IamConditionOperator;
+import cn.byteforce.seedj.iam.authz.IamConditionTerm;
+import cn.byteforce.seedj.iam.authz.IamPermissionCondition;
 import cn.byteforce.seedj.iam.authz.IamBinding;
 import cn.byteforce.seedj.iam.authz.SodRuleSet;
 
 import cn.byteforce.seedj.core.security.Caller;
 import cn.byteforce.seedj.core.security.CallerProvider;
+import cn.byteforce.seedj.iam.IamErrorCode;
+import cn.byteforce.seedj.iam.IamException;
 import cn.byteforce.seedj.iam.IamRole;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamAttributeSource;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamAuthorizationRepository;
@@ -23,6 +31,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -150,6 +160,152 @@ class IamAuthorizationControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.attribute_state").value("fresh"))
                 .andExpect(jsonPath("$.snapshot.primary_position.grade").value("P5"));
+    }
+
+    @Test
+    @DisplayName("/resolve 缺 principal 或 as_of 报 SCIM_BAD_REQUEST")
+    void resolveRequiresPrincipalAndAsOf() {
+        IamAuthorizationController controller = new IamAuthorizationController(service,
+                callerProvider(serviceCaller()));
+
+        assertThatThrownBy(() -> controller.resolve(new IamAuthorizationDtos.ResolveRequest(
+                " ", OCT15, null, null)))
+                .isInstanceOfSatisfying(IamException.class, exception ->
+                        assertThat(exception.getCode()).isEqualTo(IamErrorCode.SCIM_BAD_REQUEST));
+        assertThatThrownBy(() -> controller.resolve(new IamAuthorizationDtos.ResolveRequest(
+                "away", null, null, null)))
+                .isInstanceOfSatisfying(IamException.class, exception ->
+                        assertThat(exception.getCode()).isEqualTo(IamErrorCode.SCIM_BAD_REQUEST));
+    }
+
+    @Test
+    @DisplayName("/resolve 未给 scope 时按空作用域解析")
+    void resolveWithoutScopeUsesEmptyScope() {
+        IamAuthorizationController controller = new IamAuthorizationController(service,
+                callerProvider(serviceCaller()));
+
+        IamAuthorizationDtos.ResolveResponse response = controller.resolve(
+                new IamAuthorizationDtos.ResolveRequest("away", OCT15, null, null));
+
+        assertThat(response.roles()).containsExactly("approver");
+        assertThat(response.sodWarnings()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("/check 缺 principal/permission/as_of 报 SCIM_BAD_REQUEST")
+    void checkRequiresPrincipalPermissionAndAsOf() {
+        IamAuthorizationController controller = new IamAuthorizationController(service,
+                callerProvider(serviceCaller()));
+
+        assertThatThrownBy(() -> controller.check(new IamAuthorizationDtos.CheckRequest(
+                "away", " ", OCT15, null)))
+                .isInstanceOfSatisfying(IamException.class, exception ->
+                        assertThat(exception.getCode()).isEqualTo(IamErrorCode.SCIM_BAD_REQUEST));
+        assertThatThrownBy(() -> controller.check(new IamAuthorizationDtos.CheckRequest(
+                "away", "purchase.request.approve", null, null)))
+                .isInstanceOfSatisfying(IamException.class, exception ->
+                        assertThat(exception.getCode()).isEqualTo(IamErrorCode.SCIM_BAD_REQUEST));
+    }
+
+    @Test
+    @DisplayName("/check 使用客户端提供的快照与状态")
+    void checkUsesProvidedSnapshotAndState() {
+        IamAuthorizationController controller = new IamAuthorizationController(
+                new IamContractAuthorizationService(bindings, roles, attributes,
+                        List.of(new IamPermissionCondition("purchase.request.approve",
+                                new IamCondition("all", List.of(new IamConditionTerm(
+                                        "primary_position.grade", IamConditionOperator.IN,
+                                        List.of("P5")))))),
+                        SodRuleSet.defaults()),
+                callerProvider(serviceCaller()));
+
+        IamAuthorizationDtos.CheckResponse matched = controller.check(
+                new IamAuthorizationDtos.CheckRequest("away", "purchase.request.approve",
+                        OCT15, new IamAuthorizationDtos.AttributeContext(OCT15, "caller",
+                                "fresh", Map.of("primary_position", Map.of("grade", "P5")))));
+        IamAuthorizationDtos.CheckResponse stale = controller.check(
+                new IamAuthorizationDtos.CheckRequest("away", "purchase.request.approve",
+                        OCT15, new IamAuthorizationDtos.AttributeContext(OCT15, "caller",
+                                "stale", Map.of())));
+
+        assertThat(matched.allowed()).isTrue();
+        assertThat(matched.attributeState()).isEqualTo("fresh");
+        assertThat(stale.allowed()).isFalse();
+        assertThat(stale.reasonCode()).isEqualTo("ATTRIBUTE_STALE");
+        assertThat(stale.attributeState()).isEqualTo("stale");
+    }
+
+    @Test
+    @DisplayName("/check 未知 attribute_state 按 MISSING 失败关闭")
+    void checkUnknownAttributeStateIsMissing() {
+        IamAuthorizationController controller = new IamAuthorizationController(
+                new IamContractAuthorizationService(bindings, roles, attributes,
+                        List.of(new IamPermissionCondition("purchase.request.approve",
+                                new IamCondition("all", List.of(new IamConditionTerm(
+                                        "primary_position.grade", IamConditionOperator.IN,
+                                        List.of("P5")))))),
+                        SodRuleSet.defaults()),
+                callerProvider(serviceCaller()));
+
+        IamAuthorizationDtos.CheckResponse response = controller.check(
+                new IamAuthorizationDtos.CheckRequest("away", "purchase.request.approve",
+                        OCT15, new IamAuthorizationDtos.AttributeContext(OCT15, "caller",
+                                "not-a-state", Map.of())));
+
+        assertThat(response.allowed()).isFalse();
+        assertThat(response.reasonCode()).isEqualTo("ATTRIBUTE_MISSING");
+        assertThat(response.attributeState()).isEqualTo("missing");
+    }
+
+    @Test
+    @DisplayName("属性状态 fresh 但快照为空时返回 409")
+    void attributesWithoutSnapshotIs409() {
+        IamContractAuthorizationService blank = new IamContractAuthorizationService(bindings,
+                roles, (principal, asOf, recordedAsOf) -> new AttributeLookup(
+                        AttributeState.FRESH, null), List.of(), SodRuleSet.defaults());
+        MockMvc blankMvc = MockMvcBuilders.standaloneSetup(new IamAuthorizationController(blank,
+                callerProvider(serviceCaller()))).build();
+
+        try {
+            blankMvc.perform(get("/principals/worker/attributes")
+                            .param("as_of", "2026-10-15T12:00:00Z"))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.reason_code").value("ATTRIBUTE_MISSING"));
+        } catch (Exception error) {
+            throw new AssertionError(error);
+        }
+    }
+
+    @Test
+    @DisplayName("iam.attributes.read 同样可读属性，缺省 attribute_state 视为 fresh")
+    void iamAttributesPermissionAndDefaultState() {
+        Caller iamService = new Caller("svc", "svc", "default", Set.of(),
+                Set.of("iam.attributes.read"), Set.of(), Set.of("pwd"), Caller.DEFAULT_ACR,
+                Map.of());
+        IamContractAuthorizationService service = new IamContractAuthorizationService(bindings,
+                roles, attributes, List.of(new IamPermissionCondition(
+                        "purchase.request.approve", new IamCondition("all", List.of(
+                                new IamConditionTerm("primary_position.grade",
+                                        IamConditionOperator.IN, List.of("P5")))))),
+                SodRuleSet.defaults());
+        IamAuthorizationController controller = new IamAuthorizationController(service,
+                callerProvider(iamService));
+
+        org.springframework.http.ResponseEntity<?> response = controller.attributes("worker",
+                OCT15, null);
+        IamAuthorizationDtos.CheckResponse check = controller.check(
+                new IamAuthorizationDtos.CheckRequest("away", "purchase.request.approve",
+                        OCT15, new IamAuthorizationDtos.AttributeContext(OCT15, "caller",
+                                null, Map.of("primary_position", Map.of("grade", "P5")))));
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        assertThat(check.allowed()).isTrue();
+        assertThat(check.attributeState()).isEqualTo("fresh");
+    }
+
+    private static Caller serviceCaller() {
+        return new Caller("svc", "svc", "default", Set.of(), Set.of("hr.attributes.read"),
+                Set.of(), Set.of("pwd"), Caller.DEFAULT_ACR, Map.of());
     }
 
     @SuppressWarnings("unchecked")
