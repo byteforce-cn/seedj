@@ -130,6 +130,9 @@ public final class CommandController {
         if (record.rejectionCode() != null) {
             body.put("code", record.rejectionCode());
         }
+        if (record.targetRef() != null) {
+            body.put("target_ref", record.targetRef());
+        }
         body.put("issued_at", record.issuedAt().toString());
         return ResponseEntity.ok(body);
     }
@@ -168,7 +171,12 @@ public final class CommandController {
         body.put("command_id", receipt.commandId().toString());
         body.put("status", "accepted");
         body.put("event_ids", receipt.eventIds().stream().map(UUID::toString).toList());
-        body.put("locator", receipt.locator().toString());
+        if (receipt.locator() != null) {
+            body.put("locator", receipt.locator().toString());
+        }
+        if (receipt.targetRef() != null) {
+            body.put("target_ref", receipt.targetRef());
+        }
         body.put("version", receipt.version());
         return body;
     }

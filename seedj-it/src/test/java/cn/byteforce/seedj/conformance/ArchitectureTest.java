@@ -58,7 +58,7 @@ class ArchitectureTest {
     }
 
     @Test
-    @DisplayName("通用命令入口只暴露双时间轴默认路径，不依赖事件溯源 CommandAgent")
+    @DisplayName("通用命令入口不直接依赖事件溯源实现；两条路径都经 CommandCatalog")
     void genericCommandEntrypointDoesNotUseEventSourcedAgent() {
         assertNoDependencies(
                 "generic-command-entrypoint-uses-temporal-path",
