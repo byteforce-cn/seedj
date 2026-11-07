@@ -18,12 +18,15 @@ Seedj 的开发者文档。第一次来，从[快速开始](quickstart.md)开始
 
 ## 装配与集成
 
+- [模块与装配](modules.md)：模块职责与依赖方向
 - [业务装配](biz-starter.md)：命令、查询、审计、事件总线
 - [IAM 装配](iam-starter.md)：OIDC / SCIM / RBAC / ABAC
 - [基础设施 SPI](spi.md)：新增适配器的契约
+- [配置说明](configuration.md)：profile 与常用配置项
 
 ## 边界与决策
 
 - [决策指南](decision-guide.md)：默认路径 vs 事件溯源路径
 - [API 兼容性](api-compatibility.md)：兼容承诺与判定口径
+- [已知限制](known-limitations.md)：生产可用边界
 - [安全](security.md)：认证、授权与数据范围

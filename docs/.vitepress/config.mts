@@ -15,6 +15,7 @@ export default defineConfig({
   themeConfig: {
     nav: [
       { text: "指南", link: "/guide/" },
+      { text: "模块", link: "/guide/modules" },
       { text: "命令契约", link: "/guide/command-contract" },
       { text: "测试", link: "/guide/testing" },
       { text: "兼容性", link: "/guide/api-compatibility" },
@@ -34,7 +35,8 @@ export default defineConfig({
           text: "业务开发",
           items: [
             { text: "业务开发手册", link: "/guide/cookbook" },
-            { text: "命令契约", link: "/guide/command-contract" },
+            { text: "模块", link: "/guide/modules" },
+      { text: "命令契约", link: "/guide/command-contract" },
             { text: "读模型", link: "/guide/read-model" },
             { text: "错误目录", link: "/guide/errors" },
             { text: "测试", link: "/guide/testing" },
@@ -43,9 +45,11 @@ export default defineConfig({
         {
           text: "装配与集成",
           items: [
+            { text: "模块与装配", link: "/guide/modules" },
             { text: "业务装配", link: "/guide/biz-starter" },
             { text: "IAM 装配", link: "/guide/iam-starter" },
             { text: "基础设施 SPI", link: "/guide/spi" },
+            { text: "配置说明", link: "/guide/configuration" },
           ],
         },
         {
@@ -53,8 +57,13 @@ export default defineConfig({
           items: [
             { text: "决策指南", link: "/guide/decision-guide" },
             { text: "API 兼容性", link: "/guide/api-compatibility" },
+            { text: "已知限制", link: "/guide/known-limitations" },
             { text: "安全", link: "/guide/security" },
           ],
+        },
+        {
+          text: "参考",
+          items: [{ text: "FAQ", link: "/faq" }],
         },
       ],
     },
