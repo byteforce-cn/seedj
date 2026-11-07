@@ -2,6 +2,7 @@ package cn.byteforce.seedj.module;
 
 import cn.byteforce.seedj.core.security.ScopeKey;
 import cn.byteforce.seedj.core.security.ScopeKeyCatalog;
+import cn.byteforce.seedj.core.utils.FieldNames;
 import cn.byteforce.seedj.cqrs.CommandDescriptor;
 import cn.byteforce.seedj.cqrs.CommandHandler;
 import cn.byteforce.seedj.cqrs.CommandPayloadRedactor;
@@ -132,9 +133,10 @@ public final class ObjectModules {
                         .build();
                 declarations.add(new CommandDeclaration(object.objectType, command.type,
                         command.payloadType, command.permission, command.handler,
-                        command.creates, command.emits, command.commandFields));
+                        command.creates, command.emits, command.commandFields,
+                        command.redactedFields));
                 registrations.add(new CommandRegistration(descriptor, command.handler, schema,
-                        command.commandFields));
+                        command.commandFields, command.redactedFields, command.emits));
             }
             for (QuerySpec query : object.queries) {
                 ObjectSchema fieldSchema = schema;
@@ -174,28 +176,12 @@ public final class ObjectModules {
             allowed.add(field.name());
         }
         for (RecordComponent component : command.payloadType.getRecordComponents()) {
-            String field = snakeCase(component.getName());
+            String field = FieldNames.snakeCase(component.getName());
             if (!allowed.contains(field)) {
                 throw new IllegalArgumentException("command " + command.type
                         + " payload field is not in schema: " + field);
             }
         }
-    }
-
-    private static String snakeCase(String camel) {
-        StringBuilder out = new StringBuilder(camel.length() + 4);
-        for (int i = 0; i < camel.length(); i++) {
-            char c = camel.charAt(i);
-            if (Character.isUpperCase(c)) {
-                if (i > 0) {
-                    out.append('_');
-                }
-                out.append(Character.toLowerCase(c));
-            } else {
-                out.append(c);
-            }
-        }
-        return out.toString();
     }
 
     /** 对象声明。 */
@@ -488,6 +474,8 @@ public final class ObjectModules {
 
         private final Set<String> commandFields = new LinkedHashSet<>();
 
+        private final Set<String> redactedFields = new LinkedHashSet<>();
+
         private CommandValidator validator = CommandValidator.none();
 
         private CommandPayloadRedactor redactor = CommandPayloadRedactor.noop();
@@ -520,6 +508,18 @@ public final class ObjectModules {
 
         public CommandSpec commandField(String field) {
             this.commandFields.add(field);
+            return this;
+        }
+
+        /**
+         * 声明一个命令专用、且不得落命令记录的敏感字段（如原始证件号）。
+         *
+         * @param field 字段名
+         * @return 本命令
+         */
+        public CommandSpec redactedCommandField(String field) {
+            this.commandFields.add(field);
+            this.redactedFields.add(field);
             return this;
         }
 

@@ -97,7 +97,8 @@ public final class CommandRuntime {
         UUID targetId = requireTargetId(registration.handler(), command);
 
         Instant now = options.clock().now();
-        Map<String, Object> storedPayload = descriptor.redactor().redact(submission.payload());
+        Map<String, Object> storedPayload = storedPayload(submission.payload(), schema,
+                registration.redactedFields(), descriptor.redactor());
         CommandRecord pending = CommandRecord.pending(options.idGenerator().id(), submission.type(),
                 now, submission.issuer(), storedPayload, submission.idempotencyKey(),
                 fingerprint, now, now.plus(options.pendingLease()));
@@ -131,8 +132,10 @@ public final class CommandRuntime {
                         requireResultScope(request, writeScope, schema, appendNow,
                                 submission.issuer());
                         AppendResult result = options.temporalStore().append(request);
-                        List<CommandEvent> events = handler(registration).events(command, result,
-                                context);
+                        List<CommandEvent> events = handler(registration)
+                                .events(command, result, context);
+                        requireDeclaredEvents(events, registration.emits());
+                        events = filterEvents(events, schema);
                         List<UUID> eventIds = writeEvents(events);
                         CommandRecord record = pending.accepted(result.appended().version().id(),
                                 result.appended().version().version(), eventIds);
@@ -294,8 +297,46 @@ public final class CommandRuntime {
         return result;
     }
 
-    private List<UUID> writeEvents(List<CommandEvent> events) {
+    /**
+     * 写入命令记录前的载荷收敛：自定义 redactor 先执行，随后无条件剔除 schema writeOnly
+     * 与声明为 redacted 的命令专用字段。业务代码不需要为每条命令手工记住要删哪些键。
+     */
+    private static Map<String, Object> storedPayload(Map<String, Object> payload,
+                                                     ObjectSchema schema,
+                                                     Set<String> redactedFields,
+                                                     CommandPayloadRedactor redactor) {
+        Map<String, Object> redacted = new LinkedHashMap<>(redactor.redact(payload));
+        redacted.keySet().removeAll(schema.writeOnlyFields());
+        redacted.keySet().removeAll(redactedFields);
+        return redacted;
+    }
+
+    private static void requireDeclaredEvents(List<CommandEvent> events, List<String> emits) {
+        if (emits.isEmpty() || events == null) {
+            return;
+        }
+        for (CommandEvent event : events) {
+            if (!emits.contains(event.type())) {
+                throw new IllegalStateException(
+                        "undeclared command event: " + event.type() + "; declared " + emits);
+            }
+        }
+    }
+
+    private static List<CommandEvent> filterEvents(List<CommandEvent> events,
+                                                   ObjectSchema schema) {
         if (events == null || events.isEmpty()) {
+            return List.of();
+        }
+        List<CommandEvent> filtered = new ArrayList<>(events.size());
+        for (CommandEvent event : events) {
+            filtered.add(filterEvent(event, schema));
+        }
+        return List.copyOf(filtered);
+    }
+
+    private List<UUID> writeEvents(List<CommandEvent> events) {
+        if (events.isEmpty()) {
             return List.of();
         }
         Set<String> keys = new HashSet<>();
@@ -309,6 +350,16 @@ public final class CommandRuntime {
             eventIds.add(event.id());
         }
         return List.copyOf(eventIds);
+    }
+
+    private static CommandEvent filterEvent(CommandEvent event, ObjectSchema schema) {
+        Map<String, Object> filtered = schema.eventPayload(event.payload());
+        if (filtered.equals(event.payload())) {
+            return event;
+        }
+        return new CommandEvent(event.id(), event.type(), event.occurredAt(),
+                event.recordedAt(), event.actor(), event.subjects(), filtered,
+                event.idempotencyKey(), event.version());
     }
 
     private void writeOutbox(CommandEvent event) {

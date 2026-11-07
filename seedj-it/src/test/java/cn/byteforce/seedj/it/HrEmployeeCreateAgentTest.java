@@ -18,9 +18,9 @@ import cn.byteforce.seedj.infra.local.cqrs.InMemoryCommandStore;
 import cn.byteforce.seedj.infra.local.domain.InMemoryTemporalStore;
 import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.infra.local.id.Uuid7IdGenerator;
-import cn.byteforce.seedj.it.fixture.hr.HrEmployeeTestSchema;
 import cn.byteforce.seedj.server.hr.employee.HrEmployeeCreate;
 import cn.byteforce.seedj.server.hr.employee.HrEmployeeCreateHandler;
+import cn.byteforce.seedj.server.hr.employee.HrEmployeeFields;
 import java.lang.reflect.Field;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -64,7 +64,7 @@ class HrEmployeeCreateAgentTest {
                     .validator(CommandValidator.none())
                     .build(),
             new HrEmployeeCreateHandler(() -> UUID.randomUUID(), ids, derived, unit -> true),
-            HrEmployeeTestSchema.schema());
+            HrEmployeeFields.schema());
 
     @Test
     @DisplayName("工号来自 IdGenerator，不再依赖 AtomicLong 进程内序列")

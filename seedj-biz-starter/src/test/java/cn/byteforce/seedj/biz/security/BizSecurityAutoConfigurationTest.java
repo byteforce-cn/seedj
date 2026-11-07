@@ -113,6 +113,29 @@ class BizSecurityAutoConfigurationTest {
     }
 
     @Test
+    @DisplayName("dev-auth 开启：提供本地链，不要求 issuer/JwtDecoder")
+    void devAuthProvidesLocalChain() {
+        new WebApplicationContextRunner()
+                .withConfiguration(AutoConfigurations.of(BizSecurityAutoConfiguration.class))
+                .withBean(BizEnabledMarker.class)
+                .withPropertyValues(
+                        "spring.profiles.active=local",
+                        "seedj.biz.dev-auth.enabled=true",
+                        "seedj.biz.dev-auth.permissions=hr.employee.write,hr.employee.read",
+                        "seedj.biz.dev-auth.attributes.org_units=D01")
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context).hasBean("devAuthSecurityFilterChain");
+                    assertThat(context).doesNotHaveBean("bizSecurityFilterChain");
+                    assertThat(context).doesNotHaveBean(JwtDecoder.class);
+                    DevAuthProperties properties = context.getBean(DevAuthProperties.class);
+                    assertThat(properties.permissions())
+                            .containsExactlyInAnyOrder("hr.employee.write", "hr.employee.read");
+                    assertThat(properties.attributes()).containsEntry("org_units", List.of("D01"));
+                });
+    }
+
+    @Test
     @DisplayName("prod + dev-auth：启动失败")
     void devAuthInProdFails() {
         runner.withPropertyValues("spring.profiles.active=prod",

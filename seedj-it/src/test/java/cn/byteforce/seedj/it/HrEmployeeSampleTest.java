@@ -10,7 +10,6 @@ import cn.byteforce.seedj.core.security.DerivedField;
 import cn.byteforce.seedj.core.security.DerivedFieldKeyRing;
 import cn.byteforce.seedj.core.security.DerivedFieldRegistry;
 import cn.byteforce.seedj.cqrs.CommandDescriptor;
-import cn.byteforce.seedj.cqrs.CommandPayloadRedactor;
 import cn.byteforce.seedj.cqrs.CommandReceipt;
 import cn.byteforce.seedj.cqrs.CommandRegistration;
 import cn.byteforce.seedj.cqrs.CommandRuntime;
@@ -23,13 +22,13 @@ import cn.byteforce.seedj.domain.TemporalQuery;
 import cn.byteforce.seedj.infra.local.cqrs.InMemoryCommandStore;
 import cn.byteforce.seedj.infra.local.domain.InMemoryTemporalStore;
 import cn.byteforce.seedj.infra.local.id.Uuid7IdGenerator;
-import cn.byteforce.seedj.it.fixture.hr.HrEmployeeTestSchema;
 import cn.byteforce.seedj.read.DataScopeResolver;
 import cn.byteforce.seedj.read.ReadAuditSink;
 import cn.byteforce.seedj.read.ReadGateway;
 import cn.byteforce.seedj.read.ReadModel;
 import cn.byteforce.seedj.read.ReadModelRegistry;
 import cn.byteforce.seedj.server.hr.employee.HrEmployeeCreate;
+import cn.byteforce.seedj.server.hr.employee.HrEmployeeFields;
 import cn.byteforce.seedj.server.hr.employee.HrEmployeeCreateHandler;
 import cn.byteforce.seedj.server.hr.employee.HrEmployeeUpdate;
 import cn.byteforce.seedj.server.hr.employee.HrEmployeeUpdateHandler;
@@ -37,7 +36,6 @@ import cn.byteforce.seedj.starter.domain.web.ObjectQueryController;
 import cn.byteforce.seedj.starter.domain.web.ObjectQueryResponse;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -63,17 +61,11 @@ class HrEmployeeSampleTest {
     private final Clock clock = now::get;
     private final InMemoryCommandStore commands = new InMemoryCommandStore();
     private final InMemoryTemporalStore objects = new InMemoryTemporalStore(clock);
-    private final ObjectSchema schema = HrEmployeeTestSchema.schema();
+    private final ObjectSchema schema = HrEmployeeFields.schema();
     private final DerivedField derived = new DerivedField(
             "seedj:hr:employee:id_number_hash:v1", new DerivedFieldKeyRing("test-key"));
     private final DerivedFieldRegistry derivedFields =
             new DerivedFieldRegistry(Map.of("id_number_hash", derived));
-    private final CommandPayloadRedactor redactor = payload -> {
-        Map<String, Object> redacted = new LinkedHashMap<>(payload);
-        redacted.remove("id_number");
-        redacted.remove("id_number_hash");
-        return redacted;
-    };
     private final CommandRuntime runtime = new CommandRuntime(
             CommandRuntime.Options.forTests(clock, new Uuid7IdGenerator(clock), commands, objects));
     private final AtomicLong employeeNumbers = new AtomicLong();
@@ -113,6 +105,22 @@ class HrEmployeeSampleTest {
         assertThat(commands.findByIdempotencyKey(ACTOR, "k-1")).get()
                 .satisfies(record -> assertThat(record.payload())
                         .doesNotContainKeys("id_number", "id_number_hash"));
+    }
+
+    @Test
+    @DisplayName("命令 record 字段自动落到 schema，新增字段不再改 handler")
+    void commandFieldsFlowIntoSchema() {
+        CommandReceipt receipt = create(submission("hr.employee.create", "k-1c",
+                Map.of("name", "张三", "hire_date", LocalDate.parse("2026-10-01"),
+                        "employment_type", "FULL_TIME", "work_location", "SH",
+                        "phone", "13800138000", "org_unit_id", "D01")));
+
+        var row = objects.current("employee", receipt.locator()).orElseThrow();
+        assertThat(row.fields())
+                .containsEntry("employment_type", "FULL_TIME")
+                .containsEntry("work_location", "SH")
+                .containsEntry("phone", "13800138000")
+                .containsEntry("org_unit_id", "D01");
     }
 
     @Test
@@ -206,9 +214,8 @@ class HrEmployeeSampleTest {
                 .payloadType(payloadType)
                 .permission("hr.employee.write")
                 .validator(CommandValidator.none())
-                .redactor(redactor)
                 .build(), handler, schema,
-                java.util.Set.of("id_number", "employee_id"));
+                java.util.Set.of("id_number", "employee_id"), java.util.Set.of("id_number"));
     }
 
     private ReadModelRegistry registry() {

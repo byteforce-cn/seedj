@@ -11,6 +11,7 @@ import cn.byteforce.seedj.domain.AppendResult;
 import cn.byteforce.seedj.domain.ObjectSchema;
 import cn.byteforce.seedj.domain.TemporalQuery;
 import cn.byteforce.seedj.domain.TemporalStore;
+import cn.byteforce.seedj.module.ObjectModuleRegistry;
 import cn.byteforce.seedj.server.hr.HrServer;
 import com.jayway.jsonpath.JsonPath;
 import java.time.Instant;
@@ -84,7 +85,7 @@ class HrServerPostgresIT {
     private JdbcTemplate jdbc;
 
     @Autowired
-    private ObjectSchema schema;
+    private ObjectModuleRegistry modules;
 
     @Autowired
     private TemporalStore store;
@@ -107,8 +108,8 @@ class HrServerPostgresIT {
                         String.class).stream()
                 .filter(column -> !ObjectSchema.META_FIELDS.contains(column))
                 .toList();
-        List<String> expected = schema.fields().stream().map(field -> field.name()).sorted()
-                .toList();
+        List<String> expected = modules.require("employee").schema().fields().stream()
+                .map(field -> field.name()).sorted().toList();
 
         assertThat(columns).containsExactlyElementsOf(expected);
         assertThat(columns).containsAll(List.of("employee_no", "name", "status", "hire_date",

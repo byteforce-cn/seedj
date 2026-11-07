@@ -1,5 +1,6 @@
 package cn.byteforce.seedj.starter.read;
 
+import cn.byteforce.seedj.core.utils.FieldNames;
 import cn.byteforce.seedj.domain.ObjectVersion;
 import cn.byteforce.seedj.domain.TemporalRow;
 
@@ -83,7 +84,7 @@ public final class ViewMapper {
             case "updatedAt" -> version.updatedAt();
             default -> row.fields().containsKey(name)
                     ? row.fields().get(name)
-                    : row.fields().get(snakeCase(name));
+                    : row.fields().get(FieldNames.snakeCase(name));
         };
         return convert(value, component.getType(), name);
     }
@@ -130,19 +131,4 @@ public final class ViewMapper {
                 + value.getClass().getName() + " to " + type.getName());
     }
 
-    private static String snakeCase(String camel) {
-        StringBuilder out = new StringBuilder(camel.length() + 4);
-        for (int i = 0; i < camel.length(); i++) {
-            char c = camel.charAt(i);
-            if (Character.isUpperCase(c)) {
-                if (i > 0) {
-                    out.append('_');
-                }
-                out.append(Character.toLowerCase(c));
-            } else {
-                out.append(c);
-            }
-        }
-        return out.toString();
-    }
 }

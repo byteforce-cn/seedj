@@ -100,6 +100,26 @@ class ObjectModulesCommandTest {
     }
 
     @Test
+    void redactedCommandFieldIsExplicit() {
+        ObjectModules modules = ObjectModules.create();
+        modules.object("employee", "hr_employee")
+                .readPermission("hr.employee.read")
+                .field("name", FieldType.TEXT)
+                .command("hr.employee.create", CreateExtraPayload.class)
+                    .permission("hr.employee.write")
+                    .handler(HANDLER)
+                    .redactedCommandField("id_number");
+
+        ObjectModuleRegistry registry = modules.freeze();
+        CommandRegistration registration = registry.commands().get(0);
+
+        assertThat(registration.commandFields()).containsExactly("id_number");
+        assertThat(registration.redactedFields()).containsExactly("id_number");
+        assertThat(registry.commandDeclarations().get(0).redactedFields())
+                .containsExactly("id_number");
+    }
+
+    @Test
     void payloadFieldOutsideSchemaFailsAtFreeze() {
         ObjectModules modules = ObjectModules.create();
         modules.object("employee", "hr_employee")

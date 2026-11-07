@@ -25,3 +25,7 @@ seedj:
   biz:
     dev-auth:
       enabled: false
+      permissions: hr.employee.write,hr.employee.read
+      attributes:
+        org_units:
+          - D01

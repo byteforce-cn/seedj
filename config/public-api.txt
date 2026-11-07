@@ -50,6 +50,7 @@ core|cn.byteforce.seedj.core.security|SecurityAuditSink
 core|cn.byteforce.seedj.core.security|SecurityErrorCode
 core|cn.byteforce.seedj.core.security|TokenClaims
 core|cn.byteforce.seedj.core.utils|CanonicalJsonHelper
+core|cn.byteforce.seedj.core.utils|FieldNames
 core|cn.byteforce.seedj.core.utils|HashesHelper
 core|cn.byteforce.seedj.core|CodeEnum
 core|cn.byteforce.seedj.core|CodeEnums
@@ -359,6 +360,7 @@ seedj-biz-starter|cn.byteforce.seedj.biz.security|BizSecurityAutoConfiguration
 seedj-biz-starter|cn.byteforce.seedj.biz.security|BizSecurityExceptionHandler
 seedj-biz-starter|cn.byteforce.seedj.biz.security|BizSecurityProperties
 seedj-biz-starter|cn.byteforce.seedj.biz.security|CallerPropagation
+seedj-biz-starter|cn.byteforce.seedj.biz.security|DevAuthProperties
 seedj-biz-starter|cn.byteforce.seedj.biz.security|JsonAccessDeniedHandler
 seedj-biz-starter|cn.byteforce.seedj.biz.security|JsonAuthenticationEntryPoint
 seedj-biz-starter|cn.byteforce.seedj.biz.security|JwtCallerProvider
@@ -571,9 +573,6 @@ seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeUpdateHandler
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeView
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrOrgUnitScopeResolver
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrScopeKeys
-seedj-server/hr|cn.byteforce.seedj.server.hr.employee|LocalDevAuthenticationFilter
-seedj-server/hr|cn.byteforce.seedj.server.hr.employee|LocalDevJwtConfiguration
-seedj-server/hr|cn.byteforce.seedj.server.hr.employee|LocalDevSecurityConfiguration
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|OrgUnitDirectory
 seedj-server/hr|cn.byteforce.seedj.server.hr|HrServer
 seedj-server/iam|cn.byteforce.seedj.server.iam|IamServer

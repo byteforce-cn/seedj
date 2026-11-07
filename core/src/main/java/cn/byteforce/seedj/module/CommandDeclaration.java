@@ -15,16 +15,19 @@ import java.util.Set;
  * @param handler     处理器
  * @param creates     是否为创建型命令
  * @param emits       声明的事件类型
- * @param commandFields 命令专用、不在 schema 中的字段
+ * @param commandFields  命令专用、不在 schema 中的字段
+ * @param redactedFields 命令专用且不得落命令记录的字段
  * @author ByteForce
  * @since 1.0.0
  */
 public record CommandDeclaration(String objectType, String type, Class<?> payloadType,
                                  String permission, CommandHandler<?> handler, boolean creates,
-                                 List<String> emits, Set<String> commandFields) {
+                                 List<String> emits, Set<String> commandFields,
+                                 Set<String> redactedFields) {
 
     public CommandDeclaration {
         emits = emits == null ? List.of() : List.copyOf(emits);
         commandFields = commandFields == null ? Set.of() : Set.copyOf(commandFields);
+        redactedFields = redactedFields == null ? Set.of() : Set.copyOf(redactedFields);
     }
 }

@@ -18,6 +18,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -26,6 +27,7 @@ import org.springframework.test.web.servlet.MockMvc;
         properties = "seedj.biz.dev-auth.enabled=false")
 @AutoConfigureMockMvc
 @ActiveProfiles("local")
+@Import(LocalDevJwtConfiguration.class)
 class HrEmployeeSecurityTest {
 
     private static final String BODY = """

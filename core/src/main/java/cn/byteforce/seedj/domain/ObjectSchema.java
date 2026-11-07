@@ -182,6 +182,34 @@ public final class ObjectSchema {
     }
 
     /**
+     * 按 schema 白名单收敛事件载荷。
+     *
+     * <p>只保留 {@link FieldDefinition#eventVisible()} 为真的字段；writeOnly 与敏感字段
+     * 即使被 handler 放进 payload 也不会进入 outbox。schema 外的键视为 handler 错误，
+     * 失败关闭而不是静默丢弃，避免拼写错误导致“事件少了一个字段”。</p>
+     *
+     * @param payload handler 产出的事件载荷
+     * @return 只含可见字段的事件载荷（保持声明顺序）
+     * @throws IllegalStateException payload 含 schema 外字段
+     */
+    public Map<String, Object> eventPayload(Map<String, ?> payload) {
+        Map<String, ?> input = payload == null ? Map.of() : payload;
+        Set<String> unknown = new TreeSet<>(input.keySet());
+        unknown.removeAll(byName.keySet());
+        if (!unknown.isEmpty()) {
+            throw new IllegalStateException(
+                    "unknown event payload fields for " + objectType + ": " + unknown);
+        }
+        Map<String, Object> event = new LinkedHashMap<>();
+        for (FieldDefinition field : fields) {
+            if (field.eventVisible() && input.containsKey(field.name())) {
+                event.put(field.name(), input.get(field.name()));
+            }
+        }
+        return event;
+    }
+
+    /**
      * 校验并类型化一份业务载荷。
      *
      * @param payload 原始载荷（HTTP Map）

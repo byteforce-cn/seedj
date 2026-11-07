@@ -17,6 +17,7 @@ import org.springframework.boot.security.oauth2.server.resource.autoconfigure.OA
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.env.Environment;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.task.TaskDecorator;
 import org.springframework.security.config.Customizer;
@@ -66,6 +67,7 @@ import java.util.Objects;
 @ConditionalOnProperty(prefix = "seedj.biz", name = "enabled", havingValue = "true",
         matchIfMissing = true)
 @EnableConfigurationProperties(BizSecurityProperties.class)
+@Import(DevAuthConfiguration.class)
 public class BizSecurityAutoConfiguration {
 
     /**
@@ -151,6 +153,8 @@ public class BizSecurityAutoConfiguration {
 
         @Bean
         @ConditionalOnMissingBean
+        @ConditionalOnProperty(prefix = "seedj.biz.dev-auth", name = "enabled",
+                havingValue = "false", matchIfMissing = true)
         public JwtDecoder jwtDecoder(BizSecurityProperties properties,
                                      ObjectProvider<OAuth2ResourceServerProperties> bootProperties) {
             String issuer = resolveIssuer(properties, bootProperties.getIfAvailable());
