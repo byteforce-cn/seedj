@@ -103,7 +103,7 @@ class CommandControllerAdvancedTest {
                 .andExpect(jsonPath("$.target_ref").value("emp-1"))
                 .andExpect(jsonPath("$.version").value(1))
                 .andExpect(jsonPath("$.locator").doesNotExist())
-                .andExpect(jsonPath("$.event_ids").isEmpty());
+                .andExpect(jsonPath("$.event_ids").isNotEmpty());
 
         assertThat(events.read(cn.byteforce.seedj.cqrs.StreamId.of("hr.employee",
                 EmployeeId.of("emp-1"))).version()).isEqualTo(1);

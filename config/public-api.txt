@@ -63,6 +63,7 @@ core|cn.byteforce.seedj.core|Migration
 core|cn.byteforce.seedj.core|MigrationChecksums
 core|cn.byteforce.seedj.cqrs.spi|CommandStore
 core|cn.byteforce.seedj.cqrs.spi|EventStore
+core|cn.byteforce.seedj.cqrs.spi|EventTypeRegistrar
 core|cn.byteforce.seedj.cqrs.spi|TransactionRunner
 core|cn.byteforce.seedj.cqrs|AbstractCommandHandler
 core|cn.byteforce.seedj.cqrs|AbstractProjection
@@ -522,7 +523,9 @@ seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.clock|ClockMigrations
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.clock|PgGlobalSequencer
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.clock|PgHybridStateStore
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.cqrs|CommandSchemaCapability
+seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.cqrs|EventSchemaCapability
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.cqrs|PostgresCommandStore
+seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.cqrs|PostgresEventStore
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.domain|ObjectSchemaCapability
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.domain|PostgresTemporalStore
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.domain|TemporalDdl

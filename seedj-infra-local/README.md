@@ -24,6 +24,8 @@ cn.byteforce.seedj.infra.local.security   安全审计 sink
 - 进程内锁默认关闭：多实例部署下的“进程内互斥”会静默失效，必须显式
   `seedj.lock.memory.enabled=true`；生产请使用 PostgreSQL 锁或其它分布式实现。
 - 文件队列适合本地多服务联调；长期保留与多机部署请使用真正的 MQ 适配器。
+- `InMemoryEventStore` 只用于本地与测试；生产事件流请使用
+  `seedj-jdbc-postgresql` 的 `PostgresEventStore`（重启可重放、并发有裁决）。
 
 ## 测试
 

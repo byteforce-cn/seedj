@@ -29,6 +29,7 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import javax.sql.DataSource;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -170,6 +171,22 @@ class TemporalCommandAutoConfigurationTest {
                 .withBean(JdbcTemplate.class, () -> mock(JdbcTemplate.class))
                 .run(context -> assertThat(context.getStartupFailure())
                         .hasMessageContaining("TemporalTables"));
+    }
+
+    @Test
+    @DisplayName("有 DataSource 时注册事件流迁移能力，可显式关闭")
+    void eventSchemaCapabilityFollowsSwitch() {
+        runner.withBean(DataSource.class, () -> mock(DataSource.class))
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context).hasBean("postgresEventSchemaCapability");
+                });
+        runner.withBean(DataSource.class, () -> mock(DataSource.class))
+                .withPropertyValues("seedj.event-store.enabled=false")
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context).doesNotHaveBean("postgresEventSchemaCapability");
+                });
     }
 
     @Test

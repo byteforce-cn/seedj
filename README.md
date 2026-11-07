@@ -40,7 +40,7 @@ core                     契约：错误码、时间轴、命令、IAM、工作�
 seedj-codegen            构建期注解处理器：schema / OpenAPI / 迁移候选 / 可选读视图（不进运行时）
 seedj-infra-local        内存 / 文件 / BouncyCastle 适配器
 seedj-workflow-local     workflow SPI 的本地内存实现（库模块，不启动 server）
-seedj-jdbc-postgresql    PostgreSQL 适配器、DDL、版本化迁移
+seedj-jdbc-postgresql    PostgreSQL 适配器、DDL、版本化迁移（含生产事件存储）
 seedj-biz-starter        业务装配：本地开发认证 / 命令 / 查询 / 审计 / 事件总线
 seedj-iam-starter        IAM 装配：OIDC / SCIM / RBAC / ABAC
 seedj-server/{hr,iam,im} 可运行宿主

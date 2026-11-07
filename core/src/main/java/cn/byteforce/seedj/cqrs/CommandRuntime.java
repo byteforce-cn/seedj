@@ -128,7 +128,7 @@ public final class CommandRuntime {
         try {
             AgentInvocation invocation = new AgentInvocation(targetRef, pending,
                     registration.schema(), registration, writeScope, options.jsonMapper(),
-                    options.commandStore());
+                    options.commandStore(), options.idGenerator());
             CommandRecord accepted = registration.agent()
                     .executeWithin((Command<?>) command, invocation);
             return CommandReceipt.from(accepted);

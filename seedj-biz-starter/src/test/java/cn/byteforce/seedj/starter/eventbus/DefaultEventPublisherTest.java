@@ -18,6 +18,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -94,6 +95,18 @@ class DefaultEventPublisherTest {
         assertThat(record.contentType()).isEqualTo("order.cancelled");
         assertThat(record.contentVersion()).isEqualTo(3);
         assertThat(new String(record.payload(), StandardCharsets.UTF_8)).isEqualTo("serialized");
+    }
+
+    @Test
+    @DisplayName("显式 eventId 成为 outbox message_id，供命令回执复用")
+    void publishWithExplicitEventIdUsesItInOutbox() {
+        DefaultEventPublisher publisher = publisher(store(), writer, transport, serializer());
+        UUID eventId = UUID.fromString("018f2e3a-1234-7000-8000-000000000001");
+
+        publisher.publish(new OrderCancelled("o-1"), eventId);
+
+        assertThat(writer.records).hasSize(1);
+        assertThat(writer.records.get(0).messageId()).isEqualTo(eventId.toString());
     }
 
     @Test

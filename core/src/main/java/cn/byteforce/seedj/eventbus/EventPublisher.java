@@ -2,6 +2,8 @@ package cn.byteforce.seedj.eventbus;
 
 import cn.byteforce.seedj.domain.event.DomainEvent;
 
+import java.util.UUID;
+
 /**
  * 事件发布的业务入口。
  *
@@ -35,6 +37,20 @@ public interface EventPublisher {
      * {@link cn.byteforce.seedj.eventbus.spi.EventPayloadSerializer} 序列化。
      */
     void publish(DomainEvent event);
+
+    /**
+     * 使用调用方分配的稳定事件 ID 发布。
+     *
+     * <p>事件溯源命令需要在写入 outbox 之前就知道事件 ID，才能把同一批 ID 放进
+     * 命令回执与命令记录。默认实现忽略 ID 并委托 {@link #publish(DomainEvent)}；
+     * 能把 ID 带进 outbox/消息的适配器（如 {@code DefaultEventPublisher}）应覆盖本方法。</p>
+     *
+     * @param event   领域事件
+     * @param eventId 调用方分配的事件 ID（非空）
+     */
+    default void publish(DomainEvent event, UUID eventId) {
+        publish(event);
+    }
 
     /**
      * 发布一条已构造好的消息（逃生舱：迁移历史事件、跨语言消息等）。

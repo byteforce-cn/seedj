@@ -1,6 +1,7 @@
 package cn.byteforce.seedj.cqrs;
 
 import cn.byteforce.seedj.cqrs.spi.EventStore;
+import cn.byteforce.seedj.cqrs.spi.EventTypeRegistrar;
 import cn.byteforce.seedj.domain.AbstractAggregateRoot;
 import cn.byteforce.seedj.domain.Repository;
 import cn.byteforce.seedj.domain.event.DomainEvent;
@@ -72,6 +73,7 @@ public abstract class EventSourcedRepository<T extends AbstractAggregateRoot<ID>
     @Override
     public Optional<T> load(ID id) {
         Objects.requireNonNull(id, "id");
+        registerEventTypes();
         EventStream<ID> stream = store.read(streamId(id));
         if (stream.isEmpty()) {
             return Optional.empty();
@@ -79,6 +81,18 @@ public abstract class EventSourcedRepository<T extends AbstractAggregateRoot<ID>
         T aggregate = empty(id);
         aggregate.replayAll(stream.events(), stream.version());
         return Optional.of(aggregate);
+    }
+
+    /**
+     * 让需要名称解析的存储（如 JDBC）知道本聚合会处理哪些事件。
+     *
+     * <p>注册是幂等的；每次加载都调用，避免应用重启后第一次读取因注册表为空而
+     * 把历史事件误判为损坏。</p>
+     */
+    private void registerEventTypes() {
+        if (store instanceof EventTypeRegistrar registrar) {
+            registrar.register(aggregateType());
+        }
     }
 
     @Override

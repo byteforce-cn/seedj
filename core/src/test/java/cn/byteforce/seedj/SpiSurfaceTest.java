@@ -75,7 +75,7 @@ class SpiSurfaceTest {
                     "CommandDescriptor", "CommandPolicy", "CommandValidator"),
 
             "cn.byteforce.seedj.cqrs.spi",
-            List.of("CommandStore", "EventStore", "TransactionRunner"),
+            List.of("CommandStore", "EventStore", "EventTypeRegistrar", "TransactionRunner"),
 
             "cn.byteforce.seedj.lock",
             List.of("LockErrorCode", "LockException", "LockLease", "LockProvider")

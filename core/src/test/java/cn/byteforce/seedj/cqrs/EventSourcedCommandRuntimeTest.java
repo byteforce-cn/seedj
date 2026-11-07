@@ -88,7 +88,7 @@ class EventSourcedCommandRuntimeTest {
         assertThat(receipt.targetRef()).isEqualTo("agg-1");
         assertThat(receipt.locator()).isNull();
         assertThat(receipt.version()).isEqualTo(1L);
-        assertThat(receipt.eventIds()).isEmpty();
+        assertThat(receipt.eventIds()).hasSize(1);
         assertThat(fixture.commands.find(receipt.commandId()).orElseThrow().targetRef())
                 .isEqualTo("agg-1");
         assertThat(fixture.events.version("agg-1")).isEqualTo(1);

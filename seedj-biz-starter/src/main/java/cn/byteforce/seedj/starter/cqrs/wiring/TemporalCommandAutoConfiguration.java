@@ -13,6 +13,7 @@ import cn.byteforce.seedj.cqrs.CommandValidator;
 import cn.byteforce.seedj.cqrs.CommandRuntime;
 import cn.byteforce.seedj.cqrs.TemporalCommandAudit;
 import cn.byteforce.seedj.infra.jdbc.cqrs.CommandSchemaCapability;
+import cn.byteforce.seedj.infra.jdbc.cqrs.EventSchemaCapability;
 import cn.byteforce.seedj.infra.jdbc.cqrs.PostgresCommandStore;
 import cn.byteforce.seedj.infra.local.cqrs.InMemoryCommandStore;
 import cn.byteforce.seedj.cqrs.spi.CommandStore;
@@ -385,6 +386,27 @@ public class TemporalCommandAutoConfiguration {
         InfrastructureCapability postgresTemporalSchemaCapability(
                 DataSource dataSource, ObjectProvider<JdbcMigrationRunner> runners) {
             return new TemporalSchemaCapability(
+                    runners.getIfAvailable(() -> new JdbcMigrationRunner(dataSource)));
+        }
+    }
+
+    /**
+     * PostgreSQL 事件存储共享迁移：保证 {@code event_stream} 表存在。
+     */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass({JdbcTemplate.class, DataSource.class})
+    @ConditionalOnBean(DataSource.class)
+    @ConditionalOnProperty(prefix = "seedj.event-store", name = "enabled",
+            havingValue = "true", matchIfMissing = true)
+    static class EventSchemaConfiguration {
+
+        @Bean
+        @ConditionalOnMissingBean(name = "postgresEventSchemaCapability")
+        @ConditionalOnProperty(prefix = "seedj.event-store", name = "provider",
+                havingValue = "postgres", matchIfMissing = true)
+        InfrastructureCapability postgresEventSchemaCapability(
+                DataSource dataSource, ObjectProvider<JdbcMigrationRunner> runners) {
+            return new EventSchemaCapability(
                     runners.getIfAvailable(() -> new JdbcMigrationRunner(dataSource)));
         }
     }

@@ -13,9 +13,11 @@ import cn.byteforce.seedj.eventbus.EventPublisher;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -28,7 +30,7 @@ import java.util.concurrent.atomic.AtomicReference;
  *       load（空且允许创建 → create；否则 → handle）
  *       events = aggregate.peekDomainEvents()   ← 先取，save 会清空
  *       repository.save(aggregate)             ← 期望版本 CAS
- *       events.forEach(publisher::publish)      ← outbox，与流同事务
+ *       events → publisher.publish(event, id)   ← outbox，与流同事务
  *     commit                                  ← 数据到这里才可见
  *   release
  * 拦截器 after
@@ -350,11 +352,16 @@ public abstract class CommandAgent<C extends Command<ID>, T extends AbstractAggr
                     EventVisibility.requireVisible(events, invocation.schema(),
                             invocation.jsonMapper());
                     repository.save(aggregate);
-                    events.forEach(publisher::publish);
+                    List<UUID> eventIds = new ArrayList<>(events.size());
+                    for (DomainEvent event : events) {
+                        UUID eventId = invocation.idGenerator().id();
+                        publisher.publish(event, eventId);
+                        eventIds.add(eventId);
+                    }
                     // 审计与终态都在事务内：任一失败都会让事件流一起回滚。
                     options.audit().accepted(command, invocation.targetRef());
                     CommandRecord accepted = invocation.pending().accepted(
-                            invocation.targetRef(), aggregate.version(), List.of());
+                            invocation.targetRef(), aggregate.version(), eventIds);
                     invocation.commandStore().complete(accepted);
                     return accepted;
                 });
