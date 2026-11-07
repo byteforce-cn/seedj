@@ -94,7 +94,11 @@ public final class CommandRuntime {
         requireKnownPayloadFields(submission.payload(), schema, registration.commandFields());
         Object command = decode(submission.payload(), descriptor);
         validate(descriptor, command);
-        UUID targetId = requireTargetId(registration.handler(), command);
+        String targetRef = registration.isEventSourced()
+                ? requireAgentTarget(registration, command, submission)
+                : null;
+        UUID targetId = registration.isEventSourced()
+                ? null : requireTargetId(registration.handler(), command);
 
         Instant now = options.clock().now();
         Map<String, Object> storedPayload = storedPayload(submission.payload(), schema,
@@ -111,6 +115,46 @@ public final class CommandRuntime {
             return replayOrConflict(winner, fingerprint);
         }
 
+        if (registration.isEventSourced()) {
+            return executeEventSourced(registration, command, targetRef, pending, writeScope);
+        }
+        return executeTemporal(submission, registration, caller, writeScope, command,
+                objectType, targetId, pending);
+    }
+
+    private CommandReceipt executeEventSourced(CommandRegistration registration, Object command,
+                                               String targetRef, CommandRecord pending,
+                                               ScopePredicate writeScope) {
+        try {
+            AgentInvocation invocation = new AgentInvocation(targetRef, pending,
+                    registration.schema(), registration, writeScope, options.jsonMapper(),
+                    options.commandStore());
+            CommandRecord accepted = registration.agent()
+                    .executeWithin((Command<?>) command, invocation);
+            return CommandReceipt.from(accepted);
+        } catch (CqrsException error) {
+            if (error.getErrorCode() == CqrsErrorCode.COMMAND_REJECTED) {
+                throw reject(pending, new ContractException(ContractErrorCode.COMMAND_REJECTED,
+                        error.getMessage()));
+            }
+            options.commandStore().abandon(pending.id());
+            throw error;
+        } catch (ContractException error) {
+            throw reject(pending, error);
+        } catch (IllegalArgumentException error) {
+            throw reject(pending, invalidPayload(error));
+        } catch (RuntimeException error) {
+            options.commandStore().abandon(pending.id());
+            throw error;
+        }
+    }
+
+    private CommandReceipt executeTemporal(CommandSubmission submission,
+                                           CommandRegistration registration, Caller caller,
+                                           ScopePredicate writeScope, Object command,
+                                           String objectType, UUID targetId,
+                                           CommandRecord pending) {
+        ObjectSchema schema = registration.schema();
         try {
             String lockKey = objectType + ':' + targetId;
             try (LockLease ignored = options.lockProvider().acquire(lockKey, options.lockTtl())) {
@@ -140,7 +184,8 @@ public final class CommandRuntime {
                         List<UUID> eventIds = writeEvents(events);
                         CommandRecord record = pending.accepted(result.appended().version().id(),
                                 result.appended().version().version(), eventIds);
-                        options.temporalAudit().accepted(record, descriptor.objectType(), events);
+                        options.temporalAudit().accepted(record, registration.descriptor()
+                                .objectType(), events);
                         options.commandStore().complete(record);
                         return record;
                     });
@@ -230,6 +275,28 @@ public final class CommandRuntime {
         }
     }
 
+    private static String requireAgentTarget(CommandRegistration registration, Object command,
+                                             CommandSubmission submission) {
+        if (!submission.targets().isEmpty()) {
+            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
+                    "event-sourced commands must not declare targets");
+        }
+        String target;
+        try {
+            target = registration.agent().encodedTarget((Command<?>) command);
+        } catch (CqrsException error) {
+            throw invalidPayload(new IllegalArgumentException(error.getMessage(), error));
+        } catch (RuntimeException error) {
+            throw invalidPayload(error instanceof IllegalArgumentException invalid
+                    ? invalid : new IllegalArgumentException("command target is required", error));
+        }
+        if (target == null || target.isBlank() || target.length() > 255) {
+            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
+                    "command target is required and must be at most 255 characters");
+        }
+        return target;
+    }
+
     @SuppressWarnings("unchecked")
     private static UUID requireTargetId(CommandHandler<?> handler, Object command) {
         UUID targetId;
@@ -295,6 +362,9 @@ public final class CommandRuntime {
         result.put("event_ids", record.eventIds().stream().map(UUID::toString).toList());
         if (record.locator() != null) {
             result.put("locator", record.locator().toString());
+        }
+        if (record.targetRef() != null) {
+            result.put("target_ref", record.targetRef());
         }
         if (record.version() != null) {
             result.put("version", record.version());
