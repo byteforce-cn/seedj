@@ -112,11 +112,25 @@ public final class PostgresTemporalStore implements TemporalStore {
         List<Map<String, Object>> rows = jdbc.queryForList(SELECT_ALL + table.tableName()
                 + " WHERE id = ? AND superseded_at IS NULL FOR UPDATE", request.id());
         TemporalRow current = rows.isEmpty() ? null : toRow(table, rows.get(0));
+        requireExpectedVersion(request, current);
 
         AppendResult result = Sealing.next(request, current, clock.now());
         result.superseded().ifPresent(sealed -> seal(table, sealed.version()));
         insert(table, result.appended());
         return result;
+    }
+
+    private static void requireExpectedVersion(AppendRequest request, TemporalRow current) {
+        Long expected = request.expectedVersion();
+        if (expected == null) {
+            return;
+        }
+        long actual = current == null ? 0 : current.version().version();
+        if (expected.longValue() != actual) {
+            throw new ContractException(ContractErrorCode.VERSION_CONFLICT,
+                    "expected version " + expected + " but current is " + actual,
+                    Map.of("expected_version", expected, "current_version", actual), null);
+        }
     }
 
     @Override

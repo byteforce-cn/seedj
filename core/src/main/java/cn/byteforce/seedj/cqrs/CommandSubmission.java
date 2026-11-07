@@ -19,11 +19,12 @@ import java.util.regex.Pattern;
  * @param idempotencyKey 幂等键
  * @param targets        目标对象 ID
  * @param issuer         发起者
+ * @param expectedVersion 期望的对象版本；{@code null} 表示不校验
  * @author ByteForce
  * @since 1.0.0
  */
 public record CommandSubmission(String type, Map<String, Object> payload, String idempotencyKey,
-                                List<UUID> targets, UUID issuer) {
+                                List<UUID> targets, UUID issuer, Long expectedVersion) {
 
     private static final Pattern TYPE = Pattern.compile("^[a-z][a-z0-9_.]*$");
 
@@ -47,5 +48,22 @@ public record CommandSubmission(String type, Map<String, Object> payload, String
         }
         targets = List.copyOf(targets);
         payload = Collections.unmodifiableMap(new LinkedHashMap<>(payload));
+        if (expectedVersion != null && expectedVersion < 0) {
+            throw new IllegalArgumentException("expectedVersion must be >= 0");
+        }
+    }
+
+    /**
+     * 兼容旧调用：不校验版本。
+     *
+     * @param type           命令类型
+     * @param payload        载荷
+     * @param idempotencyKey 幂等键
+     * @param targets        目标对象 ID
+     * @param issuer         发起者
+     */
+    public CommandSubmission(String type, Map<String, Object> payload, String idempotencyKey,
+                             List<UUID> targets, UUID issuer) {
+        this(type, payload, idempotencyKey, targets, issuer, null);
     }
 }

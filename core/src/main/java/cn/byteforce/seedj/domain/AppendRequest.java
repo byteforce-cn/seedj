@@ -19,11 +19,14 @@ import java.util.UUID;
  * @param actor      操作者
  * @param fields     领域字段
  * @param kind       追加类型
+ * @param expectedVersion 期望的当前版本；{@code null} 不校验、{@code 0} 仅创建、
+ *                        {@code >0} 当前版本必须相等
  * @author ByteForce
  * @since 1.0.0
  */
 public record AppendRequest(String objectType, UUID id, Instant validFrom, Instant validTo,
-                            UUID actor, Map<String, Object> fields, AppendKind kind) {
+                            UUID actor, Map<String, Object> fields, AppendKind kind,
+                            Long expectedVersion) {
 
     public AppendRequest {
         if (objectType == null || objectType.isBlank()) {
@@ -37,6 +40,25 @@ public record AppendRequest(String objectType, UUID id, Instant validFrom, Insta
         validFrom = validFrom.truncatedTo(ChronoUnit.MICROS);
         validTo = validTo == null ? null : validTo.truncatedTo(ChronoUnit.MICROS);
         fields = Collections.unmodifiableMap(new LinkedHashMap<>(fields));
+        if (expectedVersion != null && expectedVersion < 0) {
+            throw new IllegalArgumentException("expectedVersion must be >= 0");
+        }
+    }
+
+    /**
+     * 兼容旧调用：不校验版本。
+     *
+     * @param objectType 对象类型
+     * @param id         对象 ID
+     * @param validFrom  业务生效时间
+     * @param validTo    业务失效时间
+     * @param actor      操作者
+     * @param fields     领域字段
+     * @param kind       追加类型
+     */
+    public AppendRequest(String objectType, UUID id, Instant validFrom, Instant validTo,
+                         UUID actor, Map<String, Object> fields, AppendKind kind) {
+        this(objectType, id, validFrom, validTo, actor, fields, kind, null);
     }
 
     /**
@@ -52,8 +74,26 @@ public record AppendRequest(String objectType, UUID id, Instant validFrom, Insta
      */
     public static AppendRequest create(String objectType, UUID id, Instant validFrom,
                                        Instant validTo, UUID actor, Map<String, Object> fields) {
+        return create(objectType, id, validFrom, validTo, actor, fields, null);
+    }
+
+    /**
+     * 创建并校验期望版本（{@code 0} 表示当前必须不存在）。
+     *
+     * @param objectType      对象类型
+     * @param id              对象 ID
+     * @param validFrom       业务生效时间
+     * @param validTo         业务失效时间
+     * @param actor           操作者
+     * @param fields          领域字段
+     * @param expectedVersion 期望版本
+     * @return 追加请求
+     */
+    public static AppendRequest create(String objectType, UUID id, Instant validFrom,
+                                       Instant validTo, UUID actor, Map<String, Object> fields,
+                                       Long expectedVersion) {
         return new AppendRequest(objectType, id, validFrom, validTo, actor, fields,
-                AppendKind.CREATE);
+                AppendKind.CREATE, expectedVersion);
     }
 
     /**
@@ -69,8 +109,26 @@ public record AppendRequest(String objectType, UUID id, Instant validFrom, Insta
      */
     public static AppendRequest correction(String objectType, UUID id, Instant validFrom,
                                            Instant validTo, UUID actor, Map<String, Object> fields) {
+        return correction(objectType, id, validFrom, validTo, actor, fields, null);
+    }
+
+    /**
+     * 更正并校验期望版本。
+     *
+     * @param objectType      对象类型
+     * @param id              对象 ID
+     * @param validFrom       业务生效时间
+     * @param validTo         业务失效时间
+     * @param actor           操作者
+     * @param fields          领域字段
+     * @param expectedVersion 期望版本
+     * @return 追加请求
+     */
+    public static AppendRequest correction(String objectType, UUID id, Instant validFrom,
+                                           Instant validTo, UUID actor, Map<String, Object> fields,
+                                           Long expectedVersion) {
         return new AppendRequest(objectType, id, validFrom, validTo, actor, fields,
-                AppendKind.CORRECTION);
+                AppendKind.CORRECTION, expectedVersion);
     }
 
     /**
@@ -86,7 +144,25 @@ public record AppendRequest(String objectType, UUID id, Instant validFrom, Insta
      */
     public static AppendRequest lateFact(String objectType, UUID id, Instant validFrom,
                                          Instant validTo, UUID actor, Map<String, Object> fields) {
+        return lateFact(objectType, id, validFrom, validTo, actor, fields, null);
+    }
+
+    /**
+     * 迟到事实并校验期望版本。
+     *
+     * @param objectType      对象类型
+     * @param id              对象 ID
+     * @param validFrom       业务生效时间
+     * @param validTo         业务失效时间
+     * @param actor           操作者
+     * @param fields          领域字段
+     * @param expectedVersion 期望版本
+     * @return 追加请求
+     */
+    public static AppendRequest lateFact(String objectType, UUID id, Instant validFrom,
+                                         Instant validTo, UUID actor, Map<String, Object> fields,
+                                         Long expectedVersion) {
         return new AppendRequest(objectType, id, validFrom, validTo, actor, fields,
-                AppendKind.LATE_FACT);
+                AppendKind.LATE_FACT, expectedVersion);
     }
 }

@@ -60,7 +60,8 @@ public class ContractErrorHandler {
         details.putIfAbsent("reason_code", reasonCode);
 
         HttpHeaders headers = new HttpHeaders();
-        if (error.code() == ContractErrorCode.READ_MODEL_NOT_READY) {
+        if (error.code() == ContractErrorCode.READ_MODEL_NOT_READY
+                || error.code() == ContractErrorCode.VERSION_CONFLICT) {
             headers.set(HttpHeaders.RETRY_AFTER, "1");
         }
         return new ResponseEntity<>(new ApiError(error.code().getCode(), error.reason(), details),

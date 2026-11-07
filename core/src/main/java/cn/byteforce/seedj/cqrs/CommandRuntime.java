@@ -167,7 +167,7 @@ public final class CommandRuntime {
                         Instant appendNow = options.clock().now();
                         CommandContext context = new CommandContext(pending.id(), targetId,
                                 current, appendNow, submission.issuer(), caller, writeScope,
-                                schema, options.idGenerator());
+                                schema, options.idGenerator(), submission.expectedVersion());
                         AppendRequest request = handler(registration).decide(command, context);
                         if (request == null) {
                             throw new IllegalStateException(

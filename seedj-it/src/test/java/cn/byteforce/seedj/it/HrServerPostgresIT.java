@@ -154,6 +154,52 @@ class HrServerPostgresIT {
     }
 
     @Test
+    @DisplayName("并发更新同 expected version：一个 202 一个 409，最终版本 2")
+    void concurrentUpdatesWithSameExpectedVersionHaveOneWinner() throws Exception {
+        String created = mvc.perform(post("/commands/hr.employee.create")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"type":"hr.employee.create",
+                                 "payload":{"name":"并发更新","hire_date":"2026-10-01",
+                                            "org_unit_id":"11111111-1111-1111-1111-111111111111"},
+                                 "idempotency_key":"pg-concurrent-create"}
+                                """))
+                .andExpect(status().isAccepted())
+                .andReturn().getResponse().getContentAsString();
+        String id = JsonPath.read(created, "$.locator");
+
+        CountDownLatch start = new CountDownLatch(1);
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        try {
+            var task = (java.util.concurrent.Callable<Integer>) () -> {
+                String name = Thread.currentThread().getName();
+                start.await(5, TimeUnit.SECONDS);
+                return mvc.perform(post("/commands/hr.employee.update")
+                                .header("If-Match", "\"1\"")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                        {"type":"hr.employee.update",
+                                         "payload":{"employee_id":"%s","name":"%s"},
+                                         "idempotency_key":"pg-concurrent-%s"}
+                                        """.formatted(id, name, name)))
+                        .andReturn().getResponse().getStatus();
+            };
+            Future<Integer> first = pool.submit(task);
+            Future<Integer> second = pool.submit(task);
+            start.countDown();
+
+            assertThat(List.of(first.get(30, TimeUnit.SECONDS),
+                            second.get(30, TimeUnit.SECONDS)))
+                    .containsExactlyInAnyOrder(202, 409);
+            mvc.perform(get("/objects/employee/" + id))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.version").value(2));
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
+    @Test
     @DisplayName("并发创建同一 ID：一个成功，一个因唯一约束失败（不是静默覆盖）")
     void concurrentCreateSameIdHasOneWinner() throws Exception {
         UUID id = UUID.randomUUID();

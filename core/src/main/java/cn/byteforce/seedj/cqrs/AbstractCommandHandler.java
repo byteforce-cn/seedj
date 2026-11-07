@@ -112,7 +112,7 @@ public abstract class AbstractCommandHandler<C> implements CommandHandler<C> {
     protected final AppendRequest create(CommandContext ctx, Instant validFrom,
                                          Map<String, Object> fields) {
         return AppendRequest.create(ctx.schema().objectType(), ctx.targetId(), validFrom, null,
-                ctx.actor(), fields);
+                ctx.actor(), fields, ctx.expectedVersion());
     }
 
     /**
@@ -124,7 +124,7 @@ public abstract class AbstractCommandHandler<C> implements CommandHandler<C> {
      */
     protected final AppendRequest correct(CommandContext ctx, Map<String, Object> fields) {
         return AppendRequest.correction(ctx.schema().objectType(), ctx.targetId(), ctx.now(),
-                null, ctx.actor(), fields);
+                null, ctx.actor(), fields, ctx.expectedVersion());
     }
 
     /**

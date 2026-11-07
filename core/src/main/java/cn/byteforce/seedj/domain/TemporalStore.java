@@ -49,6 +49,11 @@ public interface TemporalStore {
     /**
      * 封口当前行并追加新行。
      *
+     * <p>{@link AppendRequest#expectedVersion()} 是乐观锁：{@code null} 不校验、
+     * {@code 0} 要求当前不存在、{@code >0} 要求当前版本相等；不等抛
+     * {@code ContractException(EIS-409-002)}，不得静默覆盖。实现必须在同一临界区
+     * （内存锁或 {@code SELECT ... FOR UPDATE}）内完成比较与封口。</p>
+     *
      * @param request 追加请求
      * @return 新行与被封口的旧行
      */

@@ -1,5 +1,6 @@
 package cn.byteforce.seedj.starter.cqrs.web;
 
+import cn.byteforce.seedj.core.exception.ApiError;
 import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;
 import cn.byteforce.seedj.core.security.Caller;
@@ -10,11 +11,13 @@ import cn.byteforce.seedj.cqrs.CommandReceipt;
 import cn.byteforce.seedj.cqrs.CommandRecord;
 import cn.byteforce.seedj.cqrs.CommandSubmission;
 import cn.byteforce.seedj.cqrs.spi.CommandStore;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.LinkedHashMap;
@@ -66,20 +69,24 @@ public final class CommandController {
      * 提交命令。
      *
      * @param commandType 路径中的命令类型
+     * @param ifMatch     {@code If-Match: "7"} 形式的期望版本；可空
      * @param request     请求体
-     * @return 202 接受 / 400 拒绝 / 409 幂等冲突
+     * @return 202 接受 / 400 拒绝 / 409 幂等或版本冲突
      */
     @PostMapping("/commands/{commandType}")
-    public ResponseEntity<?> submit(@PathVariable String commandType,
-                                    @RequestBody CommandRequest request) {
+    public ResponseEntity<?> submit(
+            @PathVariable String commandType,
+            @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch,
+            @RequestBody CommandRequest request) {
         try {
             validateRequest(commandType, request);
+            Long expectedVersion = expectedVersion(request.expectedVersion(), ifMatch);
             Caller caller = currentCaller();
             CommandSubmission submission;
             try {
                 submission = new CommandSubmission(commandType, request.payload(),
                         request.idempotencyKey(), request.targets(),
-                        callerIds.toActor(caller));
+                        callerIds.toActor(caller), expectedVersion);
             } catch (IllegalArgumentException error) {
                 throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
                         messageOf(error, "invalid command request"));
@@ -94,6 +101,12 @@ public final class CommandController {
         } catch (ContractException error) {
             if (error.code() == ContractErrorCode.IDEMPOTENCY_CONFLICT) {
                 return ResponseEntity.status(409).body(conflict(error));
+            }
+            if (error.code() == ContractErrorCode.VERSION_CONFLICT) {
+                return ResponseEntity.status(409)
+                        .header(HttpHeaders.RETRY_AFTER, "1")
+                        .body(new ApiError(error.code().getCode(), error.reason(),
+                                error.details()));
             }
             if (error.code() == ContractErrorCode.UNAUTHENTICATED
                     || error.code() == ContractErrorCode.FORBIDDEN
@@ -135,6 +148,39 @@ public final class CommandController {
         }
         body.put("issued_at", record.issuedAt().toString());
         return ResponseEntity.ok(body);
+    }
+
+    /**
+     * 解析期望版本：header 与 body 同时存在且不一致时 400；header 优先。
+     */
+    private static Long expectedVersion(Long bodyVersion, String ifMatch) {
+        Long headerVersion = parseIfMatch(ifMatch);
+        if (headerVersion != null && bodyVersion != null
+                && !headerVersion.equals(bodyVersion)) {
+            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
+                    "If-Match and expected_version disagree");
+        }
+        return headerVersion == null ? bodyVersion : headerVersion;
+    }
+
+    private static Long parseIfMatch(String ifMatch) {
+        if (ifMatch == null || ifMatch.isBlank() || "*".equals(ifMatch.trim())) {
+            return null;
+        }
+        String value = ifMatch.trim();
+        if (value.startsWith("\"") && value.endsWith("\"") && value.length() >= 2) {
+            value = value.substring(1, value.length() - 1);
+        }
+        try {
+            long version = Long.parseLong(value);
+            if (version < 0) {
+                throw new NumberFormatException("negative");
+            }
+            return version;
+        } catch (NumberFormatException error) {
+            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
+                    "invalid If-Match value: " + ifMatch);
+        }
     }
 
     private static void validateRequest(String commandType, CommandRequest request) {

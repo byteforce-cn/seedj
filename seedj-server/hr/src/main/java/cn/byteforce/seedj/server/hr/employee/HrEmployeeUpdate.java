@@ -19,6 +19,7 @@ import java.util.UUID;
  * @param idType           证件类型（可选）
  * @param idNumber         证件号原始值（可选，writeOnly）
  * @param terminatedReason 离职原因（status=terminated 时记录）
+ * @param expectedVersion  期望对象版本（乐观锁）
  * @author ByteForce
  * @since 1.0.0
  */
@@ -33,5 +34,6 @@ public record HrEmployeeUpdate(
         @JsonProperty("org_unit_id") UUID orgUnitId,
         @JsonProperty("id_type") String idType,
         @JsonProperty("id_number") String idNumber,
-        @JsonProperty("terminated_reason") String terminatedReason) {
+        @JsonProperty("terminated_reason") String terminatedReason,
+        @JsonProperty("expected_version") Long expectedVersion) {
 }

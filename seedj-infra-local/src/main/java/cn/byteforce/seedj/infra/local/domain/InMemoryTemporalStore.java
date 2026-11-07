@@ -103,10 +103,24 @@ public final class InMemoryTemporalStore implements TemporalStore {
                     .filter(row -> row.version().supersededAt() == null)
                     .findFirst()
                     .orElse(null);
+            requireExpectedVersion(request, current);
             AppendResult result = Sealing.next(request, current, clock.now());
             result.superseded().ifPresent(old -> replace(versions, old));
             versions.add(result.appended());
             return result;
+        }
+    }
+
+    private static void requireExpectedVersion(AppendRequest request, TemporalRow current) {
+        Long expected = request.expectedVersion();
+        if (expected == null) {
+            return;
+        }
+        long actual = current == null ? 0 : current.version().version();
+        if (expected.longValue() != actual) {
+            throw new ContractException(ContractErrorCode.VERSION_CONFLICT,
+                    "expected version " + expected + " but current is " + actual,
+                    Map.of("expected_version", expected, "current_version", actual), null);
         }
     }
 

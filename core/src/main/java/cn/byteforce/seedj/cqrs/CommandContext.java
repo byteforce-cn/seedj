@@ -44,6 +44,8 @@ public final class CommandContext {
 
     private final IdGenerator<UUID> ids;
 
+    private final Long expectedVersion;
+
     private final AtomicInteger eventIndex = new AtomicInteger();
 
     /**
@@ -62,6 +64,26 @@ public final class CommandContext {
     public CommandContext(UUID commandId, UUID targetId, Optional<TemporalRow> current,
                           Instant now, UUID actor, Caller caller, ScopePredicate writeScope,
                           ObjectSchema schema, IdGenerator<UUID> ids) {
+        this(commandId, targetId, current, now, actor, caller, writeScope, schema, ids, null);
+    }
+
+    /**
+     * 构造上下文（带期望版本）。
+     *
+     * @param commandId       命令 ID
+     * @param targetId        目标对象 ID
+     * @param current         当前行
+     * @param now             系统时间
+     * @param actor           操作者
+     * @param caller          调用方
+     * @param writeScope      写范围
+     * @param schema          对象 schema
+     * @param ids             事件 id 生成器
+     * @param expectedVersion 期望版本；{@code null} 不校验
+     */
+    public CommandContext(UUID commandId, UUID targetId, Optional<TemporalRow> current,
+                          Instant now, UUID actor, Caller caller, ScopePredicate writeScope,
+                          ObjectSchema schema, IdGenerator<UUID> ids, Long expectedVersion) {
         this.commandId = Objects.requireNonNull(commandId, "commandId");
         this.targetId = Objects.requireNonNull(targetId, "targetId");
         this.current = Objects.requireNonNull(current, "current");
@@ -71,6 +93,7 @@ public final class CommandContext {
         this.writeScope = Objects.requireNonNull(writeScope, "writeScope");
         this.schema = Objects.requireNonNull(schema, "schema");
         this.ids = Objects.requireNonNull(ids, "ids");
+        this.expectedVersion = expectedVersion;
     }
 
     public UUID commandId() {
@@ -103,6 +126,15 @@ public final class CommandContext {
 
     public ObjectSchema schema() {
         return schema;
+    }
+
+    /**
+     * 期望的对象版本。
+     *
+     * @return 期望版本；{@code null} 表示不校验
+     */
+    public Long expectedVersion() {
+        return expectedVersion;
     }
 
     /**
