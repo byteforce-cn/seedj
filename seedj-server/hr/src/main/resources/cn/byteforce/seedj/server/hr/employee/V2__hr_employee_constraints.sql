@@ -1,4 +1,4 @@
--- V2: align the HR sample table with the eis Employee contract.
+-- V2: align the HR sample table with the employee contract.
 --
 -- Review before applying to a non-empty database: the NOT NULL / CHECK / UUID
 -- statements require conforming rows. Local and test databases can be rebuilt;

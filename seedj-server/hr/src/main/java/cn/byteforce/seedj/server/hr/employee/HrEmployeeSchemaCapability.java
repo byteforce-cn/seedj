@@ -29,7 +29,7 @@ public final class HrEmployeeSchemaCapability extends ObjectSchemaCapability {
     /** 冻结的 V1 资源（相对本包）。 */
     static final String V1_RESOURCE = "V1__hr_employee.sql";
 
-    /** 对齐 eis Employee 契约的 V2 资源（相对本包）。 */
+    /** 对齐员工契约的 V2 资源（相对本包）。 */
     static final String V2_RESOURCE = "V2__hr_employee_constraints.sql";
 
     /**
@@ -42,7 +42,7 @@ public final class HrEmployeeSchemaCapability extends ObjectSchemaCapability {
                                       ObjectModuleRegistry modules) {
         super(NAME, runner, modules.require("employee").schema(),
                 List.of(new Migration(1, "create hr_employee table", v1()),
-                        new Migration(2, "align employee constraints with eis", v2())));
+                        new Migration(2, "align employee constraints with contract", v2())));
     }
 
     /**
@@ -55,7 +55,7 @@ public final class HrEmployeeSchemaCapability extends ObjectSchemaCapability {
     }
 
     /**
-     * 读取对齐 eis 契约的 V2 脚本。
+     * 读取对齐契约的 V2 脚本。
      *
      * @return V2 SQL
      */

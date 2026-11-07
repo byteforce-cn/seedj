@@ -12,7 +12,7 @@ import java.util.UUID;
 /**
  * 员工字段的唯一来源：schema、DDL 候选与 OpenAPI 都由 {@code seedj-codegen} 从这里生成。
  *
- * <p>字段集合与约束对齐 eis {@code extensions/hr/objects/employee.schema.json}；
+ * <p>字段集合与约束对齐员工对象契约 {@code extensions/hr/objects/employee.schema.json}；
  * 加字段只改这个 record，再把生成的迁移候选审阅后合并进新版本（V3…）；已发布的 V1/V2
  * 不再修改。</p>
  *

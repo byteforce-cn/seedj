@@ -39,7 +39,14 @@ public class HrEmployeePostgresConfiguration {
      */
     @Bean
     public EmployeeNoSequence hrEmployeeNoSequence(JdbcTemplate jdbc) {
-        return () -> jdbc.queryForObject("select nextval('hr_employee_no_seq')", Long.class);
+        return () -> {
+            Long value = jdbc.queryForObject("select nextval('hr_employee_no_seq')",
+                    Long.class);
+            if (value == null) {
+                throw new IllegalStateException("hr_employee_no_seq returned no value");
+            }
+            return value;
+        };
     }
 
     @Bean
