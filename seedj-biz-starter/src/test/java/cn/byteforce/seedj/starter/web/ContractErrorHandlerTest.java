@@ -47,7 +47,8 @@ class ContractErrorHandlerTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("EIS-404-001"))
                 .andExpect(jsonPath("$.message").value("object not found"))
-                .andExpect(jsonPath("$.details.reason_code").value("EIS-404-001"));
+                .andExpect(jsonPath("$.details.reason_code").value("EIS-404-001"))
+                .andExpect(jsonPath("$.details.message_key").value("OBJECT_NOT_FOUND"));
     }
 
     @Test

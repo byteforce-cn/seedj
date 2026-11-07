@@ -58,6 +58,7 @@ public class ContractErrorHandler {
         String reasonCode = error.reasonCode() == null
                 ? error.code().getCode() : error.reasonCode();
         details.putIfAbsent("reason_code", reasonCode);
+        details.putIfAbsent("message_key", error.code().name());
 
         HttpHeaders headers = new HttpHeaders();
         if (error.code() == ContractErrorCode.READ_MODEL_NOT_READY

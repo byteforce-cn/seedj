@@ -139,6 +139,16 @@ public abstract class TemporalStoreContractTest {
     }
 
     @Test
+    @DisplayName("空 And 为恒真、空 Or 为恒假")
+    void emptyCompositesAreIdentities() {
+        seed("alice", T0);
+        seedWith(UUID.randomUUID(), Map.of("name", "bob"), T0);
+
+        assertThat(run(List.of(new TemporalFilter.And(List.of()))).items()).hasSize(2);
+        assertThat(run(List.of(new TemporalFilter.Or(List.of()))).items()).isEmpty();
+    }
+
+    @Test
     @DisplayName("未声明/不可过滤字段被拒绝")
     void unknownFilterFieldIsRejected() {
         seed("alice", T0);

@@ -218,7 +218,7 @@ public final class PostgresTemporalStore implements TemporalStore {
             args.add(cursor.id());
             return;
         }
-        Object value = filterValue(table, search.sortField(), cursor.sortValue());
+        Object value = sortValue(table, search.sortField(), cursor.sortValue());
         outer.append(" AND (t.").append(search.sortField()).append(' ').append(operator)
                 .append(" ? OR (t.").append(search.sortField()).append(" = ? AND t.id ")
                 .append(operator).append(" ?))");
@@ -286,6 +286,9 @@ public final class PostgresTemporalStore implements TemporalStore {
                 yield like.field() + " LIKE ?";
             }
             case TemporalFilter.And and -> {
+                if (and.parts().isEmpty()) {
+                    yield "1 = 1";
+                }
                 StringBuilder sql = new StringBuilder("(");
                 for (int i = 0; i < and.parts().size(); i++) {
                     if (i > 0) {
@@ -296,6 +299,9 @@ public final class PostgresTemporalStore implements TemporalStore {
                 yield sql.append(')').toString();
             }
             case TemporalFilter.Or or -> {
+                if (or.parts().isEmpty()) {
+                    yield "1 = 0";
+                }
                 StringBuilder sql = new StringBuilder("(");
                 for (int i = 0; i < or.parts().size(); i++) {
                     if (i > 0) {
@@ -308,6 +314,18 @@ public final class PostgresTemporalStore implements TemporalStore {
             case TemporalFilter.Not not -> "NOT ("
                     + filterSql(not.part(), table, args) + ")";
         };
+    }
+
+    private static Object sortValue(TemporalTable table, String field, Object value) {
+        if (!table.columns().containsKey(field)) {
+            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
+                    "unknown sort field: " + field);
+        }
+        if (!table.fieldTypes().containsKey(field)) {
+            return value;
+        }
+        Object coerced = table.fieldTypes().get(field).coerce(value);
+        return TemporalValues.toJdbc(table.fieldTypes().get(field), coerced);
     }
 
     private static Object filterValue(TemporalTable table, String field, Object value) {

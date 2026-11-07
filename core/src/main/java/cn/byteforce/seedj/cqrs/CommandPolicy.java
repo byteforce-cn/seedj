@@ -97,15 +97,16 @@ public interface CommandPolicy {
                 throw new ContractException(ContractErrorCode.UNAUTHENTICATED,
                         "caller is required");
             }
+            java.time.Instant now = clock.now();
             AuthorizationDecision decision = decisionPoint.decide(new AuthorizationRequest(
                     AuthorizationSubject.from(caller), permission, descriptor.objectType(),
-                    null, Map.of(), clock.now(), Map.of()));
+                    null, Map.of(), now, Map.of()));
             if (decision == null) {
                 throw new IllegalStateException(
                         "authorization decision point returned null for " + permission);
             }
             if (!decision.allowed()) {
-                recordDenied(audit, descriptor, caller, permission, decision, clock.now());
+                recordDenied(audit, descriptor, caller, permission, decision, now);
                 throw new ContractException(ContractErrorCode.FORBIDDEN, decision.reason(),
                         Map.of("reason_code", decision.reasonCode()), decision.reasonCode());
             }
