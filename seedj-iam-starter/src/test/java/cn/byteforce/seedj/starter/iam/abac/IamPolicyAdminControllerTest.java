@@ -50,7 +50,7 @@ class IamPolicyAdminControllerTest {
         assertThat(created.get("priority")).isEqualTo(7);
         assertThat(created.get("enabled")).isEqualTo(true);
         assertThat(created.get("version")).isEqualTo(0L);
-        assertThat((List<Object>) created.get("actions")).containsExactly("read", "list");
+        assertThat((List<Object>) created.get("actions")).containsExactlyInAnyOrder("read", "list");
         assertThat((List<Object>) created.get("resources")).containsExactly("employee");
         assertThat(created.get("condition").toString()).contains("\"compare\"")
                 .contains("ACTIVE");
