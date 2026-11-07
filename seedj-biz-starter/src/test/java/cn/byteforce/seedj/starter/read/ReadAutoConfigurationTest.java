@@ -19,6 +19,8 @@ import cn.byteforce.seedj.module.ObjectModuleRegistry;
 import cn.byteforce.seedj.read.ReadAccessEvent;
 import cn.byteforce.seedj.read.ReadAuditSink;
 import cn.byteforce.seedj.read.ReadGateway;
+import cn.byteforce.seedj.security.AuthorizationDecision;
+import cn.byteforce.seedj.security.AuthorizationDecisionPoint;
 import cn.byteforce.seedj.starter.domain.web.ObjectQueryController;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -57,6 +59,8 @@ class ReadAutoConfigurationTest {
                     () -> new InMemoryTemporalStore((Clock) () -> NOW))
             .withBean(CallerProvider.class, () -> (CallerProvider) () -> Optional.of(CALLER))
             .withBean(CallerPropagation.class, ThreadLocalCallerPropagation::new)
+            .withBean(AuthorizationDecisionPoint.class,
+                    () -> request -> AuthorizationDecision.allow("test"))
             .withBean(ObjectModuleConfigurer.class, () -> modules ->
                     modules.object("employee", "hr_employee")
                             .readPermission("hr.employee.read")

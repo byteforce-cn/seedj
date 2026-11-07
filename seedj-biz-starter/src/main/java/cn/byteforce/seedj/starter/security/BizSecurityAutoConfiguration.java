@@ -91,17 +91,22 @@ public class BizSecurityAutoConfiguration {
     }
 
     /**
-     * local/test 的放行决策点：只允许在本地与测试 profile 使用。
+     * local/test 的本地决策点：按调用方权限声明判定，保留“无权限 403”的测试语义。
      *
-     * <p>生产 profile 没有 IAM 决策点时启动失败，而不是静默放行或只看 JWT claim。</p>
+     * <p>生产 profile 没有 IAM 决策点时启动失败；本地开发使用 dev-auth 时，调用方
+     * 权限来自配置，因此这里不需要无条件放行。</p>
      *
      * @return 决策点
      */
     @Bean
     @ConditionalOnMissingBean
     @Profile({"local", "test"})
-    public AuthorizationDecisionPoint permitAllAuthorizationDecisionPoint() {
-        return request -> AuthorizationDecision.allow("permit-all");
+    public AuthorizationDecisionPoint localAuthorizationDecisionPoint() {
+        return request -> request.subject().permissions().contains(request.action())
+                ? AuthorizationDecision.allow("local-caller-permissions")
+                : AuthorizationDecision.deny("NO_PERMISSION",
+                        "missing permission: " + request.action(),
+                        "local-caller-permissions");
     }
 
     @Bean

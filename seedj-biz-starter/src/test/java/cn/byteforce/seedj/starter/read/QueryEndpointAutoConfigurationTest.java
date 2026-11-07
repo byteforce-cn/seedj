@@ -18,6 +18,8 @@ import cn.byteforce.seedj.module.ObjectModuleConfigurer;
 import cn.byteforce.seedj.module.ObjectModuleRegistry;
 import cn.byteforce.seedj.module.ObjectModules;
 import cn.byteforce.seedj.read.DataScopeResolver;
+import cn.byteforce.seedj.security.AuthorizationDecision;
+import cn.byteforce.seedj.security.AuthorizationDecisionPoint;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -161,6 +163,8 @@ class QueryEndpointAutoConfigurationTest {
                 .withBean(CallerProvider.class, () -> (CallerProvider) () ->
                         Optional.ofNullable(caller.get()))
                 .withBean(DataScopeResolver.class, QueryEndpointAutoConfigurationTest::allScope)
+                .withBean(AuthorizationDecisionPoint.class,
+                        () -> request -> AuthorizationDecision.allow("test"))
                 .withBean(ObjectModuleConfigurer.class, () -> configurer);
     }
 
