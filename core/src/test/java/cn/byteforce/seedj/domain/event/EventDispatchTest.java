@@ -101,6 +101,14 @@ class EventDispatchTest {
     }
 
     @Test
+    @DisplayName("抽象 apply 与非 DomainEvent 参数不进分派表")
+    void excludesAbstractAndNonDomainEventHandlers() {
+        assertThat(EventDispatch.table(AbstractHandler.class).keySet())
+                .containsExactly(OrderPaid.class);
+        assertThat(EventDispatch.table(TextHandler.class).keySet()).isEmpty();
+    }
+
+    @Test
     @DisplayName("sealed 事件族缺少 handler 时列出子类型")
     void missingHandlersListsUncoveredSubtypes() {
         List<Class<?>> missing = EventDispatch.missingHandlers(Order.class, OrderEvent.class);
@@ -209,6 +217,20 @@ class EventDispatchTest {
     }
 
     static final class NotAnApplier {
+    }
+
+    static abstract class AbstractHandler implements EventApplier<OrderEvent> {
+
+        abstract void apply(OrderPlaced event);
+
+        protected void apply(OrderPaid event) {
+        }
+    }
+
+    static final class TextHandler {
+
+        void apply(String text) {
+        }
     }
 
     static final class CandidateScan {

@@ -1,5 +1,6 @@
 package cn.byteforce.seedj.domain;
 
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -80,5 +81,17 @@ class FieldDefinitionTest {
     void maskersFixedReplacesValue() {
         assertThat(Maskers.fixed("***").mask("salary", "123")).isEqualTo("***");
         assertThat(Maskers.fixed("***").mask("salary", null)).isNull();
+    }
+
+    @Test
+    @DisplayName("filterable 工厂与 privacy 缺省归一为 PUBLIC")
+    void filterableFactoryAndDefaultPrivacy() {
+        FieldDefinition filterable = FieldDefinition.filterable("org_unit_id", FieldType.TEXT);
+        FieldDefinition withoutPrivacy = new FieldDefinition("status", FieldType.TEXT, false,
+                false, true, false, false, false, null, null);
+
+        assertThat(filterable.filterable()).isTrue();
+        assertThat(filterable.eventVisible()).isTrue();
+        assertThat(withoutPrivacy.privacy()).isEqualTo(Privacy.PUBLIC);
     }
 }
