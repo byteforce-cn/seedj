@@ -29,6 +29,14 @@ paths:
           schema:
             type: string
             pattern: '^[a-z][a-z0-9_.]*$'
+        - name: If-Match
+          in: header
+          required: false
+          description: |
+            期望对象版本（ETag 形式，如 "7"）；与 body 的 expected_version 同时存在
+            且不一致时返回 400。
+          schema:
+            type: string
       requestBody:
         required: true
         content:
@@ -49,7 +57,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/CommandRejected'
         '409':
-          description: 幂等冲突
+          description: 幂等冲突或乐观锁版本冲突（版本冲突带 Retry-After）
           content:
             application/json:
               schema:
@@ -96,6 +104,11 @@ components:
           items:
             type: string
             format: uuid
+        expected_version:
+          type: integer
+          format: int64
+          minimum: 0
+          description: 期望对象版本；0 仅创建，>0 必须等于当前版本
 
     CommandAccepted:
       type: object

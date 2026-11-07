@@ -29,6 +29,7 @@ core|cn.byteforce.seedj.core.clock|HybridTimestamp
 core|cn.byteforce.seedj.core.exception|ApiError
 core|cn.byteforce.seedj.core.exception|ContractErrorCode
 core|cn.byteforce.seedj.core.exception|ContractException
+core|cn.byteforce.seedj.core.exception|ErrorMessageCatalog
 core|cn.byteforce.seedj.core.security|AccessTokenRules
 core|cn.byteforce.seedj.core.security|Caller
 core|cn.byteforce.seedj.core.security|CallerIdCodec
@@ -120,6 +121,7 @@ core|cn.byteforce.seedj.domain|ObjectSchema
 core|cn.byteforce.seedj.domain|ObjectSchemaRegistry
 core|cn.byteforce.seedj.domain|ObjectVersion
 core|cn.byteforce.seedj.domain|Page
+core|cn.byteforce.seedj.domain|PageCursor
 core|cn.byteforce.seedj.domain|PageRequest
 core|cn.byteforce.seedj.domain|Privacy
 core|cn.byteforce.seedj.domain|Repository
@@ -127,11 +129,13 @@ core|cn.byteforce.seedj.domain|ScopePredicate
 core|cn.byteforce.seedj.domain|ScopePredicates
 core|cn.byteforce.seedj.domain|Sealing
 core|cn.byteforce.seedj.domain|SortDirection
+core|cn.byteforce.seedj.domain|TemporalFilter
 core|cn.byteforce.seedj.domain|TemporalQuery
 core|cn.byteforce.seedj.domain|TemporalRow
 core|cn.byteforce.seedj.domain|TemporalRules
 core|cn.byteforce.seedj.domain|TemporalSearch
 core|cn.byteforce.seedj.domain|TemporalStore
+core|cn.byteforce.seedj.domain|TemporalView
 core|cn.byteforce.seedj.eventbus.spi|DeadLetter
 core|cn.byteforce.seedj.eventbus.spi|DeliveryFailure
 core|cn.byteforce.seedj.eventbus.spi|EventBusTransport
@@ -224,6 +228,7 @@ core|cn.byteforce.seedj.module|ObjectModuleConfigurer
 core|cn.byteforce.seedj.module|ObjectModuleRegistry
 core|cn.byteforce.seedj.module|ObjectModules
 core|cn.byteforce.seedj.module|QueryDeclaration
+core|cn.byteforce.seedj.numbering|Numbering
 core|cn.byteforce.seedj.outbox.spi|ClaimRequest
 core|cn.byteforce.seedj.outbox.spi|ClaimToken
 core|cn.byteforce.seedj.outbox.spi|ClaimedRecord
@@ -514,6 +519,7 @@ seedj-infra-local|cn.byteforce.seedj.infra.local.id|StringIdGenerator
 seedj-infra-local|cn.byteforce.seedj.infra.local.id|Uuid7IdGenerator
 seedj-infra-local|cn.byteforce.seedj.infra.local.lock|InMemoryLockAutoConfiguration
 seedj-infra-local|cn.byteforce.seedj.infra.local.lock|InMemoryLockProvider
+seedj-infra-local|cn.byteforce.seedj.infra.local.numbering|InMemoryNumbering
 seedj-infra-local|cn.byteforce.seedj.infra.local.pki|BcPkiProvider
 seedj-infra-local|cn.byteforce.seedj.infra.local.pki|PkiAutoConfiguration
 seedj-infra-local|cn.byteforce.seedj.infra.local.pki|PkiProperties
@@ -556,6 +562,7 @@ seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.lock|PostgresLockAutoConfigu
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.lock|PostgresLockMigrations
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.lock|PostgresLockProvider
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.lock|PostgresLockSchemaCapability
+seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.numbering|PostgresNumbering
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.outbox.wiring|DefaultOutboxWriter
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.outbox.wiring|OutboxAutoConfiguration
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.outbox.wiring|OutboxInfrastructureInitializer
@@ -568,6 +575,9 @@ seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.outbox|PostgresOutboxPropert
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.outbox|PostgresOutboxSchemaCapability
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.outbox|PostgresOutboxStore
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.read|PostgresQueryExecutor
+seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.workflow|WorkflowMigrations
+seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.workflow|WorkflowSchemaCapability
+seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.workflow|WorkflowTimerPoller
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc|JdbcMigrationRunner
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|EmployeeNoSequence
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeConfiguration

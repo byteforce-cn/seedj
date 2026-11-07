@@ -338,6 +338,8 @@ public class ClusterExtension implements BeforeAllCallback, AfterAllCallback, Pa
         props.put("spring.datasource.username", postgres.getUsername());
         props.put("spring.datasource.password", postgres.getPassword());
         props.put("spring.main.allow-bean-definition-overriding", true);
+        // 集群 IT 属于测试 profile：没有 IAM starter 的服务使用本地 caller-permissions 决策点。
+        props.put("spring.profiles.active", "test");
         props.put("seedj.pki.enabled", true);
         props.put("seedj.pki.ca-resource", caP12.toUri().toString());
         props.put("seedj.pki.ca-password", PASSWORD_STR);

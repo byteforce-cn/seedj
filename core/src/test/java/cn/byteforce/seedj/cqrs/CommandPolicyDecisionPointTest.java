@@ -6,10 +6,14 @@ import cn.byteforce.seedj.core.exception.ContractException;
 import cn.byteforce.seedj.core.security.Caller;
 import cn.byteforce.seedj.security.AuthorizationDecision;
 import cn.byteforce.seedj.security.AuthorizationDecisionPoint;
+import cn.byteforce.seedj.core.security.SecurityAuditEvent;
+import cn.byteforce.seedj.core.security.SecurityAuditSink;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -93,6 +97,43 @@ class CommandPolicyDecisionPointTest {
         assertThatThrownBy(() -> policy.authorize(descriptor, caller(), Map.of()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("permission");
+    }
+
+    @Test
+    @DisplayName("拒绝写入安全审计；审计故障不改变 403")
+    void denialIsAuditedAndAuditFailureIsIgnored() {
+        List<SecurityAuditEvent> events = new ArrayList<>();
+        SecurityAuditSink audit = events::add;
+        CommandPolicy policy = CommandPolicy.decisionPoint(
+                request -> AuthorizationDecision.deny("SOD-001", "conflict", "sod"),
+                CLOCK, audit);
+
+        assertThatThrownBy(() -> policy.authorize(descriptor(), caller(), Map.of()))
+                .isInstanceOf(ContractException.class);
+        assertThat(events).singleElement().satisfies(event -> {
+            assertThat(event.outcome()).isEqualTo(SecurityAuditEvent.OUTCOME_DENIED);
+            assertThat(event.details()).containsEntry("reason_code", "SOD-001");
+        });
+
+        SecurityAuditSink broken = event -> {
+            throw new IllegalStateException("audit down");
+        };
+        CommandPolicy withBrokenAudit = CommandPolicy.decisionPoint(
+                request -> AuthorizationDecision.deny("SOD-001", "conflict", "sod"),
+                CLOCK, broken);
+        assertThatThrownBy(() -> withBrokenAudit.authorize(descriptor(), caller(), Map.of()))
+                .isInstanceOfSatisfying(ContractException.class, error ->
+                        assertThat(error.code()).isEqualTo(ContractErrorCode.FORBIDDEN));
+    }
+
+    @Test
+    @DisplayName("决策点返回 null 是装配缺陷")
+    void nullDecisionIsAnError() {
+        CommandPolicy policy = CommandPolicy.decisionPoint(request -> null, CLOCK);
+
+        assertThatThrownBy(() -> policy.authorize(descriptor(), caller(), Map.of()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("returned null");
     }
 
     @Test

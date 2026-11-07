@@ -53,14 +53,19 @@ class ChangeAmplificationTest {
         } catch (IOException error) {
             throw new UncheckedIOException(error);
         }
-        assertThat(resources).as("HR 应有且只有一个冻结的 V1 迁移").hasSize(1);
-        String sql;
-        try {
-            sql = Files.readString(resources.get(0));
-        } catch (IOException error) {
-            throw new UncheckedIOException(error);
+        assertThat(resources).as("HR 的迁移必须是签入的 literal SQL").hasSize(2);
+        List<String> sql = new java.util.ArrayList<>();
+        for (Path resource : resources) {
+            try {
+                sql.add(Files.readString(resource));
+            } catch (IOException error) {
+                throw new UncheckedIOException(error);
+            }
         }
-        assertThat(sql).contains("CREATE TABLE hr_employee");
+        assertThat(sql).anySatisfy(script -> assertThat(script)
+                .contains("CREATE TABLE hr_employee"));
+        assertThat(sql).noneSatisfy(script -> assertThat(script)
+                .contains("Generated candidate"));
         assertThat(CognitiveLoadBaseline.textOccurrences(HR_MAIN, "TemporalDdl.createTable"))
                 .as("启动时生成 DDL 会让已有库 checksum 冲突；V1 必须签入")
                 .isZero();

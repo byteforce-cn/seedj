@@ -114,6 +114,53 @@ class FieldDefinitionConstraintsTest {
     }
 
     @Test
+    @DisplayName("约束构造期校验边界")
+    void constraintsValidateRanges() {
+        assertThatThrownBy(() -> new FieldDefinition.Constraints(Set.of(), null, -1, null,
+                false, null, null))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("minLength");
+        assertThatThrownBy(() -> new FieldDefinition.Constraints(Set.of(), null, null, -1,
+                false, null, null))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("maxLength");
+        assertThatThrownBy(() -> new FieldDefinition.Constraints(Set.of(), null, 2, 1,
+                false, null, null))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("minLength");
+        assertThatThrownBy(() -> new FieldDefinition.Constraints(Set.of(), null, null, null,
+                false, 0, null))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("precision");
+        assertThatThrownBy(() -> new FieldDefinition.Constraints(Set.of(), null, null, null,
+                false, 4, -1))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("scale");
+        assertThatThrownBy(() -> new FieldDefinition.Constraints(Set.of(), null, null, null,
+                false, 2, 3))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("scale");
+        assertThatThrownBy(() -> new FieldDefinition.Constraints(Set.of(), "(?", null, null,
+                false, null, null))
+                .isInstanceOf(java.util.regex.PatternSyntaxException.class);
+        assertThat(FieldDefinition.Constraints.NONE.enumValues()).isEmpty();
+        assertThat(FieldDefinition.Constraints.NONE.pattern()).isNull();
+    }
+
+    @Test
+    @DisplayName("enum/pattern/length 只能用于 TEXT")
+    void textOnlyConstraintsAreEnforced() {
+        assertThatThrownBy(() -> new FieldDefinition("n", FieldType.INTEGER, false, false,
+                true, false, false, false, Privacy.PUBLIC, null,
+                new FieldDefinition.Constraints(Set.of("a"), null, null, null, false, null,
+                        null)))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("enum");
+        assertThatThrownBy(() -> new FieldDefinition("n", FieldType.INTEGER, false, false,
+                true, false, false, false, Privacy.PUBLIC, null,
+                new FieldDefinition.Constraints(Set.of(), "^x$", null, null, false, null,
+                        null)))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("pattern");
+        assertThatThrownBy(() -> new FieldDefinition("n", FieldType.INTEGER, false, false,
+                true, false, false, false, Privacy.PUBLIC, null,
+                new FieldDefinition.Constraints(Set.of(), null, 1, null, false, null, null)))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("length");
+    }
+
+    @Test
     @DisplayName("withers 保留约束")
     void withersKeepConstraints() {
         FieldDefinition.Constraints constraints = new FieldDefinition.Constraints(

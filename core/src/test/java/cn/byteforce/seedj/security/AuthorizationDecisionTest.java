@@ -30,6 +30,32 @@ class AuthorizationDecisionTest {
     }
 
     @Test
+    @DisplayName("subject 的 null 字段归一为安全默认值")
+    void subjectDefaultsForNulls() {
+        AuthorizationSubject subject = new AuthorizationSubject(null, null, " ", null, null,
+                null, null, null, null);
+
+        assertThat(subject.id()).isEmpty();
+        assertThat(subject.username()).isEmpty();
+        assertThat(subject.tenantId()).isEqualTo("default");
+        assertThat(subject.roles()).isEmpty();
+        assertThat(subject.permissions()).isEmpty();
+        assertThat(subject.groups()).isEmpty();
+        assertThat(subject.amr()).isEmpty();
+        assertThat(subject.acr()).isEmpty();
+        assertThat(subject.attributes()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("subject 的 amr 为空集时保留空集")
+    void subjectKeepsExplicitEmptyAmr() {
+        AuthorizationSubject subject = new AuthorizationSubject("u", "u", "t", Set.of(),
+                Set.of(), Set.of(), Set.of(), "", Map.of());
+
+        assertThat(subject.amr()).isEmpty();
+    }
+
+    @Test
     @DisplayName("deny 携带 reasonCode")
     void denyCarriesReasonCode() {
         AuthorizationDecision decision = AuthorizationDecision.deny(

@@ -85,7 +85,7 @@ class ApiAlignmentTest {
     @DisplayName("命令控制器路径与方法同工件一致")
     void commandControllerMatchesSpec() throws Exception {
         Method submit = CommandController.class.getMethod("submit", String.class,
-                CommandRequest.class);
+                String.class, CommandRequest.class);
         PostMapping post = submit.getAnnotation(PostMapping.class);
         assertThat(post).isNotNull();
         assertThat(post.value()).containsExactly("/commands/{commandType}");
