@@ -40,6 +40,12 @@ class HrEmployeeReadE2eTest {
 
     private static final UUID ACTOR = UUID.fromString("018f2e3a-0000-7000-8000-000000000001");
 
+    private static final String ORG_A = "11111111-1111-1111-1111-111111111111";
+
+    private static final String ORG_B = "22222222-2222-2222-2222-222222222222";
+
+    private static final String ORG_C = "33333333-3333-3333-3333-333333333333";
+
     private static final Caller MANAGER = new Caller("u-1", "manager", "default", Set.of(),
             Set.of("hr.employee.read"), Set.of(), Set.of("pwd"), "urn:seedj:acr:pwd", Map.of());
 
@@ -52,7 +58,7 @@ class HrEmployeeReadE2eTest {
     private final InMemoryTemporalStore store = new InMemoryTemporalStore(clock,
             new ObjectSchemaRegistry(List.of(registry.require("employee").schema())));
 
-    private final FieldPolicyResolver phoneMasked = new FieldPolicyResolver() {
+    private final FieldPolicyResolver contactMasked = new FieldPolicyResolver() {
         @Override
         public boolean supports(String objectType) {
             return "employee".equals(objectType);
@@ -60,27 +66,27 @@ class HrEmployeeReadE2eTest {
 
         @Override
         public FieldPolicy resolve(String objectType, Caller caller, ScopeContext context) {
-            return new FieldPolicy(Map.of("phone", new FieldAccess(
-                    FieldAccess.Action.MASKED, "hr.employee.phone.masked")));
+            return new FieldPolicy(Map.of("contact", new FieldAccess(
+                    FieldAccess.Action.MASKED, "hr.employee.contact.masked")));
         }
     };
 
     private final ReadGateway gateway = new ReadGateway(registry, store,
-            List.of(new HrOrgUnitScopeResolver()), List.of(phoneMasked), ReadAuditSink.noop(),
+            List.of(new HrOrgUnitScopeResolver()), List.of(contactMasked), ReadAuditSink.noop(),
             clock, () -> UUID.randomUUID());
 
     @BeforeEach
     void seed() {
         now.set(T0);
         store.clear();
-        seedRow("D01", "13800138000", "hash-1");
-        seedRow("D02", "13900139000", "hash-2");
-        seedRow("D03", "13700137000", "hash-3");
+        seedRow(ORG_A, "13800138000", "hash-1");
+        seedRow(ORG_B, "13900139000", "hash-2");
+        seedRow(ORG_C, "13700137000", "hash-3");
     }
 
     @Test
     void managerSeesSubtree() {
-        Page<TemporalRow> page = search(List.of("D01", "D02"), new PageRequest(1, 20));
+        Page<TemporalRow> page = search(List.of(ORG_A, ORG_B), new PageRequest(1, 20));
 
         assertThat(page.items()).hasSize(2);
         assertThat(page.total()).isEqualTo(2);
@@ -88,10 +94,11 @@ class HrEmployeeReadE2eTest {
 
     @Test
     void employeeSeesOwnUnitOnly() {
-        Page<TemporalRow> page = search(List.of("D01"), new PageRequest(1, 20));
+        Page<TemporalRow> page = search(List.of(ORG_A), new PageRequest(1, 20));
 
         assertThat(page.items()).hasSize(1);
-        assertThat(page.items().get(0).fields()).containsEntry("org_unit_id", "D01");
+        assertThat(page.items().get(0).fields())
+                .containsEntry("org_unit_id", UUID.fromString(ORG_A));
     }
 
     @Test
@@ -103,22 +110,22 @@ class HrEmployeeReadE2eTest {
     }
 
     @Test
-    void phoneIsMasked() {
-        Page<TemporalRow> page = search(List.of("D01"), new PageRequest(1, 20));
+    void contactIsMasked() {
+        Page<TemporalRow> page = search(List.of(ORG_A), new PageRequest(1, 20));
 
-        assertThat(page.items().get(0).fields()).containsEntry("phone", "****8000");
+        assertThat(page.items().get(0).fields()).containsEntry("contact", "****8000");
     }
 
     @Test
     void writeOnlyHashIsAbsent() {
-        Page<TemporalRow> page = search(List.of("D01"), new PageRequest(1, 20));
+        Page<TemporalRow> page = search(List.of(ORG_A), new PageRequest(1, 20));
 
         assertThat(page.items().get(0).fields()).doesNotContainKey("id_number_hash");
     }
 
     @Test
     void pageTotalReflectsScope() {
-        Page<TemporalRow> page = search(List.of("D01", "D02"), new PageRequest(1, 1));
+        Page<TemporalRow> page = search(List.of(ORG_A, ORG_B), new PageRequest(1, 1));
 
         assertThat(page.items()).hasSize(1);
         assertThat(page.total()).isEqualTo(2);
@@ -132,11 +139,12 @@ class HrEmployeeReadE2eTest {
         }
     }
 
-    private void seedRow(String unit, String phone, String hash) {
+    private void seedRow(String unit, String contact, String hash) {
         store.append(AppendRequest.create("employee", UUID.randomUUID(), T0, null, ACTOR,
                 Map.of("employee_no", "E-" + unit, "name", "Employee " + unit,
-                        "status", "ACTIVE", "phone", phone, "id_number_hash", hash,
-                        "org_unit_id", unit)));
+                        "hire_date", java.time.LocalDate.of(2026, 10, 1),
+                        "status", "ACTIVE", "contact", contact, "id_number_hash", hash,
+                        "org_unit_id", UUID.fromString(unit))));
     }
 
     private static ObjectModuleRegistry registry() {
@@ -144,7 +152,7 @@ class HrEmployeeReadE2eTest {
         var derived = new cn.byteforce.seedj.core.security.DerivedFieldRegistry(Map.of());
         var orgUnits = (OrgUnitDirectory) unit -> true;
         var create = new HrEmployeeCreateHandler(() -> UUID.randomUUID(),
-                () -> "E-1", derived, orgUnits);
+                () -> "EMP-000001", derived, orgUnits);
         var update = new HrEmployeeUpdateHandler(derived, orgUnits);
         new HrEmployeeModule(create, update).configure(modules);
         return modules.freeze();

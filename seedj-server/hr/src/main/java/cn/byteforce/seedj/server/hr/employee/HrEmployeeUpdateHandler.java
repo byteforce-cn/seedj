@@ -10,6 +10,7 @@ import cn.byteforce.seedj.domain.AppendResult;
 import cn.byteforce.seedj.domain.TemporalRow;
 import cn.byteforce.seedj.domain.event.CommandEvent;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -71,8 +72,7 @@ public final class HrEmployeeUpdateHandler extends AbstractCommandHandler<HrEmpl
             throw reject(ContractErrorCode.COMMAND_REJECTED,
                     "hire_date must not be in the future");
         }
-        if (command.orgUnitId() != null && !command.orgUnitId().isBlank()
-                && !orgUnits.exists(command.orgUnitId())) {
+        if (command.orgUnitId() != null && !orgUnits.exists(command.orgUnitId())) {
             throw reject(ContractErrorCode.COMMAND_REJECTED,
                     "unknown org_unit_id: " + command.orgUnitId());
         }
@@ -84,6 +84,13 @@ public final class HrEmployeeUpdateHandler extends AbstractCommandHandler<HrEmpl
             changes.put(HrEmployeeCreateHandler.ID_NUMBER_HASH,
                     derived.require(HrEmployeeCreateHandler.ID_NUMBER_HASH)
                             .derive(command.idNumber()));
+        }
+        if ("terminated".equals(requested) && !"terminated".equals(currentStatus)) {
+            Instant terminatedAt = ctx.now();
+            changes.put("terminated_at", terminatedAt);
+            if (command.terminatedReason() == null || command.terminatedReason().isBlank()) {
+                changes.remove("terminated_reason");
+            }
         }
         return correct(ctx, merge(ctx, changes));
     }

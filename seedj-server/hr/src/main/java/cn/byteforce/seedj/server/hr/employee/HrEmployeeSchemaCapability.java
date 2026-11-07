@@ -29,6 +29,9 @@ public final class HrEmployeeSchemaCapability extends ObjectSchemaCapability {
     /** 冻结的 V1 资源（相对本包）。 */
     static final String V1_RESOURCE = "V1__hr_employee.sql";
 
+    /** 对齐 eis Employee 契约的 V2 资源（相对本包）。 */
+    static final String V2_RESOURCE = "V2__hr_employee_constraints.sql";
+
     /**
      * 构造能力。
      *
@@ -38,7 +41,8 @@ public final class HrEmployeeSchemaCapability extends ObjectSchemaCapability {
     public HrEmployeeSchemaCapability(JdbcMigrationRunner runner,
                                       ObjectModuleRegistry modules) {
         super(NAME, runner, modules.require("employee").schema(),
-                List.of(new Migration(1, "create hr_employee table", v1())));
+                List.of(new Migration(1, "create hr_employee table", v1()),
+                        new Migration(2, "align employee constraints with eis", v2())));
     }
 
     /**
@@ -47,14 +51,26 @@ public final class HrEmployeeSchemaCapability extends ObjectSchemaCapability {
      * @return V1 SQL
      */
     static String v1() {
-        try (InputStream in = HrEmployeeSchemaCapability.class.getResourceAsStream(V1_RESOURCE)) {
+        return resource(V1_RESOURCE);
+    }
+
+    /**
+     * 读取对齐 eis 契约的 V2 脚本。
+     *
+     * @return V2 SQL
+     */
+    static String v2() {
+        return resource(V2_RESOURCE);
+    }
+
+    private static String resource(String name) {
+        try (InputStream in = HrEmployeeSchemaCapability.class.getResourceAsStream(name)) {
             if (in == null) {
-                throw new IllegalStateException(
-                        "missing frozen migration resource: " + V1_RESOURCE);
+                throw new IllegalStateException("missing migration resource: " + name);
             }
             return new String(in.readAllBytes(), StandardCharsets.UTF_8);
         } catch (IOException error) {
-            throw new UncheckedIOException("cannot read " + V1_RESOURCE, error);
+            throw new UncheckedIOException("cannot read " + name, error);
         }
     }
 }

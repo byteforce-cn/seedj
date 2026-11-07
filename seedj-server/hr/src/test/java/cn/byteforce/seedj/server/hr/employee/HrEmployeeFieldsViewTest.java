@@ -26,7 +26,8 @@ class HrEmployeeFieldsViewTest {
         assertThat(names)
                 .contains("id", "version", "validFrom", "validTo")
                 .contains("employeeNo", "name", "status", "hireDate", "employmentType",
-                        "workLocation", "phone", "orgUnitId")
+                        "workLocation", "contact", "idType", "orgUnitId", "terminatedAt",
+                        "terminatedReason")
                 .doesNotContain("idNumberHash");
     }
 }

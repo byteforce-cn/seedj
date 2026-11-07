@@ -1,5 +1,7 @@
 package cn.byteforce.seedj.server.hr.employee;
 
+import java.util.UUID;
+
 /**
  * 组织单元存在性检查：HR 由自己的组织服务实现；测试提供 stub。
  *
@@ -14,5 +16,5 @@ public interface OrgUnitDirectory {
      * @param orgUnitId 组织单元 ID
      * @return 存在为 {@code true}
      */
-    boolean exists(String orgUnitId);
+    boolean exists(UUID orgUnitId);
 }

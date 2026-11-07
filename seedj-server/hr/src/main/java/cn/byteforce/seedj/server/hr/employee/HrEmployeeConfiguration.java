@@ -1,6 +1,5 @@
 package cn.byteforce.seedj.server.hr.employee;
 
-import cn.byteforce.seedj.core.clock.Clock;
 import cn.byteforce.seedj.core.security.Caller;
 import cn.byteforce.seedj.core.security.ContextSink;
 import cn.byteforce.seedj.core.security.ContextWriter;
@@ -8,15 +7,17 @@ import cn.byteforce.seedj.core.security.DerivedField;
 import cn.byteforce.seedj.core.security.DerivedFieldKeyRing;
 import cn.byteforce.seedj.core.security.DerivedFieldRegistry;
 import cn.byteforce.seedj.id.IdGenerator;
-import cn.byteforce.seedj.infra.local.id.Uuid7IdGenerator;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * HR 员工活样板装配：派生字段、组织目录、请求事实与两个 handler。
@@ -58,30 +59,46 @@ public class HrEmployeeConfiguration {
     }
 
     /**
-     * 工号生成器：基于时间有序的 UUIDv7。
+     * 本地/测试工号序列；PostgreSQL profile 用数据库序列覆盖。
      *
-     * @param clock 取时入口
+     * @return 递增序列
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @Profile("!postgres")
+    public EmployeeNoSequence hrEmployeeNoSequence() {
+        AtomicLong sequence = new AtomicLong();
+        return sequence::incrementAndGet;
+    }
+
+    /**
+     * 工号生成器：序列值格式化为 {@code EMP-%06d}。
+     *
+     * @param sequence 工号序列
      * @return 工号生成器
      */
     @Bean
-    public IdGenerator<String> hrEmployeeNoGenerator(Clock clock) {
-        IdGenerator<UUID> uuid7 = new Uuid7IdGenerator(clock);
-        return () -> uuid7.id().toString();
+    public IdGenerator<String> hrEmployeeNoGenerator(EmployeeNoSequence sequence) {
+        return () -> "EMP-%06d".formatted(sequence.next());
     }
 
     /**
      * 组织单元目录：样例从配置读取；生产替换为组织服务。
      *
-     * @param units 逗号分隔的组织单元
+     * @param units 逗号分隔的组织单元 UUID
      * @return 目录
      */
     @Bean
     public OrgUnitDirectory hrOrgUnitDirectory(
-            @Value("${seedj.hr.org-units:D01,D02,D03}") String units) {
-        Set<String> known = units == null || units.isBlank()
+            @Value("${seedj.hr.org-units:"
+                    + "11111111-1111-1111-1111-111111111111,"
+                    + "22222222-2222-2222-2222-222222222222,"
+                    + "33333333-3333-3333-3333-333333333333}") String units) {
+        Set<UUID> known = units == null || units.isBlank()
                 ? Set.of()
                 : java.util.Arrays.stream(units.split(",")).map(String::trim)
-                        .filter(unit -> !unit.isBlank()).collect(java.util.stream.Collectors.toSet());
+                        .filter(unit -> !unit.isBlank()).map(UUID::fromString)
+                        .collect(java.util.stream.Collectors.toSet());
         return known::contains;
     }
 

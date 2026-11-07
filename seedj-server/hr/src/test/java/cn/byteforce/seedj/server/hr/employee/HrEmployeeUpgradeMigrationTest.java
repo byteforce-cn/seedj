@@ -80,7 +80,7 @@ class HrEmployeeUpgradeMigrationTest {
         runner = new JdbcMigrationRunner(dataSource);
         new TemporalSchemaCapability(runner).initialize();
 
-        ObjectSchema v1 = HrEmployeeFields.schema();
+        ObjectSchema v1 = legacySchema();
         ObjectSchema v2 = withBadgeNo(v1);
         v1Store = store(v1);
         v2Store = store(v2);
@@ -132,6 +132,24 @@ class HrEmployeeUpgradeMigrationTest {
     private static TemporalStore store(ObjectSchema schema) {
         return new PostgresTemporalStore(jdbc, CLOCK,
                 new TemporalTables(List.of(TemporalTable.from(schema))));
+    }
+
+    /**
+     * V1 时代的物理 schema：新 schema 已经演进到 eis 契约，但本测试要证明旧库可升级，
+     * 因此显式保留 V1 的字段集合。
+     */
+    private static ObjectSchema legacySchema() {
+        return ObjectSchema.builder("employee", "hr_employee")
+                .field("employee_no", FieldType.TEXT)
+                .field("name", FieldType.TEXT)
+                .field("status", FieldType.TEXT)
+                .field("hire_date", FieldType.DATE)
+                .field("employment_type", FieldType.TEXT)
+                .field("work_location", FieldType.TEXT)
+                .field("phone", FieldType.TEXT)
+                .field("id_number_hash", FieldType.TEXT)
+                .field("org_unit_id", FieldType.TEXT)
+                .build();
     }
 
     private static ObjectSchema withBadgeNo(ObjectSchema schema) {

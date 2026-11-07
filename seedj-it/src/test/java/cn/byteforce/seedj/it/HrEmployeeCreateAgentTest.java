@@ -39,7 +39,7 @@ class HrEmployeeCreateAgentTest {
     private static final UUID ACTOR = UUID.fromString("018f2e3a-0000-7000-8000-000000000001");
 
     private static final Caller CALLER = new Caller(ACTOR.toString(), "alice", "default",
-            Set.of(), Set.of("hr.employee.write"), Set.of(), Set.of("pwd"),
+            Set.of(), Set.of("hr.employee.create"), Set.of(), Set.of("pwd"),
             "urn:seedj:acr:pwd", Map.of());
 
     private final AtomicReference<Instant> now = new AtomicReference<>(T0);
@@ -49,7 +49,7 @@ class HrEmployeeCreateAgentTest {
     private final DerivedFieldRegistry derived = new DerivedFieldRegistry(Map.of("id_number_hash",
             new DerivedField("seedj:hr:employee:id_number_hash:v1",
                     new DerivedFieldKeyRing("test-key"))));
-    private final IdGenerator<String> ids = () -> "fixed-1";
+    private final IdGenerator<String> ids = () -> "EMP-000001";
 
     private final CommandRuntime runtime = new CommandRuntime(
             CommandRuntime.Options.forTests(clock, new Uuid7IdGenerator(clock), commands,
@@ -60,7 +60,7 @@ class HrEmployeeCreateAgentTest {
                     .type("hr.employee.create")
                     .objectType("employee")
                     .payloadType(HrEmployeeCreate.class)
-                    .permission("hr.employee.write")
+                    .permission("hr.employee.create")
                     .validator(CommandValidator.none())
                     .build(),
             new HrEmployeeCreateHandler(() -> UUID.randomUUID(), ids, derived, unit -> true),
@@ -74,7 +74,7 @@ class HrEmployeeCreateAgentTest {
                 List.of(), ACTOR), registration, CALLER, ScopePredicate.all());
 
         assertThat(objects.current("employee", receipt.locator()).orElseThrow().fields())
-                .containsEntry("employee_no", "EMP-fixed-1");
+                .containsEntry("employee_no", "EMP-000001");
     }
 
     @Test

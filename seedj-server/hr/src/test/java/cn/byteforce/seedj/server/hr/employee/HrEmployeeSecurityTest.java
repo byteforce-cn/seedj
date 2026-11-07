@@ -31,7 +31,9 @@ import org.springframework.test.web.servlet.MockMvc;
 class HrEmployeeSecurityTest {
 
     private static final String BODY = """
-            {"type":"hr.employee.create","payload":{"name":"张三"},
+            {"type":"hr.employee.create",
+             "payload":{"name":"张三","hire_date":"2026-10-01",
+                        "org_unit_id":"11111111-1111-1111-1111-111111111111"},
              "idempotency_key":"security-1"}
             """;
 
@@ -48,7 +50,7 @@ class HrEmployeeSecurityTest {
     }
 
     @Test
-    @DisplayName("有认证但无 hr.employee.write：403 EIS-403-001")
+    @DisplayName("有认证但无 hr.employee.create：403 EIS-403-001")
     void authenticatedWithoutPermissionIs403() throws Exception {
         mvc.perform(post("/commands/hr.employee.create")
                         .contentType(MediaType.APPLICATION_JSON).content(BODY)
@@ -62,7 +64,7 @@ class HrEmployeeSecurityTest {
     void authorizedIs202() throws Exception {
         mvc.perform(post("/commands/hr.employee.create")
                         .contentType(MediaType.APPLICATION_JSON).content(BODY)
-                        .with(authentication(token(caller(Set.of("hr.employee.write"))))))
+                        .with(authentication(token(caller(Set.of("hr.employee.create"))))))
                 .andExpect(status().isAccepted());
     }
 
@@ -77,6 +79,7 @@ class HrEmployeeSecurityTest {
     private static Caller caller(Set<String> permissions) {
         return new Caller("018f2e3a-0000-7000-8000-00000000beef", "tester", "default",
                 Set.of(), permissions, Set.of(), Set.of(Caller.DEFAULT_AMR),
-                Caller.DEFAULT_ACR, Map.of("org_units", List.of("D01")));
+                Caller.DEFAULT_ACR,
+                Map.of("org_units", List.of("11111111-1111-1111-1111-111111111111")));
     }
 }

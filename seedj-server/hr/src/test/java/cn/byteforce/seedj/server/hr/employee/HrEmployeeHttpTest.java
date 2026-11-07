@@ -29,6 +29,8 @@ import org.springframework.test.web.servlet.MockMvc;
 @ActiveProfiles("local")
 class HrEmployeeHttpTest {
 
+    private static final String ORG_A = "11111111-1111-1111-1111-111111111111";
+
     @Autowired
     private MockMvc mvc;
 
@@ -40,7 +42,7 @@ class HrEmployeeHttpTest {
                         .content("""
                                 {"type":"hr.employee.create",
                                  "payload":{"name":"张三","hire_date":"2026-10-01",
-                                            "org_unit_id":"D01",
+                                            "org_unit_id":"11111111-1111-1111-1111-111111111111",
                                             "id_number":"110101199001011234"},
                                  "idempotency_key":"http-1"}
                                 """))
@@ -75,7 +77,7 @@ class HrEmployeeHttpTest {
                         .content("""
                                 {"type":"hr.employee.create",
                                  "payload":{"name":"张三","hire_date":"2026-10-01",
-                                            "org_unit_id":"D01",
+                                            "org_unit_id":"11111111-1111-1111-1111-111111111111",
                                             "id_number":"110101199001011234"},
                                  "idempotency_key":"http-typed-1"}
                                 """))
@@ -101,10 +103,10 @@ class HrEmployeeHttpTest {
     @DisplayName("缺少 hr.employee.read：403 EIS-403-001")
     void missingReadPermissionIs403() throws Exception {
         Caller writeOnly = new Caller("018f2e3a-0000-7000-8000-00000000cafe", "writer",
-                "default", Set.of(), Set.of("hr.employee.write"), Set.of(),
+                "default", Set.of(), Set.of("hr.employee.create"), Set.of(),
                 Set.of(Caller.DEFAULT_AMR), Caller.DEFAULT_ACR, Map.of());
         var authentication = new UsernamePasswordAuthenticationToken(writeOnly, null,
-                List.of(new SimpleGrantedAuthority("PERM_hr.employee.write")));
+                List.of(new SimpleGrantedAuthority("PERM_hr.employee.create")));
 
         mvc.perform(get("/api/hr/employees")
                         .with(SecurityMockMvcRequestPostProcessors.authentication(authentication)))
@@ -116,7 +118,8 @@ class HrEmployeeHttpTest {
     @DisplayName("同键同载荷重放：同 command_id；同键不同载荷：409")
     void idempotencyReplayAndConflict() throws Exception {
         String body = """
-                {"type":"hr.employee.create","payload":{"name":"李四"},
+                {"type":"hr.employee.create",
+                 "payload":{"name":"李四","hire_date":"2026-10-01"},
                  "idempotency_key":"http-3"}
                 """;
         String first = mvc.perform(post("/commands/hr.employee.create")
@@ -133,7 +136,8 @@ class HrEmployeeHttpTest {
         mvc.perform(post("/commands/hr.employee.create")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"type":"hr.employee.create","payload":{"name":"王五"},
+                                {"type":"hr.employee.create",
+                                 "payload":{"name":"王五","hire_date":"2026-10-01"},
                                  "idempotency_key":"http-3"}
                                 """))
                 .andExpect(status().isConflict());
@@ -188,7 +192,7 @@ class HrEmployeeHttpTest {
                         .content("""
                                 {"type":"hr.employee.create",
                                  "payload":{"name":"张三","hire_date":"2026-10-01",
-                                            "org_unit_id":"D01"},
+                                            "org_unit_id":"11111111-1111-1111-1111-111111111111"},
                                  "idempotency_key":"http-6"}
                                 """))
                 .andExpect(status().isAccepted())

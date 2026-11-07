@@ -96,7 +96,7 @@ class HrServerPostgresIT {
         Integer count = jdbc.queryForObject(
                 "SELECT count(*) FROM seedj_schema_history WHERE scope = 'hr-employee'",
                 Integer.class);
-        assertThat(count).isEqualTo(1);
+        assertThat(count).isEqualTo(2);
     }
 
     @Test
@@ -113,7 +113,8 @@ class HrServerPostgresIT {
 
         assertThat(columns).containsExactlyElementsOf(expected);
         assertThat(columns).containsAll(List.of("employee_no", "name", "status", "hire_date",
-                "employment_type", "work_location", "id_number_hash", "org_unit_id"));
+                "employment_type", "work_location", "contact", "id_type", "id_number_hash",
+                "org_unit_id", "terminated_at", "terminated_reason"));
     }
 
     @Test
@@ -157,8 +158,9 @@ class HrServerPostgresIT {
     void concurrentCreateSameIdHasOneWinner() throws Exception {
         UUID id = UUID.randomUUID();
         Instant now = Instant.parse("2026-10-08T09:00:00Z");
-        Map<String, Object> fields = Map.of("employee_no", "EMP-CONCURRENT",
-                "name", "并发", "status", "pending_onboarding");
+        Map<String, Object> fields = Map.of("employee_no", "EMP-900001",
+                "name", "并发", "status", "pending_onboarding",
+                "hire_date", java.time.LocalDate.of(2026, 10, 1));
         CountDownLatch start = new CountDownLatch(1);
         ExecutorService pool = Executors.newFixedThreadPool(2);
         try {

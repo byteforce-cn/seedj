@@ -53,9 +53,11 @@ class HrEmployeeSampleTest {
     private static final Instant T0 = Instant.parse("2026-10-08T09:00:00Z");
     private static final UUID ACTOR = UUID.fromString("018f2e3a-0000-7000-8000-000000000001");
 
+    private static final String ORG_A = "11111111-1111-1111-1111-111111111111";
+
     private static final Caller CALLER = new Caller(ACTOR.toString(), "alice", "default",
-            Set.of(), Set.of("hr.employee.write", "hr.employee.read"), Set.of(),
-            Set.of("pwd"), "urn:seedj:acr:pwd", Map.of());
+            Set.of(), Set.of("hr.employee.create", "hr.employee.update", "hr.employee.read"),
+            Set.of(), Set.of("pwd"), "urn:seedj:acr:pwd", Map.of());
 
     private final AtomicReference<Instant> now = new AtomicReference<>(T0);
     private final Clock clock = now::get;
@@ -71,8 +73,8 @@ class HrEmployeeSampleTest {
     private final AtomicLong employeeNumbers = new AtomicLong();
     private final CommandRegistration create = registration("hr.employee.create",
             HrEmployeeCreate.class, new HrEmployeeCreateHandler(() -> UUID.randomUUID(),
-                    () -> "%06d".formatted(employeeNumbers.incrementAndGet()), derivedFields,
-                    unit -> true));
+                    () -> "EMP-%06d".formatted(employeeNumbers.incrementAndGet()),
+                    derivedFields, unit -> true));
     private final CommandRegistration update = registration("hr.employee.update",
             HrEmployeeUpdate.class, new HrEmployeeUpdateHandler(derivedFields, unit -> true));
     private final ReadGateway gateway = new ReadGateway(registry(),
@@ -112,15 +114,15 @@ class HrEmployeeSampleTest {
     void commandFieldsFlowIntoSchema() {
         CommandReceipt receipt = create(submission("hr.employee.create", "k-1c",
                 Map.of("name", "张三", "hire_date", LocalDate.parse("2026-10-01"),
-                        "employment_type", "FULL_TIME", "work_location", "SH",
-                        "phone", "13800138000", "org_unit_id", "D01")));
+                        "employment_type", "full_time", "work_location", "SH",
+                        "contact", "13800138000", "org_unit_id", ORG_A)));
 
         var row = objects.current("employee", receipt.locator()).orElseThrow();
         assertThat(row.fields())
-                .containsEntry("employment_type", "FULL_TIME")
+                .containsEntry("employment_type", "full_time")
                 .containsEntry("work_location", "SH")
-                .containsEntry("phone", "13800138000")
-                .containsEntry("org_unit_id", "D01");
+                .containsEntry("contact", "13800138000")
+                .containsEntry("org_unit_id", UUID.fromString(ORG_A));
     }
 
     @Test
@@ -212,7 +214,8 @@ class HrEmployeeSampleTest {
                 .type(type)
                 .objectType("employee")
                 .payloadType(payloadType)
-                .permission("hr.employee.write")
+                .permission(type.equals("hr.employee.create")
+                        ? "hr.employee.create" : "hr.employee.update")
                 .validator(CommandValidator.none())
                 .build(), handler, schema,
                 java.util.Set.of("id_number", "employee_id"), java.util.Set.of("id_number"));

@@ -3,12 +3,12 @@
 # 新增命令必须同时改 seedj-server/* 的 CommandDescriptor 与这里，否则 CommandApiConformanceTest 失败。
 commands:
   - type: hr.employee.create
-    permission: hr.employee.write
+    permission: hr.employee.create
     payloadSchema: HrEmployeeCreate
     objectType: employee
     eventTypes: [hr.employee.created]
   - type: hr.employee.update
-    permission: hr.employee.write
+    permission: hr.employee.update
     payloadSchema: HrEmployeeUpdate
     objectType: employee
     eventTypes: [hr.employee.updated]

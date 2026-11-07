@@ -7,6 +7,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import javax.sql.DataSource;
 
@@ -30,6 +31,17 @@ public class HrEmployeePostgresConfiguration {
      * @param modules    模块注册表
      * @return 能力
      */
+    /**
+     * PostgreSQL 工号序列：与 V2 创建的 {@code hr_employee_no_seq} 对齐。
+     *
+     * @param jdbc JDBC 模板
+     * @return 序列
+     */
+    @Bean
+    public EmployeeNoSequence hrEmployeeNoSequence(JdbcTemplate jdbc) {
+        return () -> jdbc.queryForObject("select nextval('hr_employee_no_seq')", Long.class);
+    }
+
     @Bean
     public InfrastructureCapability hrEmployeeSchemaCapability(
             DataSource dataSource,
