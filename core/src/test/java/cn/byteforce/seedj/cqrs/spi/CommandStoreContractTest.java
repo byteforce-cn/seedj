@@ -145,6 +145,22 @@ public abstract class CommandStoreContractTest {
     }
 
     @Test
+    @DisplayName("接受终态保存 target_ref 并读回")
+    void completesAcceptedWithTargetRef() {
+        CommandRecord pending = pending("k-target-ref");
+        store().insert(pending);
+
+        store().complete(pending.accepted("emp-1", 1L, List.of()));
+
+        assertThat(store().find(pending.id())).get().satisfies(row -> {
+            assertThat(row.status()).isEqualTo(CommandStatus.ACCEPTED);
+            assertThat(row.locator()).isNull();
+            assertThat(row.targetRef()).isEqualTo("emp-1");
+            assertThat(row.version()).isEqualTo(1L);
+        });
+    }
+
+    @Test
     @DisplayName("拒绝终态保存错误码与原因")
     void completesRejectedWithCodeAndReason() {
         CommandRecord pending = pending("k-6");
