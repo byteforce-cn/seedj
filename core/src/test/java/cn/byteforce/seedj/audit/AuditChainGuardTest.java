@@ -100,6 +100,11 @@ class AuditChainGuardTest {
 
         assertThatThrownBy(() -> new AuditEvent(null, "type", null))
                 .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> new AuditEvent(eventId, " ", null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("event type");
+        assertThatThrownBy(() -> new AuditEvent(eventId, null, null))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
