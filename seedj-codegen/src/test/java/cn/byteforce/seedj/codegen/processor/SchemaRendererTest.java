@@ -33,10 +33,12 @@ class SchemaRendererTest {
         assertThat(source).contains("final class EmployeeFieldsSchema {");
         assertThat(source).contains("ObjectSchema.builder(\"employee\", \"hr_employee\")");
         assertThat(source).contains("new FieldDefinition(\"employee_no\", FieldType.TEXT, true,"
-                + " false, true, true, true, true, Privacy.PUBLIC, null)");
+                + " false, true, true, true, true, Privacy.PUBLIC, null,"
+                + " FieldDefinition.Constraints.NONE)");
         assertThat(source).contains("cn.byteforce.seedj.domain.Maskers.last4()");
         assertThat(source).contains("new FieldDefinition(\"id_number_hash\", FieldType.TEXT,"
-                + " false, true, false, false, false, false, Privacy.PUBLIC, null)");
+                + " false, true, false, false, false, false, Privacy.PUBLIC, null,"
+                + " FieldDefinition.Constraints.NONE)");
     }
 
     @Test
@@ -78,7 +80,7 @@ class SchemaRendererTest {
         assertThat(sql).contains("-- Generated candidate by seedj-codegen");
         assertThat(sql).contains("CREATE TABLE hr_employee (");
         assertThat(sql).contains("    id              eis_id        NOT NULL,");
-        assertThat(sql).contains("    employee_no TEXT,");
+        assertThat(sql).contains("    employee_no TEXT NOT NULL,");
         assertThat(sql).contains("    hire_date DATE,");
         assertThat(sql).contains("CONSTRAINT ex_hr_employee_valid_overlap EXCLUDE USING gist");
         assertThat(sql).contains("CREATE INDEX idx_hr_employee_employee_no"

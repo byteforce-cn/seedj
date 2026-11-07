@@ -86,4 +86,55 @@ public @interface SeedjField {
      * @return 打码规则
      */
     MaskerName masker() default MaskerName.NONE;
+
+    /**
+     * 允许的取值（仅 TEXT）；空数组表示不限制。
+     *
+     * @return 枚举取值
+     */
+    String[] enumValues() default {};
+
+    /**
+     * 值必须匹配的正则（仅 TEXT）；空串表示不限制。
+     *
+     * <p>只支持 JSON Schema 与 POSIX 都兼容的子集：字符类、量词、锚点。</p>
+     *
+     * @return 正则
+     */
+    String pattern() default "";
+
+    /**
+     * 最小字符数（仅 TEXT）；0 表示不限制。
+     *
+     * @return 最小长度
+     */
+    int minLength() default 0;
+
+    /**
+     * 最大字符数（仅 TEXT）；0 表示不限制。
+     *
+     * @return 最大长度
+     */
+    int maxLength() default 0;
+
+    /**
+     * 是否要求当前状态唯一（业务键，生成部分唯一索引）。
+     *
+     * @return 唯一为 {@code true}
+     */
+    boolean unique() default false;
+
+    /**
+     * 十进制总位数（仅 DECIMAL）；0 表示未声明（编译期拒绝）。
+     *
+     * @return 精度
+     */
+    int precision() default 0;
+
+    /**
+     * 小数位数（仅 DECIMAL）；precision 已声明时 0 表示整数。
+     *
+     * @return 标度
+     */
+    int scale() default 0;
 }

@@ -45,6 +45,32 @@ public enum FieldType {
     }
 
     /**
+     * 按字段声明的精度/标度给出列类型。
+     *
+     * <p>DECIMAL 必须显式声明 precision/scale；本方法只做渲染，无法判断声明缺失。
+     * 其他类型忽略精度参数。未声明精度的 DECIMAL 保留历史默认值，便于兼容旧装配；
+     * 代码生成器会在编译期拒绝这种声明。</p>
+     *
+     * @param precision 总位数；{@code null} 表示未声明
+     * @param scale     小数位数；{@code null} 表示 0
+     * @return SQL 类型
+     */
+    public String sqlType(Integer precision, Integer scale) {
+        if (this != DECIMAL || precision == null) {
+            return sqlType;
+        }
+        if (precision < 1) {
+            throw new IllegalArgumentException("decimal precision must be >= 1");
+        }
+        int digits = scale == null ? 0 : scale;
+        if (digits < 0 || digits > precision) {
+            throw new IllegalArgumentException(
+                    "decimal scale must be between 0 and " + precision);
+        }
+        return "NUMERIC(" + precision + "," + digits + ")";
+    }
+
+    /**
      * 把外部值转换为本类型。
      *
      * @param value 原始值（HTTP 字符串或已类型化值）

@@ -63,7 +63,8 @@ final class SchemaRenderer {
                     .append(", ").append(field.sortable()).append(", ")
                     .append(field.indexed()).append(", Privacy.")
                     .append(field.privacy().name()).append(", ")
-                    .append(maskerExpression(field.masker())).append("))\n");
+                    .append(maskerExpression(field.masker())).append(", ")
+                    .append(constraintsExpression(field.constraints())).append("))\n");
         }
         out.append("                    .build();\n\n");
         out.append("    private ").append(model.schemaClassName()).append("() {\n");
@@ -153,8 +154,37 @@ final class SchemaRenderer {
             if (field.masker() != MaskerName.NONE) {
                 out.append("          x-masker: ").append(field.masker().name()).append("\n");
             }
+            appendConstraints(out, field.constraints());
         }
         return out.toString();
+    }
+
+    private static void appendConstraints(StringBuilder out,
+                                          cn.byteforce.seedj.domain.FieldDefinition.Constraints c) {
+        if (!c.enumValues().isEmpty()) {
+            out.append("          enum:\n");
+            for (String value : c.enumValues().stream().sorted().toList()) {
+                out.append("            - ").append(yamlScalar(value)).append("\n");
+            }
+        }
+        if (c.pattern() != null) {
+            out.append("          pattern: ").append(yamlQuote(c.pattern())).append("\n");
+        }
+        if (c.minLength() != null) {
+            out.append("          minLength: ").append(c.minLength()).append("\n");
+        }
+        if (c.maxLength() != null) {
+            out.append("          maxLength: ").append(c.maxLength()).append("\n");
+        }
+        if (c.unique()) {
+            out.append("          x-seedj-unique: true\n");
+        }
+        if (c.precision() != null) {
+            out.append("          x-seedj-precision: ").append(c.precision()).append("\n");
+        }
+        if (c.scale() != null) {
+            out.append("          x-seedj-scale: ").append(c.scale()).append("\n");
+        }
     }
 
     /**
@@ -179,8 +209,9 @@ final class SchemaRenderer {
         sql.append("    updated_by      eis_id,\n");
         sql.append("    updated_at      eis_timestamp,\n");
         for (FieldModel field : model.fields()) {
-            sql.append("    ").append(field.name()).append(' ')
-                    .append(field.type().sqlType()).append(",\n");
+            sql.append("    ").append(field.name()).append(' ').append(sqlType(field));
+            sql.append(columnConstraints(field));
+            sql.append(",\n");
         }
         sql.append("    CONSTRAINT pk_").append(name)
                 .append(" PRIMARY KEY (id, recorded_at),\n");
@@ -192,6 +223,14 @@ final class SchemaRenderer {
         sql.append("CREATE UNIQUE INDEX uq_").append(name)
                 .append("_current ON ").append(name)
                 .append(" (id) WHERE superseded_at IS NULL;\n");
+        for (FieldModel field : model.fields().stream()
+                .filter(field -> field.constraints().unique())
+                .sorted(java.util.Comparator.comparing(FieldModel::name))
+                .toList()) {
+            sql.append("CREATE UNIQUE INDEX uq_").append(name).append('_')
+                    .append(field.name()).append(" ON ").append(name).append(" (")
+                    .append(field.name()).append(") WHERE superseded_at IS NULL;\n");
+        }
 
         sql.append("ALTER TABLE ").append(name).append(" ADD CONSTRAINT ex_").append(name)
                 .append("_valid_overlap EXCLUDE USING gist (\n");
@@ -236,9 +275,101 @@ final class SchemaRenderer {
         for (FieldModel field : model.fields()) {
             sql.append("ALTER TABLE ").append(model.table())
                     .append(" ADD COLUMN IF NOT EXISTS ").append(field.name()).append(' ')
-                    .append(field.type().sqlType()).append(";\n");
+                    .append(sqlType(field)).append(";\n");
         }
         return sql.toString();
+    }
+
+    private static String sqlType(FieldModel field) {
+        return field.type().sqlType(field.constraints().precision(),
+                field.constraints().scale());
+    }
+
+    private static String columnConstraints(FieldModel field) {
+        StringBuilder sql = new StringBuilder();
+        if (field.required()) {
+            sql.append(" NOT NULL");
+        }
+        cn.byteforce.seedj.domain.FieldDefinition.Constraints c = field.constraints();
+        if (!c.enumValues().isEmpty()) {
+            sql.append(" CHECK (").append(field.name()).append(" IN (");
+            java.util.List<String> values = c.enumValues().stream().sorted().toList();
+            for (int i = 0; i < values.size(); i++) {
+                if (i > 0) {
+                    sql.append(", ");
+                }
+                sql.append(sqlQuote(values.get(i)));
+            }
+            sql.append("))");
+        }
+        if (c.pattern() != null) {
+            sql.append(" CHECK (").append(field.name()).append(" ~ ")
+                    .append(sqlQuote(c.pattern())).append(")");
+        }
+        if (c.minLength() != null) {
+            sql.append(" CHECK (char_length(").append(field.name()).append(") >= ")
+                    .append(c.minLength()).append(")");
+        }
+        if (c.maxLength() != null) {
+            sql.append(" CHECK (char_length(").append(field.name()).append(") <= ")
+                    .append(c.maxLength()).append(")");
+        }
+        return sql.toString();
+    }
+
+    private static String constraintsExpression(
+            cn.byteforce.seedj.domain.FieldDefinition.Constraints c) {
+        if (c.equals(cn.byteforce.seedj.domain.FieldDefinition.Constraints.NONE)) {
+            return "FieldDefinition.Constraints.NONE";
+        }
+        StringBuilder enums = new StringBuilder("java.util.Set.of(");
+        java.util.List<String> values = c.enumValues().stream().sorted().toList();
+        for (int i = 0; i < values.size(); i++) {
+            if (i > 0) {
+                enums.append(", ");
+            }
+            enums.append(javaQuote(values.get(i)));
+        }
+        enums.append(')');
+        return "new FieldDefinition.Constraints(" + enums
+                + ", " + javaLiteral(c.pattern())
+                + ", " + c.minLength()
+                + ", " + c.maxLength()
+                + ", " + c.unique()
+                + ", " + c.precision()
+                + ", " + c.scale() + ")";
+    }
+
+    private static String javaLiteral(String value) {
+        return value == null ? "null" : javaQuote(value);
+    }
+
+    private static String javaQuote(String value) {
+        StringBuilder quoted = new StringBuilder(value.length() + 2).append('"');
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            switch (c) {
+                case '\\' -> quoted.append("\\\\");
+                case '"' -> quoted.append("\\\"");
+                case '\n' -> quoted.append("\\n");
+                case '\r' -> quoted.append("\\r");
+                case '\t' -> quoted.append("\\t");
+                default -> quoted.append(c);
+            }
+        }
+        return quoted.append('"').toString();
+    }
+
+    private static String yamlQuote(String value) {
+        return "'" + value.replace("'", "''") + "'";
+    }
+
+    private static String yamlScalar(String value) {
+        return value.matches("[A-Za-z0-9_.-]+") ? value : yamlQuote(value);
+    }
+
+    private static String sqlQuote(String value) {
+        return "'" + value.replace("'", "''") + "'";
     }
 
     private static String candidateHeader(ObjectModel model) {

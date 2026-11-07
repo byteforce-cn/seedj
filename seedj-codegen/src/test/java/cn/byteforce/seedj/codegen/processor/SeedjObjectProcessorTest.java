@@ -114,6 +114,64 @@ class SeedjObjectProcessorTest {
                 .anySatisfy(message -> assertThat(message).contains("unsupported field type"));
     }
 
+    @Test
+    @DisplayName("注解中的值域约束透传到生成的 schema")
+    void carriesFieldConstraints(@TempDir Path temp) throws IOException {
+        String source = """
+                package fixture;
+
+                import cn.byteforce.seedj.codegen.SeedjField;
+                import cn.byteforce.seedj.codegen.SeedjObject;
+                import java.math.BigDecimal;
+
+                @SeedjObject(objectType = "employee", table = "hr_employee")
+                public record EmployeeFields(
+                        @SeedjField(required = true, unique = true,
+                                pattern = "^EMP-[0-9]{6,}$", minLength = 8,
+                                maxLength = 32) String employeeNo,
+                        @SeedjField(required = true,
+                                enumValues = {"pending_onboarding", "active"})
+                        String status,
+                        @SeedjField(precision = 18, scale = 2) BigDecimal salary) {}
+                """;
+        Path classes = Files.createDirectories(temp.resolve("classes"));
+        Path generated = Files.createDirectories(temp.resolve("generated"));
+
+        Result result = compile(temp, classes, generated, source, "fixture.EmployeeFields");
+        assertThat(result.success()).as(String.join("\n", result.diagnostics())).isTrue();
+
+        String schema = Files.readString(generated.resolve("fixture/EmployeeFieldsSchema.java"));
+        assertThat(schema).contains("\"^EMP-[0-9]{6,}$\", 8, 32, true, null, null");
+        assertThat(schema).contains("java.util.Set.of(\"active\", \"pending_onboarding\")");
+        assertThat(schema).contains("null, null, null, false, 18, 2");
+
+        String ddl = Files.readString(classes.resolve("META-INF/seedj/ddl/hr_employee-create.sql"));
+        assertThat(ddl).contains("employee_no TEXT NOT NULL");
+        assertThat(ddl).contains("salary NUMERIC(18,2)");
+        assertThat(ddl).contains("CREATE UNIQUE INDEX uq_hr_employee_employee_no");
+    }
+
+    @Test
+    @DisplayName("DECIMAL 未声明 precision 在编译期报错")
+    void rejectsDecimalWithoutPrecision(@TempDir Path temp) throws IOException {
+        String source = """
+                package fixture;
+
+                import cn.byteforce.seedj.codegen.SeedjObject;
+                import java.math.BigDecimal;
+
+                @SeedjObject(objectType = "invoice", table = "fin_invoice")
+                public record BadAmount(BigDecimal amount) {}
+                """;
+        Result result = compile(temp, Files.createDirectories(temp.resolve("classes")),
+                Files.createDirectories(temp.resolve("generated")), source,
+                "fixture.BadAmount");
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.diagnostics())
+                .anySatisfy(message -> assertThat(message).contains("must declare precision"));
+    }
+
     private static Result compile(Path temp, Path classes, Path generated, String source,
                                   String className) {
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();

@@ -120,6 +120,22 @@ public final class SeedjObjectProcessor extends AbstractProcessor {
                 valid = false;
                 continue;
             }
+            cn.byteforce.seedj.domain.FieldDefinition.Constraints constraints =
+                    constraints(spec, fieldType);
+            if (constraints == null) {
+                error(component, "DECIMAL field must declare precision (and optionally scale)");
+                valid = false;
+                continue;
+            }
+            try {
+                new cn.byteforce.seedj.domain.FieldDefinition(name, fieldType, false, false,
+                        true, false, false, false,
+                        cn.byteforce.seedj.domain.Privacy.PUBLIC, null, constraints);
+            } catch (IllegalArgumentException invalid) {
+                error(component, invalid.getMessage());
+                valid = false;
+                continue;
+            }
             fields.add(new FieldModel(
                     name,
                     fieldType,
@@ -130,7 +146,8 @@ public final class SeedjObjectProcessor extends AbstractProcessor {
                     spec != null && spec.sortable(),
                     spec != null && spec.indexed(),
                     spec != null ? spec.privacy() : cn.byteforce.seedj.domain.Privacy.PUBLIC,
-                    spec != null ? spec.masker() : MaskerName.NONE));
+                    spec != null ? spec.masker() : MaskerName.NONE,
+                    constraints));
         }
         if (!valid) {
             return null;
@@ -145,8 +162,28 @@ public final class SeedjObjectProcessor extends AbstractProcessor {
                 declaration.view(), fields);
     }
 
-    private static String javaTypeName(RecordComponentElement component) {
-        TypeMirror mirror = component.asType();
+    private static cn.byteforce.seedj.domain.FieldDefinition.Constraints constraints(
+            SeedjField spec, FieldType type) {
+        if (spec == null) {
+            return type == FieldType.DECIMAL
+                    ? null : cn.byteforce.seedj.domain.FieldDefinition.Constraints.NONE;
+        }
+        java.util.Set<String> enums = new java.util.LinkedHashSet<>(
+                java.util.Arrays.asList(spec.enumValues()));
+        String pattern = spec.pattern() == null || spec.pattern().isBlank()
+                ? null : spec.pattern();
+        Integer minLength = spec.minLength() == 0 ? null : spec.minLength();
+        Integer maxLength = spec.maxLength() == 0 ? null : spec.maxLength();
+        Integer precision = spec.precision() == 0 ? null : spec.precision();
+        Integer scale = precision == null ? null : spec.scale();
+        if (type == FieldType.DECIMAL && precision == null) {
+            return null;
+        }
+        return new cn.byteforce.seedj.domain.FieldDefinition.Constraints(enums, pattern,
+                minLength, maxLength, spec.unique(), precision, scale);
+    }
+
+    private static String javaTypeName(RecordComponentElement component) {        TypeMirror mirror = component.asType();
         if (mirror.getKind().isPrimitive()) {
             return mirror.toString();
         }
