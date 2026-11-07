@@ -16,8 +16,8 @@
     <description>业务服务开箱即用：资源服务器安全、命令模板、审计、事件总线与可观测性装配</description>
 
     <properties>
-        <seedj.coverage.line>0.60</seedj.coverage.line>
-        <seedj.coverage.branch>0.51</seedj.coverage.branch>
+        <seedj.coverage.line>0.84</seedj.coverage.line>
+        <seedj.coverage.branch>0.73</seedj.coverage.branch>
     </properties>
 
     <dependencies>

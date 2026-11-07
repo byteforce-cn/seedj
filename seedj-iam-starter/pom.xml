@@ -16,8 +16,8 @@
     <description>IAM/OIDC/SCIM/RBAC/ABAC/TOTP 自动配置与 Web 适配</description>
 
     <properties>
-        <seedj.coverage.line>0.67</seedj.coverage.line>
-        <seedj.coverage.branch>0.50</seedj.coverage.branch>
+        <seedj.coverage.line>0.96</seedj.coverage.line>
+        <seedj.coverage.branch>0.86</seedj.coverage.branch>
     </properties>
 
     <dependencies>

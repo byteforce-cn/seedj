@@ -16,8 +16,8 @@
     <description>Byteforce 核心模块聚合：API 模型、工具类与上下文能力</description>
 
     <properties>
-        <seedj.coverage.line>0.66</seedj.coverage.line>
-        <seedj.coverage.branch>0.54</seedj.coverage.branch>
+        <seedj.coverage.line>0.93</seedj.coverage.line>
+        <seedj.coverage.branch>0.87</seedj.coverage.branch>
     </properties>
 
     <dependencies>

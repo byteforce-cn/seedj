@@ -17,8 +17,8 @@
 
     <properties>
         <!-- 纯构建期工件：通过 annotationProcessorPaths 引入，不得进入运行时 classpath。 -->
-        <seedj.coverage.line>0.65</seedj.coverage.line>
-        <seedj.coverage.branch>0.45</seedj.coverage.branch>
+        <seedj.coverage.line>0.89</seedj.coverage.line>
+        <seedj.coverage.branch>0.78</seedj.coverage.branch>
     </properties>
 
     <dependencies>

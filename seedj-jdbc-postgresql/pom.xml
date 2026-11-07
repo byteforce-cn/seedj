@@ -16,8 +16,8 @@
     <description>PostgreSQL 实现：Outbox 存储与投递、Audit 存储、IAM 存储、版本化迁移</description>
 
     <properties>
-        <seedj.coverage.line>0.73</seedj.coverage.line>
-        <seedj.coverage.branch>0.55</seedj.coverage.branch>
+        <seedj.coverage.line>0.88</seedj.coverage.line>
+        <seedj.coverage.branch>0.75</seedj.coverage.branch>
     </properties>
 
     <dependencies>
