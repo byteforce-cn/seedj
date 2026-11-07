@@ -14,6 +14,7 @@ import cn.byteforce.seedj.read.FieldPolicyResolver;
 import cn.byteforce.seedj.read.QueryExecutor;
 import cn.byteforce.seedj.read.ReadAuditSink;
 import cn.byteforce.seedj.read.ReadGateway;
+import cn.byteforce.seedj.security.AuthorizationDecisionPoint;
 import cn.byteforce.seedj.starter.cqrs.wiring.TemporalCommandAutoConfiguration;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.beans.factory.ObjectProvider;
@@ -80,12 +81,13 @@ public class ReadAutoConfiguration {
                                    ObjectProvider<FieldPolicyResolver> fields,
                                    ReadAuditSink audit, ObjectProvider<Clock> clock,
                                    ObjectProvider<IdGenerator<UUID>> ids,
-                                   ObjectProvider<QueryExecutor> executor) {
+                                   ObjectProvider<QueryExecutor> executor,
+                                   AuthorizationDecisionPoint decisions) {
         return new ReadGateway(registry, store, scopes.orderedStream().toList(),
                 fields.orderedStream().toList(), audit,
                 clock.getIfAvailable(Clocks::system),
                 ids.getIfAvailable(() -> UUID::randomUUID),
-                executor.getIfAvailable());
+                executor.getIfAvailable(), decisions);
     }
 
     /**

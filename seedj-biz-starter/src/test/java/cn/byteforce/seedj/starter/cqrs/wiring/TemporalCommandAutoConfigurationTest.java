@@ -19,6 +19,8 @@ import cn.byteforce.seedj.domain.TemporalStore;
 import cn.byteforce.seedj.infra.jdbc.domain.TemporalTable;
 import cn.byteforce.seedj.infra.jdbc.domain.TemporalTables;
 import cn.byteforce.seedj.infra.local.domain.InMemoryTemporalStore;
+import cn.byteforce.seedj.security.AuthorizationDecision;
+import cn.byteforce.seedj.security.AuthorizationDecisionPoint;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -45,6 +47,8 @@ class TemporalCommandAutoConfigurationTest {
     private final ApplicationContextRunner runner = new ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(TemporalCommandAutoConfiguration.class))
             .withBean(BizEnabledMarker.class)
+            .withBean(AuthorizationDecisionPoint.class,
+                    () -> request -> AuthorizationDecision.allow("test"))
             .withPropertyValues("spring.profiles.active=local",
                     "seedj.command.degraded-mode=true");
 
@@ -55,6 +59,8 @@ class TemporalCommandAutoConfigurationTest {
                 .withConfiguration(AutoConfigurations.of(TemporalCommandAutoConfiguration.class,
                         ObjectModuleAutoConfiguration.class))
                 .withBean(BizEnabledMarker.class)
+                .withBean(AuthorizationDecisionPoint.class,
+                        () -> request -> AuthorizationDecision.allow("test"))
                 .withPropertyValues("spring.profiles.active=local",
                         "seedj.command.degraded-mode=true")
                 .run(context -> {
@@ -78,6 +84,8 @@ class TemporalCommandAutoConfigurationTest {
                 .withConfiguration(AutoConfigurations.of(TemporalCommandAutoConfiguration.class,
                         ObjectModuleAutoConfiguration.class))
                 .withBean(BizEnabledMarker.class)
+                .withBean(AuthorizationDecisionPoint.class,
+                        () -> request -> AuthorizationDecision.allow("test"))
                 .withPropertyValues("spring.profiles.active=local",
                         "seedj.command.degraded-mode=true")
                 .withBean(ObjectModuleConfigurer.class, () -> modules ->
@@ -98,6 +106,8 @@ class TemporalCommandAutoConfigurationTest {
         new ApplicationContextRunner()
                 .withConfiguration(AutoConfigurations.of(TemporalCommandAutoConfiguration.class))
                 .withBean(BizEnabledMarker.class)
+                .withBean(AuthorizationDecisionPoint.class,
+                        () -> request -> AuthorizationDecision.allow("test"))
                 .run(context -> assertThat(context.getStartupFailure())
                         .hasMessageContaining("seedj.command.degraded-mode"));
     }
@@ -115,6 +125,18 @@ class TemporalCommandAutoConfigurationTest {
     }
 
     @Test
+    @DisplayName("缺 AuthorizationDecisionPoint：启动失败，不静默回退")
+    void missingDecisionPointFailsStartup() {
+        new ApplicationContextRunner()
+                .withConfiguration(AutoConfigurations.of(TemporalCommandAutoConfiguration.class))
+                .withBean(BizEnabledMarker.class)
+                .withPropertyValues("spring.profiles.active=local",
+                        "seedj.command.degraded-mode=true")
+                .run(context -> assertThat(context.getStartupFailure())
+                        .hasMessageContaining("AuthorizationDecisionPoint"));
+    }
+
+    @Test
     @DisplayName("require-outbox=false：允许无 outbox，但仍要求锁与事务")
     void requireOutboxFalseAllowsMissingOutbox() {
         new ApplicationContextRunner()
@@ -122,6 +144,8 @@ class TemporalCommandAutoConfigurationTest {
                 .withBean(BizEnabledMarker.class)
                 .withBean(TransactionRunner.class, TransactionRunner::direct)
                 .withBean(LockProvider.class, LockProvider::disabled)
+                .withBean(AuthorizationDecisionPoint.class,
+                        () -> request -> AuthorizationDecision.allow("test"))
                 .withPropertyValues("seedj.command.require-outbox=false")
                 .run(context -> {
                     assertThat(context).hasNotFailed();
@@ -225,6 +249,8 @@ class TemporalCommandAutoConfigurationTest {
                 .withConfiguration(AutoConfigurations.of(TemporalCommandAutoConfiguration.class,
                         ObjectModuleAutoConfiguration.class))
                 .withBean(BizEnabledMarker.class)
+                .withBean(AuthorizationDecisionPoint.class,
+                        () -> request -> AuthorizationDecision.allow("test"))
                 .withPropertyValues("spring.profiles.active=local", "seedj.command.degraded-mode=true")
                 .withBean(ObjectModuleConfigurer.class, () -> modules ->
                         modules.object("probe", "probe_object")

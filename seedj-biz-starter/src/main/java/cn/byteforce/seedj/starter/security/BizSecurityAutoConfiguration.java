@@ -6,6 +6,8 @@ import cn.byteforce.seedj.core.security.AccessTokenRules;
 import cn.byteforce.seedj.core.security.CallerProvider;
 import cn.byteforce.seedj.core.security.SecurityAuditSink;
 import cn.byteforce.seedj.id.IdGenerator;
+import cn.byteforce.seedj.security.AuthorizationDecisionPoint;
+import cn.byteforce.seedj.security.AuthorizationDecision;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -18,6 +20,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.core.env.Environment;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.task.TaskDecorator;
 import org.springframework.security.config.Customizer;
@@ -85,6 +88,20 @@ public class BizSecurityAutoConfiguration {
     @ConditionalOnMissingBean
     public ContractErrorHandler contractErrorHandler() {
         return new ContractErrorHandler();
+    }
+
+    /**
+     * local/test 的放行决策点：只允许在本地与测试 profile 使用。
+     *
+     * <p>生产 profile 没有 IAM 决策点时启动失败，而不是静默放行或只看 JWT claim。</p>
+     *
+     * @return 决策点
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @Profile({"local", "test"})
+    public AuthorizationDecisionPoint permitAllAuthorizationDecisionPoint() {
+        return request -> AuthorizationDecision.allow("permit-all");
     }
 
     @Bean

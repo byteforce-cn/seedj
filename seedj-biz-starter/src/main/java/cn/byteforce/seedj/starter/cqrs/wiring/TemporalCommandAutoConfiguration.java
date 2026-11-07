@@ -311,14 +311,22 @@ public class TemporalCommandAutoConfiguration {
     }
 
     /**
-     * 命令级授权策略：以 descriptor 的 permission 为准。
+     * 命令级授权策略：唯一入口是 {@link cn.byteforce.seedj.security.AuthorizationDecisionPoint}。
      *
+     * <p>没有决策点 bean 时上下文启动失败：不允许悄悄回退到“只看 JWT claim”的旧路径。</p>
+     *
+     * @param decisions 授权决策点
+     * @param clock     业务时点
      * @return 权限策略
      */
     @Bean
     @ConditionalOnMissingBean
-    public CommandPolicy commandPolicy() {
-        return CommandPolicy.permissions();
+    @ConditionalOnProperty(prefix = "seedj.command", name = "enabled", havingValue = "true",
+            matchIfMissing = true)
+    public CommandPolicy commandPolicy(
+            cn.byteforce.seedj.security.AuthorizationDecisionPoint decisions, Clock clock,
+            ObjectProvider<cn.byteforce.seedj.core.security.SecurityAuditSink> audit) {
+        return CommandPolicy.decisionPoint(decisions, clock, audit.getIfAvailable());
     }
 
     /**

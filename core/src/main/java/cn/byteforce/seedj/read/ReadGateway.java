@@ -18,6 +18,10 @@ import cn.byteforce.seedj.domain.TemporalRow;
 import cn.byteforce.seedj.domain.TemporalSearch;
 import cn.byteforce.seedj.domain.TemporalStore;
 import cn.byteforce.seedj.id.IdGenerator;
+import cn.byteforce.seedj.security.AuthorizationDecision;
+import cn.byteforce.seedj.security.AuthorizationDecisionPoint;
+import cn.byteforce.seedj.security.AuthorizationRequest;
+import cn.byteforce.seedj.security.AuthorizationSubject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,6 +66,8 @@ public final class ReadGateway {
 
     private final QueryExecutor executor;
 
+    private final AuthorizationDecisionPoint decisions;
+
     private static final java.util.regex.Pattern NAMED_PARAMETER =
             java.util.regex.Pattern.compile(":([a-z][a-z0-9_]*)");
 
@@ -98,6 +104,27 @@ public final class ReadGateway {
                        List<DataScopeResolver> scopes, List<FieldPolicyResolver> fieldPolicies,
                        ReadAuditSink audit, Clock clock, IdGenerator<UUID> ids,
                        QueryExecutor executor) {
+        this(models, store, scopes, fieldPolicies, audit, clock, ids, executor,
+                callerPermissionDecisionPoint());
+    }
+
+    /**
+     * 构造网关（生产装配）。
+     *
+     * @param models        读模型注册表
+     * @param store         对象存储
+     * @param scopes        行范围贡献者
+     * @param fieldPolicies 字段策略贡献者
+     * @param audit         读审计出口
+     * @param clock         取时入口
+     * @param ids           事件 id 生成器
+     * @param executor      自定义查询执行器；{@code null} 表示未装配
+     * @param decisions     唯一授权决策点
+     */
+    public ReadGateway(ReadModelRegistry models, TemporalStore store,
+                       List<DataScopeResolver> scopes, List<FieldPolicyResolver> fieldPolicies,
+                       ReadAuditSink audit, Clock clock, IdGenerator<UUID> ids,
+                       QueryExecutor executor, AuthorizationDecisionPoint decisions) {
         this.executor = executor;
         this.models = Objects.requireNonNull(models, "models");
         this.store = Objects.requireNonNull(store, "store");
@@ -106,6 +133,17 @@ public final class ReadGateway {
         this.audit = Objects.requireNonNull(audit, "audit");
         this.clock = Objects.requireNonNull(clock, "clock");
         this.ids = Objects.requireNonNull(ids, "ids");
+        this.decisions = Objects.requireNonNull(decisions, "decisions");
+    }
+
+    /**
+     * 旧装配兼容：只按调用方权限声明判断。生产装配必须传入真实决策点。
+     */
+    private static AuthorizationDecisionPoint callerPermissionDecisionPoint() {
+        return request -> request.subject().permissions().contains(request.action())
+                ? AuthorizationDecision.allow("caller-permissions")
+                : AuthorizationDecision.deny("NO_PERMISSION",
+                        "missing read permission: " + request.action(), "caller-permissions");
     }
 
     private static <T> List<T> sorted(List<T> values, java.util.function.ToIntFunction<T> order) {
@@ -129,9 +167,9 @@ public final class ReadGateway {
      */
     public Optional<TemporalRow> find(String objectType, UUID id, TemporalQuery query,
                                       Caller caller) {
-        ReadModel model = requireReadable(objectType, caller);
         Objects.requireNonNull(id, "id");
         Objects.requireNonNull(query, "query");
+        ReadModel model = requireReadable(objectType, caller, id.toString());
         ScopePredicate scope = resolveScope(model, caller);
         FieldPolicy policy = resolveFields(model, caller);
         Optional<TemporalRow> row = store.find(objectType, id, query, scope)
@@ -151,7 +189,7 @@ public final class ReadGateway {
      * @return 渲染后的页
      */
     public Page<TemporalRow> search(String objectType, TemporalSearch search, Caller caller) {
-        ReadModel model = requireReadable(objectType, caller);
+        ReadModel model = requireReadable(objectType, caller, null);
         Objects.requireNonNull(search, "search");
         if (!objectType.equals(search.objectType())) {
             throw new ContractException(ContractErrorCode.INVALID_PAYLOAD,
@@ -177,8 +215,8 @@ public final class ReadGateway {
      * @return 渲染后的版本列表
      */
     public List<TemporalRow> history(String objectType, UUID id, Caller caller) {
-        ReadModel model = requireReadable(objectType, caller);
         Objects.requireNonNull(id, "id");
+        ReadModel model = requireReadable(objectType, caller, id.toString());
         ScopePredicate scope = resolveScope(model, caller);
         FieldPolicy policy = resolveFields(model, caller);
         List<TemporalRow> rows = store.history(objectType, id, scope).stream()
@@ -204,7 +242,7 @@ public final class ReadGateway {
                                            String sort, SortDirection direction,
                                            PageRequest request, Caller caller) {
         Objects.requireNonNull(spec, "spec");
-        ReadModel model = requireReadable(spec.objectType(), caller);
+        ReadModel model = requireReadable(spec.objectType(), caller, null);
         if (executor == null) {
             throw new ContractException(ContractErrorCode.UNAVAILABLE,
                     "custom query executor is not configured");
@@ -388,7 +426,7 @@ public final class ReadGateway {
         return "seedj_q.\"" + field + "\"";
     }
 
-    private ReadModel requireReadable(String objectType, Caller caller) {
+    private ReadModel requireReadable(String objectType, Caller caller, String resourceId) {
         ReadModel model = models.find(objectType).orElseThrow(
                 () -> new ContractException(ContractErrorCode.OBJECT_NOT_FOUND,
                         "unknown object type: " + objectType));
@@ -396,9 +434,16 @@ public final class ReadGateway {
             throw new ContractException(ContractErrorCode.UNAUTHENTICATED,
                     "caller is required");
         }
-        if (!caller.hasPermission(model.readPermission())) {
-            throw new ContractException(ContractErrorCode.FORBIDDEN,
-                    "missing read permission: " + model.readPermission());
+        AuthorizationDecision decision = decisions.decide(new AuthorizationRequest(
+                AuthorizationSubject.from(caller), model.readPermission(), model.objectType(),
+                resourceId, Map.of(), clock.now(), Map.of()));
+        if (decision == null) {
+            throw new IllegalStateException(
+                    "authorization decision point returned null for " + model.readPermission());
+        }
+        if (!decision.allowed()) {
+            throw new ContractException(ContractErrorCode.FORBIDDEN, decision.reason(),
+                    Map.of("reason_code", decision.reasonCode()), decision.reasonCode());
         }
         return model;
     }
