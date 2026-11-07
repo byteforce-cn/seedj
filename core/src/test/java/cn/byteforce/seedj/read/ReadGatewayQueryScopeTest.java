@@ -141,6 +141,46 @@ class ReadGatewayQueryScopeTest {
     }
 
     @Test
+    @DisplayName("schema 未声明 sortable 的字段不能用于排序")
+    void rejectsSchemaNonSortableField() {
+        QuerySpec spec = new QuerySpec("employee",
+                "SELECT employee_no, org_unit_id, status FROM hr_employee",
+                Set.of("employee_no", "org_unit_id", "status"), Set.of(), List.of("status"),
+                "status");
+        ReadGateway gateway = gateway(ScopePredicate.all(), spec);
+
+        assertThatThrownBy(() -> gateway.query(spec, Map.of(), null, null,
+                PageRequest.defaults(), CALLER))
+                .isInstanceOfSatisfying(ContractException.class, error ->
+                        assertThat(error.reason()).contains("field is not sortable: status"));
+    }
+
+    @Test
+    @DisplayName("无参数查询接受 null 参数映射")
+    void acceptsNullParameters() {
+        QuerySpec spec = new QuerySpec("employee",
+                "SELECT employee_no, org_unit_id, status FROM hr_employee",
+                Set.of("employee_no", "org_unit_id", "status"), Set.of(),
+                List.of("employee_no"), "employee_no");
+        ReadGateway gateway = gateway(ScopePredicate.all(), spec);
+
+        Page<Map<String, Object>> page = gateway.query(spec, null, null, null, null, CALLER);
+
+        assertThat(page.items()).hasSize(1);
+        assertThat(executor.pageArguments)
+                .containsExactly(PageRequest.defaults().size(), PageRequest.defaults().offset());
+    }
+
+    @Test
+    @DisplayName("行范围常量可空：摘要按 null 字面量记录")
+    void nullScopeValueIsDigested() {
+        Page<Map<String, Object>> page = query(new ScopePredicate.Eq("org_unit_id", null));
+
+        assertThat(executor.pageArguments).containsExactly("E-1", null, 20, 0L);
+        assertThat(page.total()).isEqualTo(1);
+    }
+
+    @Test
     @DisplayName("SQL 含位置占位符时拒绝执行")
     void rejectsPositionalPlaceholders() {
         QuerySpec spec = new QuerySpec("employee",
