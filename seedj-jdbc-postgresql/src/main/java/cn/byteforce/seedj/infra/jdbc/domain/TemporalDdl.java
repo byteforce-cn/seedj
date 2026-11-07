@@ -38,7 +38,16 @@ public final class TemporalDdl {
         sql.append("    updated_at      eis_timestamp,\n");
         for (Map.Entry<String, String> column : table.columns().entrySet()) {
             sql.append("    ").append(column.getKey()).append(' ')
-                    .append(column.getValue()).append(",\n");
+                    .append(column.getValue());
+            TemporalTable.ColumnConstraint constraint = table.constraints()
+                    .getOrDefault(column.getKey(), TemporalTable.ColumnConstraint.NONE);
+            if (constraint.notNull()) {
+                sql.append(" NOT NULL");
+            }
+            for (String check : constraint.checks()) {
+                sql.append(" CHECK (").append(check).append(')');
+            }
+            sql.append(",\n");
         }
         sql.append("    CONSTRAINT pk_").append(name)
                 .append(" PRIMARY KEY (id, recorded_at),\n");
@@ -50,6 +59,15 @@ public final class TemporalDdl {
         sql.append("CREATE UNIQUE INDEX uq_").append(name)
                 .append("_current ON ").append(name)
                 .append(" (id) WHERE superseded_at IS NULL;\n");
+        for (String column : table.constraints().entrySet().stream()
+                .filter(entry -> entry.getValue().unique())
+                .map(Map.Entry::getKey)
+                .sorted()
+                .toList()) {
+            sql.append("CREATE UNIQUE INDEX uq_").append(name).append('_').append(column)
+                    .append(" ON ").append(name).append(" (").append(column)
+                    .append(") WHERE superseded_at IS NULL;\n");
+        }
 
         sql.append("ALTER TABLE ").append(name).append(" ADD CONSTRAINT ex_").append(name)
                 .append("_valid_overlap EXCLUDE USING gist (\n");

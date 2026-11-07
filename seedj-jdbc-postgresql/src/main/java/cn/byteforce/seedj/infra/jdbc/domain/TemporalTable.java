@@ -3,8 +3,10 @@ package cn.byteforce.seedj.infra.jdbc.domain;
 import cn.byteforce.seedj.domain.FieldDefinition;
 import cn.byteforce.seedj.domain.ObjectSchema;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -28,13 +30,15 @@ import java.util.regex.Pattern;
  * @param fieldTypes       列名 → 业务字段类型（用于 JDBC 值转换）
  * @param sortableColumns  允许排序的列
  * @param indexedColumns   需要当前状态部分索引的列
+ * @param constraints      列约束（NOT NULL / CHECK / 业务键唯一）
  * @author ByteForce
  * @since 1.0.0
  */
 public record TemporalTable(String objectType, String tableName, Map<String, String> columns,
                             Set<String> writeOnlyColumns, Set<String> filterableColumns,
                             Map<String, cn.byteforce.seedj.domain.FieldType> fieldTypes,
-                            Set<String> sortableColumns, Set<String> indexedColumns) {
+                            Set<String> sortableColumns, Set<String> indexedColumns,
+                            Map<String, ColumnConstraint> constraints) {
 
     private static final Pattern IDENTIFIER = Pattern.compile("^[a-z][a-z0-9_]*$");
 
@@ -89,6 +93,51 @@ public record TemporalTable(String objectType, String tableName, Map<String, Str
                 throw new IllegalArgumentException("indexed column is not declared: " + column);
             }
         }
+        constraints = constraints == null ? Map.of() : Map.copyOf(constraints);
+        for (String column : constraints.keySet()) {
+            if (!copy.containsKey(column)) {
+                throw new IllegalArgumentException("constrained column is not declared: " + column);
+            }
+        }
+    }
+
+    /**
+     * 兼容旧装配：没有列约束。
+     *
+     * @param objectType       对象类型
+     * @param tableName        表名
+     * @param columns          领域列
+     * @param writeOnlyColumns 写入专用列
+     * @param filterableColumns 可过滤列
+     * @param fieldTypes       字段类型
+     * @param sortableColumns  允许排序的列
+     * @param indexedColumns   需要当前状态部分索引的列
+     */
+    public TemporalTable(String objectType, String tableName, Map<String, String> columns,
+                         Set<String> writeOnlyColumns, Set<String> filterableColumns,
+                         Map<String, cn.byteforce.seedj.domain.FieldType> fieldTypes,
+                         Set<String> sortableColumns, Set<String> indexedColumns) {
+        this(objectType, tableName, columns, writeOnlyColumns, filterableColumns, fieldTypes,
+                sortableColumns, indexedColumns, Map.of());
+    }
+
+    /**
+     * 列级约束：必填、CHECK 片段与业务键唯一。
+     *
+     * @param notNull 是否 NOT NULL
+     * @param checks  CHECK 片段（不含 {@code CHECK (...)} 包裹）
+     * @param unique  是否生成当前状态部分唯一索引
+     * @author ByteForce
+     * @since 1.0.0
+     */
+    public record ColumnConstraint(boolean notNull, List<String> checks, boolean unique) {
+
+        /** 无约束。 */
+        public static final ColumnConstraint NONE = new ColumnConstraint(false, List.of(), false);
+
+        public ColumnConstraint {
+            checks = checks == null ? List.of() : List.copyOf(checks);
+        }
     }
 
     /**
@@ -105,7 +154,7 @@ public record TemporalTable(String objectType, String tableName, Map<String, Str
                          Set<String> writeOnlyColumns, Set<String> filterableColumns,
                          Map<String, cn.byteforce.seedj.domain.FieldType> fieldTypes) {
         this(objectType, tableName, columns, writeOnlyColumns, filterableColumns, fieldTypes,
-                Set.of(), Set.of());
+                Set.of(), Set.of(), Map.of());
     }
 
     /**
@@ -130,7 +179,7 @@ public record TemporalTable(String objectType, String tableName, Map<String, Str
     public TemporalTable(String objectType, String tableName, Map<String, String> columns,
                          Set<String> writeOnlyColumns) {
         this(objectType, tableName, columns, writeOnlyColumns, null, null, Set.of(),
-                Set.of());
+                Set.of(), Map.of());
     }
 
     /**
@@ -143,13 +192,20 @@ public record TemporalTable(String objectType, String tableName, Map<String, Str
         Objects.requireNonNull(schema, "schema");
         Map<String, String> columns = new LinkedHashMap<>();
         Map<String, cn.byteforce.seedj.domain.FieldType> types = new LinkedHashMap<>();
+        Map<String, ColumnConstraint> constraints = new LinkedHashMap<>();
         Set<String> writeOnly = new java.util.LinkedHashSet<>();
         Set<String> filterable = new java.util.LinkedHashSet<>();
         Set<String> sortable = new java.util.LinkedHashSet<>();
         Set<String> indexed = new java.util.LinkedHashSet<>();
         for (FieldDefinition field : schema.fields()) {
-            columns.put(field.name(), field.type().sqlType());
+            FieldDefinition.Constraints declared = field.constraints();
+            columns.put(field.name(), field.type().sqlType(declared.precision(),
+                    declared.scale()));
             types.put(field.name(), field.type());
+            ColumnConstraint constraint = columnConstraint(field);
+            if (constraint.notNull() || !constraint.checks().isEmpty() || constraint.unique()) {
+                constraints.put(field.name(), constraint);
+            }
             if (field.writeOnly()) {
                 writeOnly.add(field.name());
             }
@@ -164,7 +220,37 @@ public record TemporalTable(String objectType, String tableName, Map<String, Str
             }
         }
         return new TemporalTable(schema.objectType(), schema.tableName(), columns, writeOnly,
-                filterable, types, sortable, indexed);
+                filterable, types, sortable, indexed, constraints);
+    }
+
+    private static ColumnConstraint columnConstraint(FieldDefinition field) {
+        FieldDefinition.Constraints declared = field.constraints();
+        List<String> checks = new ArrayList<>();
+        if (!declared.enumValues().isEmpty()) {
+            StringBuilder check = new StringBuilder(field.name()).append(" IN (");
+            List<String> values = declared.enumValues().stream().sorted().toList();
+            for (int i = 0; i < values.size(); i++) {
+                if (i > 0) {
+                    check.append(", ");
+                }
+                check.append(sqlQuote(values.get(i)));
+            }
+            checks.add(check.append(')').toString());
+        }
+        if (declared.pattern() != null) {
+            checks.add(field.name() + " ~ " + sqlQuote(declared.pattern()));
+        }
+        if (declared.minLength() != null) {
+            checks.add("char_length(" + field.name() + ") >= " + declared.minLength());
+        }
+        if (declared.maxLength() != null) {
+            checks.add("char_length(" + field.name() + ") <= " + declared.maxLength());
+        }
+        return new ColumnConstraint(field.required(), checks, declared.unique());
+    }
+
+    private static String sqlQuote(String value) {
+        return "'" + value.replace("'", "''") + "'";
     }
 
     private static void identifier(String value, String role) {
