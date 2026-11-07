@@ -253,6 +253,10 @@ core|cn.byteforce.seedj.read|ReadModel
 core|cn.byteforce.seedj.read|ReadModelRegistry
 core|cn.byteforce.seedj.read|ScopeResolvers
 core|cn.byteforce.seedj.read|TemporalQueryRepository
+core|cn.byteforce.seedj.security|AuthorizationDecision
+core|cn.byteforce.seedj.security|AuthorizationDecisionPoint
+core|cn.byteforce.seedj.security|AuthorizationRequest
+core|cn.byteforce.seedj.security|AuthorizationSubject
 core|cn.byteforce.seedj.transit|BatchDecryptRequest
 core|cn.byteforce.seedj.transit|BatchEncryptRequest
 core|cn.byteforce.seedj.transit|BatchItem
@@ -411,6 +415,7 @@ seedj-biz-starter|cn.byteforce.seedj.starter.security|ThreadLocalCallerPropagati
 seedj-biz-starter|cn.byteforce.seedj.starter.validation|BeanValidationCommandValidator
 seedj-biz-starter|cn.byteforce.seedj.starter.web|ContractErrorHandler
 seedj-iam-starter|cn.byteforce.seedj.starter.iam.abac|CachingIamPolicyDecisionPoint
+seedj-iam-starter|cn.byteforce.seedj.starter.iam.abac|CompositeAuthorizationDecisionPoint
 seedj-iam-starter|cn.byteforce.seedj.starter.iam.abac|IamAuthorizationFacade
 seedj-iam-starter|cn.byteforce.seedj.starter.iam.abac|IamPolicyAdminController
 seedj-iam-starter|cn.byteforce.seedj.starter.iam.annotation|EnableIamServer
@@ -564,6 +569,7 @@ seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.outbox|PostgresOutboxSchemaC
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.outbox|PostgresOutboxStore
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.read|PostgresQueryExecutor
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc|JdbcMigrationRunner
+seedj-server/hr|cn.byteforce.seedj.server.hr.employee|EmployeeNoSequence
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeConfiguration
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeCreate
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeCreateHandler
