@@ -15,9 +15,11 @@ import cn.byteforce.seedj.starter.iam.identity.IamAuthorizationService;
 import cn.byteforce.seedj.starter.iam.identity.IamPasswordHasherAdapter;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Set;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -77,6 +79,28 @@ class IamTokenCustomizerTest {
         assertThat((Object) claims.getClaim("auth_time")).isInstanceOf(Date.class);
         assertThat(claims.getAudience()).containsExactly("https://api.example.com");
         assertThat(context.getJwsHeader().build().getType()).isEqualTo("at+jwt");
+    }
+
+    @Test
+    @DisplayName("claims 只写 JDK 公开集合类型：JDBC 反序列化不认 ImmutableCollections")
+    void claimsUseCollectionTypesThatSurviveJdbcRoundTrip() {
+        grantRole("r-reader", "reader", "order:read");
+        groups.create(IamGroup.create("g-1", "acme", "sales", null, Set.of(alice.id())));
+        IamTokenCustomizer customizer =
+                customizer(properties(true, "https://api.example.com"), "acme");
+        JwtEncodingContext context = accessTokenContext(ACCESS_TOKEN, "alice");
+
+        customizer.customize(context);
+
+        JwtClaimsSet claims = context.getClaims().build();
+        // List.of/List.copyOf 得到 java.util.ImmutableCollections$*。这份 claims 会被
+        // JdbcOAuth2AuthorizationService 带类型 id 写进 oauth2_authorization，读回时
+        // BasicPolymorphicTypeValidator 不认 JDK 内部类，refresh_token 交换因此 500。
+        assertThat((Object) claims.getClaim("roles")).isExactlyInstanceOf(ArrayList.class);
+        assertThat((Object) claims.getClaim("permissions")).isExactlyInstanceOf(ArrayList.class);
+        assertThat((Object) claims.getClaim("groups")).isExactlyInstanceOf(ArrayList.class);
+        assertThat((Object) claims.getClaim("amr")).isExactlyInstanceOf(ArrayList.class);
+        assertThat(claims.getAudience()).isExactlyInstanceOf(ArrayList.class);
     }
 
     @Test

@@ -74,6 +74,7 @@ import org.springframework.security.oauth2.server.authorization.web.authenticati
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import org.springframework.security.web.util.matcher.MediaTypeRequestMatcher;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * OAuth2/OIDC authorization-server wiring plus the SCIM/IAM/default security chains. The IAM module
@@ -160,10 +161,30 @@ public class IamServerAutoConfiguration {
             ObjectProvider<JdbcTemplate> jdbc,
             ObjectProvider<InMemoryIamTokenRevoker> revoker) {
         if (properties.store() == IamProperties.Store.JDBC) {
-            return new JdbcOAuth2AuthorizationService(jdbc.getObject(), clients);
+            return jdbcAuthorizationService(jdbc.getObject(), clients);
         }
         return new IamRevocableAuthorizationService(
                 new InMemoryOAuth2AuthorizationService(), revoker.getIfAvailable());
+    }
+
+    /**
+     * JDBC 授权行服务：读写共用兼容旧不可变集合类型 id 的 {@code JsonMapper}，否则升级前已签发的 refresh token 会在首次交换时反序列化失败。
+     *
+     * @param jdbc JDBC 模板
+     * @param clients 客户端仓库
+     * @return 授权行服务
+     */
+    private static OAuth2AuthorizationService jdbcAuthorizationService(
+            JdbcTemplate jdbc, RegisteredClientRepository clients) {
+        JsonMapper json = IamAuthorizationJsonMapper.create();
+        JdbcOAuth2AuthorizationService service = new JdbcOAuth2AuthorizationService(jdbc, clients);
+        service.setAuthorizationRowMapper(
+                new JdbcOAuth2AuthorizationService.JsonMapperOAuth2AuthorizationRowMapper(
+                        clients, json));
+        service.setAuthorizationParametersMapper(
+                new JdbcOAuth2AuthorizationService.JsonMapperOAuth2AuthorizationParametersMapper(
+                        json));
+        return service;
     }
 
     @Bean
