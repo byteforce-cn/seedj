@@ -6,6 +6,7 @@ import cn.byteforce.seedj.iam.spi.IamUserRepository;
 import cn.byteforce.seedj.starter.iam.IamProperties;
 import cn.byteforce.seedj.starter.iam.identity.IamAuthorizationService;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -89,19 +90,22 @@ public class IamTokenCustomizer implements OAuth2TokenCustomizer<JwtEncodingCont
                 }
             }
         }
+        // claims 会被 JdbcOAuth2AuthorizationService 连同类型 id 持久化进 oauth2_authorization。
+        // List.of/List.copyOf 产生 java.util.ImmutableCollections$*，SAS 的类型校验器读回时不认，
+        // 表现为 access token 过期后 refresh_token 交换 500。集合 claim 一律用 ArrayList。
         if (!roles.isEmpty()) {
-            context.getClaims().claim("roles", List.copyOf(roles));
+            context.getClaims().claim("roles", new ArrayList<>(roles));
         }
         if (accessToken && properties.token().includePermissions() && !permissions.isEmpty()) {
-            context.getClaims().claim("permissions", List.copyOf(permissions));
+            context.getClaims().claim("permissions", new ArrayList<>(permissions));
         }
         if (!groups.isEmpty()) {
-            context.getClaims().claim("groups", List.copyOf(groups));
+            context.getClaims().claim("groups", new ArrayList<>(groups));
         }
         if (amr.isEmpty()) {
             amr.add("pwd");
         }
-        context.getClaims().claim("amr", List.copyOf(amr));
+        context.getClaims().claim("amr", new ArrayList<>(amr));
         context.getClaims().claim("acr", acr == null ? "urn:seedj:acr:pwd" : acr);
         if (context.getClaims().build().getClaim("auth_time") == null) {
             context.getClaims()
@@ -121,7 +125,7 @@ public class IamTokenCustomizer implements OAuth2TokenCustomizer<JwtEncodingCont
             context.getJwsHeader().type("at+jwt");
             String audience = properties.token().resourceAudience();
             if (audience != null && !audience.isBlank()) {
-                context.getClaims().audience(List.of(audience));
+                context.getClaims().audience(new ArrayList<>(List.of(audience)));
             }
         }
     }

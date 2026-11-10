@@ -377,7 +377,9 @@ class NativeAuthAuthenticationProviderTest {
                 .singleElement()
                 .satisfies(event -> assertThat(event.outcome()).isEqualTo("SUCCESS"));
 
-        assertThat((List<String>) saved.getAttribute("amr")).containsExactly("pwd");
+        assertThat((List<String>) saved.getAttribute("amr"))
+                .isExactlyInstanceOf(ArrayList.class)
+                .containsExactly("pwd");
         assertThat(saved.<String>getAttribute("acr")).isEqualTo("urn:seedj:acr:pwd");
         assertThat(saved.<String>getAttribute("device_id")).isEmpty();
         assertThat(saved.<String>getAttribute("device_name")).isEmpty();
@@ -600,7 +602,9 @@ class NativeAuthAuthenticationProviderTest {
         verify(challenges).consume(challenge);
         OAuth2Authorization saved = savedAuthorization();
         assertThat(authoritiesOf(saved)).contains("AMR_TOTP", "ACR_urn:seedj:acr:totp");
-        assertThat((List<String>) saved.getAttribute("amr")).containsExactly("pwd", "totp");
+        assertThat((List<String>) saved.getAttribute("amr"))
+                .isExactlyInstanceOf(ArrayList.class)
+                .containsExactly("pwd", "totp");
     }
 
     @Test

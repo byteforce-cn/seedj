@@ -176,6 +176,8 @@ public class NativeAuthAuthenticationProvider implements AuthenticationProvider 
         UsernamePasswordAuthenticationToken userAuthentication =
                 new UsernamePasswordAuthenticationToken(user.userName(), null, authorities);
 
+        // attributes 会连同类型 id 持久化进 oauth2_authorization；List.of 产生的
+        // java.util.ImmutableCollections$List12 会被 SAS 的类型校验器拒绝。
         OAuth2Authorization authorizationToSave =
                 OAuth2Authorization.withRegisteredClient(client)
                         .principalName(user.userName())
@@ -189,9 +191,10 @@ public class NativeAuthAuthenticationProvider implements AuthenticationProvider 
                                 "app_version", token.appVersion() == null ? "" : token.appVersion())
                         .attribute(
                                 "amr",
-                                mfaUsed
-                                        ? List.of("pwd", recoveryUsed ? "recovery" : "totp")
-                                        : List.of("pwd"))
+                                new ArrayList<>(
+                                        mfaUsed
+                                                ? List.of("pwd", recoveryUsed ? "recovery" : "totp")
+                                                : List.of("pwd")))
                         .attribute(
                                 "acr",
                                 recoveryUsed
