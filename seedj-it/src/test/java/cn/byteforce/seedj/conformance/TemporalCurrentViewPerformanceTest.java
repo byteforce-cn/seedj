@@ -165,7 +165,8 @@ class TemporalCurrentViewPerformanceTest {
         for (String line :
                 jdbc.queryForList(
                         "EXPLAIN (FORMAT TEXT) SELECT * FROM hr_employee"
-                                + " WHERE superseded_at IS NULL ORDER BY employee_no, id LIMIT 20",
+                                + " WHERE superseded_at IS NULL AND valid_to IS NULL"
+                                + " ORDER BY employee_no, id LIMIT 20",
                         String.class)) {
             System.out.println("EXPLAIN: " + line);
         }

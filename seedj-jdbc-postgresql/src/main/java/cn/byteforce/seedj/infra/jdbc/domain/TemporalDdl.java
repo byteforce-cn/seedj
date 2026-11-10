@@ -54,6 +54,9 @@ public final class TemporalDdl {
                 .append(" OR superseded_at > recorded_at)\n");
         sql.append(");\n");
 
+        // 单当前索引只约束「未封口」的行：业务上已关闭（valid_to 非空）的行仍是该 id 的
+        // 唯一未封口版本；重新打开时 append 先封口旧行再插入新行，不与此索引争用。
+        // 当前视图另需 valid_to IS NULL，否则已关闭的行会在列表里复活（见 TemporalView）。
         sql.append("CREATE UNIQUE INDEX uq_")
                 .append(name)
                 .append("_current ON ")

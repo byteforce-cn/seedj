@@ -842,6 +842,90 @@ public abstract class TemporalStoreContractTest {
     }
 
     @Test
+    @DisplayName("关闭业务时间轴后：当前视图不含该行，find 与 search 结论一致")
+    void closingValidTimeRemovesRowFromCurrentView() {
+        seedWith(ID, Map.of("name", "v1"), T0);
+        clock().set(T0.plusSeconds(60));
+        store().append(
+                        AppendRequest.correction(
+                                TYPE, ID, T0, T0.plusSeconds(60), ACTOR, Map.of("name", "v1")));
+
+        assertThat(store().find(TYPE, ID, TemporalQuery.current(), ALL)).isEmpty();
+        Page<TemporalRow> current =
+                store().search(
+                                new TemporalSearch(
+                                        TYPE,
+                                        Map.of(),
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        SortDirection.ASC,
+                                        new PageRequest(1, 20)),
+                                ALL);
+        assertThat(current.items()).isEmpty();
+        assertThat(current.total()).isZero();
+
+        // 关闭只影响「当前」：业务时点查询仍能看到关闭前有效的版本
+        Page<TemporalRow> asOf =
+                store().search(
+                                new TemporalSearch(
+                                        TYPE,
+                                        Map.of(),
+                                        T0.plusSeconds(30),
+                                        null,
+                                        null,
+                                        null,
+                                        SortDirection.ASC,
+                                        new PageRequest(1, 20)),
+                                ALL);
+        assertThat(asOf.items()).hasSize(1);
+        assertThat(asOf.items().get(0).version().validTo()).isEqualTo(T0.plusSeconds(60));
+        assertThat(store().history(TYPE, ID, ALL)).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("关闭后重新打开：当前视图回到只含新行，单当前唯一索引不争用")
+    void reopeningClosedRowReturnsItToTheCurrentView() {
+        seedWith(ID, Map.of("name", "v1"), T0);
+        clock().set(T0.plusSeconds(60));
+        store().append(
+                        AppendRequest.correction(
+                                TYPE, ID, T0, T0.plusSeconds(60), ACTOR, Map.of("name", "v1")));
+        clock().set(T0.plusSeconds(120));
+        TemporalRow reopened =
+                store().append(
+                                AppendRequest.correction(
+                                        TYPE,
+                                        ID,
+                                        T0.plusSeconds(120),
+                                        null,
+                                        ACTOR,
+                                        Map.of("name", "v2")))
+                        .appended();
+
+        assertThat(reopened.version().version()).isEqualTo(3L);
+        assertThat(store().find(TYPE, ID, TemporalQuery.current(), ALL))
+                .map(row -> row.fields().get("name"))
+                .contains("v2");
+        Page<TemporalRow> current =
+                store().search(
+                                new TemporalSearch(
+                                        TYPE,
+                                        Map.of(),
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        SortDirection.ASC,
+                                        new PageRequest(1, 20)),
+                                ALL);
+        assertThat(current.items()).hasSize(1);
+        assertThat(current.total()).isEqualTo(1);
+        assertThat(store().history(TYPE, ID, ALL)).hasSize(3);
+    }
+
+    @Test
     void historyAppliesScope() {
         seed("v1", T0);
         clock().advance(Duration.ofSeconds(60));
