@@ -42,6 +42,15 @@ public final class PostgresTemporalStore implements TemporalStore {
 
     private static final String SELECT_ALL = "SELECT * FROM ";
 
+    /**
+     * 当前视图谓词：两条时间轴的右端都必须开放（{@link ObjectVersion#isCurrent()}）。
+     *
+     * <p>只判 {@code superseded_at IS NULL} 会把「业务上已关闭」的行（{@code valid_to} 非空、 尚无新版本替代）当成当前行；{@code
+     * find} 与 {@code search} 必须共用这一个口径。 该谓词命中 {@code uq_*_current} 部分索引（索引谓词 {@code superseded_at
+     * IS NULL} 是其超集）。
+     */
+    private static final String CURRENT_VIEW = "superseded_at IS NULL AND valid_to IS NULL";
+
     private final JdbcTemplate jdbc;
 
     private final Clock clock;
@@ -71,7 +80,7 @@ public final class PostgresTemporalStore implements TemporalStore {
         List<Object> selectedArgs = new ArrayList<>();
         selectedArgs.add(id);
         if (query.asOf() == null && query.recordedAsOf() == null) {
-            selected.append(" AND superseded_at IS NULL AND valid_to IS NULL");
+            selected.append(" AND ").append(CURRENT_VIEW);
         } else {
             if (query.asOf() != null) {
                 selected.append(" AND valid_from <= ? AND (valid_to IS NULL OR valid_to > ?)");
@@ -160,8 +169,9 @@ public final class PostgresTemporalStore implements TemporalStore {
         List<Object> baseArgs = new ArrayList<>();
         String base;
         if (search.asOf() == null && search.recordedAsOf() == null) {
-            // 当前视图快路径：superseded_at IS NULL 命中 uq_*_current，不再 DISTINCT ON 全表。
-            base = "SELECT * FROM " + table.tableName() + " WHERE superseded_at IS NULL";
+            // 当前视图快路径：与 find 共用 CURRENT_VIEW 口径，命中 uq_*_current 部分索引，
+            // 不再 DISTINCT ON 全表。
+            base = "SELECT * FROM " + table.tableName() + " WHERE " + CURRENT_VIEW;
         } else {
             StringBuilder selected = new StringBuilder(" WHERE 1 = 1");
             if (search.asOf() != null) {

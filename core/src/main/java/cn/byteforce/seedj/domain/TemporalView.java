@@ -3,7 +3,9 @@ package cn.byteforce.seedj.domain;
 /**
  * 时间轴视图：当前、业务时点、完整历史。
  *
- * <p>当前视图必须命中 {@code superseded_at IS NULL} 的部分唯一索引，不得退化为 全表 {@code DISTINCT ON}；历史/时点视图才扫描版本。
+ * <p>当前视图 = 两条时间轴的右端都开放（{@code valid_to IS NULL AND superseded_at IS NULL}）， 必须命中 {@code
+ * uq_*_current} 部分唯一索引，不得退化为全表 {@code DISTINCT ON}； 只判 {@code superseded_at IS NULL}
+ * 会把业务上已关闭（软删/归档）的行误当成当前行。历史/时点视图才扫描版本。
  *
  * @author ByteForce
  * @since 1.0.0

@@ -17,6 +17,7 @@
 
 ### Fixed
 
+- `search` 的当前视图快路径补上 `valid_to IS NULL`，与 `find` 共用同一口径：关闭业务时间轴（软删/归档）的对象不再在列表里复活，`find` 与 `search` 结论一致；`uq_*_current` 仍只约束未封口行，重新打开通过先封口再追加实现。
 - 快速开始示例的 `org_unit_id` 改为真实 UUID，`page` 从 1 开始。
 
 ## [1.0.0] - 未发布
