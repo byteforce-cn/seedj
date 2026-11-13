@@ -258,6 +258,9 @@ public class ClusterExtension implements BeforeAllCallback, AfterAllCallback, Pa
                 SSLContext clientSsl = backendClientSslContexts.get(svc.name());
                 Map<String, Object> props = new HashMap<>(commonProps);
                 props.put("server.port", 0);
+                // IM 长连接测试一律绑 0，避免宿主默认 9090/9091 与并发上下文冲突。
+                props.put("seedj.im.tcp.port", 0);
+                props.put("seedj.im.ws.port", 0);
                 props.put("spring.security.oauth2.resourceserver.jwt.issuer-uri", iamIssuer);
 
                 Class<?>[] sources =

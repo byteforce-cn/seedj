@@ -41,20 +41,20 @@ public class ImServerAutoConfiguration {
         return new ChannelRegistry();
     }
 
-    @Bean
-    @ConditionalOnMissingBean
-    @ConditionalOnBean({JwtDecoder.class, JwtClaimsMapper.class})
-    ImJwtAuthenticator imJwtAuthenticator(JwtDecoder decoder, JwtClaimsMapper mapper) {
-        return new ImJwtAuthenticator(decoder, mapper);
-    }
-
     /** 传输层只在握手器就绪时启动；没有 JwtDecoder 时不监听端口。 */
     @Configuration(proxyBeanMethods = false)
-    @ConditionalOnBean(ImJwtAuthenticator.class)
     static class TransportConfiguration {
 
         @Bean
         @ConditionalOnMissingBean
+        @ConditionalOnBean({JwtDecoder.class, JwtClaimsMapper.class})
+        ImJwtAuthenticator imJwtAuthenticator(JwtDecoder decoder, JwtClaimsMapper mapper) {
+            return new ImJwtAuthenticator(decoder, mapper);
+        }
+
+        @Bean
+        @ConditionalOnMissingBean
+        @ConditionalOnBean(ImJwtAuthenticator.class)
         ImHandshakeHandler imHandshakeHandler(
                 ImCodec codec, ImJwtAuthenticator authenticator, ChannelRegistry registry) {
             return new ImHandshakeHandler(codec, authenticator, registry);
@@ -62,12 +62,14 @@ public class ImServerAutoConfiguration {
 
         @Bean
         @ConditionalOnMissingBean
+        @ConditionalOnBean(ImJwtAuthenticator.class)
         ImDispatchHandler imDispatchHandler(ImCodec codec) {
             return new ImDispatchHandler(codec);
         }
 
         @Bean
         @ConditionalOnMissingBean
+        @ConditionalOnBean(ImJwtAuthenticator.class)
         @ConditionalOnProperty(
                 prefix = "seedj.im.tcp",
                 name = "enabled",
@@ -82,6 +84,7 @@ public class ImServerAutoConfiguration {
 
         @Bean
         @ConditionalOnMissingBean
+        @ConditionalOnBean(ImJwtAuthenticator.class)
         @ConditionalOnProperty(
                 prefix = "seedj.im.tcp",
                 name = "enabled",
@@ -93,6 +96,7 @@ public class ImServerAutoConfiguration {
 
         @Bean
         @ConditionalOnMissingBean
+        @ConditionalOnBean(ImJwtAuthenticator.class)
         @ConditionalOnProperty(
                 prefix = "seedj.im.ws",
                 name = "enabled",
@@ -107,6 +111,7 @@ public class ImServerAutoConfiguration {
 
         @Bean
         @ConditionalOnMissingBean
+        @ConditionalOnBean(ImJwtAuthenticator.class)
         @ConditionalOnProperty(
                 prefix = "seedj.im.ws",
                 name = "enabled",

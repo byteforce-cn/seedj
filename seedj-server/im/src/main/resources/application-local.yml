@@ -1,0 +1,24 @@
+# 本地联调：零外部依赖；身份仍来自 IAM（dev-auth=false）。
+# 审计/outbox/eventbus 关闭，命令/对象/锁使用内存实现；生产走 postgres profile。
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
+      - org.springframework.boot.jdbc.autoconfigure.JdbcTemplateAutoConfiguration
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceTransactionManagerAutoConfiguration
+
+seedj:
+  command:
+    provider: memory
+    degraded-mode: true
+  object:
+    provider: memory
+  audit:
+    enabled: false
+  lock:
+    memory:
+      enabled: true
+  eventbus:
+    enabled: false
+  outbox:
+    enabled: false
