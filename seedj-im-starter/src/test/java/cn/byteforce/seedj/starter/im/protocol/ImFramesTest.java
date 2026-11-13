@@ -17,14 +17,7 @@ class ImFramesTest {
     void frameSurvivesRoundTrip() {
         byte[] body = "{\"text\":\"你好\"}".getBytes(UTF_8);
         ImFrame frame =
-                new ImFrame(
-                        ImFrames.MAGIC,
-                        (byte) 1,
-                        (byte) 1,
-                        Cmd.LOGIN_REQ,
-                        (byte) 0,
-                        42,
-                        body);
+                new ImFrame(ImFrames.MAGIC, (byte) 1, (byte) 1, Cmd.LOGIN_REQ, (byte) 0, 42, body);
         ByteBuf buffer = Unpooled.buffer();
         try {
             ImFrames.write(buffer, frame);

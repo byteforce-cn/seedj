@@ -20,8 +20,7 @@ final class ChannelRegistry {
         bySubject.compute(
                 subject,
                 (key, channels) -> {
-                    Set<Channel> set =
-                            channels == null ? ConcurrentHashMap.newKeySet() : channels;
+                    Set<Channel> set = channels == null ? ConcurrentHashMap.newKeySet() : channels;
                     set.add(channel);
                     return set;
                 });

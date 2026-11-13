@@ -29,16 +29,13 @@ import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 class ImDispatchHandlerTest {
 
     private static final SecretKey KEY =
-            new SecretKeySpec(
-                    "seedj-im-test-key-0123456789abcdef".getBytes(UTF_8), "HmacSHA256");
+            new SecretKeySpec("seedj-im-test-key-0123456789abcdef".getBytes(UTF_8), "HmacSHA256");
 
     private final ImCodec codec = new ImCodec();
     private final ChannelRegistry registry = new ChannelRegistry();
     private final ImJwtAuthenticator authenticator =
             new ImJwtAuthenticator(
-                    NimbusJwtDecoder.withSecretKey(KEY)
-                            .macAlgorithm(MacAlgorithm.HS256)
-                            .build(),
+                    NimbusJwtDecoder.withSecretKey(KEY).macAlgorithm(MacAlgorithm.HS256).build(),
                     new JwtClaimsMapper());
 
     @Test
@@ -129,7 +126,8 @@ class ImDispatchHandlerTest {
             channel.writeInbound(loginRequest(validToken(), 15));
             assertThat(channel.<ImFrame>readOutbound().cmd()).isEqualTo(Cmd.LOGIN_RESP);
 
-            channel.writeInbound(loginRequest(token("bob", "u-2", Instant.now().plusSeconds(300)), 16));
+            channel.writeInbound(
+                    loginRequest(token("bob", "u-2", Instant.now().plusSeconds(300)), 16));
             assertThat(channel.<ImFrame>readOutbound().cmd()).isEqualTo(Cmd.LOGIN_RESP);
 
             assertThat(registry.channels("u-1")).isEmpty();

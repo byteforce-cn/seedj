@@ -12,8 +12,7 @@ import java.util.List;
 /**
  * WebSocket 二进制帧与 {@link ImFrame} 的适配层。
  *
- * <p>浏览器发送的 {@link BinaryWebSocketFrame} 内容就是完整帧字节；下行帧被封装回二进制帧。
- * 无实例状态，可安全共享。
+ * <p>浏览器发送的 {@link BinaryWebSocketFrame} 内容就是完整帧字节；下行帧被封装回二进制帧。 无实例状态，可安全共享。
  */
 @ChannelHandler.Sharable
 final class ImWsAdapter extends MessageToMessageCodec<BinaryWebSocketFrame, ImFrame> {

@@ -44,8 +44,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 class ImWsAdapterTest {
 
     private static final SecretKey KEY =
-            new SecretKeySpec(
-                    "seedj-im-ws-test-key-0123456789abc".getBytes(UTF_8), "HmacSHA256");
+            new SecretKeySpec("seedj-im-ws-test-key-0123456789abc".getBytes(UTF_8), "HmacSHA256");
     private static final ImCodec CODEC = new ImCodec();
 
     @Test
@@ -124,8 +123,7 @@ class ImWsAdapterTest {
     void websocketPipelineHandlesLoginAndHeartbeat() throws Exception {
         ImProperties properties = properties();
         ChannelRegistry registry = new ChannelRegistry();
-        ImJwtAuthenticator authenticator =
-                new ImJwtAuthenticator(decoder(), new JwtClaimsMapper());
+        ImJwtAuthenticator authenticator = new ImJwtAuthenticator(decoder(), new JwtClaimsMapper());
         ImWsServer server =
                 new ImWsServer(
                         properties,
@@ -141,8 +139,7 @@ class ImWsAdapterTest {
                     HttpClient.newHttpClient()
                             .newWebSocketBuilder()
                             .buildAsync(
-                                    URI.create(
-                                            "ws://127.0.0.1:" + server.boundPort() + "/ws"),
+                                    URI.create("ws://127.0.0.1:" + server.boundPort() + "/ws"),
                                     new WebSocket.Listener() {
                                         @Override
                                         public CompletionStage<?> onBinary(
@@ -152,8 +149,7 @@ class ImWsAdapterTest {
                                             byte[] bytes = new byte[data.remaining()];
                                             data.get(bytes);
                                             received.add(
-                                                    ImFrames.read(
-                                                            Unpooled.wrappedBuffer(bytes)));
+                                                    ImFrames.read(Unpooled.wrappedBuffer(bytes)));
                                             webSocket.request(1);
                                             return null;
                                         }
@@ -162,8 +158,7 @@ class ImWsAdapterTest {
 
             socket.sendBinary(
                             ByteBuffer.wrap(
-                                    frameBytes(
-                                            Cmd.LOGIN_REQ, 1, new LoginReq(validToken()))),
+                                    frameBytes(Cmd.LOGIN_REQ, 1, new LoginReq(validToken()))),
                             true)
                     .join();
             ImFrame login = received.poll(5, TimeUnit.SECONDS);
@@ -172,8 +167,7 @@ class ImWsAdapterTest {
             assertThat(CODEC.decode(login, LoginResp.class).code()).isZero();
             assertThat(registry.size()).isEqualTo(1);
 
-            socket.sendBinary(
-                            ByteBuffer.wrap(frameBytes(Cmd.HEARTBEAT_PING, 2, null)), true)
+            socket.sendBinary(ByteBuffer.wrap(frameBytes(Cmd.HEARTBEAT_PING, 2, null)), true)
                     .join();
             ImFrame pong = received.poll(5, TimeUnit.SECONDS);
             assertThat(pong).isNotNull();

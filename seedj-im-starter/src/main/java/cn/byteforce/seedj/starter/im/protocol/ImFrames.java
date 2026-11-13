@@ -5,8 +5,8 @@ import io.netty.buffer.ByteBuf;
 /**
  * 帧头布局的唯一实现：TCP 编解码器、WebSocket 适配器与测试都复用它。
  *
- * <p>帧头固定 16 字节、大端：{@code magic(4) version(1) serializeType(1) cmd(1) msgType(1)
- * sequenceId(4) bodyLength(4)}。
+ * <p>帧头固定 16 字节、大端：{@code magic(4) version(1) serializeType(1) cmd(1) msgType(1) sequenceId(4)
+ * bodyLength(4)}。
  */
 public final class ImFrames {
 

@@ -27,8 +27,7 @@ final class ImHandshakeHandler extends ChannelInboundHandlerAdapter {
     private final ImJwtAuthenticator authenticator;
     private final ChannelRegistry registry;
 
-    ImHandshakeHandler(
-            ImCodec codec, ImJwtAuthenticator authenticator, ChannelRegistry registry) {
+    ImHandshakeHandler(ImCodec codec, ImJwtAuthenticator authenticator, ChannelRegistry registry) {
         this.codec = codec;
         this.authenticator = authenticator;
         this.registry = registry;

@@ -51,10 +51,7 @@ class ImPropertiesTest {
         runner.withPropertyValues("seedj.im.push.provider=redis")
                 .run(
                         context ->
-                                assertThat(
-                                                context.getBean(ImProperties.class)
-                                                        .push()
-                                                        .provider())
+                                assertThat(context.getBean(ImProperties.class).push().provider())
                                         .isEqualTo("redis"));
     }
 

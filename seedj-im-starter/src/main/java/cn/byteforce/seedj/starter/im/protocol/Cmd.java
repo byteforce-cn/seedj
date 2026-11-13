@@ -1,8 +1,6 @@
 package cn.byteforce.seedj.starter.im.protocol;
 
-/**
- * 协议命令字。编号与旧 IM 服务保持一致，客户端无需重新映射。
- */
+/** 协议命令字。编号与旧 IM 服务保持一致，客户端无需重新映射。 */
 public final class Cmd {
 
     public static final byte LOGIN_REQ = 0x01;

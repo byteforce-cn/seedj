@@ -27,10 +27,7 @@ final class ImChannelInitializer extends ChannelInitializer<SocketChannel> {
         channel.pipeline()
                 .addLast(
                         new IdleStateHandler(
-                                0,
-                                0,
-                                properties.heartbeatTimeout().toSeconds(),
-                                TimeUnit.SECONDS))
+                                0, 0, properties.heartbeatTimeout().toSeconds(), TimeUnit.SECONDS))
                 .addLast(new ImFrameDecoder(properties.maxFrameLength()))
                 .addLast(new ImFrameEncoder());
         for (ChannelHandler handler : handlers) {

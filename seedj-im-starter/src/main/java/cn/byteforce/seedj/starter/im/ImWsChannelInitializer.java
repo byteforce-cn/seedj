@@ -42,10 +42,7 @@ final class ImWsChannelInitializer extends ChannelInitializer<SocketChannel> {
                 .addLast(new WebSocketServerProtocolHandler(config))
                 .addLast(
                         new IdleStateHandler(
-                                0,
-                                0,
-                                properties.heartbeatTimeout().toSeconds(),
-                                TimeUnit.SECONDS))
+                                0, 0, properties.heartbeatTimeout().toSeconds(), TimeUnit.SECONDS))
                 .addLast(adapter);
         for (ChannelHandler handler : handlers) {
             channel.pipeline().addLast(handler);
