@@ -51,6 +51,7 @@
         <module>seedj-jdbc-postgresql</module>
         <module>seedj-iam-starter</module>
         <module>seedj-biz-starter</module>
+        <module>seedj-im-starter</module>
         <module>seedj-server</module>
         <module>seedj-it</module>
     </modules>
