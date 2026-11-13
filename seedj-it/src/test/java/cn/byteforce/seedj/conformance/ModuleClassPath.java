@@ -28,6 +28,7 @@ final class ModuleClassPath {
                     "seedj-workflow-local",
                     "seedj-jdbc-postgresql",
                     "seedj-biz-starter",
+                    "seedj-im-starter",
                     "seedj-iam-starter",
                     "seedj-server/hr",
                     "seedj-server/iam",

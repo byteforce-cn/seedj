@@ -1,3 +1,27 @@
 spring:
   application:
     name: seedj-server-im
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${SEEDJ_IAM_ISSUER:http://localhost:9000}
+
+seedj:
+  biz:
+    dev-auth:
+      enabled: false
+  im:
+    enabled: true
+    push:
+      provider: local
+    tcp:
+      enabled: true
+      port: 9090
+    ws:
+      enabled: true
+      port: 9091
+      path: /ws
+    heartbeat-timeout: 90s
+    max-frame-length: 1048576
+    max-sessions-per-user: 1000
