@@ -7,6 +7,7 @@
 
 ### Added
 
+- `seedj-im-starter`（阶段 1）：帧协议、Netty TCP/WebSocket 传输、IAM JWT 握手、心跳与未实现命令 `501`；`seedj-server/im` 改为单类宿主。
 - 开发者文档站（`docs/`，VitePress）与 GitHub Pages 发布。
 - 贡献指南、安全政策、行为准则、支持说明与 issue/PR 模板。
 
