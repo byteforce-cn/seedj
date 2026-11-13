@@ -17,7 +17,14 @@ final class ChannelRegistry {
     void bind(String subject, Channel channel) {
         Objects.requireNonNull(subject, "subject");
         Objects.requireNonNull(channel, "channel");
-        bySubject.computeIfAbsent(subject, key -> ConcurrentHashMap.newKeySet()).add(channel);
+        bySubject.compute(
+                subject,
+                (key, channels) -> {
+                    Set<Channel> set =
+                            channels == null ? ConcurrentHashMap.newKeySet() : channels;
+                    set.add(channel);
+                    return set;
+                });
     }
 
     void unbind(String subject, Channel channel) {

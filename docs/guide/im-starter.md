@@ -52,7 +52,7 @@ seedj:
 | `seedj.im.ws.path` | `/ws` | WebSocket 握手路径 |
 | `seedj.im.heartbeat-timeout` | `90s` | 读空闲超时，超时关闭连接 |
 | `seedj.im.max-frame-length` | `1048576` | 单帧 body 上限；超限直接关闭连接 |
-| `seedj.im.max-sessions-per-user` | `1000` | 单用户连接上限，与 scope `In` 上限对齐 |
+| `seedj.im.max-sessions-per-user` | `1000` | 预留：单用户会话数上限（阶段 2 入群校验）；本期不强制 |
 
 ## 本地跑起来
 

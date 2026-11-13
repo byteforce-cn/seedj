@@ -10,6 +10,8 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.timeout.IdleStateEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * 登录握手：{@code LOGIN_REQ} 换取 {@link Caller}，并把连接登记到 {@link ChannelRegistry}。
@@ -18,6 +20,8 @@ import io.netty.handler.timeout.IdleStateEvent;
  */
 @ChannelHandler.Sharable
 final class ImHandshakeHandler extends ChannelInboundHandlerAdapter {
+
+    private static final Logger log = LoggerFactory.getLogger(ImHandshakeHandler.class);
 
     private final ImCodec codec;
     private final ImJwtAuthenticator authenticator;
@@ -53,11 +57,15 @@ final class ImHandshakeHandler extends ChannelInboundHandlerAdapter {
             LoginReq request = codec.decode(frame, LoginReq.class);
             caller = authenticator.authenticate(request.accessToken());
         } catch (RuntimeException failure) {
-            reject(ctx, frame.sequenceId(), failure.getMessage());
+            log.debug("IM 登录失败: {}", failure.getMessage(), failure);
+            rejectAuthentication(ctx, frame.sequenceId());
             return;
         }
 
-        ctx.channel().attr(ImAttributes.CALLER).set(caller);
+        Caller previous = ctx.channel().attr(ImAttributes.CALLER).getAndSet(caller);
+        if (previous != null) {
+            registry.unbind(previous.id(), ctx.channel());
+        }
         registry.bind(caller.id(), ctx.channel());
         ctx.writeAndFlush(
                 codec.resp(
@@ -70,6 +78,10 @@ final class ImHandshakeHandler extends ChannelInboundHandlerAdapter {
         String message = reason == null || reason.isBlank() ? "认证失败" : reason;
         ctx.writeAndFlush(codec.error(sequenceId, 401, message))
                 .addListener(ChannelFutureListener.CLOSE);
+    }
+
+    private void rejectAuthentication(ChannelHandlerContext ctx, int sequenceId) {
+        reject(ctx, sequenceId, "认证失败");
     }
 
     private static String displayName(Caller caller) {

@@ -1,6 +1,7 @@
 package cn.byteforce.seedj.starter.im;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import cn.byteforce.seedj.starter.im.protocol.ImFrames;
 import java.io.IOException;
@@ -71,15 +72,42 @@ class ImTcpServerTest {
         }
     }
 
+    @Test
+    @DisplayName("端口被占用时启动失败，且失败后仍可在其他端口启动")
+    void occupiedPortFailsStartAndCleansUp() throws IOException {
+        try (ServerSocket occupied = new ServerSocket(0)) {
+            ImProperties properties = properties(1024, occupied.getLocalPort());
+            ImTcpServer server = new ImTcpServer(properties, new ImChannelInitializer(properties));
+
+            assertThatThrownBy(server::start).isInstanceOf(IllegalStateException.class);
+            assertThat(server.isRunning()).isFalse();
+            assertThat(server.boundPort()).isEqualTo(-1);
+            server.stop();
+
+            ImProperties other = properties(1024, 0);
+            ImTcpServer retry = new ImTcpServer(other, new ImChannelInitializer(other));
+            try {
+                retry.start();
+                assertThat(retry.boundPort()).isPositive();
+            } finally {
+                retry.stop();
+            }
+        }
+    }
+
     private static ImTcpServer server(ImProperties properties) {
         return new ImTcpServer(properties, new ImChannelInitializer(properties));
     }
 
     private static ImProperties properties(int maxFrameLength) {
+        return properties(maxFrameLength, 0);
+    }
+
+    private static ImProperties properties(int maxFrameLength, int tcpPort) {
         return new ImProperties(
                 true,
                 new ImProperties.Push("local"),
-                new ImProperties.Tcp(true, 0),
+                new ImProperties.Tcp(true, tcpPort),
                 new ImProperties.Ws(false, 0, "/ws"),
                 Duration.ofSeconds(90),
                 maxFrameLength,

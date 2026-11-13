@@ -8,6 +8,8 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import java.net.InetSocketAddress;
 import java.util.Objects;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.SmartLifecycle;
 
 /**
@@ -16,6 +18,8 @@ import org.springframework.context.SmartLifecycle;
  * <p>启动同步完成，测试可绑定 0 端口后读取实际端口。
  */
 final class ImWsServer implements SmartLifecycle {
+
+    private static final Logger log = LoggerFactory.getLogger(ImWsServer.class);
 
     private final ImProperties properties;
     private final ImWsChannelInitializer initializer;
@@ -51,9 +55,14 @@ final class ImWsServer implements SmartLifecycle {
                             .syncUninterruptibly()
                             .channel();
             running = true;
-        } catch (RuntimeException bindFailure) {
+            log.info(
+                    "seedj.im websocket listening on port {} path {}",
+                    boundPort(),
+                    properties.ws().path());
+        } catch (Throwable bindFailure) {
             shutdownGroups();
-            throw bindFailure;
+            throw new IllegalStateException(
+                    "IM WebSocket 端口绑定失败: " + properties.ws().port(), bindFailure);
         }
     }
 

@@ -14,7 +14,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param ws WebSocket 传输配置
  * @param heartbeatTimeout 读空闲超时，默认 90s
  * @param maxFrameLength 单帧最大字节数，默认 1MB
- * @param maxSessionsPerUser 单用户最大连接数，默认 1000
+ * @param maxSessionsPerUser 单用户会话数上限（阶段 2 入群校验）；默认 1000，本期不强制
  */
 @ConfigurationProperties(prefix = "seedj.im")
 public record ImProperties(

@@ -70,7 +70,9 @@ class ImDispatchHandlerTest {
 
             ImFrame response = channel.readOutbound();
             assertThat(response.cmd()).isEqualTo(Cmd.ERROR);
-            assertThat(codec.decode(response, ErrorResp.class).code()).isEqualTo(401);
+            ErrorResp error = codec.decode(response, ErrorResp.class);
+            assertThat(error.code()).isEqualTo(401);
+            assertThat(error.message()).isEqualTo("认证失败");
             assertThat(channel.isActive()).isFalse();
             assertThat(registry.size()).isZero();
         } finally {
@@ -87,11 +89,77 @@ class ImDispatchHandlerTest {
 
             ImFrame response = channel.readOutbound();
             assertThat(response.cmd()).isEqualTo(Cmd.ERROR);
-            assertThat(codec.decode(response, ErrorResp.class).code()).isEqualTo(401);
+            ErrorResp error = codec.decode(response, ErrorResp.class);
+            assertThat(error.code()).isEqualTo(401);
+            assertThat(error.message()).isEqualTo("认证失败");
             assertThat(channel.isActive()).isFalse();
             assertThat(registry.size()).isZero();
         } finally {
             channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    @DisplayName("过期令牌回 401 且不泄露校验细节")
+    void expiredTokenReplies401AndLeavesRegistryEmpty() {
+        EmbeddedChannel channel = channel();
+        try {
+            channel.writeInbound(
+                    request(
+                            Cmd.LOGIN_REQ,
+                            new LoginReq(token("alice", "u-1", Instant.now().minusSeconds(300))),
+                            14));
+
+            ImFrame response = channel.readOutbound();
+            ErrorResp error = codec.decode(response, ErrorResp.class);
+            assertThat(error.code()).isEqualTo(401);
+            assertThat(error.message()).isEqualTo("认证失败");
+            assertThat(channel.isActive()).isFalse();
+            assertThat(registry.size()).isZero();
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    @DisplayName("同一连接重新登录会移除旧主体的注册")
+    void reLoginMovesRegistryEntryToNewCaller() {
+        EmbeddedChannel channel = channel();
+        try {
+            channel.writeInbound(loginRequest(validToken(), 15));
+            assertThat(channel.<ImFrame>readOutbound().cmd()).isEqualTo(Cmd.LOGIN_RESP);
+
+            channel.writeInbound(loginRequest(token("bob", "u-2", Instant.now().plusSeconds(300)), 16));
+            assertThat(channel.<ImFrame>readOutbound().cmd()).isEqualTo(Cmd.LOGIN_RESP);
+
+            assertThat(registry.channels("u-1")).isEmpty();
+            assertThat(registry.channels("u-2")).containsExactly(channel);
+            channel.close();
+            assertThat(registry.size()).isZero();
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    @DisplayName("断开一端时同一用户的其他连接仍在")
+    void channelInactiveKeepsOtherChannelForSameSubject() {
+        EmbeddedChannel first = channel();
+        EmbeddedChannel second = channel();
+        try {
+            first.writeInbound(loginRequest(validToken(), 17));
+            first.<ImFrame>readOutbound();
+            second.writeInbound(loginRequest(validToken(), 18));
+            second.<ImFrame>readOutbound();
+
+            first.close();
+
+            assertThat(registry.channels("u-1")).containsExactly(second);
+            second.close();
+            assertThat(registry.size()).isZero();
+        } finally {
+            first.finishAndReleaseAll();
+            second.finishAndReleaseAll();
         }
     }
 
@@ -166,14 +234,22 @@ class ImDispatchHandlerTest {
     }
 
     private static String validToken() {
+        return token("alice", "u-1", Instant.now().plusSeconds(300));
+    }
+
+    private static String token(String subject, String userId, Instant expiresAt) {
         JwtEncoder encoder = new NimbusJwtEncoder(new ImmutableSecret<>(KEY));
+        Instant issuedAt =
+                expiresAt.isAfter(Instant.now())
+                        ? Instant.now().minusSeconds(5)
+                        : expiresAt.minusSeconds(300);
         JwtClaimsSet claims =
                 JwtClaimsSet.builder()
-                        .subject("alice")
-                        .claim("user_id", "u-1")
+                        .subject(subject)
+                        .claim("user_id", userId)
                         .claim("permissions", List.of("im.message.send"))
-                        .issuedAt(Instant.now().minusSeconds(5))
-                        .expiresAt(Instant.now().plusSeconds(300))
+                        .issuedAt(issuedAt)
+                        .expiresAt(expiresAt)
                         .build();
         JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();
         return encoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();

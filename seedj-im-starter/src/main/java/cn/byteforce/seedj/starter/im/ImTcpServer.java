@@ -8,6 +8,8 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import java.net.InetSocketAddress;
 import java.util.Objects;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.SmartLifecycle;
 
 /**
@@ -16,6 +18,8 @@ import org.springframework.context.SmartLifecycle;
  * <p>启动是同步的，构造完成后即可通过 {@link #boundPort()} 读取实际端口（测试绑定 0）。
  */
 final class ImTcpServer implements SmartLifecycle {
+
+    private static final Logger log = LoggerFactory.getLogger(ImTcpServer.class);
 
     private final ImProperties properties;
     private final ImChannelInitializer initializer;
@@ -51,9 +55,11 @@ final class ImTcpServer implements SmartLifecycle {
                             .syncUninterruptibly()
                             .channel();
             running = true;
-        } catch (RuntimeException bindFailure) {
+            log.info("seedj.im tcp listening on port {}", boundPort());
+        } catch (Throwable bindFailure) {
             shutdownGroups();
-            throw bindFailure;
+            throw new IllegalStateException(
+                    "IM TCP 端口绑定失败: " + properties.tcp().port(), bindFailure);
         }
     }
 
