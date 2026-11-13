@@ -1,5 +1,6 @@
 package cn.byteforce.seedj.starter.im;
 
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.http.HttpObjectAggregator;
@@ -18,10 +19,12 @@ import java.util.concurrent.TimeUnit;
 final class ImWsChannelInitializer extends ChannelInitializer<SocketChannel> {
 
     private final ImProperties properties;
+    private final ChannelHandler[] handlers;
     private final ImWsAdapter adapter = new ImWsAdapter();
 
-    ImWsChannelInitializer(ImProperties properties) {
+    ImWsChannelInitializer(ImProperties properties, ChannelHandler... handlers) {
         this.properties = Objects.requireNonNull(properties, "properties");
+        this.handlers = handlers.clone();
     }
 
     @Override
@@ -44,5 +47,8 @@ final class ImWsChannelInitializer extends ChannelInitializer<SocketChannel> {
                                 properties.heartbeatTimeout().toSeconds(),
                                 TimeUnit.SECONDS))
                 .addLast(adapter);
+        for (ChannelHandler handler : handlers) {
+            channel.pipeline().addLast(handler);
+        }
     }
 }
