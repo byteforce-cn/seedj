@@ -51,8 +51,7 @@ import tools.jackson.databind.json.JsonMapper;
 class ImServerE2ETest {
 
     private static final SecretKey KEY =
-            new SecretKeySpec(
-                    "seedj-im-e2e-key-0123456789abcdefgh".getBytes(UTF_8), "HmacSHA256");
+            new SecretKeySpec("seedj-im-e2e-key-0123456789abcdefgh".getBytes(UTF_8), "HmacSHA256");
     private static final JsonMapper JSON = JsonMapper.builder().build();
     private static final int TCP_PORT = freePort();
 
