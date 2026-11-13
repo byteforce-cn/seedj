@@ -52,6 +52,7 @@ export default defineConfig({
             { text: "模块与装配", link: "/guide/modules" },
             { text: "业务装配", link: "/guide/biz-starter" },
             { text: "IAM 装配", link: "/guide/iam-starter" },
+            { text: "IM 装配", link: "/guide/im-starter" },
             { text: "基础设施 SPI", link: "/guide/spi" },
             { text: "配置说明", link: "/guide/configuration" },
           ],

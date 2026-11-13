@@ -490,6 +490,15 @@ seedj-iam-starter|cn.byteforce.seedj.starter.iam.web|IamTotpController
 seedj-iam-starter|cn.byteforce.seedj.starter.iam.web|IdTokenIntrospectionGuard
 seedj-iam-starter|cn.byteforce.seedj.starter.iam.web|ReauthAwareAuthenticationSuccessHandler
 seedj-iam-starter|cn.byteforce.seedj.starter.iam|IamProperties
+seedj-im-starter|cn.byteforce.seedj.starter.im.protocol.body|ErrorResp
+seedj-im-starter|cn.byteforce.seedj.starter.im.protocol.body|LoginReq
+seedj-im-starter|cn.byteforce.seedj.starter.im.protocol.body|LoginResp
+seedj-im-starter|cn.byteforce.seedj.starter.im.protocol|Cmd
+seedj-im-starter|cn.byteforce.seedj.starter.im.protocol|ImFrame
+seedj-im-starter|cn.byteforce.seedj.starter.im.protocol|ImFrames
+seedj-im-starter|cn.byteforce.seedj.starter.im|EnableImServer
+seedj-im-starter|cn.byteforce.seedj.starter.im|ImProperties
+seedj-im-starter|cn.byteforce.seedj.starter.im|ImServerAutoConfiguration
 seedj-infra-local|cn.byteforce.seedj.infra.local.audit|InMemoryAuditAutoConfiguration
 seedj-infra-local|cn.byteforce.seedj.infra.local.audit|InMemoryAuditStore
 seedj-infra-local|cn.byteforce.seedj.infra.local.cqrs|InMemoryCommandStore

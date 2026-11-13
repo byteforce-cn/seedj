@@ -44,7 +44,7 @@ Caller caller = callers.find().orElseThrow()     // 当前调用方（未认证�
 | `seedj-iam-starter` | IAM 契约的 Spring 装配：OIDC/SAS、用户存储适配、RBAC/ABAC/TOTP/SCIM/native-auth、IAM schema capability | 业务逻辑；不得反向依赖 `seedj-biz-starter` 或 server |
 | `seedj-server-iam` | 可运行 IAM/OIDC 服务；只带 `seedj-iam-starter` + 两个实现模块 | 业务横切能力 |
 | `seedj-server-hr` | HR 参考服务：验证 `seedj-biz-starter` + core/infra 的分布式能力 | `seedj-iam-starter` |
-| `seedj-server-im` | IM 参考服务：验证长连接、扇出、顺序、幂等等 core 能力 | `seedj-iam-starter` |
+| `seedj-server-im` | IM 参考服务：验证长连接（已落地）、扇出、顺序、幂等等 core 能力 | `seedj-iam-starter` |
 | `seedj-it` | **集成测试聚合**：三个 server + 夹具；`src/main` 不含代码 | 业务逻辑、存储/传输实现 |
 
 依赖方向：`core` ← `{seedj-infra-local, seedj-jdbc-postgresql}` ← `{seedj-biz-starter, seedj-iam-starter}` ← `seedj-server-*` ← `seedj-it`。
