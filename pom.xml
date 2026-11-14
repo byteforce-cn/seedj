@@ -60,32 +60,32 @@
         <!-- 版本属性 -->
         <revision>1.0.0-SNAPSHOT</revision>
         <java.version>21</java.version>
-        <spring-boot.version>4.1.1</spring-boot.version>
-        <slf4j.version>2.0.12</slf4j.version>
+        <spring-boot.version>4.1.2</spring-boot.version>
+        <slf4j.version>2.0.20</slf4j.version>
         <testcontainers.version>2.0.5</testcontainers.version>
 
         <maven.compiler.release>${java.version}</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
-        <flatten-maven-plugin.version>1.6.0</flatten-maven-plugin.version>
-        <jacoco-maven-plugin.version>0.8.15</jacoco-maven-plugin.version>
-        <maven-enforcer-plugin.version>3.6.3</maven-enforcer-plugin.version>
+        <flatten-maven-plugin.version>1.9.0</flatten-maven-plugin.version>
+        <jacoco-maven-plugin.version>0.8.16</jacoco-maven-plugin.version>
+        <maven-enforcer-plugin.version>3.7.0</maven-enforcer-plugin.version>
         <maven-source-plugin.version>3.4.0</maven-source-plugin.version>
         <maven-javadoc-plugin.version>3.12.0</maven-javadoc-plugin.version>
         <maven-compiler-plugin.version>3.16.0</maven-compiler-plugin.version>
-        <maven-surefire-plugin.version>3.5.6</maven-surefire-plugin.version>
+        <maven-surefire-plugin.version>3.6.1</maven-surefire-plugin.version>
         <surefire.excludedGroups>perf</surefire.excludedGroups>
-        <maven-antrun-plugin.version>3.1.0</maven-antrun-plugin.version>
-        <maven-resources-plugin.version>3.3.1</maven-resources-plugin.version>
+        <maven-antrun-plugin.version>3.2.0</maven-antrun-plugin.version>
+        <maven-resources-plugin.version>3.5.0</maven-resources-plugin.version>
         <maven-gpg-plugin.version>3.2.8</maven-gpg-plugin.version>
-        <japicmp-maven-plugin.version>0.26.3</japicmp-maven-plugin.version>
+        <japicmp-maven-plugin.version>0.27.0</japicmp-maven-plugin.version>
         <cyclonedx-maven-plugin.version>2.9.3</cyclonedx-maven-plugin.version>
-        <spotbugs-maven-plugin.version>4.10.4.1</spotbugs-maven-plugin.version>
+        <spotbugs-maven-plugin.version>4.10.5.0</spotbugs-maven-plugin.version>
         <dependency-check-maven-plugin.version>12.1.0</dependency-check-maven-plugin.version>
         <spotless-maven-plugin.version>3.11.0</spotless-maven-plugin.version>
         <google-java-format.version>1.22.0</google-java-format.version>
-        <lombok.version>1.18.38</lombok.version>
+        <lombok.version>1.18.48</lombok.version>
 
         <!-- 兼容门禁：测试套件模块（seedj-it）在自身 POM 覆盖为 true -->
         <seedj.compat.skip>false</seedj.compat.skip>
@@ -167,7 +167,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-failsafe-plugin</artifactId>
-                    <version>3.5.0</version>
+                    <version>3.6.1</version>
                     <executions>
                         <execution>
                             <goals>
