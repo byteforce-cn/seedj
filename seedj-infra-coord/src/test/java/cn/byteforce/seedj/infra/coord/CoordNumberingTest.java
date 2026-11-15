@@ -1,5 +1,6 @@
 package cn.byteforce.seedj.infra.coord;
 
+import static cn.byteforce.seedj.infra.coord.CoordTestFixture.ENDPOINT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
@@ -21,7 +22,7 @@ class CoordNumberingTest {
         IdGenClient client = mock(IdGenClient.class);
         when(client.nextId("seedj:app:numbering:order")).thenReturn(7L);
         when(client.nextId("seedj:app:numbering:order_2026")).thenReturn(8L);
-        CoordNumbering numbering = new CoordNumbering(client, "seedj:app:numbering");
+        CoordNumbering numbering = new CoordNumbering(ENDPOINT, client, "seedj:app:numbering");
 
         assertThat(numbering.next("order")).isEqualTo(7L);
         assertThat(numbering.next("order", 2026)).isEqualTo(8L);
@@ -32,7 +33,7 @@ class CoordNumberingTest {
     @Test
     void rejectsIllegalScope() {
         CoordNumbering numbering =
-                new CoordNumbering(mock(IdGenClient.class), "seedj:app:numbering");
+                new CoordNumbering(ENDPOINT, mock(IdGenClient.class), "seedj:app:numbering");
 
         assertThatThrownBy(() -> numbering.next("Order"))
                 .isInstanceOf(IllegalArgumentException.class);
@@ -42,7 +43,7 @@ class CoordNumberingTest {
 
     @Test
     void concurrentNumberingIsUnique() throws Exception {
-        CoordNumbering numbering = new CoordNumbering(new FakeIdGen(), "seedj:app:numbering");
+        CoordNumbering numbering = new CoordNumbering(ENDPOINT, new FakeIdGen(), "seedj:app:numbering");
         Set<Long> seen = ConcurrentHashMap.newKeySet();
         ExecutorService pool = Executors.newFixedThreadPool(8);
         try {

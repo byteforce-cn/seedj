@@ -1,5 +1,6 @@
 package cn.byteforce.seedj.infra.coord;
 
+import static cn.byteforce.seedj.infra.coord.CoordTestFixture.ENDPOINT;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -24,6 +25,6 @@ class CoordEventBusTransportContractTest extends EventBusTransportContractTest {
                                 new MqV2TopicDescription(
                                         inv.getArgument(0), 1L, 1L, 1, null, 0L, List.of()));
         when(mq.publish(any())).thenReturn(new MqV2PublishResult(0L, 0L, false));
-        return new CoordEventBusTransport(mq, "test", 1);
+        return new CoordEventBusTransport(ENDPOINT, mq, "test", 1);
     }
 }

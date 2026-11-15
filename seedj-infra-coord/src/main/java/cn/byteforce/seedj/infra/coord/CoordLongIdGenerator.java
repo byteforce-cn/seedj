@@ -11,10 +11,11 @@ import java.util.Objects;
 /**
  * coord 分段 ID 的 Long 生成器：每次预取一段，段内本地发号。
  *
- * <p>允许空洞，不要求连续；同一实例的发号顺序严格递增。
+ * <p>允许空洞，不要求连续；同一实例的发号顺序严格递增。失败消息点名 agent 地址。
  */
 final class CoordLongIdGenerator implements IdGenerator<Long> {
 
+    private final CoordEndpoint endpoint;
     private final IdGenClient client;
     private final String name;
     private final int batchSize;
@@ -23,7 +24,8 @@ final class CoordLongIdGenerator implements IdGenerator<Long> {
     private int cursor;
     private boolean closed;
 
-    CoordLongIdGenerator(IdGenClient client, String name, int batchSize) {
+    CoordLongIdGenerator(CoordEndpoint endpoint, IdGenClient client, String name, int batchSize) {
+        this.endpoint = Objects.requireNonNull(endpoint, "endpoint");
         this.client = Objects.requireNonNull(client, "client");
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("coord id name must not be blank");
@@ -57,7 +59,7 @@ final class CoordLongIdGenerator implements IdGenerator<Long> {
             batch = List.copyOf(next);
             cursor = 0;
         } catch (CoordException e) {
-            throw CoordErrors.id(e);
+            throw CoordErrors.id(e, endpoint);
         }
     }
 

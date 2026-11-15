@@ -11,12 +11,15 @@ final class CoordErrors {
 
     private CoordErrors() {}
 
-    static IdException id(CoordException e) {
+    static IdException id(CoordException e, CoordEndpoint endpoint) {
         return new IdException(
-                IdErrorCode.STATE_UNAVAILABLE, "coord idgen failed: " + e.getErrorCode(), e);
+                IdErrorCode.STATE_UNAVAILABLE,
+                "coord idgen failed at " + endpoint + ": " + e.getErrorCode(),
+                e);
     }
 
-    static EventBusException eventBus(CoordException e, EventBusErrorCode fallback) {
+    static EventBusException eventBus(
+            CoordException e, EventBusErrorCode fallback, CoordEndpoint endpoint) {
         EventBusErrorCode mapped =
                 switch (e.getErrorCode()) {
                     case UNAVAILABLE,
@@ -30,6 +33,7 @@ final class CoordErrors {
                             EventBusErrorCode.SEND_FAILED;
                     default -> fallback;
                 };
-        return new EventBusException(mapped, "coord eventbus failed: " + e.getErrorCode(), e);
+        return new EventBusException(
+                mapped, "coord eventbus failed at " + endpoint + ": " + e.getErrorCode(), e);
     }
 }

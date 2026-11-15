@@ -1,5 +1,6 @@
 package cn.byteforce.seedj.infra.coord;
 
+import static cn.byteforce.seedj.infra.coord.CoordTestFixture.ENDPOINT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -19,7 +20,7 @@ class CoordGlobalSequencerTest {
         IdGenClient client = mock(IdGenClient.class);
         when(client.nextId("seedj:app:global-sequencer")).thenReturn(42L);
         CoordGlobalSequencer sequencer =
-                new CoordGlobalSequencer(client, "seedj:app:global-sequencer");
+                new CoordGlobalSequencer(ENDPOINT, client, "seedj:app:global-sequencer");
 
         assertThat(sequencer.next()).isEqualTo(42L);
     }
@@ -27,7 +28,7 @@ class CoordGlobalSequencerTest {
     @Test
     void concurrentNextIsUnique() throws Exception {
         CoordGlobalSequencer sequencer =
-                new CoordGlobalSequencer(new FakeIdGen(), "seedj:app:global-sequencer");
+                new CoordGlobalSequencer(ENDPOINT, new FakeIdGen(), "seedj:app:global-sequencer");
         Set<Long> seen = ConcurrentHashMap.newKeySet();
         ExecutorService pool = Executors.newFixedThreadPool(8);
         try {

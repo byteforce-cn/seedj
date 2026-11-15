@@ -43,6 +43,7 @@ public class CoordAutoConfiguration {
     public IdGenerator<String> coordIdGenerator(
             CoordClient client, CoordProperties properties, Environment environment) {
         return new CoordIdGenerator(
+                CoordEndpoint.of(properties),
                 client.idgen(),
                 namespace(properties, environment) + ":" + properties.getId().getName(),
                 properties.getId().getBatchSize());
@@ -54,6 +55,7 @@ public class CoordAutoConfiguration {
     public Numbering coordNumbering(
             CoordClient client, CoordProperties properties, Environment environment) {
         return new CoordNumbering(
+                CoordEndpoint.of(properties),
                 client.idgen(),
                 namespace(properties, environment) + ":" + properties.getNumbering().getPrefix());
     }
@@ -64,6 +66,7 @@ public class CoordAutoConfiguration {
     public GlobalSequencer coordGlobalSequencer(
             CoordClient client, CoordProperties properties, Environment environment) {
         return new CoordGlobalSequencer(
+                CoordEndpoint.of(properties),
                 client.idgen(),
                 namespace(properties, environment) + ":" + properties.getClock().getName());
     }
@@ -74,6 +77,7 @@ public class CoordAutoConfiguration {
     public EventBusTransport coordEventBusTransport(
             CoordClient client, CoordProperties properties, Environment environment) {
         return new CoordEventBusTransport(
+                CoordEndpoint.of(properties),
                 client.mqV2(),
                 producer(properties, environment),
                 properties.getEventbus().getPartitions());

@@ -1,5 +1,6 @@
 package cn.byteforce.seedj.infra.coord;
 
+import static cn.byteforce.seedj.infra.coord.CoordTestFixture.ENDPOINT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
@@ -22,7 +23,7 @@ class CoordIdGeneratorTest {
         IdGenClient client = mock(IdGenClient.class);
         when(client.nextBatch("app", 3)).thenReturn(List.of(10L, 11L, 12L), List.of(20L));
 
-        CoordIdGenerator generator = new CoordIdGenerator(client, "app", 3);
+        CoordIdGenerator generator = new CoordIdGenerator(ENDPOINT, client, "app", 3);
 
         assertThat(generator.id()).isEqualTo("10");
         assertThat(generator.id()).isEqualTo("11");
@@ -35,7 +36,7 @@ class CoordIdGeneratorTest {
     void closeIsIdempotentAndRejectsFurtherIds() {
         IdGenClient client = mock(IdGenClient.class);
         when(client.nextBatch("app", 2)).thenReturn(List.of(1L, 2L));
-        CoordIdGenerator generator = new CoordIdGenerator(client, "app", 2);
+        CoordIdGenerator generator = new CoordIdGenerator(ENDPOINT, client, "app", 2);
         assertThat(generator.id()).isEqualTo("1");
 
         generator.close();
@@ -51,7 +52,7 @@ class CoordIdGeneratorTest {
     void emptyBatchFailsClosed() {
         IdGenClient client = mock(IdGenClient.class);
         when(client.nextBatch("app", 2)).thenReturn(List.of());
-        CoordIdGenerator generator = new CoordIdGenerator(client, "app", 2);
+        CoordIdGenerator generator = new CoordIdGenerator(ENDPOINT, client, "app", 2);
 
         assertThatThrownBy(generator::id)
                 .isInstanceOf(IdException.class)
@@ -64,7 +65,7 @@ class CoordIdGeneratorTest {
         IdGenClient client = mock(IdGenClient.class);
         when(client.nextBatch("app", 2))
                 .thenThrow(new CoordException(ErrorCode.AGENT_UNAVAILABLE, "down"));
-        CoordIdGenerator generator = new CoordIdGenerator(client, "app", 2);
+        CoordIdGenerator generator = new CoordIdGenerator(ENDPOINT, client, "app", 2);
 
         assertThatThrownBy(generator::id)
                 .isInstanceOf(IdException.class)
@@ -75,11 +76,11 @@ class CoordIdGeneratorTest {
     @Test
     void rejectsInvalidConfiguration() {
         IdGenClient client = mock(IdGenClient.class);
-        assertThatThrownBy(() -> new CoordIdGenerator(client, " ", 1))
+        assertThatThrownBy(() -> new CoordIdGenerator(ENDPOINT, client, " ", 1))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new CoordIdGenerator(client, "app", 0))
+        assertThatThrownBy(() -> new CoordIdGenerator(ENDPOINT, client, "app", 0))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new CoordIdGenerator(client, "app", 10_001))
+        assertThatThrownBy(() -> new CoordIdGenerator(ENDPOINT, client, "app", 10_001))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 }

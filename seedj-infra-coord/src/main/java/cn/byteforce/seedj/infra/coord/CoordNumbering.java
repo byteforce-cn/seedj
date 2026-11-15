@@ -11,10 +11,12 @@ final class CoordNumbering implements Numbering {
 
     private static final Pattern SCOPE = Pattern.compile("^[a-z0-9_]+$");
 
+    private final CoordEndpoint endpoint;
     private final IdGenClient client;
     private final String prefix;
 
-    CoordNumbering(IdGenClient client, String prefix) {
+    CoordNumbering(CoordEndpoint endpoint, IdGenClient client, String prefix) {
+        this.endpoint = Objects.requireNonNull(endpoint, "endpoint");
         this.client = Objects.requireNonNull(client, "client");
         if (prefix == null || prefix.isBlank()) {
             throw new IllegalArgumentException("coord numbering prefix must not be blank");
@@ -32,7 +34,13 @@ final class CoordNumbering implements Numbering {
             return client.nextId(prefix + ":" + scope);
         } catch (CoordException e) {
             throw new IllegalStateException(
-                    "coord numbering failed for " + scope + ": " + e.getErrorCode(), e);
+                    "coord numbering failed at "
+                            + endpoint
+                            + " for "
+                            + scope
+                            + ": "
+                            + e.getErrorCode(),
+                    e);
         }
     }
 }

@@ -8,8 +8,8 @@ final class CoordIdGenerator implements IdGenerator<String> {
 
     private final CoordLongIdGenerator delegate;
 
-    CoordIdGenerator(IdGenClient client, String name, int batchSize) {
-        this.delegate = new CoordLongIdGenerator(client, name, batchSize);
+    CoordIdGenerator(CoordEndpoint endpoint, IdGenClient client, String name, int batchSize) {
+        this.delegate = new CoordLongIdGenerator(endpoint, client, name, batchSize);
     }
 
     @Override

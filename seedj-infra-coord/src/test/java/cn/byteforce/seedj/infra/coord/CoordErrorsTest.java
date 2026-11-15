@@ -1,5 +1,6 @@
 package cn.byteforce.seedj.infra.coord;
 
+import static cn.byteforce.seedj.infra.coord.CoordTestFixture.ENDPOINT;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import cn.byteforce.coord.sdk.CoordException;
@@ -28,7 +29,9 @@ class CoordErrorsTest {
     void eventBusMapsByErrorCode(ErrorCode coord, EventBusErrorCode expected) {
         EventBusException e =
                 CoordErrors.eventBus(
-                        new CoordException(coord, "x"), EventBusErrorCode.INTERNAL_ERROR);
+                        new CoordException(coord, "x"),
+                        EventBusErrorCode.INTERNAL_ERROR,
+                        ENDPOINT);
         assertThat(e.getErrorCode()).isEqualTo(expected);
         assertThat(e).hasCauseInstanceOf(CoordException.class);
     }
@@ -36,7 +39,7 @@ class CoordErrorsTest {
     @ParameterizedTest
     @CsvSource({"UNAVAILABLE", "INVALID_ARGUMENT", "INTERNAL", "UNAUTHENTICATED"})
     void idFailuresAreBackendUnavailable(ErrorCode coord) {
-        IdException e = CoordErrors.id(new CoordException(coord, "x"));
+        IdException e = CoordErrors.id(new CoordException(coord, "x"), ENDPOINT);
         assertThat(e.getErrorCode()).isEqualTo(IdErrorCode.STATE_UNAVAILABLE);
         assertThat(e).hasCauseInstanceOf(CoordException.class);
     }

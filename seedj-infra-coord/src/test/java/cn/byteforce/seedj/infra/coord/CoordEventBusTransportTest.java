@@ -1,5 +1,6 @@
 package cn.byteforce.seedj.infra.coord;
 
+import static cn.byteforce.seedj.infra.coord.CoordTestFixture.ENDPOINT;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -36,7 +37,7 @@ class CoordEventBusTransportTest {
     void publishesWithTopicEpochPartitionAndHeaders() throws Exception {
         MqV2Client mq = mock(MqV2Client.class);
         when(mq.describeTopic("orders")).thenReturn(description("orders", 7, 4));
-        CoordEventBusTransport transport = new CoordEventBusTransport(mq, "svc", 4);
+        CoordEventBusTransport transport = new CoordEventBusTransport(ENDPOINT, mq, "svc", 4);
 
         transport.send(message("orders", "k")).toCompletableFuture().get(5, TimeUnit.SECONDS);
 
@@ -62,7 +63,7 @@ class CoordEventBusTransportTest {
     void sameEventIdRetriesLandOnSamePartition() throws Exception {
         MqV2Client mq = mock(MqV2Client.class);
         when(mq.describeTopic("orders")).thenReturn(description("orders", 1, 4));
-        CoordEventBusTransport transport = new CoordEventBusTransport(mq, "svc", 4);
+        CoordEventBusTransport transport = new CoordEventBusTransport(ENDPOINT, mq, "svc", 4);
 
         transport.send(message("orders", "k")).toCompletableFuture().get(5, TimeUnit.SECONDS);
         transport.send(message("orders", "k")).toCompletableFuture().get(5, TimeUnit.SECONDS);
@@ -76,7 +77,7 @@ class CoordEventBusTransportTest {
     @Test
     void sendAfterCloseFailsWithProviderClosed() {
         CoordEventBusTransport transport =
-                new CoordEventBusTransport(mock(MqV2Client.class), "svc", 1);
+                new CoordEventBusTransport(ENDPOINT, mock(MqV2Client.class), "svc", 1);
         transport.close();
 
         assertThatThrownBy(
@@ -93,7 +94,7 @@ class CoordEventBusTransportTest {
         when(mq.createTopic(eq("new-topic"), eq(4), anyString(), any()))
                 .thenReturn(
                         new MqV2TopicCreated("new-topic", 1L, 9L, 4, MqV2TopicConfig.defaults()));
-        CoordEventBusTransport transport = new CoordEventBusTransport(mq, "svc", 4);
+        CoordEventBusTransport transport = new CoordEventBusTransport(ENDPOINT, mq, "svc", 4);
 
         transport.ensureTopic("new-topic");
 
@@ -106,7 +107,7 @@ class CoordEventBusTransportTest {
         MqV2Client mq = mock(MqV2Client.class);
         when(mq.describeTopic("missing"))
                 .thenThrow(new CoordException(ErrorCode.TOPIC_NOT_FOUND, "missing"));
-        CoordEventBusTransport transport = new CoordEventBusTransport(mq, "svc", 4);
+        CoordEventBusTransport transport = new CoordEventBusTransport(ENDPOINT, mq, "svc", 4);
 
         assertThat(transport.topicExists("missing")).isFalse();
     }
@@ -119,7 +120,7 @@ class CoordEventBusTransportTest {
         when(mq.publish(any()))
                 .thenThrow(new CoordException(ErrorCode.TOPIC_EPOCH_STALE, "stale"))
                 .thenReturn(null);
-        CoordEventBusTransport transport = new CoordEventBusTransport(mq, "svc", 4);
+        CoordEventBusTransport transport = new CoordEventBusTransport(ENDPOINT, mq, "svc", 4);
 
         transport.send(message("orders", "k")).toCompletableFuture().get(5, TimeUnit.SECONDS);
 
@@ -131,9 +132,26 @@ class CoordEventBusTransportTest {
     }
 
     @Test
+    void secondStaleEpochFailsClosed() {
+        MqV2Client mq = mock(MqV2Client.class);
+        when(mq.describeTopic("orders"))
+                .thenReturn(description("orders", 7, 4), description("orders", 8, 4));
+        when(mq.publish(any())).thenThrow(new CoordException(ErrorCode.TOPIC_EPOCH_STALE, "stale"));
+        CoordEventBusTransport transport = new CoordEventBusTransport(ENDPOINT, mq, "svc", 4);
+
+        assertThatThrownBy(() -> transport.send(message("orders", "k")).toCompletableFuture().join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(EventBusException.class);
+
+        // 只刷新一次、只重试一次：不能进入刷新循环。
+        verify(mq, times(2)).publish(any());
+        verify(mq, times(2)).describeTopic("orders");
+    }
+
+    @Test
     void closeIsIdempotentAndRejectsFurtherSends() {
         CoordEventBusTransport transport =
-                new CoordEventBusTransport(mock(MqV2Client.class), "svc", 4);
+                new CoordEventBusTransport(ENDPOINT, mock(MqV2Client.class), "svc", 4);
         transport.close();
         transport.close();
 
@@ -146,11 +164,11 @@ class CoordEventBusTransportTest {
     @Test
     void rejectsInvalidConfiguration() {
         MqV2Client mq = mock(MqV2Client.class);
-        assertThatThrownBy(() -> new CoordEventBusTransport(mq, " ", 4))
+        assertThatThrownBy(() -> new CoordEventBusTransport(ENDPOINT, mq, " ", 4))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new CoordEventBusTransport(mq, "svc", 0))
+        assertThatThrownBy(() -> new CoordEventBusTransport(ENDPOINT, mq, "svc", 0))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new CoordEventBusTransport(mq, "svc", 4).ensureTopic(" "))
+        assertThatThrownBy(() -> new CoordEventBusTransport(ENDPOINT, mq, "svc", 4).ensureTopic(" "))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 

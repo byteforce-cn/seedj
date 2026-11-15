@@ -30,6 +30,7 @@ import java.util.concurrent.RejectedExecutionException;
  */
 final class CoordEventBusTransport implements EventBusTransport {
 
+    private final CoordEndpoint endpoint;
     private final MqV2Client mq;
     private final String producer;
     private final int partitions;
@@ -38,7 +39,9 @@ final class CoordEventBusTransport implements EventBusTransport {
 
     private volatile boolean closed;
 
-    CoordEventBusTransport(MqV2Client mq, String producer, int partitions) {
+    CoordEventBusTransport(
+            CoordEndpoint endpoint, MqV2Client mq, String producer, int partitions) {
+        this.endpoint = Objects.requireNonNull(endpoint, "endpoint");
         this.mq = Objects.requireNonNull(mq, "mq");
         if (producer == null || producer.isBlank()) {
             throw new IllegalArgumentException("coord eventbus producer must not be blank");
@@ -82,13 +85,13 @@ final class CoordEventBusTransport implements EventBusTransport {
                 publishOnce(message, meta);
             } catch (CoordException e) {
                 if (e.getErrorCode() != ErrorCode.TOPIC_EPOCH_STALE) {
-                    throw CoordErrors.eventBus(e, EventBusErrorCode.SEND_FAILED);
+                    throw CoordErrors.eventBus(e, EventBusErrorCode.SEND_FAILED, endpoint);
                 }
                 topics.remove(message.topic());
                 publishOnce(message, resolve(message.topic()));
             }
         } catch (CoordException e) {
-            throw CoordErrors.eventBus(e, EventBusErrorCode.SEND_FAILED);
+            throw CoordErrors.eventBus(e, EventBusErrorCode.SEND_FAILED, endpoint);
         }
     }
 
@@ -119,7 +122,7 @@ final class CoordEventBusTransport implements EventBusTransport {
         try {
             resolve(topic);
         } catch (CoordException e) {
-            throw CoordErrors.eventBus(e, EventBusErrorCode.TRANSPORT_UNAVAILABLE);
+            throw CoordErrors.eventBus(e, EventBusErrorCode.TRANSPORT_UNAVAILABLE, endpoint);
         }
     }
 
@@ -133,7 +136,7 @@ final class CoordEventBusTransport implements EventBusTransport {
             if (e.getErrorCode() == ErrorCode.TOPIC_NOT_FOUND) {
                 return false;
             }
-            throw CoordErrors.eventBus(e, EventBusErrorCode.TRANSPORT_UNAVAILABLE);
+            throw CoordErrors.eventBus(e, EventBusErrorCode.TRANSPORT_UNAVAILABLE, endpoint);
         }
     }
 
