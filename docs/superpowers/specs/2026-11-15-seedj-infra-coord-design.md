@@ -245,7 +245,8 @@ core
 
 ### 8.2 coord 夹具
 
-- 两容器（同 network）：`coord-server` + `coord-agent`，镜像 `ghcr.io/byteforce-cn/coord:v0.4.3`；server 开 `multi_raft` + `multi_raft.pd` + `kv_t` + `mq_v2`；agent `data_plane=v2`。
+- 两容器（**host network**，server 与 agent 都绑定 `127.0.0.1`）：agent 拒绝非 loopback 上的明文绑定，而 `agent.toml` 不能开 dev 旁路；开 auth 需要 CCT/Ed25519 签发链路，测试夹具不建这套。host network 下双方都在 loopback，鉴权关闭即可，代价是仅 Linux 可跑、端口随机分配。
+- server 开 `multi_raft` + `multi_raft.pd` + `kv_t` + `mq_v2`；agent `data_plane=v2`，服务集按 `ServiceConfig::dev_mode()` 打开。镜像 `ghcr.io/byteforce-cn/coord:v0.4.3`。
 - 健康等待：agent HTTP healthz、server healthz；镜像可用 `-Dseedj.coord.test.image` 覆盖。
 - 无 Docker 时 `@Testcontainers(disabledWithoutDocker=true)` 跳过；CI 有 Docker 必须真跑，拉取失败即红。
 - 该夹具放在 `seedj-infra-coord` test-jar，供 `seedj-workflow-coord` 与 `seedj-it` 复用。
