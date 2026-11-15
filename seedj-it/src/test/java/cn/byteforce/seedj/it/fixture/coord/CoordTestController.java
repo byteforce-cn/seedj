@@ -21,8 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 仅测试用的 coord 能力探测端点：暴露实际装配的 provider 类型，并提供 ID / 编号 / 全局序列 / 锁的可调用入口。
  *
- * <p>锁的租约按服务实例保存在本控制器里：一个服务持锁、另一个服务争抢，才能验证跨进程互斥。非 coord 模式启动时， 缺失的能力返回 {@code
- * none}，调用时由测试自己跳过。
+ * <p>锁的租约按服务实例保存在本控制器里：一个服务持锁、另一个服务争抢，才能验证跨进程互斥。非 coord 模式启动时， 缺失的能力返回 {@code none}，调用时由测试自己跳过。
  */
 @RestController
 @RequestMapping("/api/public/test/coord")
@@ -34,6 +33,9 @@ public class CoordTestController {
     private final ObjectProvider<LockProvider> locks;
     private final ObjectProvider<EventBusTransport> transports;
     private final ObjectProvider<EventConsumerStore> stores;
+
+    /** 编号探针的固定 scope：端点不接受外部输入，避免把测试控制器变成注入入口。 */
+    private static final String NUMBERING_SCOPE = "it_scope";
 
     /** 本实例当前持有的锁租约；key 与请求里的 key 一致。 */
     private final Map<String, LockLease> leases = new ConcurrentHashMap<>();
@@ -72,14 +74,14 @@ public class CoordTestController {
     }
 
     @GetMapping("/number")
-    public Map<String, Object> number(@RequestParam String scope) {
-        return Map.of("value", require(numbering.getIfAvailable(), "Numbering").next(scope));
+    public Map<String, Object> number() {
+        return Map.of(
+                "value", require(numbering.getIfAvailable(), "Numbering").next(NUMBERING_SCOPE));
     }
 
     @GetMapping("/sequence")
     public Map<String, Object> sequence() {
-        return Map.of(
-                "value", require(sequencer.getIfAvailable(), "GlobalSequencer").next());
+        return Map.of("value", require(sequencer.getIfAvailable(), "GlobalSequencer").next());
     }
 
     /** 尝试获取并持有租约；进程退出/显式释放前保持占有。 */

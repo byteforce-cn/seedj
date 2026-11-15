@@ -9,7 +9,6 @@ import java.util.Map;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /** HR 测试端点：暴露消费组已处理的事件与死信，供跨服务 IT 断言。 */
@@ -28,17 +27,17 @@ public class HrTestController {
         return Map.of("consumed", HrEventSubscriber.consumed());
     }
 
-    /** 按 topic + group 读死信；没有 consumer store 时返回空列表。 */
+    /** 读失败订阅的死信；没有 consumer store 时返回空列表。 */
     @GetMapping("/dead-letters")
-    public Map<String, Object> deadLetters(
-            @RequestParam String topic,
-            @RequestParam String group,
-            @RequestParam(defaultValue = "10") int limit) {
+    public Map<String, Object> deadLetters() {
         EventConsumerStore store = stores.getIfAvailable();
         List<Map<String, Object>> letters =
                 store == null
                         ? List.of()
-                        : store.deadLetters(topic, group, limit).stream()
+                        : store
+                                .deadLetters(
+                                        HrFailingSubscriber.TOPIC, HrFailingSubscriber.GROUP, 20)
+                                .stream()
                                 .map(HrTestController::letter)
                                 .toList();
         return Map.of("deadLetters", letters);
@@ -55,8 +54,7 @@ public class HrTestController {
         result.put("topic", letter.topic());
         result.put("group", letter.group());
         result.put("eventId", letter.message().eventId());
-        result.put(
-                "payload", new String(letter.message().payload(), StandardCharsets.UTF_8));
+        result.put("payload", new String(letter.message().payload(), StandardCharsets.UTF_8));
         result.put("failure", failure);
         result.put("deadLetteredAt", letter.deadLetteredAt().toString());
         return result;

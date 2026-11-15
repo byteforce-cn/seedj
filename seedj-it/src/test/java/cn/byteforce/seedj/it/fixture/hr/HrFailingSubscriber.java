@@ -14,9 +14,12 @@ import org.springframework.stereotype.Component;
 @Component
 public class HrFailingSubscriber implements EventSubscriber<HrOrderPlaced> {
 
+    static final String GROUP = "hr-failing";
+    static final String TOPIC = "it.failure";
+
     @Override
     public EventSubscription subscription() {
-        return EventSubscription.of("hr-failing", "it.failure");
+        return EventSubscription.of(GROUP, TOPIC);
     }
 
     @Override

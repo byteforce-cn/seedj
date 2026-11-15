@@ -459,8 +459,7 @@ public class ClusterExtension implements BeforeAllCallback, AfterAllCallback, Pa
             // ID：多服务从共享文件领取不同节点编号
             props.put("seedj.id.enabled", true);
             props.put(
-                    "seedj.id.node-state-file",
-                    tempDir.resolve("id-nodes.properties").toString());
+                    "seedj.id.node-state-file", tempDir.resolve("id-nodes.properties").toString());
         }
 
         // HR 派生字段：测试密钥显式注入，生产仍要求 SEEDJ_FIELD_HASH_KEYS
@@ -654,8 +653,7 @@ public class ClusterExtension implements BeforeAllCallback, AfterAllCallback, Pa
         }
         if (parameterContext.isAnnotated(ClusterCoord.class)) {
             if (coord == null) {
-                throw new ParameterResolutionException(
-                        "coord 集群尚未启动；请在测试类上添加 @EnableCoordCluster");
+                throw new ParameterResolutionException("coord 集群尚未启动；请在测试类上添加 @EnableCoordCluster");
             }
             return coord.client();
         }

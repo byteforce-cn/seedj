@@ -34,8 +34,8 @@ import tools.jackson.databind.json.JsonMapper;
 /**
  * coord 能力端到端：集群 IT 的服务全部切到 coord provider，底层是真的 coord v2 集群（server + agent 容器）。
  *
- * <p>覆盖 {@code seedj-infra-coord} 当前发布的六个能力：ID、编号、全局序列、分布式锁、EventBus 发布、EventBus 消费。
- * 断言分两层：服务侧 HTTP 观测（provider 类型、结果值）与 coord 侧状态（topic / 消息 / 顺序），避免只证明「服务自己说自己成功」。
+ * <p>覆盖 {@code seedj-infra-coord} 当前发布的六个能力：ID、编号、全局序列、分布式锁、EventBus 发布、EventBus 消费。 断言分两层：服务侧 HTTP
+ * 观测（provider 类型、结果值）与 coord 侧状态（topic / 消息 / 顺序），避免只证明「服务自己说自己成功」。
  *
  * <p>PKI/Transit 仍由 {@code seedj-infra-local} 提供：coord 侧适配器尚未交付（设计 P2），不在本类范围内。
  */
@@ -97,11 +97,10 @@ class CoordIT {
     @DisplayName("编号跨实例共享同一序列：两个服务交替取号严格递增")
     void numberingIsSharedAcrossServices(
             @ClusterService("im") RestTestClient im, @ClusterService("hr") RestTestClient hr) {
-        String scope = "it_scope";
-        long first = number(im, scope);
-        long second = number(im, scope);
-        long third = number(hr, scope);
-        long fourth = number(im, scope);
+        long first = number(im);
+        long second = number(im);
+        long third = number(hr);
+        long fourth = number(im);
 
         assertThat(second).isGreaterThan(first);
         assertThat(third).isGreaterThan(second);
@@ -195,7 +194,7 @@ class CoordIT {
 
         publish(im, "it.failure", orderId, eventId, "{\"orderId\":\"" + orderId + "\"}");
 
-        Map<String, Object> letter = awaitDeadLetter(hr, "it.failure", "hr-failing", eventId);
+        Map<String, Object> letter = awaitDeadLetter(hr, eventId);
         assertThat(letter.get("topic")).isEqualTo("it.failure");
         assertThat(letter.get("group")).isEqualTo("hr-failing");
         assertThat(String.valueOf(letter.get("payload"))).contains(orderId);
@@ -207,7 +206,7 @@ class CoordIT {
 
         sleep(1_000);
         long sameEvent =
-                deadLetters(hr, "it.failure", "hr-failing").stream()
+                deadLetters(hr).stream()
                         .filter(candidate -> eventId.equals(candidate.get("eventId")))
                         .count();
         assertThat(sameEvent).as("同一事件只能落一条死信").isEqualTo(1);
@@ -223,13 +222,8 @@ class CoordIT {
         return ids;
     }
 
-    private static long number(RestTestClient client, String scope) {
-        URI uri =
-                UriComponentsBuilder.fromPath("/api/public/test/coord/number")
-                        .queryParam("scope", scope)
-                        .build()
-                        .toUri();
-        return ((Number) get(client, uri).get("value")).longValue();
+    private static long number(RestTestClient client) {
+        return ((Number) get(client, "/api/public/test/coord/number").get("value")).longValue();
     }
 
     private static long sequence(RestTestClient client) {
@@ -256,7 +250,11 @@ class CoordIT {
     }
 
     private static void publish(
-            RestTestClient client, String topic, String partitionKey, String eventId, String payload) {
+            RestTestClient client,
+            String topic,
+            String partitionKey,
+            String eventId,
+            String payload) {
         URI uri =
                 UriComponentsBuilder.fromPath("/api/public/test/events")
                         .queryParam("topic", topic)
@@ -356,26 +354,18 @@ class CoordIT {
         throw new AssertionError("event " + orderId + " was not consumed, last=" + last);
     }
 
-    private static List<Map<String, Object>> deadLetters(
-            RestTestClient hr, String topic, String group) {
-        URI uri =
-                UriComponentsBuilder.fromPath("/api/public/test/events/dead-letters")
-                        .queryParam("topic", topic)
-                        .queryParam("group", group)
-                        .queryParam("limit", 20)
-                        .build()
-                        .toUri();
+    private static List<Map<String, Object>> deadLetters(RestTestClient hr) {
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> letters =
-                (List<Map<String, Object>>) get(hr, uri).get("deadLetters");
+                (List<Map<String, Object>>)
+                        get(hr, "/api/public/test/events/dead-letters").get("deadLetters");
         return letters;
     }
 
-    private static Map<String, Object> awaitDeadLetter(
-            RestTestClient hr, String topic, String group, String eventId) {
+    private static Map<String, Object> awaitDeadLetter(RestTestClient hr, String eventId) {
         long deadline = System.nanoTime() + AWAIT.toNanos();
         while (System.nanoTime() < deadline) {
-            for (Map<String, Object> letter : deadLetters(hr, topic, group)) {
+            for (Map<String, Object> letter : deadLetters(hr)) {
                 if (eventId.equals(letter.get("eventId"))) {
                     return letter;
                 }
