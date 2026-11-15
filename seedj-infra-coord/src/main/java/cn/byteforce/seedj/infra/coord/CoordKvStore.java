@@ -79,6 +79,65 @@ final class CoordKvStore {
         return cas(key, expected, null);
     }
 
+    /** 在新事务快照上读当前值：看到的是已提交的最新记录（`safe_ts` 读可能落后）。 只用于「读出来再决定」的场景；不会写入。 */
+    Optional<Entry> readCurrent(String key) {
+        byte[] raw = CoordKeySpace.bytes(key);
+        TxnClient.Session session = txn.begin();
+        try {
+            List<KvClient.KeyValue> read = session.read(raw).kvs();
+            return read.isEmpty() ? Optional.empty() : present(read.get(0));
+        } finally {
+            session.abort();
+        }
+    }
+
+    /** 条件替换：predicate 不成立或 CAS 冲突耗尽时返回 false；新值由当前记录算出。 */
+    boolean replaceIf(
+            String key,
+            java.util.function.Predicate<Entry> predicate,
+            java.util.function.Function<Entry, byte[]> newValue) {
+        return commitIf(key, predicate, newValue);
+    }
+
+    /** 条件删除：predicate 不成立或 CAS 冲突耗尽时返回 false。 */
+    boolean removeIf(String key, java.util.function.Predicate<Entry> predicate) {
+        return commitIf(key, predicate, null);
+    }
+
+    private boolean commitIf(
+            String key,
+            java.util.function.Predicate<Entry> predicate,
+            java.util.function.Function<Entry, byte[]> newValue) {
+        byte[] raw = CoordKeySpace.bytes(key);
+        for (int attempt = 0; attempt < CAS_ATTEMPTS; attempt++) {
+            TxnClient.Session session = txn.begin();
+            boolean committed = false;
+            try {
+                List<KvClient.KeyValue> read = session.read(raw).kvs();
+                Optional<Entry> current = read.isEmpty() ? Optional.empty() : present(read.get(0));
+                if (current.isEmpty() || !predicate.test(current.get())) {
+                    session.abort();
+                    return false;
+                }
+                byte[] value = newValue == null ? null : newValue.apply(current.get());
+                TxnClient.Mutation mutation =
+                        value == null
+                                ? TxnClient.Mutation.delete(raw)
+                                : TxnClient.Mutation.put(raw, value);
+                TxnClient.CommitResult result = session.commit(List.of(mutation));
+                committed = result.committed();
+                if (committed) {
+                    return true;
+                }
+            } finally {
+                if (!committed) {
+                    session.abort();
+                }
+            }
+        }
+        return false;
+    }
+
     private boolean cas(String key, byte[] expected, byte[] value) {
         byte[] raw = CoordKeySpace.bytes(key);
         TxnClient.Mutation mutation =

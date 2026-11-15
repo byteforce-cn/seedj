@@ -39,6 +39,13 @@ IAM 的退出标准与当前状态见 [IAM 装配 §生产可用性边界](iam-s
 缩短或延长互斥窗口；对强一致有要求的场景，仍要在存储侧用唯一约束/条件更新兜底。释放
 使用事务读集校验，过期持有者不会误删新持有者的记录。
 
+## coord 消费账本的边界
+
+`seedj.eventbus.transport=coord` 的消费状态在 coord KV 的投递账本里：每次 poll 只扫描前
+`consumer-scan-limit` 条（默认 1000，账本大小 ≈ 在飞消息数），死信直接存 KV，因此单条事件
+大小受 KV 单值上限约束。到期重投按位点回读 MQ：消息已被 retention 清掉时转入死信，原因记为
+`seedj.retention.expired`——这意味着重试窗口不能长于 topic 的保留时间。
+
 ## 只有 PostgreSQL 适配器
 
 没有 MySQL / Oracle 适配器。SPI 是开放的，新增适配器的步骤见[基础设施 SPI](spi.md)。

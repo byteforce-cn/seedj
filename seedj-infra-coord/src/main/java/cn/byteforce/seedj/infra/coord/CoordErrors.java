@@ -39,6 +39,28 @@ final class CoordErrors {
                 mapped, "coord lock failed at " + endpoint + ": " + e.getErrorCode(), e);
     }
 
+    static EventBusException consumer(CoordException e, CoordEndpoint endpoint) {
+        EventBusErrorCode mapped =
+                switch (e.getErrorCode()) {
+                    case UNAVAILABLE,
+                                    DEADLINE_EXCEEDED,
+                                    AGENT_UNAVAILABLE,
+                                    NOT_LEADER,
+                                    SAFE_TS_LAG,
+                                    EPOCH_STALE,
+                                    TOPIC_EPOCH_STALE,
+                                    GROUP_EPOCH_STALE,
+                                    REBALANCE_IN_PROGRESS,
+                                    TXN_NOT_FOUND,
+                                    TXN_CONFLICT,
+                                    COMMIT_REJECTED ->
+                            EventBusErrorCode.TRANSPORT_UNAVAILABLE;
+                    default -> EventBusErrorCode.CONSUMER_FAILED;
+                };
+        return new EventBusException(
+                mapped, "coord consume failed at " + endpoint + ": " + e.getErrorCode(), e);
+    }
+
     static EventBusException eventBus(
             CoordException e, EventBusErrorCode fallback, CoordEndpoint endpoint) {
         EventBusErrorCode mapped =
