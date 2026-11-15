@@ -48,6 +48,21 @@ class ArchitectureTest {
     }
 
     @Test
+    @DisplayName("coord 实现不依赖 JDBC / starter / server")
+    void coordDoesNotDependOnBusinessStores() {
+        assertNoDependencies(
+                "coord-does-not-depend-on-business-stores",
+                ModuleClassPath.classesOf("seedj-infra-coord"),
+                clazz -> clazz.getPackageName().startsWith("cn.byteforce.seedj.infra.coord"),
+                dependency -> {
+                    String pkg = dependency.getPackageName();
+                    return pkg.startsWith("cn.byteforce.seedj.infra.jdbc")
+                            || pkg.startsWith("cn.byteforce.seedj.starter")
+                            || pkg.startsWith("cn.byteforce.seedj.server");
+                });
+    }
+
+    @Test
     @DisplayName("本地内存实现不依赖 JDBC 实现")
     void infraLocalDoesNotDependOnJdbc() {
         assertNoDependencies(

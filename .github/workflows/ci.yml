@@ -47,6 +47,25 @@ jobs:
           path: ~/.m2/repository
           key: m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: m2-
+      - name: resolve coord ref
+        id: coord
+        run: |
+          pin="$(head -n 1 config/conformance/coord-ref.txt | tr -d '[:space:]')"
+          case "$pin" in
+            sha=*) echo "ref=${pin#sha=}" >> "$GITHUB_OUTPUT" ;;
+            tag=*) echo "ref=${pin#tag=}" >> "$GITHUB_OUTPUT" ;;
+            *) echo "invalid config/conformance/coord-ref.txt: $pin" >&2; exit 1 ;;
+          esac
+      - uses: actions/checkout@v7
+        with:
+          repository: ${{ github.repository_owner }}/coord
+          ref: ${{ steps.coord.outputs.ref }}
+          path: .coord
+          token: ${{ secrets.COORD_READ_TOKEN || github.token }}
+      - name: install coord sdk
+        env:
+          COORD_SOURCE: ${{ github.workspace }}/.coord
+        run: bash config/ci/install-coord-sdk.sh
       - name: install diff-cover
         run: pipx install diff-cover
       - name: verify（与本地同源脚本）
@@ -88,6 +107,25 @@ jobs:
           path: ~/.m2/repository
           key: m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: m2-
+      - name: resolve coord ref
+        id: coord
+        run: |
+          pin="$(head -n 1 config/conformance/coord-ref.txt | tr -d '[:space:]')"
+          case "$pin" in
+            sha=*) echo "ref=${pin#sha=}" >> "$GITHUB_OUTPUT" ;;
+            tag=*) echo "ref=${pin#tag=}" >> "$GITHUB_OUTPUT" ;;
+            *) echo "invalid config/conformance/coord-ref.txt: $pin" >&2; exit 1 ;;
+          esac
+      - uses: actions/checkout@v7
+        with:
+          repository: ${{ github.repository_owner }}/coord
+          ref: ${{ steps.coord.outputs.ref }}
+          path: .coord
+          token: ${{ secrets.COORD_READ_TOKEN || github.token }}
+      - name: install coord sdk
+        env:
+          COORD_SOURCE: ${{ github.workspace }}/.coord
+        run: bash config/ci/install-coord-sdk.sh
       - name: spec alignment
         env:
           EIS_ROOT: ${{ github.workspace }}/.eis
@@ -113,6 +151,25 @@ jobs:
           path: ~/.m2/repository
           key: m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: m2-
+      - name: resolve coord ref
+        id: coord
+        run: |
+          pin="$(head -n 1 config/conformance/coord-ref.txt | tr -d '[:space:]')"
+          case "$pin" in
+            sha=*) echo "ref=${pin#sha=}" >> "$GITHUB_OUTPUT" ;;
+            tag=*) echo "ref=${pin#tag=}" >> "$GITHUB_OUTPUT" ;;
+            *) echo "invalid config/conformance/coord-ref.txt: $pin" >&2; exit 1 ;;
+          esac
+      - uses: actions/checkout@v7
+        with:
+          repository: ${{ github.repository_owner }}/coord
+          ref: ${{ steps.coord.outputs.ref }}
+          path: .coord
+          token: ${{ secrets.COORD_READ_TOKEN || github.token }}
+      - name: install coord sdk
+        env:
+          COORD_SOURCE: ${{ github.workspace }}/.coord
+        run: bash config/ci/install-coord-sdk.sh
       - name: release gates
         env:
           MAVEN_FLAGS: ""

@@ -53,6 +53,26 @@ docker compose up -d
 | `seedj.outbox.store.*` | 路径/表名 | outbox 存储位置 |
 | `seedj.command.degraded-mode` | `true` / `false` | 降级模式，仅本地允许 |
 
+## coord 基础设施
+
+`seedj-infra-coord` 是显式选择：`seedj.<cap>.provider=coord` 但没有
+`seedj.coord.enabled=true` 时启动失败（`CoordProviderGuard`），不会悄悄退回本地实现。
+
+| 配置 | 默认 | 说明 |
+|---|---|---|
+| `seedj.coord.enabled` | `false` | coord 总开关；关掉时上面这类 provider 直接判配置错误 |
+| `seedj.coord.agent-host` / `agent-port` | `127.0.0.1` / `19527` | agent 地址；失败消息会点名它 |
+| `seedj.coord.request-timeout` | `5s` | 单次 RPC 超时 |
+| `seedj.coord.namespace` | `seedj:<应用名>` | idgen/编号/序列的名称前缀 |
+| `seedj.coord.id.name` / `batch-size` | `application` / `1000` | ID 业务键与本地预取段长 |
+| `seedj.coord.numbering.prefix` | `numbering` | 编号 scope 前缀 |
+| `seedj.coord.clock.name` | `global-sequencer` | 全局序列的 idgen 名称 |
+| `seedj.coord.eventbus.partitions` / `producer` | `4` / 应用名 | topic 分区数与发布方标识 |
+| `seedj.coord.auth.token` / `token-file` | 空 | 鉴权令牌；也读 `COORD_AUTH_TOKEN`，不要写进配置文件 |
+
+agent 不可达时装配仍然成功（客户端惰性连接），失败发生在首次取号，并且消息里带
+`host:port`。
+
 ## 数据库迁移
 
 `seedj-jdbc-postgresql` 自带 `V1` 起的版本化迁移，启动时执行并记录 checksum；已应用迁移

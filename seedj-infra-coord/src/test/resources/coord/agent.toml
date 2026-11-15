@@ -1,0 +1,19 @@
+agent_addr = "127.0.0.1:__AGENT__"
+http_addr = "127.0.0.1:__AGENT_HTTP__"
+data_dir = "/tmp/coord-agent-data"
+discovery_mode = "static"
+static_peers = ["127.0.0.1:__GRPC__"]
+data_plane = "v2"
+
+[auth]
+enabled = false
+
+[services]
+idgen = true
+lock = true
+mq = true
+pki = true
+transit = true
+policy = true
+workflow = true
+workflow_durable = true

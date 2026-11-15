@@ -499,6 +499,9 @@ seedj-im-starter|cn.byteforce.seedj.starter.im.protocol|ImFrames
 seedj-im-starter|cn.byteforce.seedj.starter.im|EnableImServer
 seedj-im-starter|cn.byteforce.seedj.starter.im|ImProperties
 seedj-im-starter|cn.byteforce.seedj.starter.im|ImServerAutoConfiguration
+seedj-infra-coord|cn.byteforce.seedj.infra.coord|CoordAutoConfiguration
+seedj-infra-coord|cn.byteforce.seedj.infra.coord|CoordProperties
+seedj-infra-coord|cn.byteforce.seedj.infra.coord|CoordProviderGuardAutoConfiguration
 seedj-infra-local|cn.byteforce.seedj.infra.local.audit|InMemoryAuditAutoConfiguration
 seedj-infra-local|cn.byteforce.seedj.infra.local.audit|InMemoryAuditStore
 seedj-infra-local|cn.byteforce.seedj.infra.local.cqrs|InMemoryCommandStore

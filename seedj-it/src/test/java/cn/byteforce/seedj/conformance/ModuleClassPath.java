@@ -24,6 +24,7 @@ final class ModuleClassPath {
     static final List<String> MODULES =
             List.of(
                     "core",
+                    "seedj-infra-coord",
                     "seedj-infra-local",
                     "seedj-workflow-local",
                     "seedj-jdbc-postgresql",

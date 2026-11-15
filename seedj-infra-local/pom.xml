@@ -33,14 +33,12 @@
         <dependency>
             <groupId>cn.byteforce.seedj</groupId>
             <artifactId>core</artifactId>
-            <version>${revision}</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcpkix-jdk18on</artifactId>
-            <version>1.86</version>
             <optional>true</optional>
         </dependency>
         <dependency>

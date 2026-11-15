@@ -19,6 +19,11 @@ import org.springframework.context.annotation.Bean;
         name = "enabled",
         havingValue = "true",
         matchIfMissing = true)
+@ConditionalOnProperty(
+        prefix = "seedj.id",
+        name = "provider",
+        havingValue = "local",
+        matchIfMissing = true)
 @EnableConfigurationProperties(IdProperties.class)
 public class IdAutoConfiguration {
 
