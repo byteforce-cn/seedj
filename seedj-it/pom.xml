@@ -61,6 +61,19 @@
             <artifactId>seedj-infra-local</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- coord provider 与其真集群夹具（test-jar）：coord 能力的端到端验证，见 CoordIT。 -->
+        <dependency>
+            <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>seedj-infra-coord</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>seedj-infra-coord</artifactId>
+            <version>${revision}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>cn.byteforce.seedj</groupId>
             <artifactId>seedj-jdbc-postgresql</artifactId>

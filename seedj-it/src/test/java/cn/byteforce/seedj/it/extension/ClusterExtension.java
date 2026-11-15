@@ -1,5 +1,7 @@
 package cn.byteforce.seedj.it.extension;
 
+import cn.byteforce.coord.sdk.CoordClient;
+import cn.byteforce.seedj.infra.coord.fixture.CoordCluster;
 import cn.byteforce.seedj.infra.local.pki.BcPkiProvider;
 import cn.byteforce.seedj.pki.PkiProvider;
 import cn.byteforce.seedj.pki.PkiProvider.IssuedCertificate;
@@ -92,14 +94,18 @@ public class ClusterExtension implements BeforeAllCallback, AfterAllCallback, Pa
                             "im",
                             "im-node-1",
                             cn.byteforce.seedj.server.im.ImServer.class,
-                            List.of(cn.byteforce.seedj.it.fixture.im.ImTestController.class)),
+                            List.of(
+                                    cn.byteforce.seedj.it.fixture.im.ImTestController.class,
+                                    cn.byteforce.seedj.it.fixture.coord.CoordTestController.class)),
                     new ServiceDefinition(
                             "hr",
                             "hr-node-1",
                             cn.byteforce.seedj.server.hr.HrServer.class,
                             List.of(
                                     cn.byteforce.seedj.it.fixture.hr.HrTestController.class,
-                                    cn.byteforce.seedj.it.fixture.hr.HrEventSubscriber.class))
+                                    cn.byteforce.seedj.it.fixture.hr.HrEventSubscriber.class,
+                                    cn.byteforce.seedj.it.fixture.hr.HrFailingSubscriber.class,
+                                    cn.byteforce.seedj.it.fixture.coord.CoordTestController.class))
                     // 新增：new ServiceDefinition("xx", "xx-node-1",
                     // cn.byteforce.seedj.server.xx.XxServer.class,
                     //        List.of())
@@ -112,6 +118,8 @@ public class ClusterExtension implements BeforeAllCallback, AfterAllCallback, Pa
     private final Map<String, SSLContext> backendClientSslContexts = new HashMap<>();
 
     private PostgreSQLContainer<?> postgres;
+    private CoordCluster coord;
+    private String coordNamespace;
     private Path tempDir;
     private Path caP12;
     private Path iamKeyStore;
@@ -129,6 +137,9 @@ public class ClusterExtension implements BeforeAllCallback, AfterAllCallback, Pa
             // 0. 解析本测试类需要启动的服务
             Set<String> enabledServices = resolveEnabledServices(context);
             log.info("本次启动的集群服务: {}", enabledServices);
+            boolean coordEnabled =
+                    AnnotatedElementUtils.hasAnnotation(
+                            context.getRequiredTestClass(), EnableCoordCluster.class);
 
             // 1. 临时目录
             this.tempDir = Files.createTempDirectory("seedj-it-");
@@ -216,8 +227,22 @@ public class ClusterExtension implements BeforeAllCallback, AfterAllCallback, Pa
             postgres.start();
             log.info("PostgreSQL started at URL: {}", postgres.getJdbcUrl());
 
+            // 8.5 coord v2（server + agent）：能力 provider 指向它，服务启动前必须先就绪
+            if (coordEnabled) {
+                this.coord = CoordCluster.start();
+                this.coordNamespace =
+                        "seedj-it-"
+                                + context.getRequiredTestClass()
+                                        .getSimpleName()
+                                        .toLowerCase(java.util.Locale.ROOT);
+                log.info(
+                        "coord v2 集群就绪：agent=127.0.0.1:{}，namespace={}",
+                        coord.agentPort(),
+                        coordNamespace);
+            }
+
             // 9. 公共属性
-            Map<String, Object> commonProps = buildCommonProperties();
+            Map<String, Object> commonProps = buildCommonProperties(coordEnabled);
 
             // 10. IAM：HTTPS + mTLS
             int iamPort = findFreePort();
@@ -300,6 +325,12 @@ public class ClusterExtension implements BeforeAllCallback, AfterAllCallback, Pa
         testClientSslContext = null;
         untrustedClientSslContext = null;
 
+        if (coord != null) {
+            coord.close();
+            coord = null;
+            coordNamespace = null;
+        }
+
         if (postgres != null && postgres.isRunning()) {
             postgres.stop();
         }
@@ -369,7 +400,7 @@ public class ClusterExtension implements BeforeAllCallback, AfterAllCallback, Pa
 
     // ==================== 内部辅助 ====================
 
-    private Map<String, Object> buildCommonProperties() {
+    private Map<String, Object> buildCommonProperties(boolean coordEnabled) {
         Map<String, Object> props = new HashMap<>();
         props.put("management.endpoint.health.show-details", "always");
         props.put("management.endpoints.web.exposure.include", "*");
@@ -391,10 +422,8 @@ public class ClusterExtension implements BeforeAllCallback, AfterAllCallback, Pa
         props.put(
                 "seedj.transit.state-file", tempDir.resolve("transit-state.properties").toString());
 
-        // EventBus：磁盘队列（多服务共享目录）+ PostgreSQL outbox
+        // EventBus：outbox 由 PostgreSQL 提供，队列按模式选择
         props.put("seedj.eventbus.enabled", true);
-        props.put("seedj.eventbus.transport", "file");
-        props.put("seedj.eventbus.file.base-dir", tempDir.resolve("eventbus").toString());
         props.put("seedj.outbox.relay.enabled", true);
         props.put("seedj.outbox.relay.poll-interval", "100ms");
         props.put("seedj.outbox.relay.lease", "10s");
@@ -402,6 +431,37 @@ public class ClusterExtension implements BeforeAllCallback, AfterAllCallback, Pa
         props.put("seedj.eventbus.consumer.poll-interval", "100ms");
         props.put("seedj.eventbus.consumer.lease", "10s");
         props.put("seedj.eventbus.consumer.max-attempts", "5");
+        // 重试退避调小：毒消息在十几秒内走完「重试 → 死信」，不拖慢整个 IT 套件。
+        props.put("seedj.eventbus.consumer.retry-base", "200ms");
+        props.put("seedj.eventbus.consumer.retry-max", "1s");
+
+        if (coordEnabled) {
+            // 基础设施能力走 coord provider；PKI/Transit 仍由 infra-local 提供（coord 适配器尚未交付）。
+            props.put("seedj.coord.enabled", true);
+            props.put("seedj.coord.agent-host", coord.agentHost());
+            props.put("seedj.coord.agent-port", coord.agentPort());
+            props.put("seedj.coord.allow-insecure-plaintext", true);
+            props.put("seedj.coord.namespace", coordNamespace);
+            props.put("seedj.id.enabled", true);
+            props.put("seedj.id.provider", "coord");
+            props.put("seedj.numbering.provider", "coord");
+            props.put("seedj.clock.provider", "coord");
+            props.put("seedj.lock.provider", "coord");
+            props.put("seedj.eventbus.transport", "coord");
+        } else {
+            // 本地队列：磁盘队列（多服务共享目录）
+            props.put("seedj.eventbus.transport", "file");
+            props.put("seedj.eventbus.file.base-dir", tempDir.resolve("eventbus").toString());
+
+            // 锁：集群 IT 在同一 JVM 内启动多个上下文，用内存锁满足命令运行时的必需依赖
+            props.put("seedj.lock.memory.enabled", true);
+
+            // ID：多服务从共享文件领取不同节点编号
+            props.put("seedj.id.enabled", true);
+            props.put(
+                    "seedj.id.node-state-file",
+                    tempDir.resolve("id-nodes.properties").toString());
+        }
 
         // HR 派生字段：测试密钥显式注入，生产仍要求 SEEDJ_FIELD_HASH_KEYS
         props.put("seedj.security.derived-field-keys", "test-only-key");
@@ -409,19 +469,7 @@ public class ClusterExtension implements BeforeAllCallback, AfterAllCallback, Pa
         // 对象存储：集群 IT 不注册业务时间表，用内存实现避免 postgres 推断无表可建
         props.put("seedj.object.provider", "memory");
 
-        // 锁：集群 IT 在同一 JVM 内启动多个上下文，用内存锁满足命令运行时的必需依赖
-        props.put("seedj.lock.memory.enabled", true);
-
-        // ID：多服务从共享文件领取不同节点编号
-        props.put("seedj.id.enabled", true);
-        props.put("seedj.id.node-state-file", tempDir.resolve("id-nodes.properties").toString());
-
         return props;
-    }
-
-    private ConfigurableApplicationContext startApp(
-            String appName, Class<?> mainClass, Map<String, Object> additionalProperties) {
-        return startApp(appName, mainClass, additionalProperties, null);
     }
 
     private ConfigurableApplicationContext startApp(
@@ -431,8 +479,6 @@ public class ClusterExtension implements BeforeAllCallback, AfterAllCallback, Pa
             ApplicationContextInitializer<?> initializer,
             Class<?>... sources) {
         Map<String, Object> props = new HashMap<>(additionalProperties);
-        props.put("spring.application.name", appName);
-
         SpringApplicationBuilder builder =
                 new SpringApplicationBuilder(mainClass).properties(props);
         if (initializer != null) {
@@ -441,7 +487,9 @@ public class ClusterExtension implements BeforeAllCallback, AfterAllCallback, Pa
         if (sources != null && sources.length > 0) {
             builder.sources(sources);
         }
-        ConfigurableApplicationContext ctx = builder.run();
+        // application.yml 里的 spring.application.name 优先级高于 default properties；
+        // 用命令行参数保证每个上下文拿到自己的名字（coord 的 producer 与命名空间依赖它）。
+        ConfigurableApplicationContext ctx = builder.run("--spring.application.name=" + appName);
         contexts.add(ctx);
         return ctx;
     }
@@ -576,6 +624,9 @@ public class ClusterExtension implements BeforeAllCallback, AfterAllCallback, Pa
                 || parameterContext.isAnnotated(ClusterUntrustedClient.class)) {
             return SSLContext.class.isAssignableFrom(type);
         }
+        if (parameterContext.isAnnotated(ClusterCoord.class)) {
+            return CoordClient.class.isAssignableFrom(type);
+        }
         return false;
     }
 
@@ -600,6 +651,13 @@ public class ClusterExtension implements BeforeAllCallback, AfterAllCallback, Pa
                 throw new ParameterResolutionException("非受信客户端 SSLContext 尚未初始化");
             }
             return untrustedClientSslContext;
+        }
+        if (parameterContext.isAnnotated(ClusterCoord.class)) {
+            if (coord == null) {
+                throw new ParameterResolutionException(
+                        "coord 集群尚未启动；请在测试类上添加 @EnableCoordCluster");
+            }
+            return coord.client();
         }
 
         String serviceName =
