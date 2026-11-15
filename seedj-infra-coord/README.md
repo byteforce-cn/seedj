@@ -1,7 +1,10 @@
 # seedj-infra-coord
 
-coord 0.4.3 的 seedj 基础设施实现。当前交付 ID、编号、全局序列与 EventBus 发布；不启动
-coord server，也不产出可执行制品。
+coord 0.4.3 的 seedj 基础设施实现。当前交付 ID、编号、全局序列、EventBus 发布与分布式锁；
+不启动 coord server，也不产出可执行制品。
+
+能力都用 coord 的**基础原语**组合，而不是等 coord 提供每项成品：锁用 KV + OCC 事务
+（coord 的锁租约只到秒级，满足不了 150ms TTL 的契约），EventBus 发布用 MQ v2。
 
 ## 本地构建
 
@@ -54,6 +57,8 @@ seedj:
     provider: coord
   eventbus:
     transport: coord
+  lock:
+    provider: coord
 ```
 
 鉴权 token 优先读 `seedj.coord.auth.token`，其次 `seedj.coord.auth.token-file`，最后环境变量
@@ -62,9 +67,12 @@ seedj:
 ## 已交付 / 下一步
 
 - 已交付：`IdGenerator<String>`、`Numbering`、`GlobalSequencer`、`EventBusTransport.send`
-  （MQ v2 `Publish`，eventId 幂等 + 稳定分区）。
-- 下一步：EventConsumerStore（KV inflight/done + 自建 DLQ 索引）、Lock、PKI、Transit、
-  Workflow。每一项都继续使用 coord 原语，不引入本地兜底。
+  （MQ v2 `Publish`，eventId 幂等 + 稳定分区）、`LockProvider`。
+- 锁的组合方式：持有者/租约/`expiresAt` 写进 KV 记录，`TxnClient` 读集校验保证只有一个
+  持有者能写成功；过期由本地时钟判定（亚秒级），释放只删自己那份记录。Redis/Postgres 锁
+  的语义与它一致，时钟漂移的边界见「已知限制」。
+- 下一步：EventConsumerStore（KV 投递账本 + MQ v2 消费 + 原生 DLQ）、PKI、Transit、
+  Workflow、Policy（Rego）。每一项都继续使用 coord 原语，不引入本地兜底。
 
 ## 测试夹具（v2）
 

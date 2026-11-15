@@ -32,6 +32,13 @@ IAM 的退出标准与当前状态见 [IAM 装配 §生产可用性边界](iam-s
 `seedj-workflow-local` 是内存实现；PostgreSQL 侧已固定存储 schema、跨连接可读与 timer
 扫描三个语义，完整的 JDBC 状态机（定义注册、动作推进）仍未交付。
 
+## coord 锁依赖实例时钟
+
+`provider=coord` 的分布式锁把 `expiresAt` 写进 coord KV，由**持有方与争抢方的本地时钟**
+判断租约是否过期（coord 的锁租约只到秒级，满足不了毫秒 TTL 的契约）。实例间时钟漂移会
+缩短或延长互斥窗口；对强一致有要求的场景，仍要在存储侧用唯一约束/条件更新兜底。释放
+使用事务读集校验，过期持有者不会误删新持有者的记录。
+
 ## 只有 PostgreSQL 适配器
 
 没有 MySQL / Oracle 适配器。SPI 是开放的，新增适配器的步骤见[基础设施 SPI](spi.md)。

@@ -68,10 +68,26 @@ docker compose up -d
 | `seedj.coord.numbering.prefix` | `numbering` | 编号 scope 前缀 |
 | `seedj.coord.clock.name` | `global-sequencer` | 全局序列的 idgen 名称 |
 | `seedj.coord.eventbus.partitions` / `producer` | `4` / 应用名 | topic 分区数与发布方标识 |
+| `seedj.coord.lock.holder-id` | 空 | 锁持有者标识；空 = `host:pid:<随机后缀>`（每个 JVM 唯一，重启变化） |
 | `seedj.coord.auth.token` / `token-file` | 空 | 鉴权令牌；也读 `COORD_AUTH_TOKEN`，不要写进配置文件 |
 
 agent 不可达时装配仍然成功（客户端惰性连接），失败发生在首次取号，并且消息里带
 `host:port`。
+
+分布式锁用 coord 的 KV + 事务组合，而不是 `LockClient`：coord 的锁租约只到秒级，而
+`LockProvider` 契约要求毫秒级 TTL。记录里带 `expiresAt`，由**各实例本地时钟**判定过期，
+事务读集校验保证同一时刻只有一个持有者能写成功。时间漂移会缩短或延长互斥窗口；临界区
+仍须幂等或用存储侧唯一约束兜底。
+
+```yaml
+seedj:
+  coord:
+    enabled: true
+    lock:
+      holder-id: ${HOSTNAME}:${PID}   # 可省略
+  lock:
+    provider: coord
+```
 
 ## 数据库迁移
 
