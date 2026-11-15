@@ -139,7 +139,8 @@ class CoordEventBusTransportTest {
         when(mq.publish(any())).thenThrow(new CoordException(ErrorCode.TOPIC_EPOCH_STALE, "stale"));
         CoordEventBusTransport transport = new CoordEventBusTransport(ENDPOINT, mq, "svc", 4);
 
-        assertThatThrownBy(() -> transport.send(message("orders", "k")).toCompletableFuture().join())
+        assertThatThrownBy(
+                        () -> transport.send(message("orders", "k")).toCompletableFuture().join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(EventBusException.class);
 
@@ -168,7 +169,8 @@ class CoordEventBusTransportTest {
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new CoordEventBusTransport(ENDPOINT, mq, "svc", 0))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new CoordEventBusTransport(ENDPOINT, mq, "svc", 4).ensureTopic(" "))
+        assertThatThrownBy(
+                        () -> new CoordEventBusTransport(ENDPOINT, mq, "svc", 4).ensureTopic(" "))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 

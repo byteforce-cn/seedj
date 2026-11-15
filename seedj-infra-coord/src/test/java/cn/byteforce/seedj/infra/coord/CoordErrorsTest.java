@@ -29,9 +29,7 @@ class CoordErrorsTest {
     void eventBusMapsByErrorCode(ErrorCode coord, EventBusErrorCode expected) {
         EventBusException e =
                 CoordErrors.eventBus(
-                        new CoordException(coord, "x"),
-                        EventBusErrorCode.INTERNAL_ERROR,
-                        ENDPOINT);
+                        new CoordException(coord, "x"), EventBusErrorCode.INTERNAL_ERROR, ENDPOINT);
         assertThat(e.getErrorCode()).isEqualTo(expected);
         assertThat(e).hasCauseInstanceOf(CoordException.class);
     }

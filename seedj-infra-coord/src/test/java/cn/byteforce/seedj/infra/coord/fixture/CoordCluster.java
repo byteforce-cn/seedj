@@ -20,8 +20,8 @@ import org.testcontainers.utility.DockerImageName;
 /**
  * coord v2 测试集群：server + agent 两个容器，data_plane=v2，MQ v2 可用。
  *
- * <p>agent 拒绝非 loopback 上的明文绑定，而 {@code agent.toml} 不能开 dev 旁路；因此两个容器都用
- * host network 绑定 127.0.0.1，测试 JVM 直接连随机端口。仅 Linux 可用，无 Docker 时调用方跳过。
+ * <p>agent 拒绝非 loopback 上的明文绑定，而 {@code agent.toml} 不能开 dev 旁路；因此两个容器都用 host network 绑定
+ * 127.0.0.1，测试 JVM 直接连随机端口。仅 Linux 可用，无 Docker 时调用方跳过。
  */
 public final class CoordCluster implements AutoCloseable {
 
@@ -121,8 +121,7 @@ public final class CoordCluster implements AutoCloseable {
                                     BindMode.READ_ONLY)
                             .withCommand("agent", "--agent-config", "/etc/coord/agent.toml")
                             .waitingFor(
-                                    Wait.forLogMessage(
-                                                    ".*coord-agent gRPC server listening.*", 1)
+                                    Wait.forLogMessage(".*coord-agent gRPC server listening.*", 1)
                                             .withStartupTimeout(STARTUP))
                             .withLogConsumer(
                                     frame ->
@@ -177,7 +176,11 @@ public final class CoordCluster implements AutoCloseable {
                 java.net.http.HttpResponse<Void> response =
                         http.send(
                                 java.net.http.HttpRequest.newBuilder()
-                                        .uri(java.net.URI.create("http://127.0.0.1:" + httpPort + "/healthz"))
+                                        .uri(
+                                                java.net.URI.create(
+                                                        "http://127.0.0.1:"
+                                                                + httpPort
+                                                                + "/healthz"))
                                         .timeout(Duration.ofSeconds(2))
                                         .GET()
                                         .build(),

@@ -43,7 +43,8 @@ class CoordNumberingTest {
 
     @Test
     void concurrentNumberingIsUnique() throws Exception {
-        CoordNumbering numbering = new CoordNumbering(ENDPOINT, new FakeIdGen(), "seedj:app:numbering");
+        CoordNumbering numbering =
+                new CoordNumbering(ENDPOINT, new FakeIdGen(), "seedj:app:numbering");
         Set<Long> seen = ConcurrentHashMap.newKeySet();
         ExecutorService pool = Executors.newFixedThreadPool(8);
         try {

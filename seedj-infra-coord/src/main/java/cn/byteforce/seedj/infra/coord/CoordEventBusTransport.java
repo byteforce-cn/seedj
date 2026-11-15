@@ -39,8 +39,7 @@ final class CoordEventBusTransport implements EventBusTransport {
 
     private volatile boolean closed;
 
-    CoordEventBusTransport(
-            CoordEndpoint endpoint, MqV2Client mq, String producer, int partitions) {
+    CoordEventBusTransport(CoordEndpoint endpoint, MqV2Client mq, String producer, int partitions) {
         this.endpoint = Objects.requireNonNull(endpoint, "endpoint");
         this.mq = Objects.requireNonNull(mq, "mq");
         if (producer == null || producer.isBlank()) {

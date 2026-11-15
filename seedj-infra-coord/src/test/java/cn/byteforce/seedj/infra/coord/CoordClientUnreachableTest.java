@@ -13,8 +13,8 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 /**
  * agent 不可达时必须快速失败，而不是挂起或静默降级。
  *
- * <p>客户端创建是懒连接：端口 1 上没有 agent 时装配仍然成功，失败发生在首次调用； 错误必须点名 agent 地址，否则运维只能对着一句
- * {@code UNAVAILABLE: io exception} 猜配置。
+ * <p>客户端创建是懒连接：端口 1 上没有 agent 时装配仍然成功，失败发生在首次调用； 错误必须点名 agent 地址，否则运维只能对着一句 {@code UNAVAILABLE: io
+ * exception} 猜配置。
  */
 class CoordClientUnreachableTest {
 
