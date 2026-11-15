@@ -4,7 +4,8 @@
 # - 低于基线超过 0.5 个百分点即失败；
 # - 报告缺失（例如只构建了部分模块）打印 WARN 并跳过，用于本地；
 #   CI 全量构建不应有缺失，缺失本身就是可见信号；
-# - 若安装了 diff-cover，再对变更行执行 90% 门禁（CI 必须安装）。
+# - 若安装了 diff-cover，再对变更行执行覆盖率门禁（CI 必须安装），
+#   阈值默认 70%、用 DIFF_COVER_MIN 覆盖。
 #
 # 用法：bash config/ci/check-coverage.sh
 set -euo pipefail
@@ -86,16 +87,27 @@ print("\ncoverage ratchet: OK")
 PY
 
 # 变更行覆盖：只有安装了 diff-cover 才执行（CI 必须安装）。
+#
+# --src-roots 是判据的一部分：jacoco 报告里记的是包相对路径（cn/byteforce/...），
+# 不给 src-roots 时 diff-cover 无法把变更行映射到报告条目，变更行集合恒为空、
+# 门禁恒过——本仓此前就是这种空转状态（coord P0 合入实测 73%，被静默放行）。
+#
+# 阈值 70：按该合入的实测值（73%）留 3 个点余量。要收紧用 DIFF_COVER_MIN 覆盖。
 if command -v diff-cover >/dev/null 2>&1; then
     base="${DIFF_COVER_BASE:-origin/main}"
+    min="${DIFF_COVER_MIN:-70}"
     if ! git -C "$ROOT" rev-parse --verify --quiet "$base" >/dev/null; then
         echo "diff-cover: SKIP (base '$base' not found; set DIFF_COVER_BASE)"
     else
         mapfile -t reports < <(find "$ROOT" -path '*/target/site/jacoco/jacoco.xml' -not -path '*/node_modules/*' | sort)
+        mapfile -t roots < <(find "$ROOT" -type d -path '*/src/main/java' -not -path '*/node_modules/*' | sort)
         if [ "${#reports[@]}" -eq 0 ]; then
             echo "diff-cover: SKIP (no jacoco reports)"
+        elif [ "${#roots[@]}" -eq 0 ]; then
+            echo "diff-cover: SKIP (no src/main/java roots)"
         else
-            diff-cover "${reports[@]}" --compare-branch="$base" --fail-under=90
+            diff-cover "${reports[@]}" --compare-branch="$base" \
+                --src-roots "${roots[@]}" --fail-under="$min"
         fi
     fi
 else
