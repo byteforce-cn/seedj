@@ -3,6 +3,7 @@ package cn.byteforce.seedj.infra.coord.fixture;
 import cn.byteforce.coord.sdk.CoordClient;
 import cn.byteforce.coord.sdk.CoordConfig;
 import cn.byteforce.coord.sdk.CoordException;
+import cn.byteforce.coord.sdk.txn.TxnClient;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.ServerSocket;
@@ -10,6 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.List;
 import org.junit.jupiter.api.Assumptions;
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.BindMode;
@@ -140,6 +142,7 @@ public final class CoordCluster implements AutoCloseable {
                                     .allowInsecurePlaintext(true)
                                     .build());
             awaitIdgen(client);
+            awaitKv(client);
             return new CoordCluster(server, agent, agentPort, client, workDir);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
@@ -198,6 +201,43 @@ public final class CoordCluster implements AutoCloseable {
             sleep(200);
         }
         throw new IllegalStateException("coord server healthz did not become ready on " + httpPort);
+    }
+
+    /**
+     * 等 KV 事务面真正可用。
+     *
+     * <p>单节点 v2 集群刚起来时 {@code TxnClient.begin()} 会短暂抛 {@code read_ts exceeds safe_ts}
+     * （global apply lag）；idgen 就绪不代表 KV 就绪。生产侧这类错误映射成可重试码，夹具这里直接等它稳定，
+     * 免得每个用例各自撞一次。
+     */
+    private static void awaitKv(CoordClient client) {
+        long deadline = System.nanoTime() + Duration.ofSeconds(60).toNanos();
+        RuntimeException last = null;
+        while (System.nanoTime() < deadline) {
+            TxnClient.Session session = null;
+            try {
+                session = client.tx().begin();
+                session.read("seedj-fixture-ready".getBytes(StandardCharsets.UTF_8));
+                session.commit(List.of());
+                return;
+            } catch (RuntimeException e) {
+                last = e;
+                if (session != null) {
+                    try {
+                        session.abort();
+                    } catch (RuntimeException ignored) {
+                        // 已失效的会话，忽略
+                    }
+                }
+                try {
+                    Thread.sleep(200);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException("interrupted while waiting for coord kv", last);
+                }
+            }
+        }
+        throw new IllegalStateException("coord kv not ready within 60s", last);
     }
 
     private static void awaitIdgen(CoordClient client) {

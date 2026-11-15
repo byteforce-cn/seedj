@@ -42,6 +42,8 @@ final class CoordPkiProvider implements PkiProvider {
 
     private static final Pattern DNS_SAFE = Pattern.compile("[^a-z0-9.-]");
 
+    private static final int RETRY_ATTEMPTS = 3;
+
     private final PkiClient pki;
 
     private final CoordPkiState state;
@@ -102,7 +104,8 @@ final class CoordPkiProvider implements PkiProvider {
         ensureOpen();
         requireAlias(alias);
         String cn = cn(alias);
-        Optional<CoordPkiState.AliasRecord> current = state.readAlias(alias);
+        // 账本键用 CN 而不是裸 alias：CN 带实例前缀，同一 agent 上的不同部署/测试互不可见。
+        Optional<CoordPkiState.AliasRecord> current = state.readAlias(cn);
         if (current.isPresent() && isRevoked(current.get().currentSerial())) {
             throw new PkiException(
                     PkiErrorCode.REVOKED,
@@ -117,11 +120,11 @@ final class CoordPkiProvider implements PkiProvider {
         CoordPkiState.AliasRecord next =
                 new CoordPkiState.AliasRecord(alias, cn, info.serial(), ttlSeconds(null));
         if (current.isEmpty()) {
-            if (!state.replaceAlias(alias, null, next)) {
+            if (!state.replaceAlias(cn, null, next)) {
                 return reconcile(alias, cn, info);
             }
         } else if (!current.get().currentSerial().equals(info.serial())
-                && !state.replaceAlias(alias, current.get().currentSerial(), next)) {
+                && !state.replaceAlias(cn, current.get().currentSerial(), next)) {
             return reconcile(alias, cn, info);
         }
         record(info, alias, ttlSeconds(null));
@@ -132,22 +135,35 @@ final class CoordPkiProvider implements PkiProvider {
     public IssuedCertificate rotateSigningIdentity(String alias, RevocationReason reason) {
         ensureOpen();
         requireAlias(alias);
-        Optional<CoordPkiState.AliasRecord> current = state.readAlias(alias);
+        // 账本键用 CN 而不是裸 alias：CN 带实例前缀，同一 agent 上的不同部署/测试互不可见。
+        String cn = cn(alias);
+        Optional<CoordPkiState.AliasRecord> current = state.readAlias(cn);
         if (current.isEmpty()) {
             return signingIdentity(alias);
         }
-        String cn = current.get().cn();
         long ttl = ttlSeconds(null);
         PkiCertInfo info =
                 call(
                         "rotate signing identity " + alias,
+                        false,
                         () -> pki.rotateCert(cn, ttl, List.of(dnsName(cn)), List.of()));
-        state.replaceAlias(
-                alias,
-                current.get().currentSerial(),
-                new CoordPkiState.AliasRecord(alias, cn, info.serial(), ttl));
+        boolean moved =
+                state.replaceAlias(
+                        cn,
+                        current.get().currentSerial(),
+                        new CoordPkiState.AliasRecord(alias, cn, info.serial(), ttl));
+        if (!moved) {
+            // alias 没挪到新身份：不要把旧 serial 吊销掉，否则调用方会失去一切可用身份。
+            throw new PkiException(
+                    PkiErrorCode.STATE_UNAVAILABLE,
+                    "coord rotated the certificate but the alias "
+                            + alias
+                            + " still points at "
+                            + current.get().currentSerial()
+                            + "; retry rotateSigningIdentity");
+        }
         record(info, alias, ttl);
-        // 先轮换再吊销：轮换失败时不会留下一个「已吊销但没有替身」的身份。
+        // 先把 alias 挪到新身份再吊销旧 serial：轮换失败时不会留下「已吊销但没有替身」的身份。
         state.revoke(current.get().currentSerial(), reason, clock.instant());
         return toIssued(info);
     }
@@ -233,7 +249,7 @@ final class CoordPkiProvider implements PkiProvider {
 
     /** CAS 竞争失败后以账本为准：另一个实例可能已经写入同一张证书。 */
     private IssuedCertificate reconcile(String alias, String cn, PkiCertInfo mine) {
-        Optional<CoordPkiState.AliasRecord> winner = state.readAlias(alias);
+        Optional<CoordPkiState.AliasRecord> winner = state.readAlias(cn);
         if (winner.isEmpty() || winner.get().currentSerial().equals(mine.serial())) {
             record(mine, alias, ttlSeconds(null));
             return toIssued(mine);
@@ -332,11 +348,57 @@ final class CoordPkiProvider implements PkiProvider {
         return normalized.length() > 63 ? normalized.substring(0, 63) : normalized;
     }
 
+    /**
+     * 调 coord 并统一映射错误。
+     *
+     * <p>coord 的 PKI 存储建在 KV 上，刚写完就回读会撞上 {@code read_ts exceeds safe_ts}（agent 自己在
+     * 消息里写 {@code retry later}）。这里对<b>幂等</b>调用做有限重试；{@code rotateCert} 不是幂等的，
+     * 重试会多转一次，所以只调用一次。
+     */
     private <T> T call(String action, java.util.function.Supplier<T> body) {
+        return call(action, true, body);
+    }
+
+    private <T> T call(
+            String action, boolean idempotent, java.util.function.Supplier<T> body) {
+        for (int attempt = 1; ; attempt++) {
+            try {
+                return body.get();
+            } catch (CoordException e) {
+                if (idempotent && attempt < RETRY_ATTEMPTS && transientFailure(e)) {
+                    sleepBeforeRetry(attempt);
+                    continue;
+                }
+                throw CoordErrors.pki(e, endpoint, action);
+            }
+        }
+    }
+
+    /** 可重试的传输/时序失败。{@code INTERNAL} 只在消息点名 safe_ts 回读滞后时重试。 */
+    private static boolean transientFailure(CoordException e) {
+        return switch (e.getErrorCode()) {
+            case UNAVAILABLE,
+                            DEADLINE_EXCEEDED,
+                            NOT_LEADER,
+                            SAFE_TS_LAG,
+                            EPOCH_STALE,
+                            TXN_CONFLICT,
+                            COMMIT_REJECTED ->
+                    true;
+            case INTERNAL -> {
+                String message = e.getMessage();
+                yield message != null
+                        && (message.contains("safe_ts") || message.contains("retry later"));
+            }
+            default -> false;
+        };
+    }
+
+    private static void sleepBeforeRetry(int attempt) {
         try {
-            return body.get();
-        } catch (CoordException e) {
-            throw CoordErrors.pki(e, endpoint, action);
+            Thread.sleep(200L * attempt);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
     }
 

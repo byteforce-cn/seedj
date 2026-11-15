@@ -57,6 +57,12 @@ final class CoordErrors {
                     case NOT_FOUND -> PkiErrorCode.NOT_FOUND;
                     case INVALID_ARGUMENT, OUT_OF_RANGE -> PkiErrorCode.INVALID_REQUEST;
                     case FAILED_PRECONDITION -> PkiErrorCode.CA_UNAVAILABLE;
+                    case INTERNAL ->
+                            e.getMessage() != null
+                                            && (e.getMessage().contains("safe_ts")
+                                                    || e.getMessage().contains("retry later"))
+                                    ? PkiErrorCode.STATE_UNAVAILABLE
+                                    : PkiErrorCode.INTERNAL_ERROR;
                     default -> PkiErrorCode.INTERNAL_ERROR;
                 };
         return new PkiException(
