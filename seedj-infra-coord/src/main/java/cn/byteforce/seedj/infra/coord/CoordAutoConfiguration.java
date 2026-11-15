@@ -4,6 +4,7 @@ import cn.byteforce.coord.sdk.CoordClient;
 import cn.byteforce.coord.sdk.CoordConfig;
 import cn.byteforce.seedj.core.clock.spi.GlobalSequencer;
 import cn.byteforce.seedj.eventbus.spi.EventBusTransport;
+import cn.byteforce.seedj.eventbus.spi.EventConsumerStore;
 import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.lock.LockProvider;
 import cn.byteforce.seedj.numbering.Numbering;
@@ -103,6 +104,23 @@ public class CoordAutoConfiguration {
                 Clock.systemUTC());
     }
 
+    @Bean(destroyMethod = "close")
+    @ConditionalOnMissingBean(EventConsumerStore.class)
+    @ConditionalOnProperty(prefix = "seedj.eventbus", name = "transport", havingValue = "coord")
+    public EventConsumerStore coordEventConsumerStore(
+            CoordClient client, CoordProperties properties, Environment environment) {
+        return new CoordEventConsumerStore(
+                new CoordKvStore(client.kv(), client.tx()),
+                client.mqV2(),
+                CoordEndpoint.of(properties),
+                CoordKeySpace.of(CoordNamespaces.of(properties, environment), "event-consumer"),
+                CoordHolderId.of(properties),
+                properties.getEventbus().getConsumerMaxMessages(),
+                properties.getEventbus().getConsumerScanLimit(),
+                properties.getEventbus().getPartitions(),
+                Clock.systemUTC());
+    }
+
     private static CoordConfig toConfig(CoordProperties properties) {
         CoordProperties.Tls tls = properties.getTls();
         CoordConfig.Builder builder =
@@ -179,6 +197,14 @@ public class CoordAutoConfiguration {
         }
         if (properties.getEventbus().getPartitions() < 1) {
             throw new IllegalStateException("seedj.coord.eventbus.partitions must be >= 1");
+        }
+        if (properties.getEventbus().getConsumerMaxMessages() < 0) {
+            throw new IllegalStateException(
+                    "seedj.coord.eventbus.consumer-max-messages must be >= 0");
+        }
+        if (properties.getEventbus().getConsumerScanLimit() < 1) {
+            throw new IllegalStateException(
+                    "seedj.coord.eventbus.consumer-scan-limit must be >= 1");
         }
     }
 

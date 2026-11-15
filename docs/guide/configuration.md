@@ -67,7 +67,9 @@ docker compose up -d
 | `seedj.coord.id.name` / `batch-size` | `application` / `1000` | ID 业务键与本地预取段长 |
 | `seedj.coord.numbering.prefix` | `numbering` | 编号 scope 前缀 |
 | `seedj.coord.clock.name` | `global-sequencer` | 全局序列的 idgen 名称 |
-| `seedj.coord.eventbus.partitions` / `producer` | `4` / 应用名 | topic 分区数与发布方标识 |
+| `seedj.coord.eventbus.partitions` / `producer` | `4` / 应用名 | topic 分区数（发布与自动建 topic）与发布方标识 |
+| `seedj.coord.eventbus.consumer-max-messages` | `0` | 每次 poll 向 agent 要的最大条数；0 = agent 默认 |
+| `seedj.coord.eventbus.consumer-scan-limit` | `1000` | 每次 poll 扫描投递账本的上界（账本大小 ≈ 在飞消息数） |
 | `seedj.coord.lock.holder-id` | 空 | 锁持有者标识；空 = `host:pid:<随机后缀>`（每个 JVM 唯一，重启变化） |
 | `seedj.coord.auth.token` / `token-file` | 空 | 鉴权令牌；也读 `COORD_AUTH_TOKEN`，不要写进配置文件 |
 
@@ -88,6 +90,11 @@ seedj:
   lock:
     provider: coord
 ```
+
+`seedj.eventbus.transport=coord` 同时装配发布与消费：消费状态（租约、重试延迟、attempts、死信）
+写在 coord KV 的投递账本里，消息本体仍在 MQ。租约与 `retry(delay)` 由本地时钟判定（毫秒级），
+所以 `retry` 不会阻塞分区；到期重投按位点回读 MQ，消息已被 retention 清掉时转入死信并记
+`seedj.retention.expired`。死信存 KV，因此单条事件大小受 KV 单值上限约束。
 
 ## 数据库迁移
 

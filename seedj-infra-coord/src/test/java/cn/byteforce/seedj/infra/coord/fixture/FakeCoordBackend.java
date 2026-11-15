@@ -52,6 +52,11 @@ public final class FakeCoordBackend {
         data.put(bytes(key), new Cell(raw(value), nextRevision(), 0));
     }
 
+    /** 清空全部记录（契约测试的 reset）。 */
+    public void clear() {
+        data.clear();
+    }
+
     public String read(String key) {
         Cell cell = data.get(bytes(key));
         return cell == null ? null : new String(cell.value(), StandardCharsets.UTF_8);

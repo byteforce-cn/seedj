@@ -22,7 +22,7 @@ seedj-server/im           →  seedj-im-starter  →  seedj-biz-starter
 | `seedj-infra-local` | 内存、文件、BouncyCastle 适配器 | ✅ |
 | `seedj-workflow-local` | 工作流 SPI 的本地内存实现 | ✅ |
 | `seedj-jdbc-postgresql` | PostgreSQL 适配器、DDL、版本化迁移、生产事件存储 | ✅ |
-| `seedj-infra-coord` | coord 适配器（组合 coord 原语）：ID、编号、全局序列、EventBus 发布、分布式锁 | ✅ |
+| `seedj-infra-coord` | coord 适配器（组合 coord 原语）：ID、编号、全局序列、EventBus 发布/消费、分布式锁 | ✅ |
 | `seedj-biz-starter` | 业务装配：本地开发认证、命令、查询、审计、事件总线 | ✅ |
 | `seedj-im-starter` | IM 长连接装配：帧协议、Netty TCP/WebSocket、JWT 握手、连接注册表 | ✅ |
 | `seedj-iam-starter` | IAM 装配：OIDC、SCIM、RBAC、ABAC | ✅ |

@@ -12,6 +12,9 @@
 - `seedj-infra-coord` 分布式锁：用 coord KV + OCC 事务组合出毫秒级租约（`TxnClient` 读集
   校验 + 记录内 `expiresAt`），`seedj.lock.provider=coord` 显式选择；过期持有者不会误删
   新持有者的记录。
+- `seedj-infra-coord` 消费端：`seedj.eventbus.transport=coord` 同时提供 `EventConsumerStore`
+  （MQ v2 join/poll/ack + KV 投递账本），支持毫秒级租约、延迟重试、attempts 与按组合查询死信；
+  到期重投按位点回读，retention 缺失转死信。
 - `seedj-im-starter`（阶段 1）：帧协议、Netty TCP/WebSocket 传输、IAM JWT 握手、心跳与未实现命令 `501`；`seedj-server/im` 改为单类宿主。
 - 开发者文档站（`docs/`，VitePress）与 GitHub Pages 发布。
 - 贡献指南、安全政策、行为准则、支持说明与 issue/PR 模板。

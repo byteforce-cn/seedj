@@ -260,10 +260,12 @@ public class CoordProperties {
         }
     }
 
-    /** EventBus 发布配置。 */
+    /** EventBus 发布/消费配置。 */
     public static class EventBus {
         private int partitions = 4;
         private String producer;
+        private int consumerMaxMessages;
+        private int consumerScanLimit = 1000;
 
         public int getPartitions() {
             return partitions;
@@ -279,6 +281,24 @@ public class CoordProperties {
 
         public void setProducer(String producer) {
             this.producer = producer;
+        }
+
+        /** 每次 poll 向 agent 要的最大条数；0 = agent 默认。 */
+        public int getConsumerMaxMessages() {
+            return consumerMaxMessages;
+        }
+
+        public void setConsumerMaxMessages(int consumerMaxMessages) {
+            this.consumerMaxMessages = consumerMaxMessages;
+        }
+
+        /** 每次 poll 扫描投递账本的上界；账本大小 ≈ 在飞消息数。 */
+        public int getConsumerScanLimit() {
+            return consumerScanLimit;
+        }
+
+        public void setConsumerScanLimit(int consumerScanLimit) {
+            this.consumerScanLimit = consumerScanLimit;
         }
     }
 }
