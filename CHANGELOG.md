@@ -9,6 +9,9 @@
 
 - `seedj-infra-coord`（P0）：coord 0.4.3 的 ID、编号、全局序列与 EventBus 发布适配器；
   provider 显式选择，失败消息点名 agent 地址；测试含真集群夹具（Testcontainers）。
+- `seedj-infra-coord` 分布式锁：用 coord KV + OCC 事务组合出毫秒级租约（`TxnClient` 读集
+  校验 + 记录内 `expiresAt`），`seedj.lock.provider=coord` 显式选择；过期持有者不会误删
+  新持有者的记录。
 - `seedj-im-starter`（阶段 1）：帧协议、Netty TCP/WebSocket 传输、IAM JWT 握手、心跳与未实现命令 `501`；`seedj-server/im` 改为单类宿主。
 - 开发者文档站（`docs/`，VitePress）与 GitHub Pages 发布。
 - 贡献指南、安全政策、行为准则、支持说明与 issue/PR 模板。

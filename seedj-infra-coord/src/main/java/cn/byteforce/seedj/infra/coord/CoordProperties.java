@@ -42,6 +42,7 @@ public class CoordProperties {
     private final Numbering numbering = new Numbering();
     private final Clock clock = new Clock();
     private final EventBus eventbus = new EventBus();
+    private final Lock lock = new Lock();
 
     public boolean isEnabled() {
         return enabled;
@@ -129,6 +130,10 @@ public class CoordProperties {
 
     public EventBus getEventbus() {
         return eventbus;
+    }
+
+    public Lock getLock() {
+        return lock;
     }
 
     /** TLS 配置；启用时 CA/客户端证书路径由 SDK fail-closed 校验。 */
@@ -238,6 +243,20 @@ public class CoordProperties {
 
         public void setName(String name) {
             this.name = name;
+        }
+    }
+
+    /** 分布式锁配置。 */
+    public static class Lock {
+        /** 持有者标识；空 = {@code host:pid:<随机后缀>}（每个 JVM 一个）。 */
+        private String holderId;
+
+        public String getHolderId() {
+            return holderId;
+        }
+
+        public void setHolderId(String holderId) {
+            this.holderId = holderId;
         }
     }
 

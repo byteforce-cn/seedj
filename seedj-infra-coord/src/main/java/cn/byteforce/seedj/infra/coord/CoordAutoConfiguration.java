@@ -5,10 +5,12 @@ import cn.byteforce.coord.sdk.CoordConfig;
 import cn.byteforce.seedj.core.clock.spi.GlobalSequencer;
 import cn.byteforce.seedj.eventbus.spi.EventBusTransport;
 import cn.byteforce.seedj.id.IdGenerator;
+import cn.byteforce.seedj.lock.LockProvider;
 import cn.byteforce.seedj.numbering.Numbering;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Clock;
 import java.time.Duration;
 import java.util.function.Supplier;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -45,7 +47,7 @@ public class CoordAutoConfiguration {
         return new CoordIdGenerator(
                 CoordEndpoint.of(properties),
                 client.idgen(),
-                namespace(properties, environment) + ":" + properties.getId().getName(),
+                CoordNamespaces.of(properties, environment) + ":" + properties.getId().getName(),
                 properties.getId().getBatchSize());
     }
 
@@ -57,7 +59,9 @@ public class CoordAutoConfiguration {
         return new CoordNumbering(
                 CoordEndpoint.of(properties),
                 client.idgen(),
-                namespace(properties, environment) + ":" + properties.getNumbering().getPrefix());
+                CoordNamespaces.of(properties, environment)
+                        + ":"
+                        + properties.getNumbering().getPrefix());
     }
 
     @Bean
@@ -68,7 +72,9 @@ public class CoordAutoConfiguration {
         return new CoordGlobalSequencer(
                 CoordEndpoint.of(properties),
                 client.idgen(),
-                namespace(properties, environment) + ":" + properties.getClock().getName());
+                CoordNamespaces.of(properties, environment)
+                        + ":"
+                        + properties.getClock().getName());
     }
 
     @Bean(destroyMethod = "close")
@@ -81,6 +87,20 @@ public class CoordAutoConfiguration {
                 client.mqV2(),
                 producer(properties, environment),
                 properties.getEventbus().getPartitions());
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "seedj.lock", name = "provider", havingValue = "coord")
+    public LockProvider coordLockProvider(
+            CoordClient client, CoordProperties properties, Environment environment) {
+        CoordEndpoint endpoint = CoordEndpoint.of(properties);
+        return new CoordLockProvider(
+                new CoordKvStore(client.kv(), client.tx()),
+                endpoint,
+                CoordKeySpace.of(CoordNamespaces.of(properties, environment), "lock"),
+                CoordHolderId.of(properties),
+                Clock.systemUTC());
     }
 
     private static CoordConfig toConfig(CoordProperties properties) {
@@ -160,14 +180,6 @@ public class CoordAutoConfiguration {
         if (properties.getEventbus().getPartitions() < 1) {
             throw new IllegalStateException("seedj.coord.eventbus.partitions must be >= 1");
         }
-    }
-
-    private static String namespace(CoordProperties properties, Environment environment) {
-        String namespace = properties.getNamespace();
-        if (namespace == null || namespace.isBlank()) {
-            return "seedj:" + environment.getProperty("spring.application.name", "default");
-        }
-        return namespace;
     }
 
     private static String producer(CoordProperties properties, Environment environment) {

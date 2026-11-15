@@ -5,6 +5,8 @@ import cn.byteforce.seedj.eventbus.EventBusErrorCode;
 import cn.byteforce.seedj.eventbus.EventBusException;
 import cn.byteforce.seedj.id.IdErrorCode;
 import cn.byteforce.seedj.id.IdException;
+import cn.byteforce.seedj.lock.LockErrorCode;
+import cn.byteforce.seedj.lock.LockException;
 
 /** coord 错误码到 seedj 能力错误码的唯一映射点。 */
 final class CoordErrors {
@@ -16,6 +18,25 @@ final class CoordErrors {
                 IdErrorCode.STATE_UNAVAILABLE,
                 "coord idgen failed at " + endpoint + ": " + e.getErrorCode(),
                 e);
+    }
+
+    static LockException lock(CoordException e, CoordEndpoint endpoint) {
+        LockErrorCode mapped =
+                switch (e.getErrorCode()) {
+                    case UNAVAILABLE,
+                                    DEADLINE_EXCEEDED,
+                                    AGENT_UNAVAILABLE,
+                                    NOT_LEADER,
+                                    SAFE_TS_LAG,
+                                    EPOCH_STALE,
+                                    TXN_NOT_FOUND,
+                                    TXN_CONFLICT,
+                                    COMMIT_REJECTED ->
+                            LockErrorCode.PROVIDER_UNAVAILABLE;
+                    default -> LockErrorCode.INTERNAL_ERROR;
+                };
+        return new LockException(
+                mapped, "coord lock failed at " + endpoint + ": " + e.getErrorCode(), e);
     }
 
     static EventBusException eventBus(
