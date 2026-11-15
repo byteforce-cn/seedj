@@ -4,6 +4,7 @@
 > 日期：2026-11-15
 > 取代：本文件 v1（分阶段、local 为默认、coord 显式 opt-in）
 > 关联：coord #375–#382。本设计**不依赖**这些 issue 关闭：seedj 侧按 coord 0.4.3 的现有契约适配。
+> 已确认（2026-11-15）：测试也不保留内存替身；没有存量数据需要迁移；本地与 CI 都允许用 Docker 跑 PG/coord 夹具；coord 现有契约带来的能力损失（锁最小 1 秒、PKI 无吊销、Transit 单 KEK、消费无延迟重试）接受。
 
 ## 1. 意图
 
@@ -47,7 +48,7 @@
 - 不改 coord 代码；不要求 #375–#382 关闭。coord 的新能力到达后另立设计接入。
 - 不用 coord 存业务数据（命令/事件/对象/审计/IAM/Outbox）。
 - 不保留「本地 dev 模式」；本地开发同样需要 coord agent + PostgreSQL。
-- 不做历史数据迁移。**本设计假定目标环境是 greenfield**：ID/编号从 coord 空序列开始；coord envelope 重新加密 IAM 的 TOTP seed 与 JWK 私钥；coord HMAC 的 keyId 重新生成。任何已有 ID/编号/密文/MAC 的环境都要先做迁移方案（双读、重加密、回滚），不在本设计内。
+- 不做历史数据迁移。**已确认目标环境是 greenfield、没有存量数据**：ID/编号从 coord 空序列开始；coord envelope 重新加密 IAM 的 TOTP seed 与 JWK 私钥；coord HMAC 的 keyId 重新生成。若将来出现存量环境，迁移（双读、重加密、回滚）另立设计。
 
 ### 3.3 反目标
 
@@ -171,7 +172,7 @@ coord 0.4.3 已有审批面：`deployDefinition`、`startByDefinition`、`getSta
 - 策略写入（`IamPolicyAdminController`）时把 seedj 条件 DSL 编译成 bundle 内容：`ALLOW/DENY`、`priority`、subject/action/resource 匹配、条件子集（等值、集合、时间窗、组织范围）。遇到无法编译的条件类型在写入期拒绝，不做运行时忽略。
 - 判定可用性：`decide` 走 coord `evaluate`，本地 LRU 缓存（默认 TTL 5s，键 = 请求摘要）；coord 不可用且缓存未命中 → 失败关闭（拒绝 + `PROVIDER_UNAVAILABLE`），不静默放行。
 - SoD 仍在 Java（`SodRuleSet`/`SodEvaluator`）；Rego 只做 RBAC/ABAC 判定，input 里带 SoD 需要的角色互斥事实。所有 seedj 策略共用一个 bundle，`explain` 只用于拒绝审计。
-- **这是本设计里最大的新开发**，但不阻塞 local 移除（IAM 现有 Java 判定在 `core`，不依赖 local）。作为 P6 最后接入；如果 P6 不做，P0–P5 仍然成立。
+- **这是本设计里最大的新开发**，但不阻塞 local 移除（IAM 现有 Java 判定在 `core`，不依赖 local）。作为 P6 最后接入；默认接受「每次未命中缓存一次 gRPC 判定 + 5s 缓存 + 失败关闭」，产品否决则 P6 不做，P0–P5 不受影响。
 
 ### 5.9 PG 侧的取舍
 
@@ -276,7 +277,7 @@ core
    - 在 coord 仓走发布流程把 0.4.3（或 0.4.4）发布到 Central（推荐）；
    - CI 增加 coord 仓 checkout + `mvn -pl coord-java-sdk install -DskipTests`（与 eis 的 pin 方式一致）。
    不解决这条，构建无法开始。
-2. Docker 可用（`ubuntu-latest` 已满足）；v2 夹具启动时间计入 `timeout-minutes`。
+2. Docker 可用：本地 Docker 29.x 已确认；CI 用 `ubuntu-latest` 的 Docker，允许拉取 PG 与 coord 镜像。v2 夹具启动时间计入 `timeout-minutes`。
 3. `config/ci/verify.sh` 覆盖新模块；Testcontainers 失败不允许静默跳过。
 
 ## 9. 分期与出口条件
@@ -308,7 +309,7 @@ P6 不阻塞 P0–P5。P1 的契约收窄必须先于 P2（否则 provider 写�
 9. **测试时长**：PG + 两容器夹具会让 `seedj-it` 显著变慢；CI 预算需重新评估。
 10. **分区内串行**：coord 消费的吞吐上限 = 分区数；高并发 topic 只能靠加分区。
 11. **CN get-or-create**：同一 CN 的第二个实例会拿到第一个实例的证书与 SAN；CN 必须带实例标识，否则就是安全缺口。
-12. **greenfield 假定**：存量 ID/编号/密文/MAC 不能直接切换；有存量环境必须先做迁移方案。
+12. **greenfield 确认**：目标环境无存量 ID/编号/密文/MAC；若出现存量环境，必须另立迁移设计。
 10. **公开 API 收缩**：1.0 之前是最后窗口；`config/public-api.txt` 与文档要一次性对齐。
 
 ## 11. 留给实现者
