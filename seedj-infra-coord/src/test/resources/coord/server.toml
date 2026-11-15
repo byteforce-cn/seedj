@@ -1,0 +1,36 @@
+[node]
+id = 1
+
+[network]
+grpc_addr = "127.0.0.1:__GRPC__"
+raft_addr = "127.0.0.1:__RAFT__"
+http_addr = "127.0.0.1:__HTTP__"
+
+[cluster]
+cluster_name = "seedj-fixture"
+bootstrap = true
+initial_nodes = [{ id = 1, grpc = "127.0.0.1:__GRPC__", raft = "127.0.0.1:__RAFT__" }]
+
+[storage]
+data_dir = "/var/lib/coord"
+
+[security]
+auth_enabled = false
+
+[multi_raft]
+enabled = true
+
+[[multi_raft.initial_regions]]
+id = 1
+start_key = ""
+end_key = ""
+
+[multi_raft.pd]
+enabled = true
+target_replicas = 1
+
+[kv_t]
+enabled = true
+
+[mq_v2]
+enabled = true

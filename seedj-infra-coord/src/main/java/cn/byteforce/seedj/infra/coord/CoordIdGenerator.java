@@ -1,70 +1,24 @@
 package cn.byteforce.seedj.infra.coord;
 
-import cn.byteforce.coord.sdk.CoordException;
 import cn.byteforce.coord.sdk.idgen.IdGenClient;
-import cn.byteforce.seedj.id.IdErrorCode;
-import cn.byteforce.seedj.id.IdException;
 import cn.byteforce.seedj.id.IdGenerator;
-import java.util.List;
-import java.util.Objects;
 
-/**
- * coord 分段 ID 的字符串适配器。
- *
- * <p>每次从 coord 预取一段，段内本地发号；段用尽再取下一段。允许空洞，不要求连续；同一生成器实例的 发号顺序按段内列表严格递增。
- */
+/** coord 分段 ID 的字符串适配器：十进制字符串形态，委托 Long 生成器发号。 */
 final class CoordIdGenerator implements IdGenerator<String> {
 
-    private final IdGenClient client;
-    private final String name;
-    private final int batchSize;
-
-    private List<Long> batch = List.of();
-    private int cursor;
-    private boolean closed;
+    private final CoordLongIdGenerator delegate;
 
     CoordIdGenerator(IdGenClient client, String name, int batchSize) {
-        this.client = Objects.requireNonNull(client, "client");
-        if (name == null || name.isBlank()) {
-            throw new IllegalArgumentException("coord id name must not be blank");
-        }
-        if (batchSize < 1 || batchSize > 10_000) {
-            throw new IllegalArgumentException("coord id batchSize must be in 1..10000");
-        }
-        this.name = name;
-        this.batchSize = batchSize;
+        this.delegate = new CoordLongIdGenerator(client, name, batchSize);
     }
 
     @Override
-    public synchronized String id() {
-        if (closed) {
-            throw new IdException(IdErrorCode.PROVIDER_CLOSED, "coord id generator is closed");
-        }
-        if (cursor >= batch.size()) {
-            fetch();
-        }
-        return Long.toString(batch.get(cursor++));
-    }
-
-    private void fetch() {
-        try {
-            List<Long> next = client.nextBatch(name, batchSize);
-            if (next == null || next.isEmpty()) {
-                throw new IdException(
-                        IdErrorCode.STATE_UNAVAILABLE,
-                        "coord idgen returned an empty batch for " + name);
-            }
-            batch = List.copyOf(next);
-            cursor = 0;
-        } catch (CoordException e) {
-            throw CoordErrors.id(e);
-        }
+    public String id() {
+        return Long.toString(delegate.id());
     }
 
     @Override
-    public synchronized void close() {
-        closed = true;
-        batch = List.of();
-        cursor = 0;
+    public void close() {
+        delegate.close();
     }
 }
