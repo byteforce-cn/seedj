@@ -290,7 +290,8 @@ class BcPkiProviderTest {
     }
 
     @Test
-    @DisplayName("账本标记过期后 signingIdentity 应同密钥重签并顺延 notAfter")
+    // 契约允许过期后换 key/serial；本地实现选择复用同一 key 并保持 serial，这是更强的实现细节。
+    @DisplayName("本地实现的过期续期：复用同一密钥与 serial，并顺延 notAfter")
     void signingIdentity_shouldRenewExpiredCertificate() throws IOException {
         IssuedCertificate first = pki.signingIdentity("renew-signer");
         markLedgerExpired(first.serialNumber());

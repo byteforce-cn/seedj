@@ -52,8 +52,9 @@ public abstract class PkiProviderContractTest {
     }
 
     @Test
-    @DisplayName("signingIdentity 对同一 alias 幂等：serial 与公钥都不变")
+    @DisplayName("signingIdentity 在证书有效期内幂等：serial 与公钥都不变")
     void signingIdentityIsIdempotent() {
+        // 契约只要求“有效期内”稳定；过期后允许换 key/serial（见 PkiProvider#signingIdentity）。
         PkiProvider.IssuedCertificate first = provider.signingIdentity("iam");
         PkiProvider.IssuedCertificate second = provider.signingIdentity("iam");
 
