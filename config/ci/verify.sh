@@ -14,6 +14,8 @@ cd "$(dirname "$0")/../.." || {
 MAVEN_FLAGS="${MAVEN_FLAGS--o}"
 SPOTBUGS_FAIL_ON_ERROR="${SPOTBUGS_FAIL_ON_ERROR:-true}"
 
+bash config/ci/install-coord-sdk.sh
+
 if [[ "$SPOTBUGS_FAIL_ON_ERROR" != "true" ]]; then
     echo "WARN: SpotBugs advisory（-Dspotbugs.failOnError=false）仅用于本地排查；CI 默认阻断" >&2
 fi

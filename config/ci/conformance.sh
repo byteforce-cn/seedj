@@ -10,6 +10,8 @@ cd "$(dirname "$0")/../.." || {
 
 MAVEN_FLAGS="${MAVEN_FLAGS--o}"
 
+bash config/ci/install-coord-sdk.sh
+
 # 固定版本的 eis 工作副本存在时，先做逐字节对齐 + 兼容性检查；
 # 没有 EIS_ROOT 时保留原有 -Pconformance 行为（由 Maven 侧显式失败）。
 if [[ -n "${EIS_ROOT:-}" ]]; then
