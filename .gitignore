@@ -26,3 +26,4 @@ target/
 node_modules/
 docs/.vitepress/dist/
 docs/.vitepress/cache/
+.superpowers/

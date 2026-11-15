@@ -17,10 +17,13 @@
 
     <properties>
         <!-- spring-boot.version 由根 POM 统一定义（随父链继承解析，单一维护点） -->
-        <!-- 0.4.2+ 未发布到 Maven Central（Central 停在 0.4.1）：CI 从 coord 源码安装固定 tag -->
+        <!-- 0.4.2+ 未发布到 Maven Central（Central 停在 0.4.1）：本地先 mvn install coord-java-sdk 0.4.3 -->
         <coord-java-sdk.version>0.4.3</coord-java-sdk.version>
         <mybatis-plus.version>3.5.17</mybatis-plus.version>
         <compile-testing.version>0.23.0</compile-testing.version>
+        <nimbus-jose-jwt.version>10.9.1</nimbus-jose-jwt.version>
+        <bouncycastle.version>1.86</bouncycastle.version>
+        <archunit.version>1.5.1</archunit.version>
         <!-- 收敛锚点版本（见下方 dependencyManagement 中的 error_prone_annotations 注释） -->
         <error-prone.version>2.50.0</error-prone.version>
 
@@ -45,7 +48,27 @@
 
             <dependency>
                 <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>core</artifactId>
+                <version>${revision}</version>
+                <type>test-jar</type>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
                 <artifactId>seedj-infra-local</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>seedj-infra-local</artifactId>
+                <version>${revision}</version>
+                <type>test-jar</type>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>seedj-infra-coord</artifactId>
                 <version>${revision}</version>
             </dependency>
 
@@ -72,12 +95,60 @@
                 <artifactId>seedj-im-starter</artifactId>
                 <version>${revision}</version>
             </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>seedj-workflow-local</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>seedj-codegen</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>seedj-server-iam</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>seedj-server-hr</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>seedj-server-im</artifactId>
+                <version>${revision}</version>
+            </dependency>
             <!-- 第三方构件 -->
 
             <dependency>
                 <groupId>cn.byteforce</groupId>
                 <artifactId>coord-java-sdk</artifactId>
                 <version>${coord-java-sdk.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.nimbusds</groupId>
+                <artifactId>nimbus-jose-jwt</artifactId>
+                <version>${nimbus-jose-jwt.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.bouncycastle</groupId>
+                <artifactId>bcpkix-jdk18on</artifactId>
+                <version>${bouncycastle.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.tngtech.archunit</groupId>
+                <artifactId>archunit-junit5</artifactId>
+                <version>${archunit.version}</version>
             </dependency>
 
             <dependency>
@@ -121,8 +192,6 @@
                 <artifactId>slf4j-api</artifactId>
                 <version>${slf4j.version}</version>
             </dependency>
-
-            
 
             <dependency>
                 <groupId>org.testcontainers</groupId>

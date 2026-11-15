@@ -32,7 +32,6 @@
         <dependency>
             <groupId>cn.byteforce.seedj</groupId>
             <artifactId>seedj-infra-local</artifactId>
-            <version>${revision}</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
@@ -48,7 +47,6 @@
         <dependency>
             <groupId>cn.byteforce.seedj</groupId>
             <artifactId>seedj-codegen</artifactId>
-            <version>${revision}</version>
             <scope>provided</scope>
         </dependency>
 
