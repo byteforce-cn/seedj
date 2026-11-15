@@ -31,47 +31,12 @@
 
 ---
 
-### Task 1: coord SDK 0.4.4（另一个仓库）
+### Task 1: ~~coord SDK 0.4.4~~ → 外部依赖，不在本仓
 
-**Repo:** `/root/opensource/coord`（分支 `feat/workflow-sdk-read-surface`，PR 到 `main`，`--merge`）
+**不做。** coord 是另一个仓库：它的 SDK 读面（`ListTasks`/`GetTask`/`History`/`Urge`/`Cc`/`WithdrawTask`）
+与 `Start.workflow_id` 由 coord 自己的路线图交付。seedj 不为它开分支、不提 PR、不改 proto。
 
-**Files:**
-- Modify: `coord-java-sdk/src/main/java/cn/byteforce/coord/sdk/workflow/WorkflowClient.java`
-- Modify: `coord-java-sdk/src/main/java/cn/byteforce/coord/sdk/internal/rpc/WorkflowClientImpl.java`
-- Create: `coord-java-sdk/src/main/java/cn/byteforce/coord/sdk/workflow/TaskQueryFilter.java`
-- Create: `coord-java-sdk/src/main/java/cn/byteforce/coord/sdk/workflow/ApprovalHistoryEvent.java`
-- Create: `coord-java-sdk/src/main/java/cn/byteforce/coord/sdk/workflow/TaskDetail.java`
-- Modify: `coord-java-sdk/pom.xml`（version → `0.4.4`）
-- Modify: `docs/production/seedj-workflow-provider-mapping.md`（§3 `Resume` ❌→✅，委派到期 ⚠️→✅）
-
-**Interfaces（Produces）:**
-```java
-String delegate(String workflowId, String taskId, String to, String comment, long delegateForMs, String idempotencyKey);
-String urge(String workflowId, String taskId, String note, String idempotencyKey);
-String cc(String workflowId, String taskId, List<String> targets, String comment, String idempotencyKey);
-String withdrawTask(String workflowId, String taskId, String targetNode, String comment, String idempotencyKey);
-String resumeWorkflow(String workflowId, String dueIn, String idempotencyKey);
-List<PendingApprovalTask> listTasks(TaskQueryFilter filter, int pageSize, String pageToken);
-TaskDetail getTask(String workflowId, String taskId);
-List<ApprovalHistoryEvent> history(String workflowId);
-
-record TaskQueryFilter(String instanceId, String assignee, String completedBy, String candidateGroup,
-                       String node, String status, Long dueBeforeMs)
-record TaskDetail(String id, String instanceId, String node, String branchId, String roundId, String kind,
-                  String status, String assignee, List<String> candidates, long deadlineMs,
-                  long createdAtMs, List<ApprovalVote> votes)
-record ApprovalHistoryEvent(String eventId, String eventType, String node, String taskId,
-                            String actionId, long occurredAtMs, String attributesJson)
-```
-
-- [ ] **Step 1: 写失败测试** `coord-java-sdk/src/test/java/cn/byteforce/coord/sdk/workflow/WorkflowReadSurfaceTest.java`
-  断言：`WorkflowClient` 接口反射上存在 8 个新方法；`delegate` 的第 5 个参数类型是 `long`（防签名漂移）。
-- [ ] **Step 2: 跑测试确认失败** `mvn -q -pl coord-java-sdk -Dtest=WorkflowReadSurfaceTest test`（编译失败即算失败）
-- [ ] **Step 3: 实现**：每个方法发一个 RPC，`idempotency_key` 原样透传；`history` 把 `attributes` 用 proto 的 JSON 序列化（`JsonFormat.printer()`）；错误走既有 `ErrorMapper`。
-- [ ] **Step 4: 跑 SDK 全量测试** `mvn -q -f coord-java-sdk/pom.xml test`，全绿。
-- [ ] **Step 5: 修正映射文档两处漂移**：`Resume` 改为 ✅（`ResumeWorkflow` 已落地）；委派改为 ✅ 并在备注里写「SDK 需传 `delegate_for_ms`」。
-- [ ] **Step 6: 提交 + PR + CI 绿 + merge + tag `v0.4.4` + 本地 `mvn install`**
-  `git commit -m "feat(workflow): SDK 补齐审批读面与任务级动作"`；`gh pr create --base main --fill`；`gh pr checks --watch`；`gh pr merge --merge --delete-branch`；`git tag v0.4.4 && git push origin v0.4.4`。
+Task 6（Workflow 适配器）依赖它，所以在它发布前 **Task 6 不启动**；Task 2–5、7 不受影响。
 
 ### Task 2: core 契约测试按能力门控 + local 的 provider 开关
 
@@ -174,6 +139,6 @@ static byte[] CoordTransitContext.of(String keyName, String context)
 
 ## Self-Review
 
-- **Spec coverage**：spec §6/§7/§8/§9 各有 Task 3/4/6/5；§10 跨仓依赖在 Task 1 与 Task 6 Step 3 的版本升级；§11 装配在 Task 2/3/4/5/6；§12 测试在每单任务的 Step 1–2 与 Step 5；§13 拆分即 Task 1–7；§14 的 10 条判断都落在具体步骤（前缀、账本、usage、issue 不后校验、rewrap、不建 key 目录、绕过缓存、键名、TCK 门控、`timeoutPolicy`）。
+- **Spec coverage**：spec §6/§7/§9 各有 Task 3/4/5；§8（Workflow）在 Task 6，且以 §10 的外部依赖解除为前提；§10 的跨仓依赖显式不做（Task 1 划掉）；§11 装配在 Task 2/3/4/5；§12 测试在每单任务的 Step 1–2 与 Step 5；§13 拆分即 Task 1–7；§14 的 10 条判断都落在具体步骤（前缀、账本、usage、issue 不后校验、rewrap、不建 key 目录、绕过缓存、键名、TCK 门控、`timeoutPolicy`）。
 - **类型一致**：`CoordKeySpace`/`CoordKvStore`/`CoordJson` 均沿用现有包内签名；`CoordPkiProvider` 构造参数在 Task 3 的 Interfaces 里写死，坐标一致。
 - **比例**：plan 只锁签名与断言，不抄实现体。

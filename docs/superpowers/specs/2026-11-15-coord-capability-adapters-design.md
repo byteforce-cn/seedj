@@ -316,34 +316,26 @@ SAFE_TS_LAG/EPOCH_STALE/COMMIT_REJECTED` ⇒ `BACKEND_UNAVAILABLE`（retryable�
 - 部署前置：CCT 持有 `coord:policy:evaluate`；bundle 的装载/回滚（`coord:policy:manage`）
   不属于应用权限，由运维执行。bundle 收敛是 ≤10s 量级，所以 IT 里要轮询而不是立即断言。
 
-## 10. 跨仓依赖与版本
+## 10. 跨仓依赖与版本（**不由本仓交付**）
 
-### 10.1 coord 仓（PR 1）
+### 10.1 coord 的读面缺口
 
-在 `coord-java-sdk` 补齐引擎已实现、SDK 未暴露的 7 个方法 + DTO：
+`WorkflowEngineService` 里的任务读面（`ListTasks` / `GetTask` / `History`）与任务级命令
+（`Urge` / `Cc` / `WithdrawTask`）在 coord 的 main 上已经有了，**但 coordinator 的 SDK 0.4.3 没有
+暴露**，且 `Start.workflow_id`（指定实例 id）要到 `startByDefinitionWithId` 才可用（0.4.3 没有）。
 
-`listTasks(FilterRequest, pageSize, pageToken)`、`getTask(workflowId, taskId)`、
-`history(workflowId)`、`urge(workflowId, taskId, note, idemKey)`、
-`cc(workflowId, taskId|instance, targets, comment, idemKey)`、
-`withdrawTask(workflowId, taskId, targetNode, comment, idemKey)`、
-`resumeWorkflow(workflowId, dueIn, idemKey)`；并把 `delegate(...)` 补一个
-`delegateForMs` 参数（proto 字段 7）。DTO 直接复用 proto 生成的 message 字段
-（`TaskFrame`/`ApprovalVote` 已有映射函数可复用）。
+`WorkflowProvider` 的 `listTasks` / `describeTask` 是**必选方法**，没有 SDK 方法就没有合规实现路径。
 
-同一个 PR 修正 `docs/production/seedj-workflow-provider-mapping.md` 的两处漂移：
-`Resume` 标 ❌（引擎已有 `ResumeWorkflow`）、委派到期标 ⚠️（proto 字段 7 + 定时器恢复已落地）。
-映射文档是本设计的「唯一口径」，它漂了，适配器就会照错的写。
+**结论：coord 的 SDK 属于 coord 自己的路线图，seedj 不为它提 PR、不改它的 proto、不碰它的分支。**
+`seedj.workflow.provider=coord` 在 coord 发布包含上述读面的 SDK 之前不做实现，见 §13。
 
-发布：coord 侧升 `0.4.4`（tag `v0.4.4`）。
+### 10.2 如果将来 coord 发布了新 SDK
 
-### 10.2 seedj 仓
+seedj 侧只需要两件事，且必须一起做（否则 CI 会静默复用旧 jar）：
 
-- `bom/pom.xml`：`coord-java-sdk.version` → `0.4.4`（**必须升版本号**：`install-coord-sdk.sh`
-  在本地仓库已有同版本时直接跳过，cache key 又只看 `**/pom.xml`，只改 ref 会静默用旧 jar）。
-- `config/conformance/coord-ref.txt`：`tag=v0.4.4`。
-- `seedj-infra-coord` 的测试夹具镜像（`CoordCluster.IMAGE`）→ `ghcr.io/byteforce-cn/coord:v0.4.4`。
-- 顺带修 `install-coord-sdk.sh`：把 `config/conformance/coord-ref.txt` 也纳入缓存 key
-  （或 `sha=` 时强制重装），让这类静默复用不再可能。
+- `bom/pom.xml` 升 `coord-java-sdk.version`（`install-coord-sdk.sh` 在本地仓库已有同版本时直接跳过，
+  `~/.m2` 的 cache key 又只看 `**/pom.xml`，只改 ref 不算数）。
+- `config/conformance/coord-ref.txt` 指向对应的 tag。
 
 ## 11. 装配
 
