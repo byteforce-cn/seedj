@@ -65,6 +65,12 @@ public interface PkiProvider extends AutoCloseable {
         }
     }
 
+    /**
+     * 已签发证书。
+     *
+     * <p>{@code serialNumber} 只在证书有效期内稳定：证书过期后，provider 可以用新的密钥对/新 serial 重签同一 alias。调用方不要把 serial
+     * 当作长期身份；长期身份是 {@link #signingIdentity(String)} 的 alias。
+     */
     record IssuedCertificate(
             X509Certificate certificate,
             List<X509Certificate> chain,
@@ -93,8 +99,14 @@ public interface PkiProvider extends AutoCloseable {
     /**
      * 获取 alias 对应的长期签名身份（密钥对 + CA 签发证书）。
      *
-     * <p>同一 alias 在同一 provider 部署（同一 CA + 同一状态存储）下幂等： 证书有效时原样返回；证书过期时用同一密钥对重签，{@code serialNumber}
-     * 不变； 身份已被 {@link #revoke} 时抛 {@link PkiException}，不静默恢复。
+     * <p>同一 alias 在同一 provider 部署（同一 CA + 同一状态存储）下幂等：
+     *
+     * <ul>
+     *   <li>证书有效时原样返回；
+     *   <li>证书过期后允许以新的密钥对/新的 {@code serialNumber} 重签，alias 到身份的映射保持稳定；
+     *   <li>已过期证书的 serial 只用于历史/审计，不应再用于验签或作为长期身份；长期身份是 alias；
+     *   <li>身份已被 {@link #revoke} 时抛 {@link PkiException}，不静默恢复。
+     * </ul>
      *
      * <p>身份与当前 CA 绑定：更换 CA 后必须调用 {@link #rotateSigningIdentity(String, RevocationReason)} 迁移。
      *
@@ -110,8 +122,15 @@ public interface PkiProvider extends AutoCloseable {
      */
     IssuedCertificate rotateSigningIdentity(String alias, RevocationReason reason);
 
+    /** 吊销指定 serial；同一 serial 重复吊销幂等。 */
     void revoke(String serialNumber, RevocationReason reason);
 
+    /**
+     * 查询 serial 的状态。
+     *
+     * <p>{@link CertificateStatus#EXPIRED} 表示证书已过期：过期 serial 只用于历史/审计，不应再用于验签。 若 serial
+     * 既过期又被显式吊销，返回 {@link CertificateStatus#REVOKED}。
+     */
     CertificateStatus status(String serialNumber);
 
     X509Certificate caCertificate();
