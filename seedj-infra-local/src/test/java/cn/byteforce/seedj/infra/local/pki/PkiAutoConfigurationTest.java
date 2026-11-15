@@ -41,6 +41,14 @@ class PkiAutoConfigurationTest {
     }
 
     @Test
+    @DisplayName("seedj.pki.provider=coord 时本地实现让位")
+    void coordProviderBacksOff(@TempDir Path dir) {
+        runner.withPropertyValues(properties(dir))
+                .withPropertyValues("seedj.pki.provider=coord")
+                .run(context -> assertThat(context).doesNotHaveBean(PkiProvider.class));
+    }
+
+    @Test
     @DisplayName("CA 资源缺失时启动失败（fail fast，不静默降级）")
     void missingCaFailsFast(@TempDir Path dir) {
         runner.withPropertyValues(

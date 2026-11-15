@@ -15,6 +15,11 @@ import org.springframework.context.annotation.Bean;
         name = "enabled",
         havingValue = "true",
         matchIfMissing = true)
+@ConditionalOnProperty(
+        prefix = "seedj.pki",
+        name = "provider",
+        havingValue = "local",
+        matchIfMissing = true)
 @EnableConfigurationProperties(PkiProperties.class)
 public class PkiAutoConfiguration {
 

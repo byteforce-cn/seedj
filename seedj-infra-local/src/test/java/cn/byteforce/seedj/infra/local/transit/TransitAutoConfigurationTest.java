@@ -34,6 +34,13 @@ class TransitAutoConfigurationTest {
     }
 
     @Test
+    @DisplayName("seedj.transit.provider=coord 时本地实现让位")
+    void coordProviderBacksOff() {
+        runner.withPropertyValues("seedj.transit.provider=coord")
+                .run(context -> assertThat(context).doesNotHaveBean(TransitProvider.class));
+    }
+
+    @Test
     @DisplayName("seedj.transit.enabled=false 时不提供 bean")
     void disabled() {
         runner.withPropertyValues("seedj.transit.enabled=false")
