@@ -7,6 +7,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import cn.byteforce.coord.sdk.idgen.IdGenClient;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 
 class CoordNumberingTest {
@@ -33,5 +38,27 @@ class CoordNumberingTest {
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> numbering.next("order-1"))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void concurrentNumberingIsUnique() throws Exception {
+        CoordNumbering numbering = new CoordNumbering(new FakeIdGen(), "seedj:app:numbering");
+        Set<Long> seen = ConcurrentHashMap.newKeySet();
+        ExecutorService pool = Executors.newFixedThreadPool(8);
+        try {
+            for (int t = 0; t < 8; t++) {
+                pool.submit(
+                        () -> {
+                            for (int i = 0; i < 200; i++) {
+                                seen.add(numbering.next("order"));
+                            }
+                        });
+            }
+            pool.shutdown();
+            assertThat(pool.awaitTermination(30, TimeUnit.SECONDS)).isTrue();
+        } finally {
+            pool.shutdownNow();
+        }
+        assertThat(seen).hasSize(1600);
     }
 }

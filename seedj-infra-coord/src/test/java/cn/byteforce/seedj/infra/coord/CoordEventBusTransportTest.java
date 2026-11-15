@@ -59,6 +59,33 @@ class CoordEventBusTransportTest {
     }
 
     @Test
+    void sameEventIdRetriesLandOnSamePartition() throws Exception {
+        MqV2Client mq = mock(MqV2Client.class);
+        when(mq.describeTopic("orders")).thenReturn(description("orders", 1, 4));
+        CoordEventBusTransport transport = new CoordEventBusTransport(mq, "svc", 4);
+
+        transport.send(message("orders", "k")).toCompletableFuture().get(5, TimeUnit.SECONDS);
+        transport.send(message("orders", "k")).toCompletableFuture().get(5, TimeUnit.SECONDS);
+
+        ArgumentCaptor<MqV2Publish> captor = ArgumentCaptor.forClass(MqV2Publish.class);
+        verify(mq, times(2)).publish(captor.capture());
+        assertThat(captor.getAllValues().get(0).partition())
+                .isEqualTo(captor.getAllValues().get(1).partition());
+    }
+
+    @Test
+    void sendAfterCloseFailsWithProviderClosed() {
+        CoordEventBusTransport transport =
+                new CoordEventBusTransport(mock(MqV2Client.class), "svc", 1);
+        transport.close();
+
+        assertThatThrownBy(
+                        () -> transport.send(message("orders", "k")).toCompletableFuture().join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(EventBusException.class);
+    }
+
+    @Test
     void createsMissingTopic() {
         MqV2Client mq = mock(MqV2Client.class);
         when(mq.describeTopic("new-topic"))
