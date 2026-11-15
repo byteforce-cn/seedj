@@ -65,3 +65,18 @@ seedj:
   （MQ v2 `Publish`，eventId 幂等 + 稳定分区）。
 - 下一步：EventConsumerStore（KV inflight/done + 自建 DLQ 索引）、Lock、PKI、Transit、
   Workflow。每一项都继续使用 coord 原语，不引入本地兜底。
+
+## 测试夹具（v2）
+
+`src/test/java/.../fixture/CoordCluster.java` 起 server + agent 两个容器（镜像
+`ghcr.io/byteforce-cn/coord:v0.4.3`，可用 `-Dseedj.coord.test.image` 覆盖），data_plane=v2，
+`mq_v2` 可用。已验证的启动约束：
+
+- agent 拒绝非 loopback 明文绑定，`agent.toml` 又不允许开 dev 旁路，所以两个容器都用
+  **host network**、绑定 `127.0.0.1`；仅 Linux 可跑，无 Docker 时测试跳过。
+- `server` 的 `--addr` / `--cluster-name` 有 CLI 默认值，会覆盖 TOML，必须显式传；
+  `agent` 的配置文件参数是 `--agent-config`（不是全局 `--config`）。
+- `multi_raft.enabled=true` 必须同时给 `[[multi_raft.initial_regions]]`（至少一个），
+  `multi_raft.pd.target_replicas` 不能超过单节点成员数（设为 1）。
+- agent 的 `data_dir` 不要用 `/var/lib/coord-agent`（镜像内非 root，不可写）；transit 需要
+  `COORD_TRANSIT_KEK`（hex64）。
