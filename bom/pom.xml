@@ -19,13 +19,13 @@
         <!-- spring-boot.version 由根 POM 统一定义（随父链继承解析，单一维护点） -->
         <!-- 0.4.2+ 未发布到 Maven Central（Central 停在 0.4.1）：本地先 mvn install coord-java-sdk 0.4.3 -->
         <coord-java-sdk.version>0.4.3</coord-java-sdk.version>
-        <mybatis-plus.version>3.5.17</mybatis-plus.version>
-        <compile-testing.version>0.23.0</compile-testing.version>
-        <nimbus-jose-jwt.version>10.9.1</nimbus-jose-jwt.version>
-        <bouncycastle.version>1.86</bouncycastle.version>
+        <mybatis-plus.version>3.5.18.1</mybatis-plus.version>
+        <compile-testing.version>0.24.0</compile-testing.version>
+        <nimbus-jose-jwt.version>10.10</nimbus-jose-jwt.version>
+        <bouncycastle.version>1.87</bouncycastle.version>
         <archunit.version>1.5.1</archunit.version>
         <!-- 收敛锚点版本（见下方 dependencyManagement 中的 error_prone_annotations 注释） -->
-        <error-prone.version>2.50.0</error-prone.version>
+        <error-prone.version>2.52.0</error-prone.version>
 
     </properties>
 
