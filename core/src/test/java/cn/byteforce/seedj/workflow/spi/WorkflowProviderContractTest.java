@@ -12,6 +12,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -20,6 +21,9 @@ import org.junit.jupiter.api.Test;
  *
  * <p>实现模块只需 {@code extends WorkflowProviderContractTest} 并返回 Provider 实例。
  * 覆盖：幂等、会签、驳回回退、死锁、前/后加签、转办、委托、撤回、超时、恢复、催办、抄送、 WAIT_SIGNAL、待办一致性。时间相关用例使用短时长 + 轮询，最大等待 5 秒。
+ *
+ * <p>可选能力用例按 {@link WorkflowProvider#capabilities()} 门控：契约要求调用方在调用可选能力前先查能力声明， 本套件按同一条规则门控。{@code
+ * supportsHumanTasks} 不作门控——本套件本身就是人工任务契约， 声明 {@code false} 的实现不适用本套件。
  */
 public abstract class WorkflowProviderContractTest {
 
@@ -64,9 +68,9 @@ public abstract class WorkflowProviderContractTest {
         assertThat(provider.describe(id)).isPresent();
 
         WorkflowCapabilities capabilities = provider.capabilities();
-        assertThat(capabilities.supportsHumanTasks()).isTrue();
-        assertThat(capabilities.supportsProviderClock()).isTrue();
-        assertThat(capabilities.supportsResumeWorkflow()).isTrue();
+        assertThat(capabilities.supportsHumanTasks())
+                .as("the workflow TCK itself models human tasks")
+                .isTrue();
         assertThat(provider.now()).isNotNull();
     }
 
@@ -144,6 +148,7 @@ public abstract class WorkflowProviderContractTest {
 
     @Test
     void rejectTerminatesTaskAndRollsBackToTargetStep() {
+        requireCapability(provider.capabilities().supportsRejectToStep(), "supportsRejectToStep");
         WorkflowDefinition definition =
                 definition(
                         "reject",
@@ -199,6 +204,7 @@ public abstract class WorkflowProviderContractTest {
 
     @Test
     void recordAndContinueDeadlockRollsBack() {
+        requireCapability(provider.capabilities().supportsRejectToStep(), "supportsRejectToStep");
         WorkflowDefinition definition =
                 definition(
                         "deadlock",
@@ -264,6 +270,7 @@ public abstract class WorkflowProviderContractTest {
 
     @Test
     void rejectThresholdReachedTerminates() {
+        requireCapability(provider.capabilities().supportsRejectToStep(), "supportsRejectToStep");
         WorkflowDefinition definition =
                 definition(
                         "reject-threshold",
@@ -322,6 +329,8 @@ public abstract class WorkflowProviderContractTest {
 
     @Test
     void beforeAddSuspendsOriginalAndResumesAfterCompletion() {
+        requireCapability(
+                provider.capabilities().supportsAddAssigneeBefore(), "supportsAddAssigneeBefore");
         HumanTaskSpec spec =
                 spec(
                         List.of("u1"),
@@ -413,6 +422,8 @@ public abstract class WorkflowProviderContractTest {
 
     @Test
     void afterAddDefaultsToAnyApproveAndRunsBeforeNextStep() {
+        requireCapability(
+                provider.capabilities().supportsAddAssigneeAfter(), "supportsAddAssigneeAfter");
         HumanTaskSpec reviewSpec =
                 spec(
                         List.of("u1", "u2"),
@@ -479,6 +490,7 @@ public abstract class WorkflowProviderContractTest {
 
     @Test
     void transferMovesOwnershipWithoutRecord() {
+        requireCapability(provider.capabilities().supportsTransfer(), "supportsTransfer");
         HumanTaskSpec spec =
                 spec(
                         List.of("u1"),
@@ -538,6 +550,7 @@ public abstract class WorkflowProviderContractTest {
 
     @Test
     void delegationApprovesOnBehalfAndIsVisibleToBothPrincipals() {
+        requireCapability(provider.capabilities().supportsDelegate(), "supportsDelegate");
         HumanTaskSpec spec =
                 spec(
                         List.of("u1", "u3"),
@@ -611,6 +624,7 @@ public abstract class WorkflowProviderContractTest {
 
     @Test
     void delegationExpiryRestoresOriginalAssignee() {
+        requireCapability(provider.capabilities().supportsDelegate(), "supportsDelegate");
         HumanTaskSpec spec =
                 spec(
                         List.of("u1"),
@@ -656,6 +670,7 @@ public abstract class WorkflowProviderContractTest {
 
     @Test
     void taskWithdrawKeepsRecordAndRollsBack() {
+        requireCapability(provider.capabilities().supportsWithdraw(), "supportsWithdraw");
         HumanTaskSpec spec =
                 spec(
                         List.of("u1", "u2"),
@@ -703,6 +718,7 @@ public abstract class WorkflowProviderContractTest {
 
     @Test
     void withdrawCancelsIntermediateActiveTasksWithTaskCancelledEvents() {
+        requireCapability(provider.capabilities().supportsWithdraw(), "supportsWithdraw");
         HumanTaskSpec midSpec =
                 spec(
                         List.of("u9"),
@@ -790,6 +806,8 @@ public abstract class WorkflowProviderContractTest {
 
     @Test
     void instanceWithdrawCancelsInstanceAndActiveAssignments() {
+        requireCapability(
+                provider.capabilities().supportsWithdrawInstance(), "supportsWithdrawInstance");
         WorkflowDefinition definition =
                 definition("withdraw-instance", human("review", basicSpec("u1")));
         provider.register(definition);
@@ -857,6 +875,8 @@ public abstract class WorkflowProviderContractTest {
 
     @Test
     void overdueTaskCanWaitAndBeResumed() {
+        requireCapability(
+                provider.capabilities().supportsResumeWorkflow(), "supportsResumeWorkflow");
         HumanTaskSpec spec =
                 spec(
                         List.of("u1"),
@@ -904,6 +924,7 @@ public abstract class WorkflowProviderContractTest {
 
     @Test
     void urgeAllowedWhileSuspendedAndRejectedWhenTerminal() {
+        requireCapability(provider.capabilities().supportsUrge(), "supportsUrge");
         HumanTaskSpec spec =
                 spec(
                         List.of("u1"),
@@ -972,6 +993,7 @@ public abstract class WorkflowProviderContractTest {
 
     @Test
     void ccRecordsEventWithoutChangingStateMachine() {
+        requireCapability(provider.capabilities().supportsCc(), "supportsCc");
         HumanTaskSpec spec =
                 spec(
                         List.of("u1"),
@@ -1097,6 +1119,8 @@ public abstract class WorkflowProviderContractTest {
 
     @Test
     void afterSpawnIsDiscardedWhenTaskIsRejected() {
+        requireCapability(
+                provider.capabilities().supportsAddAssigneeAfter(), "supportsAddAssigneeAfter");
         HumanTaskSpec spec =
                 spec(
                         List.of("u1", "u2"),
@@ -1151,6 +1175,8 @@ public abstract class WorkflowProviderContractTest {
 
     @Test
     void afterPendingSurvivesBeforeCompletionAndDiscardsOnBeforeReject() {
+        requireCapability(
+                provider.capabilities().supportsAddAssigneeBefore(), "supportsAddAssigneeBefore");
         HumanTaskSpec spec =
                 spec(
                         List.of("u1"),
@@ -1253,6 +1279,7 @@ public abstract class WorkflowProviderContractTest {
 
     @Test
     void terminalTaskCancelsDelegatedAssignment() {
+        requireCapability(provider.capabilities().supportsDelegate(), "supportsDelegate");
         HumanTaskSpec spec =
                 spec(
                         List.of("u1", "u3"),
@@ -1331,6 +1358,8 @@ public abstract class WorkflowProviderContractTest {
 
     @Test
     void removeAssigneeWritesEventsAndKeepsRuleComputable() {
+        requireCapability(
+                provider.capabilities().supportsRemoveAssignee(), "supportsRemoveAssignee");
         HumanTaskSpec spec =
                 spec(
                         List.of("u1", "u2"),
@@ -1400,6 +1429,8 @@ public abstract class WorkflowProviderContractTest {
 
     @Test
     void resumeRequiresWaitingInstance() {
+        requireCapability(
+                provider.capabilities().supportsResumeWorkflow(), "supportsResumeWorkflow");
         WorkflowDefinition definition =
                 definition("resume-guard", human("review", basicSpec("u1")));
         provider.register(definition);
@@ -1421,6 +1452,7 @@ public abstract class WorkflowProviderContractTest {
 
     @Test
     void withdrawCannotUndoARejectRecord() {
+        requireCapability(provider.capabilities().supportsWithdraw(), "supportsWithdraw");
         HumanTaskSpec spec =
                 spec(
                         List.of("u1", "u2"),
@@ -1470,6 +1502,9 @@ public abstract class WorkflowProviderContractTest {
 
     @Test
     void expressionParticipantsAreResolvedFromVariables() {
+        requireCapability(
+                provider.capabilities().supportsParticipantResolution(),
+                "supportsParticipantResolution");
         HumanTaskSpec spec =
                 new HumanTaskSpec(
                         List.of(
@@ -1523,6 +1558,7 @@ public abstract class WorkflowProviderContractTest {
 
     @Test
     void searchAndVersionConflictFollowContract() {
+        requireCapability(provider.capabilities().supportsSearch(), "supportsSearch");
         WorkflowDefinition v1 =
                 new WorkflowDefinition(
                         new WorkflowDefinitionId("contract", "versions"),
@@ -1562,6 +1598,16 @@ public abstract class WorkflowProviderContractTest {
     // ------------------------------------------------------------------
     // 测试工具
     // ------------------------------------------------------------------
+
+    /**
+     * 声明不支持的能力跳过对应用例。
+     *
+     * <p>契约要求调用可选能力前先查 {@link WorkflowProvider#capabilities()}，本套件按同一条规则门控； Provider
+     * 声明与实现不一致仍会在它声明支持的那部分用例里暴露。
+     */
+    protected final void requireCapability(boolean supported, String capability) {
+        Assumptions.assumeTrue(supported, () -> "provider does not support " + capability);
+    }
 
     protected static WorkflowDefinition definition(String name, StepDefinition... steps) {
         return new WorkflowDefinition(

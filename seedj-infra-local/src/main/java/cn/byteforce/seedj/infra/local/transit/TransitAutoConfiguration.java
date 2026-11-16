@@ -21,6 +21,11 @@ import org.springframework.context.annotation.Bean;
         name = "enabled",
         havingValue = "true",
         matchIfMissing = true)
+@ConditionalOnProperty(
+        prefix = "seedj.transit",
+        name = "provider",
+        havingValue = "local",
+        matchIfMissing = true)
 @EnableConfigurationProperties(TransitProperties.class)
 public class TransitAutoConfiguration {
 
