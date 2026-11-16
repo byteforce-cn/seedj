@@ -17,9 +17,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * 内存版 coord PKI：只为适配器的单元测试服务。
  *
- * <p>行为对齐真实 agent 的三条：{@code issueCert} 按 CN get-or-create、续期/轮换换新 serial、CA 未初始化时
- * {@code getCaCert} 返回空。证书与私钥是 {@code src/test/resources/pki} 下的固定 PEM（P-256），
- * 所以 PEM 解析路径也被覆盖。
+ * <p>行为对齐真实 agent 的三条：{@code issueCert} 按 CN get-or-create、续期/轮换换新 serial、CA 未初始化时 {@code
+ * getCaCert} 返回空。证书与私钥是 {@code src/test/resources/pki} 下的固定 PEM（P-256）， 所以 PEM 解析路径也被覆盖。
  */
 public final class FakePkiClient implements PkiClient {
 

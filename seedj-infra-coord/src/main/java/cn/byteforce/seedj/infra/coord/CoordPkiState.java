@@ -8,12 +8,12 @@ import java.util.Optional;
 /**
  * PKI 账本：alias → 当前身份、serial → 生命周期。
  *
- * <p>键是<b>带实例前缀的 CN</b>（{@code <prefix>:<alias>}），不是裸 alias：CN 全局唯一，裸 alias 会让同一
- * agent 上的不同部署共用一条记录。
+ * <p>键是<b>带实例前缀的 CN</b>（{@code <prefix>:<alias>}），不是裸 alias：CN 全局唯一，裸 alias 会让同一 agent
+ * 上的不同部署共用一条记录。
  *
- * <p>coord 的 PKI 只有签发/轮换，没有吊销（无 CRL/OCSP），也没有「alias → 身份」的稳定映射。这两条
- * 是 {@link cn.byteforce.seedj.pki.PkiProvider} 的承诺，所以由本模块在 coord KV 上补：写走事务读集
- * 校验（{@link CoordKvStore#replaceIf} / {@link CoordKvStore#putIfAbsent}），多实例下吊销与轮换互不覆盖。
+ * <p>coord 的 PKI 只有签发/轮换，没有吊销（无 CRL/OCSP），也没有「alias → 身份」的稳定映射。这两条 是 {@link
+ * cn.byteforce.seedj.pki.PkiProvider} 的承诺，所以由本模块在 coord KV 上补：写走事务读集 校验（{@link
+ * CoordKvStore#replaceIf} / {@link CoordKvStore#putIfAbsent}），多实例下吊销与轮换互不覆盖。
  *
  * <p>记录不是领域事件，字段随模块版本走（见 {@link CoordJson}）。
  */
@@ -53,14 +53,16 @@ final class CoordPkiState {
     /**
      * 读某个身份（CN）的当前记录。
      *
-     * <p>用 {@link CoordKvStore#readCurrent}：吊销判定决定「能不能签发」，不能建立在可能落后的
-     * {@code safe_ts} 读上。
+     * <p>用 {@link CoordKvStore#readCurrent}：吊销判定决定「能不能签发」，不能建立在可能落后的 {@code safe_ts} 读上。
      */
     Optional<AliasRecord> readAlias(String alias) {
         return retry(
                         () ->
                                 store.readCurrent(aliasKey(alias))
-                                        .map(entry -> CoordJson.read(entry.value(), AliasRecord.class)))
+                                        .map(
+                                                entry ->
+                                                        CoordJson.read(
+                                                                entry.value(), AliasRecord.class)))
                 .value();
     }
 
@@ -72,14 +74,17 @@ final class CoordPkiState {
     /**
      * 读 serial 的生命周期。
      *
-     * <p>同样走 {@link CoordKvStore#readCurrent}：吊销写在事务里，{@code safe_ts} 读可能看不到刚提交的
-     * 记录，那样 {@code revoke} 之后 {@code status} 会返回 VALID。
+     * <p>同样走 {@link CoordKvStore#readCurrent}：吊销写在事务里，{@code safe_ts} 读可能看不到刚提交的 记录，那样 {@code
+     * revoke} 之后 {@code status} 会返回 VALID。
      */
     Optional<SerialRecord> serial(String serial) {
         return retry(
                         () ->
                                 store.readCurrent(serialKey(serial))
-                                        .map(entry -> CoordJson.read(entry.value(), SerialRecord.class)))
+                                        .map(
+                                                entry ->
+                                                        CoordJson.read(
+                                                                entry.value(), SerialRecord.class)))
                 .value();
     }
 
@@ -130,22 +135,28 @@ final class CoordPkiState {
      */
     boolean revoke(String serial, RevocationReason reason, Instant at) {
         String key = serialKey(serial);
-        return retry(() -> store.replaceIf(
-                key,
-                entry -> !CoordJson.read(entry.value(), SerialRecord.class).revoked(),
-                entry -> {
-                    SerialRecord current = CoordJson.read(entry.value(), SerialRecord.class);
-                    return CoordJson.write(
-                            new SerialRecord(
-                                    current.serial(),
-                                    current.alias(),
-                                    current.cn(),
-                                    current.notBeforeMs(),
-                                    current.notAfterMs(),
-                                    true,
-                                    reason.name(),
-                                    at.toEpochMilli()));
-                }))
+        return retry(
+                        () ->
+                                store.replaceIf(
+                                        key,
+                                        entry ->
+                                                !CoordJson.read(entry.value(), SerialRecord.class)
+                                                        .revoked(),
+                                        entry -> {
+                                            SerialRecord current =
+                                                    CoordJson.read(
+                                                            entry.value(), SerialRecord.class);
+                                            return CoordJson.write(
+                                                    new SerialRecord(
+                                                            current.serial(),
+                                                            current.alias(),
+                                                            current.cn(),
+                                                            current.notBeforeMs(),
+                                                            current.notAfterMs(),
+                                                            true,
+                                                            reason.name(),
+                                                            at.toEpochMilli()));
+                                        }))
                 .value();
     }
 
@@ -161,9 +172,9 @@ final class CoordPkiState {
     /**
      * 重试 agent 的时序失败。
      *
-     * <p>coord 的 KV 读建在 {@code safe_ts} 上：刚提交的写要等 apply 追上才可读，期间 {@code TxnClient.begin()}
-     * 直接抛 {@code read_ts exceeds safe_ts}（消息里就是 {@code retry later}）。账本的所有读写都是幂等的
-     * （CAS / putIfAbsent / 带谓词的 replace），重试不会改变语义。
+     * <p>coord 的 KV 读建在 {@code safe_ts} 上：刚提交的写要等 apply 追上才可读，期间 {@code TxnClient.begin()} 直接抛
+     * {@code read_ts exceeds safe_ts}（消息里就是 {@code retry later}）。账本的所有读写都是幂等的 （CAS / putIfAbsent /
+     * 带谓词的 replace），重试不会改变语义。
      */
     private <T> Retried<T> retry(java.util.function.Supplier<T> body) {
         CoordException last = null;

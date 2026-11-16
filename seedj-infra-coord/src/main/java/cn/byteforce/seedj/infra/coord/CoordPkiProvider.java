@@ -28,11 +28,11 @@ import javax.net.ssl.SSLContext;
  * <ul>
  *   <li>coord 没有吊销列表，{@link #revoke} 只对 seedj 自己的 {@code signingIdentity}/{@link #status} 生效：
  *       调用方不会再拿到被吊销的身份，但 TLS 对端不认。
- *   <li>证书 profile 由 coord 固定（ECDSA P-256、KU {@code digitalSignature+keyEncipherment}、EKU
- *       {@code clientAuth+serverAuth}）：{@link CertificateUsage#SERVER}/{@link CertificateUsage#CLIENT}
+ *   <li>证书 profile 由 coord 固定（ECDSA P-256、KU {@code digitalSignature+keyEncipherment}、EKU {@code
+ *       clientAuth+serverAuth}）：{@link CertificateUsage#SERVER}/{@link CertificateUsage#CLIENT}
  *       拿到的是请求的超集，不是精确匹配。
- *   <li>coord 要求 CN 全局唯一且 {@code GetCertByCN} 返回私钥，所以 CN 带实例前缀（{@code <prefix>:<alias>}）；
- *       签出来的 subject 因此与调用方传入的 subject 不完全一致。
+ *   <li>coord 要求 CN 全局唯一且 {@code GetCertByCN} 返回私钥，所以 CN 带实例前缀（{@code <prefix>:<alias>}）； 签出来的
+ *       subject 因此与调用方传入的 subject 不完全一致。
  *   <li>{@link CertificateRequest#keyPair} 无法使用：coord 自己生成密钥（「密钥交付持有方」模型）。
  * </ul>
  */
@@ -94,7 +94,8 @@ final class CoordPkiProvider implements PkiProvider {
         String cn = cn(subjectCommonName(request.subject()));
         long ttl = ttlSeconds(request.validity());
         List<String> dns = request.dnsNames().isEmpty() ? List.of(dnsName(cn)) : request.dnsNames();
-        PkiCertInfo info = call("issue " + cn, () -> pki.issueCert(cn, ttl, dns, request.ipAddresses()));
+        PkiCertInfo info =
+                call("issue " + cn, () -> pki.issueCert(cn, ttl, dns, request.ipAddresses()));
         record(info, null, ttl);
         return toIssued(info);
     }
@@ -254,8 +255,7 @@ final class CoordPkiProvider implements PkiProvider {
             record(mine, alias, ttlSeconds(null));
             return toIssued(mine);
         }
-        PkiCertInfo current =
-                call("read signing identity " + alias, () -> pki.getCertByCN(cn));
+        PkiCertInfo current = call("read signing identity " + alias, () -> pki.getCertByCN(cn));
         record(current, alias, ttlSeconds(null));
         return toIssued(current);
     }
@@ -336,8 +336,8 @@ final class CoordPkiProvider implements PkiProvider {
     }
 
     /**
-     * coord 在未显式传 SAN 时会把 CN 派生为 DNS SAN，CN 不是合法 DNS 名就拒绝签发。适配器永远显式传 SAN， 所以任意
-     * alias 都能签出来；这里只负责把 CN 归一化成合法的 DNS 标签。
+     * coord 在未显式传 SAN 时会把 CN 派生为 DNS SAN，CN 不是合法 DNS 名就拒绝签发。适配器永远显式传 SAN， 所以任意 alias 都能签出来；这里只负责把
+     * CN 归一化成合法的 DNS 标签。
      */
     static String dnsName(String cn) {
         String normalized = DNS_SAFE.matcher(cn.toLowerCase(Locale.ROOT)).replaceAll("-");
@@ -351,16 +351,14 @@ final class CoordPkiProvider implements PkiProvider {
     /**
      * 调 coord 并统一映射错误。
      *
-     * <p>coord 的 PKI 存储建在 KV 上，刚写完就回读会撞上 {@code read_ts exceeds safe_ts}（agent 自己在
-     * 消息里写 {@code retry later}）。这里对<b>幂等</b>调用做有限重试；{@code rotateCert} 不是幂等的，
-     * 重试会多转一次，所以只调用一次。
+     * <p>coord 的 PKI 存储建在 KV 上，刚写完就回读会撞上 {@code read_ts exceeds safe_ts}（agent 自己在 消息里写 {@code
+     * retry later}）。这里对<b>幂等</b>调用做有限重试；{@code rotateCert} 不是幂等的， 重试会多转一次，所以只调用一次。
      */
     private <T> T call(String action, java.util.function.Supplier<T> body) {
         return call(action, true, body);
     }
 
-    private <T> T call(
-            String action, boolean idempotent, java.util.function.Supplier<T> body) {
+    private <T> T call(String action, boolean idempotent, java.util.function.Supplier<T> body) {
         for (int attempt = 1; ; attempt++) {
             try {
                 return body.get();

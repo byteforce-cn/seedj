@@ -90,8 +90,7 @@ class CoordPkiProviderTest {
         assertThat(after.serialNumber()).isNotEqualTo(before.serialNumber());
         assertThat(provider.status(before.serialNumber()))
                 .isEqualTo(PkiProvider.CertificateStatus.REVOKED);
-        assertThat(provider.signingIdentity("iam").serialNumber())
-                .isEqualTo(after.serialNumber());
+        assertThat(provider.signingIdentity("iam").serialNumber()).isEqualTo(after.serialNumber());
     }
 
     @Test
@@ -121,8 +120,7 @@ class CoordPkiProviderTest {
 
         assertThat(later.status(issued.serialNumber()))
                 .isEqualTo(PkiProvider.CertificateStatus.EXPIRED);
-        assertThat(later.status("does-not-exist"))
-                .isEqualTo(PkiProvider.CertificateStatus.UNKNOWN);
+        assertThat(later.status("does-not-exist")).isEqualTo(PkiProvider.CertificateStatus.UNKNOWN);
     }
 
     @Test
@@ -137,9 +135,7 @@ class CoordPkiProviderTest {
                         new java.security.KeyPair(null, null),
                         PkiProvider.CertificateUsage.BOTH);
 
-        assertThat(
-                        org.assertj.core.api.Assertions.catchThrowable(
-                                () -> provider.issue(request)))
+        assertThat(org.assertj.core.api.Assertions.catchThrowable(() -> provider.issue(request)))
                 .isInstanceOf(PkiException.class)
                 .extracting(e -> ((PkiException) e).getErrorCode())
                 .isEqualTo(PkiErrorCode.INVALID_REQUEST);
@@ -150,9 +146,7 @@ class CoordPkiProviderTest {
     void missingCaIsNamed() {
         pki.caInitialized(false);
 
-        assertThat(
-                        org.assertj.core.api.Assertions.catchThrowable(
-                                () -> provider.caCertificate()))
+        assertThat(org.assertj.core.api.Assertions.catchThrowable(() -> provider.caCertificate()))
                 .isInstanceOf(PkiException.class)
                 .hasMessageContaining("seedj.coord.pki.init-ca");
     }

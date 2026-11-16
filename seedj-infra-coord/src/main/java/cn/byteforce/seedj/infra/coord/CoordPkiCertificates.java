@@ -20,8 +20,8 @@ import javax.net.ssl.TrustManagerFactory;
 /**
  * coord PKI 的 PEM 材料到 JSSE 对象的转换。
  *
- * <p>coord 返回的是 PEM 文本（证书链只有叶子 + CA，私钥为 PKCS#8），seedj 的 {@code PkiProvider} 承诺的是
- * {@link X509Certificate} / {@link PrivateKey} / {@link SSLContext}。转换只做格式解析，不做信任判断。
+ * <p>coord 返回的是 PEM 文本（证书链只有叶子 + CA，私钥为 PKCS#8），seedj 的 {@code PkiProvider} 承诺的是 {@link
+ * X509Certificate} / {@link PrivateKey} / {@link SSLContext}。转换只做格式解析，不做信任判断。
  */
 final class CoordPkiCertificates {
 
@@ -36,7 +36,8 @@ final class CoordPkiCertificates {
                     factory.generateCertificate(
                             new ByteArrayInputStream(pem.getBytes(StandardCharsets.UTF_8)));
         } catch (Exception e) {
-            throw new PkiException(PkiErrorCode.INTERNAL_ERROR, "cannot parse X.509 certificate", e);
+            throw new PkiException(
+                    PkiErrorCode.INTERNAL_ERROR, "cannot parse X.509 certificate", e);
         }
     }
 
@@ -48,10 +49,10 @@ final class CoordPkiCertificates {
                             .replaceAll("\\s", "");
             byte[] der = Base64.getDecoder().decode(base64);
             String algorithm = certificate.getPublicKey().getAlgorithm();
-            return KeyFactory.getInstance(algorithm)
-                    .generatePrivate(new PKCS8EncodedKeySpec(der));
+            return KeyFactory.getInstance(algorithm).generatePrivate(new PKCS8EncodedKeySpec(der));
         } catch (Exception e) {
-            throw new PkiException(PkiErrorCode.INTERNAL_ERROR, "cannot parse PKCS#8 private key", e);
+            throw new PkiException(
+                    PkiErrorCode.INTERNAL_ERROR, "cannot parse PKCS#8 private key", e);
         }
     }
 

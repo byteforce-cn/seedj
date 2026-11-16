@@ -206,9 +206,8 @@ public final class CoordCluster implements AutoCloseable {
     /**
      * 等 KV 事务面真正可用。
      *
-     * <p>单节点 v2 集群刚起来时 {@code TxnClient.begin()} 会短暂抛 {@code read_ts exceeds safe_ts}
-     * （global apply lag）；idgen 就绪不代表 KV 就绪。生产侧这类错误映射成可重试码，夹具这里直接等它稳定，
-     * 免得每个用例各自撞一次。
+     * <p>单节点 v2 集群刚起来时 {@code TxnClient.begin()} 会短暂抛 {@code read_ts exceeds safe_ts} （global apply
+     * lag）；idgen 就绪不代表 KV 就绪。生产侧这类错误映射成可重试码，夹具这里直接等它稳定， 免得每个用例各自撞一次。
      */
     private static void awaitKv(CoordClient client) {
         long deadline = System.nanoTime() + Duration.ofSeconds(60).toNanos();
