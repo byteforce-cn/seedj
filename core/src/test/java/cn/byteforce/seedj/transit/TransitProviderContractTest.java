@@ -16,10 +16,10 @@ import org.junit.jupiter.api.Test;
  *
  * <p>覆盖 {@code package-info} 里承诺的语义：幂等、版本、context、批量、脱敏、生命周期。
  *
- * <p>能力门控：契约要求调用方在调用 <b>可选能力</b> 前先查 {@link TransitProvider#supports}（见 {@code
- * package-info} 的 {@code UNSUPPORTED_OPERATION}）。本套件按同一条规则门控——声明不支持的操作不执行对应用例，
- * 但 {@link #supportedOperationsAreDeclared} 会钉住一套最小能力，避免“全声明 false 也能过”。 没有 key 生命周期的远端
- * KMS 实现覆盖 {@link #provisionKey} 即可复用加解密/批量的用例。
+ * <p>能力门控：契约要求调用方在调用 <b>可选能力</b> 前先查 {@link TransitProvider#supports}（见 {@code package-info} 的
+ * {@code UNSUPPORTED_OPERATION}）。本套件按同一条规则门控——声明不支持的操作不执行对应用例， 但 {@link
+ * #supportedOperationsAreDeclared} 会钉住一套最小能力，避免“全声明 false 也能过”。 没有 key 生命周期的远端 KMS 实现覆盖 {@link
+ * #provisionKey} 即可复用加解密/批量的用例。
  */
 public abstract class TransitProviderContractTest {
 
@@ -69,9 +69,7 @@ public abstract class TransitProviderContractTest {
         assertThat(provider.supports(KeyType.AES256_GCM96, TransitOperation.DECRYPT))
                 .as("AES256_GCM96 DECRYPT")
                 .isTrue();
-        assertThat(provider.supports(KeyType.HMAC, TransitOperation.HMAC))
-                .as("HMAC HMAC")
-                .isTrue();
+        assertThat(provider.supports(KeyType.HMAC, TransitOperation.HMAC)).as("HMAC HMAC").isTrue();
         assertThat(provider.supports(KeyType.HMAC, TransitOperation.VERIFY_HMAC))
                 .as("HMAC VERIFY_HMAC")
                 .isTrue();
