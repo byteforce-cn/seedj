@@ -8,6 +8,7 @@ import cn.byteforce.seedj.eventbus.spi.EventConsumerStore;
 import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.lock.LockProvider;
 import cn.byteforce.seedj.numbering.Numbering;
+import cn.byteforce.seedj.pki.PkiProvider;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -15,6 +16,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.function.Supplier;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -29,6 +31,12 @@ import org.springframework.core.env.Environment;
  * 在启动期失败。
  */
 @AutoConfiguration
+@AutoConfigureBefore(
+        name = {
+            "cn.byteforce.seedj.infra.local.pki.PkiAutoConfiguration",
+            "cn.byteforce.seedj.infra.local.transit.TransitAutoConfiguration",
+            "cn.byteforce.seedj.infra.local.workflow.WorkflowAutoConfiguration"
+        })
 @ConditionalOnProperty(prefix = "seedj.coord", name = "enabled", havingValue = "true")
 @EnableConfigurationProperties(CoordProperties.class)
 public class CoordAutoConfiguration {
@@ -50,6 +58,33 @@ public class CoordAutoConfiguration {
                 client.idgen(),
                 CoordNamespaces.of(properties, environment) + ":" + properties.getId().getName(),
                 properties.getId().getBatchSize());
+    }
+
+    @Bean(destroyMethod = "close")
+    @ConditionalOnMissingBean(PkiProvider.class)
+    @ConditionalOnProperty(prefix = "seedj.pki", name = "provider", havingValue = "coord")
+    public PkiProvider coordPkiProvider(
+            CoordClient client, CoordProperties properties, Environment environment) {
+        CoordProperties.Pki pki = properties.getPki();
+        if (pki.isInitCa()) {
+            try {
+                client.pki().initCa(pki.getCaCommonName());
+            } catch (Exception e) {
+                throw new IllegalStateException(
+                        "seedj.coord.pki.init-ca=true but CA initialization failed: "
+                                + e.getMessage(),
+                        e);
+            }
+        }
+        return new CoordPkiProvider(
+                client.pki(),
+                new CoordPkiState(
+                        new CoordKvStore(client.kv(), client.tx()),
+                        CoordKeySpace.of(CoordNamespaces.of(properties, environment), "pki")),
+                CoordEndpoint.of(properties),
+                pki.getIdentityPrefix(),
+                pki.getIdentityTtl(),
+                Clock.systemUTC());
     }
 
     @Bean
@@ -194,6 +229,20 @@ public class CoordAutoConfiguration {
         }
         if (properties.getClock().getName() == null || properties.getClock().getName().isBlank()) {
             throw new IllegalStateException("seedj.coord.clock.name must not be blank");
+        }
+        CoordProperties.Pki pki = properties.getPki();
+        if (pki.getIdentityPrefix() == null
+                || !pki.getIdentityPrefix().matches("[A-Za-z0-9][A-Za-z0-9._-]*")) {
+            throw new IllegalStateException(
+                    "seedj.coord.pki.identity-prefix must match [A-Za-z0-9][A-Za-z0-9._-]*");
+        }
+        if (pki.getIdentityTtl() == null
+                || pki.getIdentityTtl().isZero()
+                || pki.getIdentityTtl().isNegative()) {
+            throw new IllegalStateException("seedj.coord.pki.identity-ttl must be positive");
+        }
+        if (pki.getCaCommonName() == null || pki.getCaCommonName().isBlank()) {
+            throw new IllegalStateException("seedj.coord.pki.ca-common-name must not be blank");
         }
         if (properties.getEventbus().getPartitions() < 1) {
             throw new IllegalStateException("seedj.coord.eventbus.partitions must be >= 1");

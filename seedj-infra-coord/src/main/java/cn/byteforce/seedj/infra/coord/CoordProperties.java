@@ -43,6 +43,7 @@ public class CoordProperties {
     private final Clock clock = new Clock();
     private final EventBus eventbus = new EventBus();
     private final Lock lock = new Lock();
+    private final Pki pki = new Pki();
 
     public boolean isEnabled() {
         return enabled;
@@ -126,6 +127,10 @@ public class CoordProperties {
 
     public Clock getClock() {
         return clock;
+    }
+
+    public Pki getPki() {
+        return pki;
     }
 
     public EventBus getEventbus() {
@@ -257,6 +262,59 @@ public class CoordProperties {
 
         public void setHolderId(String holderId) {
             this.holderId = holderId;
+        }
+    }
+
+    /** PKI 配置。 */
+    public static class Pki {
+
+        /**
+         * 证书 CN 的实例前缀：CN = {@code <prefix>:<alias>}。
+         *
+         * <p>coord 的 PKI 按 CN 全局唯一，且 {@code GetCertByCN} 返回私钥。不加前缀，同一 agent 上的两个应用
+         * 会共用一张证书；契约测试也靠它隔离状态。
+         */
+        private String identityPrefix = "seedj";
+
+        /** {@code signingIdentity} 的证书有效期。 */
+        private Duration identityTtl = Duration.ofHours(720);
+
+        /** {@code init-ca=true} 时初始化的 CA 的 CN。 */
+        private String caCommonName = "seedj-ca";
+
+        /** 装配期尝试初始化 CA（幂等）。仅 dev/test 使用：生产应让运维持有 {@code pki:ca:init}。 */
+        private boolean initCa;
+
+        public String getIdentityPrefix() {
+            return identityPrefix;
+        }
+
+        public void setIdentityPrefix(String identityPrefix) {
+            this.identityPrefix = identityPrefix;
+        }
+
+        public Duration getIdentityTtl() {
+            return identityTtl;
+        }
+
+        public void setIdentityTtl(Duration identityTtl) {
+            this.identityTtl = identityTtl;
+        }
+
+        public String getCaCommonName() {
+            return caCommonName;
+        }
+
+        public void setCaCommonName(String caCommonName) {
+            this.caCommonName = caCommonName;
+        }
+
+        public boolean isInitCa() {
+            return initCa;
+        }
+
+        public void setInitCa(boolean initCa) {
+            this.initCa = initCa;
         }
     }
 
