@@ -20,6 +20,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param message 消息配置
  * @param sync 同步配置
  * @param executor 命令执行器配置
+ * @param http HTTP 管理端点配置
  */
 @ConfigurationProperties(prefix = "seedj.im")
 public record ImProperties(
@@ -34,7 +35,8 @@ public record ImProperties(
         SessionOverflow sessionOverflow,
         Message message,
         Sync sync,
-        Executor executor) {
+        Executor executor,
+        Http http) {
 
     public static final String DEFAULT_PUSH_PROVIDER = "local";
     public static final int DEFAULT_TCP_PORT = 9090;
@@ -64,6 +66,7 @@ public record ImProperties(
         message = message == null ? new Message(null, null) : message;
         sync = sync == null ? new Sync(null, null) : sync;
         executor = executor == null ? new Executor(null, null) : executor;
+        http = http == null ? new Http(null) : http;
     }
 
     /**
@@ -72,7 +75,8 @@ public record ImProperties(
      * @return 默认配置
      */
     public static ImProperties defaults() {
-        return new ImProperties(null, null, null, null, null, null, 0, 0, null, null, null, null);
+        return new ImProperties(
+                null, null, null, null, null, null, 0, 0, null, null, null, null, null);
     }
 
     /** 总开关是否打开。 */
@@ -164,6 +168,23 @@ public record ImProperties(
             if (retention != null && (retention.isZero() || retention.isNegative())) {
                 retention = null;
             }
+        }
+    }
+
+    /**
+     * HTTP 管理端点配置。
+     *
+     * @param enabled 是否注册 {@code /im/conversations} 端点，默认 true
+     */
+    public record Http(Boolean enabled) {
+
+        public Http {
+            enabled = enabled == null ? Boolean.TRUE : enabled;
+        }
+
+        /** 是否启用 HTTP 端点。 */
+        public boolean isEnabled() {
+            return !Boolean.FALSE.equals(enabled);
         }
     }
 

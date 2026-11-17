@@ -92,7 +92,7 @@ class ImServerE2ETest {
                 assertThat(sendBody.seq()).isPositive();
                 assertThat(sendBody.conversationId()).isNotBlank();
 
-                client.send(frame(Cmd.CHAT_GROUP_REQ, 4, null));
+                client.send(frame(Cmd.CHAT_DELIVER, 4, null));
                 ImFrame unimplemented = client.next();
                 assertThat(unimplemented.cmd()).isEqualTo(Cmd.ERROR);
                 assertThat(JSON.readValue(unimplemented.body(), ErrorResp.class).code())

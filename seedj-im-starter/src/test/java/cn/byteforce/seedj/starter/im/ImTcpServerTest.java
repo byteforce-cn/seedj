@@ -116,6 +116,7 @@ class ImTcpServerTest {
                 ImProperties.SessionOverflow.REJECT,
                 null,
                 null,
+                null,
                 null);
     }
 

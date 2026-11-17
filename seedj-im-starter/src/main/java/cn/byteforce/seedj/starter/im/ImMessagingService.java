@@ -5,6 +5,7 @@ import cn.byteforce.seedj.core.exception.ContractException;
 import cn.byteforce.seedj.core.security.Caller;
 import cn.byteforce.seedj.cqrs.spi.TransactionRunner;
 import cn.byteforce.seedj.im.ImConversation;
+import cn.byteforce.seedj.im.ImConversationKind;
 import cn.byteforce.seedj.im.ImMember;
 import cn.byteforce.seedj.im.ImMessage;
 import cn.byteforce.seedj.im.ImMessageDraft;
@@ -114,10 +115,25 @@ public final class ImMessagingService {
      * @return 落库后的消息（幂等命中时是既有消息）
      */
     public ImMessage send(Caller caller, ChatSendReq request) {
+        return append(caller, request, null);
+    }
+
+    /**
+     * 在群里发送一条消息。
+     *
+     * @param caller 调用方
+     * @param request 发送请求（必须带 {@code conversation_id}）
+     * @return 落库后的消息
+     */
+    public ImMessage sendGroup(Caller caller, ChatSendReq request) {
+        return append(caller, request, ImConversationKind.GROUP);
+    }
+
+    private ImMessage append(Caller caller, ChatSendReq request, ImConversationKind required) {
         if (request == null) {
             throw new ContractException(ContractErrorCode.INVALID_PAYLOAD, "缺少发送请求体");
         }
-        ImConversation conversation = resolveConversation(caller, request);
+        ImConversation conversation = resolveConversation(caller, request, required);
         if (!policy.canSend(caller, conversation)) {
             throw new ContractException(ContractErrorCode.FORBIDDEN, "不允许在该会话发送");
         }
@@ -125,32 +141,43 @@ public final class ImMessagingService {
         Map<String, Object> body = request.body();
         requireBodyWithinLimit(body);
 
-        long seq = numbers.next();
-        ImMessageDraft draft =
-                new ImMessageDraft(
-                        UUID.randomUUID(),
-                        caller.tenantId(),
-                        conversation.id(),
-                        seq,
-                        caller.id(),
-                        kind,
-                        body,
-                        request.clientMsgId());
-
-        ImMessage stored =
-                transaction.inTransaction(
-                        () -> {
-                            ImMessage appended = messages.append(draft);
-                            if (appended.id().equals(draft.id())) {
-                                outbox.append(event(conversation, appended));
-                            }
-                            return appended;
-                        });
-
-        if (stored.id().equals(draft.id())) {
-            deliver(conversation, stored, caller.id());
+        ContractException lastConflict = null;
+        for (int attempt = 0; attempt < 2; attempt++) {
+            long seq = numbers.next();
+            ImMessageDraft draft =
+                    new ImMessageDraft(
+                            UUID.randomUUID(),
+                            caller.tenantId(),
+                            conversation.id(),
+                            seq,
+                            caller.id(),
+                            kind,
+                            body,
+                            request.clientMsgId());
+            try {
+                ImMessage stored =
+                        transaction.inTransaction(
+                                () -> {
+                                    ImMessage appended = messages.append(draft);
+                                    if (appended.id().equals(draft.id())) {
+                                        outbox.append(event(conversation, appended));
+                                    }
+                                    return appended;
+                                });
+                if (stored.id().equals(draft.id())) {
+                    deliver(conversation, stored, caller.id());
+                }
+                return stored;
+            } catch (ContractException conflict) {
+                if (conflict.code() != ContractErrorCode.VERSION_CONFLICT) {
+                    throw conflict;
+                }
+                lastConflict = conflict;
+            }
         }
-        return stored;
+        throw lastConflict == null
+                ? new ContractException(ContractErrorCode.VERSION_CONFLICT, "序号冲突")
+                : lastConflict;
     }
 
     /**
@@ -246,6 +273,20 @@ public final class ImMessagingService {
     }
 
     /**
+     * 单个会话的视图，供 HTTP 端点复用。
+     *
+     * @param caller 调用方
+     * @param conversation 会话
+     * @return 会话视图
+     */
+    public SessionSyncResp.ConversationView view(Caller caller, ImConversation conversation) {
+        return view(
+                conversation,
+                messages.maxSeq(conversation.id()),
+                cursors.readSeq(conversation.id(), caller.id()));
+    }
+
+    /**
      * 会话视图，供 HTTP 端点复用。
      *
      * @param caller 调用方
@@ -282,10 +323,20 @@ public final class ImMessagingService {
                 message.createdAt().toEpochMilli());
     }
 
-    private ImConversation resolveConversation(Caller caller, ChatSendReq request) {
+    private ImConversation resolveConversation(
+            Caller caller, ChatSendReq request, ImConversationKind required) {
         if (request.conversationId() != null && !request.conversationId().isBlank()) {
-            return conversationService.requireMemberConversation(
-                    caller, parseConversationId(request.conversationId()));
+            ImConversation conversation =
+                    conversationService.requireMemberConversation(
+                            caller, parseConversationId(request.conversationId()));
+            if (required != null && conversation.kind() != required) {
+                throw new ContractException(
+                        ContractErrorCode.INVALID_PAYLOAD, "该命令只接受 " + required + " 会话");
+            }
+            return conversation;
+        }
+        if (required == ImConversationKind.GROUP) {
+            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD, "群聊必须给 conversation_id");
         }
         if (request.peerId() == null || request.peerId().isBlank()) {
             throw new ContractException(

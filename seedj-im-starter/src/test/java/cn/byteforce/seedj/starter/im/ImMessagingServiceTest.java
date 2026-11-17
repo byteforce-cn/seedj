@@ -339,6 +339,7 @@ class ImMessagingServiceTest {
                 null,
                 new ImProperties.Message(64, null),
                 null,
+                null,
                 null);
     }
 

@@ -516,6 +516,10 @@ seedj-im-starter|cn.byteforce.seedj.starter.im.protocol.body|SessionSyncResp
 seedj-im-starter|cn.byteforce.seedj.starter.im.protocol|Cmd
 seedj-im-starter|cn.byteforce.seedj.starter.im.protocol|ImFrame
 seedj-im-starter|cn.byteforce.seedj.starter.im.protocol|ImFrames
+seedj-im-starter|cn.byteforce.seedj.starter.im.web|AddMemberRequest
+seedj-im-starter|cn.byteforce.seedj.starter.im.web|CreateConversationRequest
+seedj-im-starter|cn.byteforce.seedj.starter.im.web|ImAdminController
+seedj-im-starter|cn.byteforce.seedj.starter.im.web|ImWebAutoConfiguration
 seedj-im-starter|cn.byteforce.seedj.starter.im|EnableImServer
 seedj-im-starter|cn.byteforce.seedj.starter.im|ImAuthorizationGate
 seedj-im-starter|cn.byteforce.seedj.starter.im|ImCallContext
