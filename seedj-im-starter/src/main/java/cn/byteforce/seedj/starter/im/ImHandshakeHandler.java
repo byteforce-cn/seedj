@@ -12,8 +12,10 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.timeout.IdleStateEvent;
 import java.util.UUID;
+import java.util.concurrent.RejectedExecutionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 
 /**
  * 登录握手：{@code LOGIN_REQ} 换取 {@link Caller}，并把连接登记到 {@link ChannelRegistry}。
@@ -31,8 +33,12 @@ final class ImHandshakeHandler extends ChannelInboundHandlerAdapter {
     private final ChannelRegistry registry;
     private final ImProperties properties;
 
+    private final ObjectProvider<ImPresenceListener> presence;
+
+    private final ObjectProvider<ImSessionExecutor> executor;
+
     ImHandshakeHandler(ImCodec codec, ImJwtAuthenticator authenticator, ChannelRegistry registry) {
-        this(codec, authenticator, registry, ImProperties.defaults());
+        this(codec, authenticator, registry, ImProperties.defaults(), null, null);
     }
 
     ImHandshakeHandler(
@@ -40,10 +46,22 @@ final class ImHandshakeHandler extends ChannelInboundHandlerAdapter {
             ImJwtAuthenticator authenticator,
             ChannelRegistry registry,
             ImProperties properties) {
+        this(codec, authenticator, registry, properties, null, null);
+    }
+
+    ImHandshakeHandler(
+            ImCodec codec,
+            ImJwtAuthenticator authenticator,
+            ChannelRegistry registry,
+            ImProperties properties,
+            ObjectProvider<ImPresenceListener> presence,
+            ObjectProvider<ImSessionExecutor> executor) {
         this.codec = codec;
         this.authenticator = authenticator;
         this.registry = registry;
         this.properties = properties;
+        this.presence = presence;
+        this.executor = executor;
     }
 
     @Override
@@ -92,6 +110,9 @@ final class ImHandshakeHandler extends ChannelInboundHandlerAdapter {
         }
         ctx.channel().attr(ImAttributes.DEVICE_ID).set(deviceId);
         registry.bind(subject, ctx.channel());
+        if (registry.count(subject) == 1) {
+            notifyPresence(caller, true);
+        }
         ctx.writeAndFlush(
                 codec.resp(
                         Cmd.LOGIN_RESP,
@@ -128,8 +149,43 @@ final class ImHandshakeHandler extends ChannelInboundHandlerAdapter {
         Caller caller = ctx.channel().attr(ImAttributes.CALLER).get();
         if (caller != null) {
             registry.unbind(caller.id(), ctx.channel());
+            if (registry.count(caller.id()) == 0) {
+                notifyPresence(caller, false);
+            }
         }
         super.channelInactive(ctx);
+    }
+
+    private void notifyPresence(Caller caller, boolean online) {
+        if (presence == null) {
+            return;
+        }
+        ImPresenceListener listener = presence.getIfAvailable();
+        if (listener == null) {
+            return;
+        }
+        Runnable task =
+                () -> {
+                    try {
+                        listener.changed(caller.tenantId(), caller.id(), online);
+                    } catch (RuntimeException failure) {
+                        log.debug("IM 在线状态通知失败: {}", failure.getMessage(), failure);
+                    }
+                };
+        if (executor == null) {
+            task.run();
+            return;
+        }
+        ImSessionExecutor lanes = executor.getIfAvailable();
+        if (lanes == null) {
+            task.run();
+            return;
+        }
+        try {
+            lanes.execute(caller.id(), task);
+        } catch (RejectedExecutionException overloaded) {
+            log.debug("IM 在线状态通知被丢弃：执行器队列已满");
+        }
     }
 
     @Override

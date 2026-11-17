@@ -107,7 +107,7 @@ class ImTcpServerTest {
         return new ImProperties(
                 true,
                 ImProperties.Store.MEMORY,
-                new ImProperties.Push("local"),
+                new ImProperties.Push("local", null),
                 new ImProperties.Tcp(true, tcpPort),
                 new ImProperties.Ws(false, 0, "/ws"),
                 Duration.ofSeconds(90),

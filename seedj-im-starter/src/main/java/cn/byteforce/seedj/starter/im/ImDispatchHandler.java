@@ -13,6 +13,7 @@ import java.util.Optional;
 import java.util.concurrent.RejectedExecutionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 
 /**
  * 已握手连接的命令分发。
@@ -35,20 +36,31 @@ final class ImDispatchHandler extends SimpleChannelInboundHandler<ImFrame> {
 
     private final ImCommandRegistry registry;
 
-    private final ImSessionExecutor executor;
+    private volatile ImSessionExecutor executor;
+
+    private final ObjectProvider<ImSessionExecutor> executors;
 
     ImDispatchHandler(ImCodec codec) {
-        this(codec, new ImCommandRegistry(java.util.List.of()), null);
+        this(codec, new ImCommandRegistry(java.util.List.of()), null, null);
     }
 
     ImDispatchHandler(ImCodec codec, ImCommandRegistry registry) {
-        this(codec, registry, null);
+        this(codec, registry, null, null);
     }
 
     ImDispatchHandler(ImCodec codec, ImCommandRegistry registry, ImSessionExecutor executor) {
+        this(codec, registry, executor, null);
+    }
+
+    ImDispatchHandler(
+            ImCodec codec,
+            ImCommandRegistry registry,
+            ImSessionExecutor executor,
+            ObjectProvider<ImSessionExecutor> executors) {
         this.codec = codec;
         this.registry = registry;
         this.executor = executor;
+        this.executors = executors;
     }
 
     @Override
@@ -75,15 +87,25 @@ final class ImDispatchHandler extends SimpleChannelInboundHandler<ImFrame> {
             ctx.writeAndFlush(codec.error(frame.sequenceId(), 501, "未实现: " + frame.cmd()));
             return;
         }
-        if (executor == null) {
+        ImSessionExecutor lanes = executor();
+        if (lanes == null) {
             dispatch(ctx, frame, caller, handler.get());
             return;
         }
         try {
-            executor.execute(caller.id(), () -> dispatch(ctx, frame, caller, handler.get()));
+            lanes.execute(caller.id(), () -> dispatch(ctx, frame, caller, handler.get()));
         } catch (RejectedExecutionException overloaded) {
             ctx.writeAndFlush(codec.error(frame.sequenceId(), TOO_MANY_REQUESTS, "服务繁忙，请稍后重试"));
         }
+    }
+
+    private ImSessionExecutor executor() {
+        ImSessionExecutor resolved = executor;
+        if (resolved == null && executors != null) {
+            resolved = executors.getIfAvailable();
+            executor = resolved;
+        }
+        return resolved;
     }
 
     private void dispatch(

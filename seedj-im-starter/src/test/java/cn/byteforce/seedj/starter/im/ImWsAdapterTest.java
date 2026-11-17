@@ -226,7 +226,7 @@ class ImWsAdapterTest {
         return new ImProperties(
                 true,
                 ImProperties.Store.MEMORY,
-                new ImProperties.Push("local"),
+                new ImProperties.Push("local", null),
                 new ImProperties.Tcp(false, 0),
                 new ImProperties.Ws(true, 0, "/ws"),
                 Duration.ofSeconds(90),

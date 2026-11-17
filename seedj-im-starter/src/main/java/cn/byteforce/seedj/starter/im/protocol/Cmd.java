@@ -18,6 +18,18 @@ public final class Cmd {
     public static final byte READ_RECEIPT = 0x0D;
     public static final byte SESSION_SYNC_REQ = 0x0E;
     public static final byte SESSION_SYNC_RESP = 0x0F;
+    public static final byte RECALL_REQ = 0x10;
+    public static final byte RECALL_RESP = 0x11;
+    public static final byte EDIT_REQ = 0x12;
+    public static final byte EDIT_RESP = 0x13;
+    public static final byte CONVERSATION_LIST_REQ = 0x14;
+    public static final byte CONVERSATION_LIST_RESP = 0x15;
+    public static final byte MEMBER_LIST_REQ = 0x16;
+    public static final byte MEMBER_LIST_RESP = 0x17;
+    public static final byte TYPING = 0x18;
+    public static final byte TYPING_NOTIFY = 0x19;
+    public static final byte PRESENCE_REQ = 0x1A;
+    public static final byte PRESENCE_RESP = 0x1B;
     public static final byte ERROR = 0x7F;
 
     private Cmd() {}

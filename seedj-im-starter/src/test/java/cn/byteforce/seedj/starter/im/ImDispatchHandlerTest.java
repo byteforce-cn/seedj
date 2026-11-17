@@ -3,8 +3,10 @@ package cn.byteforce.seedj.starter.im;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import cn.byteforce.seedj.core.security.Caller;
 import cn.byteforce.seedj.starter.im.protocol.Cmd;
 import cn.byteforce.seedj.starter.im.protocol.ImFrame;
+import cn.byteforce.seedj.starter.im.protocol.body.AckReq;
 import cn.byteforce.seedj.starter.im.protocol.body.ErrorResp;
 import cn.byteforce.seedj.starter.im.protocol.body.LoginReq;
 import cn.byteforce.seedj.starter.im.protocol.body.LoginResp;
@@ -13,6 +15,10 @@ import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import io.netty.channel.embedded.EmbeddedChannel;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import org.junit.jupiter.api.DisplayName;
@@ -217,6 +223,70 @@ class ImDispatchHandlerTest {
         } finally {
             channel.finishAndReleaseAll();
         }
+    }
+
+    @Test
+    @DisplayName("装配会话执行器后，命令在 worker 线程执行，不在调用线程")
+    void dispatchRunsOnSessionExecutor() throws Exception {
+        ImSessionExecutor executor = new ImSessionExecutor(1, 16);
+        AtomicReference<String> thread = new AtomicReference<>();
+        ImCommandHandler<AckReq> handler =
+                new ImCommandHandler<>() {
+                    @Override
+                    public byte cmd() {
+                        return Cmd.ACK_REQ;
+                    }
+
+                    @Override
+                    public Class<AckReq> bodyType() {
+                        return AckReq.class;
+                    }
+
+                    @Override
+                    public ImReply handle(ImCallContext context, AckReq body) {
+                        thread.set(Thread.currentThread().getName());
+                        return ImReply.of((byte) 0x30, Map.of("ok", true));
+                    }
+                };
+        EmbeddedChannel channel =
+                new EmbeddedChannel(
+                        new ImDispatchHandler(
+                                codec, new ImCommandRegistry(List.of(handler)), executor, null));
+        try {
+            channel.attr(ImAttributes.CALLER)
+                    .set(
+                            new Caller(
+                                    "u-1",
+                                    "alice",
+                                    "default",
+                                    Set.of(),
+                                    Set.of(),
+                                    Set.of(),
+                                    Set.of("pwd"),
+                                    Caller.DEFAULT_ACR,
+                                    Map.of()));
+            channel.writeInbound(request(Cmd.ACK_REQ, new AckReq("c-1", 1), 1));
+
+            ImFrame response = await(channel);
+            assertThat(response).isNotNull();
+            assertThat(response.cmd()).isEqualTo((byte) 0x30);
+            assertThat(thread.get()).startsWith("seedj-im-session-");
+        } finally {
+            executor.close();
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    private static ImFrame await(EmbeddedChannel channel) throws InterruptedException {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        while (System.nanoTime() < deadline) {
+            ImFrame frame = channel.readOutbound();
+            if (frame != null) {
+                return frame;
+            }
+            Thread.sleep(10);
+        }
+        return null;
     }
 
     private EmbeddedChannel channel() {

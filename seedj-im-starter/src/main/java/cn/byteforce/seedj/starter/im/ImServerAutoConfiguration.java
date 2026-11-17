@@ -89,29 +89,25 @@ public class ImServerAutoConfiguration {
                 ImCodec codec,
                 ImJwtAuthenticator authenticator,
                 ChannelRegistry registry,
-                ImProperties properties) {
-            return new ImHandshakeHandler(codec, authenticator, registry, properties);
+                ImProperties properties,
+                ObjectProvider<ImPresenceListener> presence,
+                ObjectProvider<ImSessionExecutor> executor) {
+            return new ImHandshakeHandler(
+                    codec, authenticator, registry, properties, presence, executor);
         }
 
         @Bean
         @ConditionalOnMissingBean
         @ConditionalOnBean(ImJwtAuthenticator.class)
         ImDispatchHandler imDispatchHandler(
-                ImCodec codec, ObjectProvider<ImCommandRegistry> registry) {
+                ImCodec codec,
+                ObjectProvider<ImCommandRegistry> registry,
+                ObjectProvider<ImSessionExecutor> executor) {
             return new ImDispatchHandler(
                     codec,
-                    registry.getIfAvailable(() -> new ImCommandRegistry(java.util.List.of())));
-        }
-
-        @Bean
-        @ConditionalOnMissingBean(ImPushProvider.class)
-        @ConditionalOnProperty(
-                prefix = "seedj.im.push",
-                name = "provider",
-                havingValue = "local",
-                matchIfMissing = true)
-        ImPushProvider imPushProvider(ImCodec codec, ChannelRegistry registry) {
-            return new LocalPushProvider(codec, registry);
+                    registry.getIfAvailable(() -> new ImCommandRegistry(java.util.List.of())),
+                    null,
+                    executor);
         }
 
         @Bean

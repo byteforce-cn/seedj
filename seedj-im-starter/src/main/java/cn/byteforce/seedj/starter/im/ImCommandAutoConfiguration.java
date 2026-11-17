@@ -9,9 +9,15 @@ import cn.byteforce.seedj.im.spi.ImSequenceAllocator;
 import cn.byteforce.seedj.outbox.OutboxWriter;
 import cn.byteforce.seedj.starter.im.protocol.body.AckReq;
 import cn.byteforce.seedj.starter.im.protocol.body.ChatSendReq;
+import cn.byteforce.seedj.starter.im.protocol.body.ConversationListReq;
+import cn.byteforce.seedj.starter.im.protocol.body.EditReq;
+import cn.byteforce.seedj.starter.im.protocol.body.MemberListReq;
 import cn.byteforce.seedj.starter.im.protocol.body.OfflinePullReq;
+import cn.byteforce.seedj.starter.im.protocol.body.PresenceReq;
 import cn.byteforce.seedj.starter.im.protocol.body.ReadReceiptReq;
+import cn.byteforce.seedj.starter.im.protocol.body.RecallReq;
 import cn.byteforce.seedj.starter.im.protocol.body.SessionSyncReq;
+import cn.byteforce.seedj.starter.im.protocol.body.TypingReq;
 import java.time.Clock;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -125,6 +131,107 @@ public class ImCommandAutoConfiguration {
     @ConditionalOnMissingBean(name = "imSessionSyncHandler")
     ImCommandHandler<SessionSyncReq> imSessionSyncHandler(ImMessagingService messaging) {
         return new ImBuiltInHandlers.Sync(messaging);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(name = "imRecallHandler")
+    ImCommandHandler<RecallReq> imRecallHandler(ImMessagingService messaging) {
+        return new ImBuiltInHandlers.Recall(messaging);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(name = "imEditHandler")
+    ImCommandHandler<EditReq> imEditHandler(ImMessagingService messaging) {
+        return new ImBuiltInHandlers.Edit(messaging);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(name = "imConversationListHandler")
+    ImCommandHandler<ConversationListReq> imConversationListHandler(
+            ImConversationService conversations, ImMessagingService messaging) {
+        return new ImBuiltInHandlers.Conversations(conversations, messaging);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(name = "imMemberListHandler")
+    ImCommandHandler<MemberListReq> imMemberListHandler(
+            ImConversationService conversations, ImDisplayNameResolver names) {
+        return new ImBuiltInHandlers.Members(conversations, names);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(name = "imTypingHandler")
+    ImCommandHandler<TypingReq> imTypingHandler(ImTypingService typing) {
+        return new ImBuiltInHandlers.Typing(typing);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(name = "imPresenceHandler")
+    ImCommandHandler<PresenceReq> imPresenceHandler(ImPresenceService presence) {
+        return new ImBuiltInHandlers.Presence(presence);
+    }
+
+    /**
+     * 成员展示名默认实现：返回 subject。宿主覆盖这个 bean 接入 IAM 用户目录。
+     *
+     * @return 解析器
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    ImDisplayNameResolver imDisplayNameResolver() {
+        return subjectId -> subjectId;
+    }
+
+    /**
+     * 在线状态服务；没有传输层（也就没有 {@link ChannelRegistry}）时用空注册表，查询恒为离线。
+     *
+     * @param registry 连接注册表
+     * @param conversations 会话存储
+     * @param push 投递端口
+     * @return 在线状态服务
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    ImPresenceService imPresenceService(
+            ObjectProvider<ChannelRegistry> registry,
+            ImConversationStore conversations,
+            ImPushProvider push) {
+        return new ImPresenceService(
+                registry.getIfAvailable(ChannelRegistry::new), conversations, push);
+    }
+
+    /**
+     * 输入中服务。
+     *
+     * @param conversations 会话服务
+     * @param store 会话存储
+     * @param push 投递端口
+     * @param clock 取时入口
+     * @return 输入中服务
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    ImTypingService imTypingService(
+            ImConversationService conversations,
+            ImConversationStore store,
+            ImPushProvider push,
+            Clock clock) {
+        return new ImTypingService(conversations, store, push, clock);
+    }
+
+    /**
+     * 保留期清理：{@code seedj.im.message.retention} 为空时不启动调度。
+     *
+     * @param messages 消息存储
+     * @param properties IM 配置
+     * @param clock 取时入口
+     * @return 清理任务
+     */
+    @Bean(destroyMethod = "close")
+    @ConditionalOnMissingBean
+    ImRetentionCleaner imRetentionCleaner(
+            ImMessageStore messages, ImProperties properties, Clock clock) {
+        return new ImRetentionCleaner(messages, properties, clock);
     }
 
     /**

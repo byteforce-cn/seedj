@@ -14,11 +14,13 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
 import javax.sql.DataSource;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
@@ -196,6 +198,90 @@ public final class JdbcImMessageStore implements ImMessageStore {
                         conversationId,
                         afterSeq);
         return value == null ? 0L : value;
+    }
+
+    @Override
+    public ImMessage edit(UUID id, Map<String, Object> body) {
+        ImMessage current = require(id);
+        if (current.recalledAt() != null) {
+            throw rejected(id);
+        }
+        try {
+            ImMessage updated =
+                    jdbc.queryForObject(
+                            """
+                            UPDATE im_message SET body = ?::jsonb, edited_at = ?
+                            WHERE id = ? AND recalled_at IS NULL
+                            RETURNING *
+                            """,
+                            MESSAGE_MAPPER,
+                            ImJdbcJson.write(body),
+                            timestamp(clock.instant()),
+                            id);
+            return require(updated);
+        } catch (EmptyResultDataAccessException raced) {
+            ImMessage reread = require(id);
+            if (reread.recalledAt() != null) {
+                throw rejected(id);
+            }
+            throw raced;
+        }
+    }
+
+    @Override
+    public ImMessage recall(UUID id) {
+        try {
+            ImMessage updated =
+                    jdbc.queryForObject(
+                            """
+                            UPDATE im_message SET recalled_at = ?
+                            WHERE id = ? AND recalled_at IS NULL
+                            RETURNING *
+                            """,
+                            MESSAGE_MAPPER,
+                            timestamp(clock.instant()),
+                            id);
+            return require(updated);
+        } catch (EmptyResultDataAccessException raced) {
+            return require(id);
+        }
+    }
+
+    @Override
+    public int deleteBefore(Instant cutoff, int limit) {
+        if (cutoff == null) {
+            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD, "cutoff 不能为空");
+        }
+        return jdbc.update(
+                """
+                DELETE FROM im_message WHERE id IN (
+                    SELECT id FROM im_message WHERE created_at < ? ORDER BY created_at LIMIT ?
+                )
+                """,
+                timestamp(cutoff),
+                requireLimit(limit));
+    }
+
+    private ImMessage require(UUID id) {
+        return find(id)
+                .orElseThrow(
+                        () ->
+                                new ContractException(
+                                        ContractErrorCode.OBJECT_NOT_FOUND,
+                                        "message not found: " + id));
+    }
+
+    private static ImMessage require(ImMessage message) {
+        if (message == null) {
+            throw new ContractException(
+                    ContractErrorCode.INTERNAL_ERROR, "message update returned no row");
+        }
+        return message;
+    }
+
+    private static ContractException rejected(UUID id) {
+        return new ContractException(
+                ContractErrorCode.COMMAND_REJECTED, "已撤回的消息不能编辑: " + id);
     }
 
     private static int requireLimit(int limit) {

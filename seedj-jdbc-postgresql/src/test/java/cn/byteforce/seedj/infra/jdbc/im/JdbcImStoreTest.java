@@ -327,6 +327,69 @@ class JdbcImStoreTest {
         return jdbc.queryForObject("SELECT to_regclass(?)::text", String.class, name);
     }
 
+    @Test
+    @DisplayName("编辑改正文但保留序号与创建时间，撤回置时间且幂等")
+    void editAndRecallMessage() {
+        UUID conversationId = UUID.randomUUID();
+        ImMessage original = messages.append(draft(conversationId, 1, "c-1"));
+
+        clock.advance(Duration.ofMinutes(1));
+        ImMessage edited = messages.edit(original.id(), Map.of("text", "改过"));
+        assertThat(edited.body()).containsEntry("text", "改过");
+        assertThat(edited.seq()).isEqualTo(original.seq());
+        assertThat(edited.createdAt()).isEqualTo(original.createdAt());
+        assertThat(edited.editedAt()).isEqualTo(clock.instant());
+
+        clock.advance(Duration.ofMinutes(1));
+        ImMessage recalled = messages.recall(original.id());
+        assertThat(recalled.recalledAt()).isEqualTo(clock.instant());
+        assertThat(recalled.body()).containsEntry("text", "改过");
+        assertThat(messages.page(conversationId, 0, 10)).containsExactly(recalled);
+
+        clock.advance(Duration.ofMinutes(1));
+        assertThat(messages.recall(original.id()).recalledAt()).isEqualTo(recalled.recalledAt());
+    }
+
+    @Test
+    @DisplayName("已撤回消息不可编辑；编辑不存在或已撤回的消息被拒绝")
+    void editRejectsRecalledAndMissing() {
+        UUID conversationId = UUID.randomUUID();
+        ImMessage message = messages.append(draft(conversationId, 1, "c-1"));
+        messages.recall(message.id());
+
+        assertThatThrownBy(() -> messages.edit(message.id(), Map.of("text", "x")))
+                .isInstanceOf(ContractException.class)
+                .extracting(error -> ((ContractException) error).code())
+                .isEqualTo(ContractErrorCode.COMMAND_REJECTED);
+        assertThatThrownBy(() -> messages.edit(UUID.randomUUID(), Map.of("text", "x")))
+                .isInstanceOf(ContractException.class)
+                .extracting(error -> ((ContractException) error).code())
+                .isEqualTo(ContractErrorCode.OBJECT_NOT_FOUND);
+        assertThatThrownBy(() -> messages.recall(UUID.randomUUID()))
+                .isInstanceOf(ContractException.class)
+                .extracting(error -> ((ContractException) error).code())
+                .isEqualTo(ContractErrorCode.OBJECT_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("保留期删除只删游标之前的消息，并按上限分批")
+    void deleteBeforeOnlyRemovesExpiredMessages() {
+        UUID conversationId = UUID.randomUUID();
+        ImMessage first = messages.append(draft(conversationId, 1, "c-1"));
+        messages.append(draft(conversationId, 2, "c-2"));
+        messages.append(draft(conversationId, 3, "c-3"));
+
+        clock.advance(Duration.ofHours(2));
+        ImMessage recent = messages.append(draft(conversationId, 4, "c-4"));
+        Instant cutoff = clock.instant().minus(Duration.ofHours(1));
+
+        assertThat(messages.deleteBefore(cutoff, 2)).isEqualTo(2);
+        assertThat(messages.find(first.id())).isEmpty();
+        assertThat(messages.deleteBefore(cutoff, 10)).isEqualTo(1);
+        assertThat(messages.page(conversationId, 0, 10)).containsExactly(recent);
+        assertThat(messages.deleteBefore(cutoff, 10)).isZero();
+    }
+
     /** 可推进的测试时钟：固定时刻起步，按需前进。 */
     private static final class MutableClock extends Clock {
 
