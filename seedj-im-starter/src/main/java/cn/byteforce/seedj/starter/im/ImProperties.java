@@ -19,6 +19,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param sessionOverflow 超出会话上限时的行为，默认拒绝新连接
  * @param message 消息配置
  * @param sync 同步配置
+ * @param executor 命令执行器配置
  */
 @ConfigurationProperties(prefix = "seedj.im")
 public record ImProperties(
@@ -32,7 +33,8 @@ public record ImProperties(
         int maxSessionsPerUser,
         SessionOverflow sessionOverflow,
         Message message,
-        Sync sync) {
+        Sync sync,
+        Executor executor) {
 
     public static final String DEFAULT_PUSH_PROVIDER = "local";
     public static final int DEFAULT_TCP_PORT = 9090;
@@ -61,6 +63,7 @@ public record ImProperties(
         sessionOverflow = sessionOverflow == null ? SessionOverflow.REJECT : sessionOverflow;
         message = message == null ? new Message(null, null) : message;
         sync = sync == null ? new Sync(null, null) : sync;
+        executor = executor == null ? new Executor(null, null) : executor;
     }
 
     /**
@@ -69,7 +72,7 @@ public record ImProperties(
      * @return 默认配置
      */
     public static ImProperties defaults() {
-        return new ImProperties(null, null, null, null, null, null, 0, 0, null, null, null);
+        return new ImProperties(null, null, null, null, null, null, 0, 0, null, null, null, null);
     }
 
     /** 总开关是否打开。 */
@@ -161,6 +164,26 @@ public record ImProperties(
             if (retention != null && (retention.isZero() || retention.isNegative())) {
                 retention = null;
             }
+        }
+    }
+
+    /**
+     * 命令执行器配置：命令处理在 Netty IO 线程之外执行，按调用方分流。
+     *
+     * @param threads 泳道数，默认 4（每条泳道单线程，跨泳道并行）
+     * @param queueCapacity 每条泳道的队列容量，默认 4096；满时回 {@code 429}
+     */
+    public record Executor(Integer threads, Integer queueCapacity) {
+
+        public static final int DEFAULT_THREADS = 4;
+
+        public static final int DEFAULT_QUEUE_CAPACITY = 4096;
+
+        public Executor {
+            int lanes = threads == null ? DEFAULT_THREADS : threads;
+            threads = lanes <= 0 ? DEFAULT_THREADS : lanes;
+            int capacity = queueCapacity == null ? DEFAULT_QUEUE_CAPACITY : queueCapacity;
+            queueCapacity = capacity <= 0 ? DEFAULT_QUEUE_CAPACITY : capacity;
         }
     }
 

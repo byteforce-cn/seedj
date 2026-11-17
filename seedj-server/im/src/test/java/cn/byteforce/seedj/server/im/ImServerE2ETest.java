@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import cn.byteforce.seedj.starter.im.protocol.Cmd;
 import cn.byteforce.seedj.starter.im.protocol.ImFrame;
 import cn.byteforce.seedj.starter.im.protocol.ImFrames;
+import cn.byteforce.seedj.starter.im.protocol.body.ChatSendReq;
+import cn.byteforce.seedj.starter.im.protocol.body.ChatSendResp;
 import cn.byteforce.seedj.starter.im.protocol.body.ErrorResp;
 import cn.byteforce.seedj.starter.im.protocol.body.LoginReq;
 import cn.byteforce.seedj.starter.im.protocol.body.LoginResp;
@@ -26,6 +28,7 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -78,7 +81,18 @@ class ImServerE2ETest {
                 client.send(frame(Cmd.HEARTBEAT_PING, 2, null));
                 assertThat(client.next().cmd()).isEqualTo(Cmd.HEARTBEAT_PONG);
 
-                client.send(frame(Cmd.CHAT_SINGLE_REQ, 3, null));
+                client.send(
+                        frame(
+                                Cmd.CHAT_SINGLE_REQ,
+                                3,
+                                new ChatSendReq("c-1", null, "u-2", "TEXT", Map.of("text", "hi"))));
+                ImFrame sent = client.next();
+                assertThat(sent.cmd()).isEqualTo(Cmd.CHAT_SINGLE_RESP);
+                ChatSendResp sendBody = JSON.readValue(sent.body(), ChatSendResp.class);
+                assertThat(sendBody.seq()).isPositive();
+                assertThat(sendBody.conversationId()).isNotBlank();
+
+                client.send(frame(Cmd.CHAT_GROUP_REQ, 4, null));
                 ImFrame unimplemented = client.next();
                 assertThat(unimplemented.cmd()).isEqualTo(Cmd.ERROR);
                 assertThat(JSON.readValue(unimplemented.body(), ErrorResp.class).code())
