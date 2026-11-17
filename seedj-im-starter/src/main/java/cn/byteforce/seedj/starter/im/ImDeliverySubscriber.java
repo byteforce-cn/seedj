@@ -62,6 +62,9 @@ final class ImDeliverySubscriber implements EventSubscriber<ImDeliveryEvent> {
         }
         ImMessage found = message.get();
         if (cmd == Cmd.EDIT_REQ) {
+            if (found.recalledAt() != null) {
+                return;
+            }
             local.deliverMany(event.recipients(), cmd, editNotice(found));
         } else {
             local.deliverMany(event.recipients(), cmd, messaging.toDeliver(found));

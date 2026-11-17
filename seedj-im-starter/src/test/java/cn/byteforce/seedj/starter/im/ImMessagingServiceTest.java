@@ -493,11 +493,43 @@ class ImMessagingServiceTest {
                 .extracting(error -> ((ContractException) error).code())
                 .isEqualTo(ContractErrorCode.INVALID_PAYLOAD);
 
+        assertThatThrownBy(
+                        () ->
+                                messaging.send(
+                                        alice,
+                                        new ChatSendReq(
+                                                "a-4",
+                                                null,
+                                                "u-2",
+                                                "FILE",
+                                                Map.of("key", "k", "size", 1.5))))
+                .isInstanceOf(ContractException.class)
+                .extracting(error -> ((ContractException) error).code())
+                .isEqualTo(ContractErrorCode.INVALID_PAYLOAD);
+        assertThatThrownBy(
+                        () ->
+                                messaging.send(
+                                        alice,
+                                        new ChatSendReq(
+                                                "a-5",
+                                                null,
+                                                "u-2",
+                                                "FILE",
+                                                Map.of(
+                                                        "key",
+                                                        "k",
+                                                        "size",
+                                                        new java.math.BigInteger(
+                                                                "18446744073709551616")))))
+                .isInstanceOf(ContractException.class)
+                .extracting(error -> ((ContractException) error).code())
+                .isEqualTo(ContractErrorCode.INVALID_PAYLOAD);
+
         ImMessage attached =
                 messaging.send(
                         alice,
                         new ChatSendReq(
-                                "a-4", null, "u-2", "FILE", Map.of("key", "k", "size", "1024")));
+                                "a-6", null, "u-2", "FILE", Map.of("key", "k", "size", "1024")));
         assertThat(attached.kind()).isEqualTo(ImMessageKind.FILE);
     }
 

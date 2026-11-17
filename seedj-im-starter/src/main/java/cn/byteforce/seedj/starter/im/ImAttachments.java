@@ -3,6 +3,7 @@ package cn.byteforce.seedj.starter.im;
 import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;
 import cn.byteforce.seedj.im.ImMessageKind;
+import java.math.BigDecimal;
 import java.util.Map;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -48,7 +49,11 @@ final class ImAttachments {
 
     private static long bytes(Object declaredSize) {
         if (declaredSize instanceof Number number) {
-            return number.longValue();
+            try {
+                return new BigDecimal(number.toString()).longValueExact();
+            } catch (NumberFormatException | ArithmeticException notAnInteger) {
+                throw invalid(declaredSize);
+            }
         }
         if (declaredSize instanceof String text && text.strip().matches("\\d+")) {
             try {

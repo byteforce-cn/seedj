@@ -22,6 +22,7 @@ import cn.byteforce.seedj.starter.im.protocol.body.ChatDeliver;
 import cn.byteforce.seedj.starter.im.protocol.body.ChatSendReq;
 import cn.byteforce.seedj.starter.im.protocol.body.EditNotify;
 import cn.byteforce.seedj.starter.im.protocol.body.EditReq;
+import cn.byteforce.seedj.starter.im.protocol.body.RecallReq;
 import cn.byteforce.seedj.starter.im.protocol.body.ReadReceiptReq;
 import java.time.Clock;
 import java.time.Instant;
@@ -176,6 +177,46 @@ class ImCoordPushTest {
 
         EditNotify reloaded = (EditNotify) local.details().get(0).body();
         assertThat(reloaded.body()).containsEntry("text", "改过");
+    }
+
+    @Test
+    @DisplayName("异步重投的编辑事件不会把已撤回的正文再推出去")
+    void editEventAfterRecallLeaksNothing() {
+        ChatDeliver deliver = deliver("u-1", "u-2");
+        local.clear();
+        ImMessage edited =
+                messaging.edit(
+                        caller("u-1"),
+                        new EditReq(
+                                deliver.conversationId(),
+                                deliver.messageId(),
+                                Map.of("text", "改过")));
+        assertThat(edited.editedAt()).isNotNull();
+        messaging.recall(
+                caller("u-1"), new RecallReq(deliver.conversationId(), deliver.messageId()));
+        local.clear();
+
+        ImDeliverySubscriber subscriber = coord.subscriber(messaging, messages);
+        subscriber.onEvent(
+                envelope(
+                        new ImDeliveryEvent(
+                                "node-b",
+                                Byte.toUnsignedInt(Cmd.EDIT_REQ),
+                                List.of("u-2"),
+                                deliver.messageId(),
+                                Map.of())));
+
+        assertThat(local.details()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("未编辑的消息序列化不出现 edited_at/recalled_at")
+    void uneditedDeliveryKeepsWireShape() {
+        ChatDeliver deliver = deliver("u-1", "u-2");
+
+        String json = JSON.writeValueAsString(deliver);
+
+        assertThat(json).doesNotContain("edited_at").doesNotContain("recalled_at");
     }
 
     @Test

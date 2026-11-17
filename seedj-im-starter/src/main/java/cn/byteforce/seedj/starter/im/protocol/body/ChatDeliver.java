@@ -1,5 +1,6 @@
 package cn.byteforce.seedj.starter.im.protocol.body;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import tools.jackson.databind.PropertyNamingStrategies;
@@ -19,6 +20,7 @@ import tools.jackson.databind.annotation.JsonNaming;
  * @param recalledAt 撤回时间（epoch 毫秒）；{@code null} 表示未撤回。已撤回时 {@code body} 为空
  */
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public record ChatDeliver(
         String messageId,
         String conversationId,
