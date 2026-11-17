@@ -33,6 +33,19 @@
   `send` 遇到序号冲突重试一次。
 - IM HTTP 管理端点（`seedj.im.http.enabled`，默认开）：建单聊/群聊、列会话、加人、退群，授权沿用
   会话服务（租户 + 成员 + 策略）。
+- `ImMessageStore` 追加 `edit` / `recall` / `deleteBefore`（SPI，1.0 前仍可调整）；memory 与 jdbc
+  两套实现同步落地，jdbc 追加 `idx_im_message_created` 迁移（V4）。
+- IM 增强（P4）：撤回 `RECALL_REQ` / 编辑 `EDIT_REQ`（本人或群主/管理员撤回，已撤回不可编辑，
+  投递/补拉视图清空正文并带 `edited_at` / `recalled_at`）、会话列表 `0x14`、成员列表 `0x16`
+  （支持 `at_seq` 时点成员与 `ImDisplayNameResolver`）、输入中 `0x18`（2 秒节流）、在线状态
+  `0x1A`（节点内视图，变化通知只发给单聊对端）。
+- IM 附件引用：`IMAGE` / `FILE` 的 body 必须带 `key`，`size` 不超过
+  `seedj.im.message.max-attachment-bytes`；二进制上传仍归宿主。
+- IM 保留期清理：`seedj.im.message.retention` 非空时按 `retention-sweep` / `retention-batch`
+  分批删除到期消息，调度失败只记日志、下轮重试。
+- IM 跨节点投递：`seedj.im.push.provider=coord` 经 outbox + EventBus 广播投递意向（只带
+  `message_id`，不带正文），其它节点按 id 回读消息后投给本节点连接；订阅组按
+  `seedj.im.push.node-id` 区分（空则进程随机，生产建议显式配置）。
 - `seedj-it` 的 coord 端到端：`CoordIT` 在真 coord v2 集群（server + agent 容器）上验证 ID、编号、
   全局序列、分布式锁、EventBus 发布/消费与「重试 → 死信」，并核对 coord 侧 topic 与消息。
 - 开发者文档站（`docs/`，VitePress）与 GitHub Pages 发布。
@@ -40,7 +53,11 @@
 
 ### Changed
 
-- README 改为公开仓门面：可复制的快速开始、业务改动示例与模块表。
+- IM 命令真正由 `ImSessionExecutor` 执行：Spring 装配下命令离开 Netty IO 线程（队列满回 `429`），
+  此前文档声明的线程模型与实现不一致。
+- IM 配置 `seedj.im.message.*` 的嵌套绑定修复：`ImProperties.Message` 只保留 record 规范构造器，
+  避免 Spring 构造器绑定静默放弃整个 message 配置块。
+- `README` 改为公开仓门面：可复制的快速开始、业务改动示例与模块表。
 - 源码树中的文档引用全部指向仓内 `docs/`；架构决策不再出现在公开树。
 
 ### Fixed
