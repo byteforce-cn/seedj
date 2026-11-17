@@ -106,12 +106,16 @@ class ImTcpServerTest {
     private static ImProperties properties(int maxFrameLength, int tcpPort) {
         return new ImProperties(
                 true,
+                ImProperties.Store.MEMORY,
                 new ImProperties.Push("local"),
                 new ImProperties.Tcp(true, tcpPort),
                 new ImProperties.Ws(false, 0, "/ws"),
                 Duration.ofSeconds(90),
                 maxFrameLength,
-                1000);
+                1000,
+                ImProperties.SessionOverflow.REJECT,
+                null,
+                null);
     }
 
     private static byte[] oversizedHeader(int bodyLength) {

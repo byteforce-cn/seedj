@@ -1,5 +1,6 @@
 package cn.byteforce.seedj.starter.im;
 
+import cn.byteforce.seedj.core.exception.ContractException;
 import cn.byteforce.seedj.core.security.Caller;
 import cn.byteforce.seedj.starter.im.protocol.Cmd;
 import cn.byteforce.seedj.starter.im.protocol.ImFrame;
@@ -8,19 +9,36 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import java.util.Map;
+import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * 已握手连接的命令分发。
  *
- * <p>本阶段只实现心跳；业务命令一律回 501，未登录回 401 并关闭。无状态，可共享。
+ * <p>心跳与登录在这里处理，其余命令字按 {@link ImCommandRegistry} 查表；未注册的命令字回 {@code 501}，未登录一律 {@code 401}
+ * 并关闭。无状态，可共享。
+ *
+ * <p>处理器抛出的 {@code ContractException} 映射成协议错误码（沿用契约层的 HTTP 语义）， 其它异常统一 {@code 500}，细节只进日志。
  */
 @ChannelHandler.Sharable
 final class ImDispatchHandler extends SimpleChannelInboundHandler<ImFrame> {
 
+    private static final Logger log = LoggerFactory.getLogger(ImDispatchHandler.class);
+
+    private static final int INTERNAL_ERROR = 500;
+
     private final ImCodec codec;
 
+    private final ImCommandRegistry registry;
+
     ImDispatchHandler(ImCodec codec) {
+        this(codec, new ImCommandRegistry(java.util.List.of()));
+    }
+
+    ImDispatchHandler(ImCodec codec, ImCommandRegistry registry) {
         this.codec = codec;
+        this.registry = registry;
     }
 
     @Override
@@ -42,6 +60,39 @@ final class ImDispatchHandler extends SimpleChannelInboundHandler<ImFrame> {
                     .addListener(ChannelFutureListener.CLOSE);
             return;
         }
-        ctx.writeAndFlush(codec.error(frame.sequenceId(), 501, "未实现: " + frame.cmd()));
+        Optional<ImCommandHandler<?>> handler = registry.find(frame.cmd());
+        if (handler.isEmpty()) {
+            ctx.writeAndFlush(codec.error(frame.sequenceId(), 501, "未实现: " + frame.cmd()));
+            return;
+        }
+        ImCallContext context =
+                new ImCallContext(
+                        caller,
+                        ctx.channel().attr(ImAttributes.DEVICE_ID).get(),
+                        frame.sequenceId(),
+                        (notification, body) ->
+                                ctx.writeAndFlush(codec.notify(notification, body)));
+        try {
+            ImReply reply = invoke(handler.get(), context, frame);
+            if (reply != null) {
+                ctx.writeAndFlush(codec.resp(reply.cmd(), frame.sequenceId(), reply.body()));
+            }
+        } catch (ContractException rejected) {
+            ctx.writeAndFlush(
+                    codec.error(
+                            frame.sequenceId(),
+                            rejected.code().httpStatus(),
+                            rejected.getMessage()));
+        } catch (RuntimeException failure) {
+            log.warn("IM 命令处理失败: cmd={}", frame.cmd(), failure);
+            ctx.writeAndFlush(codec.error(frame.sequenceId(), INTERNAL_ERROR, "内部错误"));
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private ImReply invoke(ImCommandHandler<?> handler, ImCallContext context, ImFrame frame) {
+        ImCommandHandler<Object> typed = (ImCommandHandler<Object>) handler;
+        Object body = frame.body().length == 0 ? null : codec.decode(frame, typed.bodyType());
+        return typed.handle(context, body);
     }
 }

@@ -3,7 +3,8 @@
 `seedj-im-starter` 把 IM 长连接接进 seedj 基座：帧协议、Netty TCP/WebSocket 传输、IAM JWT
 握手与在线连接注册表。宿主只留一个 `@EnableImServer`。
 
-> 当前是阶段 1：登录、心跳、未实现命令回 `501`。业务对象、单聊/群聊、历史补拉在后续阶段。
+> 当前是阶段 2 骨架：登录、心跳、命令分发与两套存储（内存 / PostgreSQL）。单聊、群聊、历史补拉、
+> 已读回执的协议语义在阶段 3 落地；未注册的命令字仍回 `501`。
 
 ## 依赖与启用
 
@@ -43,8 +44,9 @@ seedj:
 
 | 键 | 默认值 | 说明 |
 |---|---|---|
-| `seedj.im.enabled` | `true` | 总开关 |
-| `seedj.im.push.provider` | `local` | 推送提供方；`redis` 留给后续阶段 |
+| `seedj.im.enabled` | `true` | 总开关；关掉后传输、存储、HTTP 全部不生效 |
+| `seedj.im.store` | `memory` | 存储：`memory` 进程内，`jdbc` PostgreSQL |
+| `seedj.im.push.provider` | `local` | 推送提供方；跨节点广播留给后续阶段 |
 | `seedj.im.tcp.enabled` | `true` | 是否监听 TCP |
 | `seedj.im.tcp.port` | `9090` | TCP 端口；测试通常填 `0` |
 | `seedj.im.ws.enabled` | `true` | 是否监听 WebSocket |
@@ -52,7 +54,12 @@ seedj:
 | `seedj.im.ws.path` | `/ws` | WebSocket 握手路径 |
 | `seedj.im.heartbeat-timeout` | `90s` | 读空闲超时，超时关闭连接 |
 | `seedj.im.max-frame-length` | `1048576` | 单帧 body 上限；超限直接关闭连接 |
-| `seedj.im.max-sessions-per-user` | `1000` | 预留：单用户会话数上限（阶段 2 入群校验）；本期不强制 |
+| `seedj.im.max-sessions-per-user` | `1000` | 单用户会话数上限（登录时生效） |
+| `seedj.im.session-overflow` | `reject` | 超限行为：`reject` 回 `429` 并关闭；`evict-oldest` 先关最早连接 |
+| `seedj.im.message.max-body-bytes` | `65536` | 单条消息体上限，超限拒绝 |
+| `seedj.im.message.retention` | 空 | 消息保留期（例 `P180D`）；空表示永久，清理任务尚未落地 |
+| `seedj.im.sync.page-size` | `200` | 单次增量拉取最大条数 |
+| `seedj.im.sync.replay-history` | `false` | 入群前历史是否回放 |
 
 ## 本地跑起来
 
@@ -97,6 +104,45 @@ SEEDJ_IAM_ISSUER=http://localhost:9000 \
 `local` profile 排除数据源自动配置，命令/对象/锁用内存实现，审计/outbox/eventbus 关闭。
 生产环境用 `postgres` profile 配置数据源。
 
+## 存储
+
+`seedj.im.store` 是唯一开关，两套实现的语义由同一份契约测试约束：
+
+| 模式 | 表/结构 | 适用 |
+|---|---|---|
+| `memory` | 进程内映射与计数器 | 本地开发、单实例测试；重启即丢 |
+| `jdbc` | `im_conversation`、`im_conversation_member`、`im_conversation_event`、`im_message`、`im_read_cursor`、`im_sync_cursor` 与序列 `im_seq` | 生产 |
+
+`jdbc` 模式在启动期通过 `ImSchemaCapability`（迁移 scope `im`，能力序号 220）建表，缺
+`DataSource` 时直接启动失败并提示改 `spring.datasource` 或回 `seedj.im.store=memory`——不会
+静默退回内存。
+
+成员是「任期」而不是一行一人：入群插一行、退群写 `left_seq`，因此「某个序号时谁在群里」是一次
+区间比较。消息序号来自全局序列，**单调但不连续**，客户端必须容忍缺号。
+
+## 命令扩展
+
+宿主注册一个 `ImCommandHandler` bean 就能新增命令字，不用改 starter，也不用 fork 分发逻辑：
+
+```java
+@Bean
+ImCommandHandler<MyBody> myCommand() {
+    return new ImCommandHandler<>() {
+        public byte cmd() { return (byte) 0x30; }
+        public Class<MyBody> bodyType() { return MyBody.class; }
+        public ImReply handle(ImCallContext context, MyBody body) {
+            context.notify(Cmd.READ_RECEIPT, Map.of("seq", 1));   // 主动通知，序号 0
+            return ImReply.of((byte) 0x31, Map.of("ok", true));   // 回包，序号原样带回
+        }
+    };
+}
+```
+
+- 同一命令字注册两次是启动失败，不静默覆盖。
+- 处理器抛 `ContractException` 时按契约语义映射成协议码（403/404/409…），其它异常统一 `500`，
+  细节只进日志。
+- 未注册的命令字仍回 `501`，连接保持。
+
 ## 帧格式
 
 帧头固定 16 字节、大端：
@@ -134,8 +180,10 @@ UUID）。
 登录请求的 body：
 
 ```json
-{"access_token":"<IAM 访问令牌>"}
+{"access_token":"<IAM 访问令牌>","device_id":"<设备标识，可省略>"}
 ```
+
+`device_id` 缺省时服务端按连接生成，用于多端已读与同步游标；省略不影响登录。
 
 成功响应：
 

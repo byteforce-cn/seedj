@@ -63,7 +63,7 @@ class ImDispatchHandlerTest {
     void loginWithBadTokenReplies401AndCloses() {
         EmbeddedChannel channel = channel();
         try {
-            channel.writeInbound(request(Cmd.LOGIN_REQ, new LoginReq("not-a-jwt"), 8));
+            channel.writeInbound(request(Cmd.LOGIN_REQ, new LoginReq("not-a-jwt", "dev-1"), 8));
 
             ImFrame response = channel.readOutbound();
             assertThat(response.cmd()).isEqualTo(Cmd.ERROR);
@@ -82,7 +82,7 @@ class ImDispatchHandlerTest {
     void missingAccessTokenReplies401AndLeavesRegistryEmpty() {
         EmbeddedChannel channel = channel();
         try {
-            channel.writeInbound(request(Cmd.LOGIN_REQ, new LoginReq("  "), 9));
+            channel.writeInbound(request(Cmd.LOGIN_REQ, new LoginReq("  ", "dev-1"), 9));
 
             ImFrame response = channel.readOutbound();
             assertThat(response.cmd()).isEqualTo(Cmd.ERROR);
@@ -104,7 +104,9 @@ class ImDispatchHandlerTest {
             channel.writeInbound(
                     request(
                             Cmd.LOGIN_REQ,
-                            new LoginReq(token("alice", "u-1", Instant.now().minusSeconds(300))),
+                            new LoginReq(
+                                    token("alice", "u-1", Instant.now().minusSeconds(300)),
+                                    "dev-1"),
                             14));
 
             ImFrame response = channel.readOutbound();
@@ -224,7 +226,7 @@ class ImDispatchHandlerTest {
     }
 
     private ImFrame loginRequest(String token, int sequenceId) {
-        return request(Cmd.LOGIN_REQ, new LoginReq(token), sequenceId);
+        return request(Cmd.LOGIN_REQ, new LoginReq(token, "dev-1"), sequenceId);
     }
 
     private ImFrame request(byte cmd, Object body, int sequenceId) {

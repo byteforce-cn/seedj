@@ -158,7 +158,8 @@ class ImWsAdapterTest {
 
             socket.sendBinary(
                             ByteBuffer.wrap(
-                                    frameBytes(Cmd.LOGIN_REQ, 1, new LoginReq(validToken()))),
+                                    frameBytes(
+                                            Cmd.LOGIN_REQ, 1, new LoginReq(validToken(), "dev-1"))),
                             true)
                     .join();
             ImFrame login = received.poll(5, TimeUnit.SECONDS);
@@ -224,11 +225,15 @@ class ImWsAdapterTest {
     private static ImProperties properties() {
         return new ImProperties(
                 true,
+                ImProperties.Store.MEMORY,
                 new ImProperties.Push("local"),
                 new ImProperties.Tcp(false, 0),
                 new ImProperties.Ws(true, 0, "/ws"),
                 Duration.ofSeconds(90),
                 1024,
-                1000);
+                1000,
+                ImProperties.SessionOverflow.REJECT,
+                null,
+                null);
     }
 }

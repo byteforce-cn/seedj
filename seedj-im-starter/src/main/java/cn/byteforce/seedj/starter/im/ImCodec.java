@@ -18,6 +18,8 @@ final class ImCodec {
     private static final byte SERIALIZE_TYPE_JSON = 1;
     private static final byte MSG_TYPE_RESPONSE = 1;
 
+    private static final byte MSG_TYPE_NOTIFY = 2;
+
     private final JsonMapper mapper;
 
     ImCodec() {
@@ -45,6 +47,11 @@ final class ImCodec {
                 MSG_TYPE_RESPONSE,
                 sequenceId,
                 write(body));
+    }
+
+    ImFrame notify(byte cmd, Object body) {
+        return new ImFrame(
+                ImFrames.MAGIC, VERSION, SERIALIZE_TYPE_JSON, cmd, MSG_TYPE_NOTIFY, 0, write(body));
     }
 
     ImFrame error(int sequenceId, int code, String message) {
