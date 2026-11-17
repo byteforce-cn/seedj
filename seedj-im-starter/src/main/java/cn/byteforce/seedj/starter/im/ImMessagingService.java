@@ -271,7 +271,7 @@ public final class ImMessagingService {
                                         outbox.append(
                                                 event(
                                                         EVENT_TYPE,
-                                                        messageOutboxId(appended),
+                                                        appended.id().toString(),
                                                         conversation,
                                                         appended,
                                                         caller.id()));
@@ -464,48 +464,13 @@ public final class ImMessagingService {
         }
     }
 
-    private void requireBodyWithinLimit(Map<String, Object> body) {
-        int limit = properties.message().maxBodyBytes();
-        int size = JSON.writeValueAsBytes(body == null ? Map.of() : body).length;
-        if (size > limit) {
-            throw new ContractException(
-                    ContractErrorCode.INVALID_PAYLOAD, "消息体超过上限: " + size + " > " + limit);
-        }
-    }
-
     private void validateBody(ImMessageKind kind, Map<String, Object> body) {
-        requireBodyWithinLimit(body);
-        if (kind != ImMessageKind.IMAGE && kind != ImMessageKind.FILE) {
-            return;
-        }
-        Object key = body == null ? null : body.get("key");
-        if (key == null || String.valueOf(key).isBlank()) {
-            throw new ContractException(
-                    ContractErrorCode.INVALID_PAYLOAD, "附件消息必须带非空的 key");
-        }
-        Object size = body.get("size");
-        if (size == null) {
-            return;
-        }
-        long bytes;
-        if (size instanceof Number number) {
-            bytes = number.longValue();
-        } else if (size instanceof String text && text.strip().matches("\\d+")) {
-            try {
-                bytes = Long.parseLong(text.strip());
-            } catch (NumberFormatException overflow) {
-                throw new ContractException(
-                        ContractErrorCode.INVALID_PAYLOAD, "附件 size 非法: " + text);
-            }
-        } else {
-            throw new ContractException(
-                    ContractErrorCode.INVALID_PAYLOAD, "附件 size 非法: " + size);
-        }
-        long max = properties.message().maxAttachmentBytes();
-        if (bytes < 0 || bytes > max) {
-            throw new ContractException(
-                    ContractErrorCode.INVALID_PAYLOAD, "附件超过上限: " + bytes + " > " + max);
-        }
+        ImAttachments.validate(
+                kind,
+                body,
+                properties.message().maxBodyBytes(),
+                properties.message().maxAttachmentBytes(),
+                JSON);
     }
 
     private ImMessage requireMessage(
@@ -545,10 +510,6 @@ public final class ImMessagingService {
             return configured;
         }
         return Math.min(requested, configured);
-    }
-
-    private static String messageOutboxId(ImMessage message) {
-        return message.id().toString();
     }
 
     private OutboxRecord event(
