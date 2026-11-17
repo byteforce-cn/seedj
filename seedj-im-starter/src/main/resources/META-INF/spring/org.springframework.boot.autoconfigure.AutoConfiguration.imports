@@ -1,2 +1,3 @@
 cn.byteforce.seedj.starter.im.ImServerAutoConfiguration
 cn.byteforce.seedj.starter.im.ImStoreAutoConfiguration
+cn.byteforce.seedj.starter.im.ImCommandAutoConfiguration

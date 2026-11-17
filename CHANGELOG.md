@@ -23,6 +23,12 @@
   即可新增命令字，未注册仍回 `501`；处理器异常按契约错误码映射（403/404/409/500）。
 - IM 登录携带 `device_id`；`seedj.im.max-sessions-per-user` 真正生效，新增
   `seedj.im.session-overflow=reject|evict-oldest`。
+- IM 单聊闭环：`CHAT_SINGLE_REQ`（可按 `peer_id` 自动建会话）→ `CHAT_DELIVER` → `ACK_REQ` /
+  `READ_RECEIPT` → `OFFLINE_PULL_REQ` / `SESSION_SYNC_REQ`；`client_msg_id` 幂等，正文不进
+  outbox 事件。
+- IM 命令在 `ImSessionExecutor` 里执行（Netty IO 线程不做 JDBC），队列满回 `429`；宿主可覆盖
+  `ImConversationPolicy` / `ImAuthorizationGate`，或用 `ImConversationService` /
+  `ImMessagingService` 从自己的端点复用同一路径。
 - `seedj-it` 的 coord 端到端：`CoordIT` 在真 coord v2 集群（server + agent 容器）上验证 ID、编号、
   全局序列、分布式锁、EventBus 发布/消费与「重试 → 死信」，并核对 coord 侧 topic 与消息。
 - 开发者文档站（`docs/`，VitePress）与 GitHub Pages 发布。

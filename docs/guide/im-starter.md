@@ -3,8 +3,8 @@
 `seedj-im-starter` 把 IM 长连接接进 seedj 基座：帧协议、Netty TCP/WebSocket 传输、IAM JWT
 握手与在线连接注册表。宿主只留一个 `@EnableImServer`。
 
-> 当前是阶段 2 骨架：登录、心跳、命令分发与两套存储（内存 / PostgreSQL）。单聊、群聊、历史补拉、
-> 已读回执的协议语义在阶段 3 落地；未注册的命令字仍回 `501`。
+> 当前阶段：登录、心跳、单聊（发送/投递/确认/已读/补拉/同步）、命令分发与两套存储
+> （内存 / PostgreSQL）。群聊的 socket 命令与 HTTP 管理端点在下个阶段落地；未注册的命令字仍回 `501`。
 
 ## 依赖与启用
 
@@ -60,6 +60,8 @@ seedj:
 | `seedj.im.message.retention` | 空 | 消息保留期（例 `P180D`）；空表示永久，清理任务尚未落地 |
 | `seedj.im.sync.page-size` | `200` | 单次增量拉取最大条数 |
 | `seedj.im.sync.replay-history` | `false` | 入群前历史是否回放 |
+| `seedj.im.executor.threads` | `4` | 命令执行泳道数；命令不在 Netty IO 线程执行 |
+| `seedj.im.executor.queue-capacity` | `4096` | 每条泳道队列容量；满时回 `429` |
 
 ## 本地跑起来
 
@@ -120,6 +122,33 @@ SEEDJ_IAM_ISSUER=http://localhost:9000 \
 成员是「任期」而不是一行一人：入群插一行、退群写 `left_seq`，因此「某个序号时谁在群里」是一次
 区间比较。消息序号来自全局序列，**单调但不连续**，客户端必须容忍缺号。
 
+## 单聊链路
+
+```text
+A.send(peer_id)            → 服务端按 direct_key 找或建单聊会话 → 取号 → 落消息 + outbox
+                           → 回 CHAT_SINGLE_RESP{message_id, conversation_id, seq}
+                           → 向 B 推 CHAT_DELIVER
+B.ACK  {conversation_id, seq}         → 推进该设备的同步游标（成功不回包）
+B.READ_RECEIPT {conversation_id, seq} → 推进已读序号，向 A 转发 READ_RECEIPT 通知
+B.OFFLINE_PULL {cursor, limit}        → 自己所属会话里 seq > cursor 的消息，按序号升序
+B.SESSION_SYNC {since_seq}            → 会话快照（last_seq / unread）+ 已读游标 + 建议补拉游标
+```
+
+语义约定：
+
+- **至少一次**。在线投递是尽力而为（连接不可写就跳过），离线靠 `OFFLINE_PULL` 补齐；客户端按
+  `message_id` 去重。
+- **`seq` 全局单调但会话内可能不连续**：跨节点提交顺序与序号顺序不保证一致，游标只能在持久化后
+  前进，重连时从游标重拉一页并去重。
+- **幂等**：同一 `client_msg_id` 重发返回同一条消息，不重复推送。
+- **租户与成员**：跨租户会话、非成员发送一律 `403`；判定在服务层统一收口，socket 与 HTTP 共用。
+- **正文不进事件总线**：outbox 事件 `im.message.sent` 只带 `message_id / conversation_id / seq /
+  sender_id / kind`。
+
+宿主可用 `ImConversationService`（建单聊/建群/加人/退群/改名）与 `ImMessagingService`（发送/补拉/
+同步）从自己的 HTTP 端点复用同一条路径；默认策略 bean 是 `ImConversationPolicy` 与
+`ImAuthorizationGate`，覆盖它们即可接入好友、黑名单与组织模型。
+
 ## 命令扩展
 
 宿主注册一个 `ImCommandHandler` bean 就能新增命令字，不用改 starter，也不用 fork 分发逻辑：
@@ -167,12 +196,12 @@ UUID）。
 | `LOGIN_RESP` | `0x02` | 返回 `code`、`user_id`、`display_name` |
 | `HEARTBEAT_PING` | `0x03` | 回 `HEARTBEAT_PONG` |
 | `HEARTBEAT_PONG` | `0x04` | 服务端下发 |
-| `CHAT_SINGLE_REQ` | `0x05` | 已登录时回 `501` |
-| `CHAT_GROUP_REQ` | `0x07` | 已登录时回 `501` |
-| `ACK_REQ` | `0x0A` | 已登录时回 `501` |
-| `OFFLINE_PULL_REQ` | `0x0B` | 已登录时回 `501` |
-| `READ_RECEIPT` | `0x0D` | 已登录时回 `501` |
-| `SESSION_SYNC_REQ` | `0x0E` | 已登录时回 `501` |
+| `CHAT_SINGLE_REQ` | `0x05` | 单聊发送：`{client_msg_id, conversation_id?, peer_id?, kind, body}` |
+| `CHAT_GROUP_REQ` | `0x07` | 群聊发送：下个阶段 |
+| `ACK_REQ` | `0x0A` | 客户端确认：`{conversation_id, seq}`，成功不回包 |
+| `OFFLINE_PULL_REQ` | `0x0B` | 增量补拉：`{cursor, limit}` |
+| `READ_RECEIPT` | `0x0D` | 已读上报：`{conversation_id, seq}`，向其它成员转发同形状通知 |
+| `SESSION_SYNC_REQ` | `0x0E` | 会话同步：`{since_seq}` |
 | `ERROR` | `0x7F` | 错误响应，body 为 `{"code":…,"message":…}` |
 
 ## 握手、心跳与错误
