@@ -11,6 +11,8 @@ import cn.byteforce.seedj.starter.im.protocol.body.ChatSendResp;
 import cn.byteforce.seedj.starter.im.protocol.body.ErrorResp;
 import cn.byteforce.seedj.starter.im.protocol.body.LoginReq;
 import cn.byteforce.seedj.starter.im.protocol.body.LoginResp;
+import cn.byteforce.seedj.starter.im.protocol.body.MemberListReq;
+import cn.byteforce.seedj.starter.im.protocol.body.MemberListResp;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
@@ -92,7 +94,17 @@ class ImServerE2ETest {
                 assertThat(sendBody.seq()).isPositive();
                 assertThat(sendBody.conversationId()).isNotBlank();
 
-                client.send(frame(Cmd.CHAT_DELIVER, 4, null));
+                client.send(
+                        frame(
+                                Cmd.MEMBER_LIST_REQ,
+                                4,
+                                new MemberListReq(sendBody.conversationId(), null)));
+                ImFrame members = client.next();
+                assertThat(members.cmd()).isEqualTo(Cmd.MEMBER_LIST_RESP);
+                assertThat(JSON.readValue(members.body(), MemberListResp.class).members())
+                        .hasSize(2);
+
+                client.send(frame(Cmd.CHAT_DELIVER, 5, null));
                 ImFrame unimplemented = client.next();
                 assertThat(unimplemented.cmd()).isEqualTo(Cmd.ERROR);
                 assertThat(JSON.readValue(unimplemented.body(), ErrorResp.class).code())

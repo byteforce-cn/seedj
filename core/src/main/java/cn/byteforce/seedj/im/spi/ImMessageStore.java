@@ -2,7 +2,9 @@ package cn.byteforce.seedj.im.spi;
 
 import cn.byteforce.seedj.im.ImMessage;
 import cn.byteforce.seedj.im.ImMessageDraft;
+import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -88,4 +90,36 @@ public interface ImMessageStore {
      * @return 条数
      */
     long countAfter(UUID conversationId, long afterSeq);
+
+    /**
+     * 编辑消息正文：序号、发送者与创建时间不变，写入 {@code edited_at}。
+     *
+     * <p>重复编辑是允许的：以最后一次写入为准，{@code edited_at} 前进。已撤回的消息不可编辑—— 撤回是终态，改正文会让客户端看到「被撤回的内容变了」。
+     *
+     * @param id 消息标识
+     * @param body 新消息体
+     * @return 编辑后的消息
+     * @throws cn.byteforce.seedj.core.exception.ContractException 消息不存在（404）或已撤回（400）
+     */
+    ImMessage edit(UUID id, Map<String, Object> body);
+
+    /**
+     * 撤回消息：只写 {@code recalled_at}，正文保留在库里（审计与争议取证），读路径负责清空。
+     *
+     * <p>幂等：已撤回的消息原样返回，{@code recalled_at} 不前进。
+     *
+     * @param id 消息标识
+     * @return 撤回后的消息
+     * @throws cn.byteforce.seedj.core.exception.ContractException 消息不存在（404）
+     */
+    ImMessage recall(UUID id);
+
+    /**
+     * 删除早于给定时刻的消息，最多 {@code limit} 条，用于保留期清理。
+     *
+     * @param cutoff 截止时刻（不含）：{@code created_at < cutoff} 的行被删除
+     * @param limit 单次删除上限；非正值是无效载荷
+     * @return 实际删除条数
+     */
+    int deleteBefore(Instant cutoff, int limit);
 }

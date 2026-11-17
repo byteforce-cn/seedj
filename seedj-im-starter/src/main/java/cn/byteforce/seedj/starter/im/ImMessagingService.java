@@ -20,9 +20,13 @@ import cn.byteforce.seedj.starter.im.protocol.Cmd;
 import cn.byteforce.seedj.starter.im.protocol.body.AckReq;
 import cn.byteforce.seedj.starter.im.protocol.body.ChatDeliver;
 import cn.byteforce.seedj.starter.im.protocol.body.ChatSendReq;
+import cn.byteforce.seedj.starter.im.protocol.body.EditNotify;
+import cn.byteforce.seedj.starter.im.protocol.body.EditReq;
 import cn.byteforce.seedj.starter.im.protocol.body.OfflinePullReq;
 import cn.byteforce.seedj.starter.im.protocol.body.OfflinePullResp;
 import cn.byteforce.seedj.starter.im.protocol.body.ReadReceiptReq;
+import cn.byteforce.seedj.starter.im.protocol.body.RecallNotify;
+import cn.byteforce.seedj.starter.im.protocol.body.RecallReq;
 import cn.byteforce.seedj.starter.im.protocol.body.SessionSyncResp;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -48,6 +52,10 @@ public final class ImMessagingService {
     private static final JsonMapper JSON = JsonMapper.builder().build();
 
     private static final String EVENT_TYPE = "im.message.sent";
+
+    private static final String EDITED_EVENT = "im.message.edited";
+
+    private static final String RECALLED_EVENT = "im.message.recalled";
 
     private final ImConversationService conversationService;
 
@@ -129,6 +137,104 @@ public final class ImMessagingService {
         return append(caller, request, ImConversationKind.GROUP);
     }
 
+    /**
+     * 撤回一条消息：写 {@code recalled_at}，并向会话成员广播撤回通知。
+     *
+     * <p>已撤回的消息原样返回，不重复广播——重试撤回是幂等的。
+     *
+     * @param caller 调用方
+     * @param request 撤回请求
+     * @return 撤回后的消息
+     */
+    public ImMessage recall(Caller caller, RecallReq request) {
+        if (request == null) {
+            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD, "缺少撤回请求体");
+        }
+        UUID conversationId = ImProtocolIds.conversation(request.conversationId());
+        ImConversation conversation =
+                conversationService.requireMemberConversation(caller, conversationId);
+        ImMessage message = requireMessage(caller, conversation, request.messageId());
+        ImMember member =
+                conversations
+                        .member(conversationId, caller.id())
+                        .orElseThrow(
+                                () -> new ContractException(ContractErrorCode.FORBIDDEN, "不在该会话中"));
+        if (!policy.canRecall(caller, conversation, message, member)) {
+            throw new ContractException(ContractErrorCode.FORBIDDEN, "不允许撤回该消息");
+        }
+        if (message.recalledAt() != null) {
+            return message;
+        }
+        ImMessage recalled =
+                transaction.inTransaction(
+                        () -> {
+                            ImMessage updated = messages.recall(message.id());
+                            outbox.append(
+                                    event(
+                                            RECALLED_EVENT,
+                                            UUID.randomUUID().toString(),
+                                            conversation,
+                                            updated,
+                                            caller.id()));
+                            return updated;
+                        });
+        broadcast(
+                conversation,
+                Cmd.RECALL_REQ,
+                new RecallNotify(
+                        conversation.id().toString(),
+                        recalled.id().toString(),
+                        recalled.seq(),
+                        caller.id(),
+                        recalled.recalledAt().toEpochMilli()));
+        return recalled;
+    }
+
+    /**
+     * 编辑一条消息：只有发送者可以改自己的消息，已撤回的消息不可编辑。
+     *
+     * @param caller 调用方
+     * @param request 编辑请求
+     * @return 编辑后的消息
+     */
+    public ImMessage edit(Caller caller, EditReq request) {
+        if (request == null) {
+            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD, "缺少编辑请求体");
+        }
+        UUID conversationId = ImProtocolIds.conversation(request.conversationId());
+        ImConversation conversation =
+                conversationService.requireMemberConversation(caller, conversationId);
+        ImMessage message = requireMessage(caller, conversation, request.messageId());
+        if (!message.senderId().equals(caller.id())) {
+            throw new ContractException(ContractErrorCode.FORBIDDEN, "只能编辑自己的消息");
+        }
+        validateBody(message.kind(), request.body());
+        ImMessage edited =
+                transaction.inTransaction(
+                        () -> {
+                            ImMessage updated = messages.edit(message.id(), request.body());
+                            outbox.append(
+                                    event(
+                                            EDITED_EVENT,
+                                            UUID.randomUUID().toString(),
+                                            conversation,
+                                            updated,
+                                            caller.id()));
+                            return updated;
+                        });
+        broadcast(
+                conversation,
+                Cmd.EDIT_REQ,
+                new EditNotify(
+                        conversation.id().toString(),
+                        edited.id().toString(),
+                        edited.seq(),
+                        edited.senderId(),
+                        edited.body(),
+                        edited.editedAt().toEpochMilli()));
+        return edited;
+    }
+
     private ImMessage append(Caller caller, ChatSendReq request, ImConversationKind required) {
         if (request == null) {
             throw new ContractException(ContractErrorCode.INVALID_PAYLOAD, "缺少发送请求体");
@@ -139,7 +245,7 @@ public final class ImMessagingService {
         }
         ImMessageKind kind = parseKind(request.kind());
         Map<String, Object> body = request.body();
-        requireBodyWithinLimit(body);
+        validateBody(kind, body);
 
         ContractException lastConflict = null;
         for (int attempt = 0; attempt < 2; attempt++) {
@@ -160,7 +266,13 @@ public final class ImMessagingService {
                                 () -> {
                                     ImMessage appended = messages.append(draft);
                                     if (appended.id().equals(draft.id())) {
-                                        outbox.append(event(conversation, appended));
+                                        outbox.append(
+                                                event(
+                                                        EVENT_TYPE,
+                                                        appended.id().toString(),
+                                                        conversation,
+                                                        appended,
+                                                        caller.id()));
                                     }
                                     return appended;
                                 });
@@ -192,10 +304,10 @@ public final class ImMessagingService {
         if (request == null) {
             throw new ContractException(ContractErrorCode.INVALID_PAYLOAD, "缺少确认请求体");
         }
-        UUID conversationId = parseConversationId(request.conversationId());
+        UUID conversationId = ImProtocolIds.conversation(request.conversationId());
         conversationService.requireMemberConversation(caller, conversationId);
         return cursors.advanceSync(
-                caller.tenantId(), caller.id(), requireDevice(deviceId), request.seq());
+                caller.tenantId(), caller.id(), ImProtocolIds.device(deviceId), request.seq());
     }
 
     /**
@@ -209,7 +321,7 @@ public final class ImMessagingService {
         if (request == null) {
             throw new ContractException(ContractErrorCode.INVALID_PAYLOAD, "缺少已读请求体");
         }
-        UUID conversationId = parseConversationId(request.conversationId());
+        UUID conversationId = ImProtocolIds.conversation(request.conversationId());
         conversationService.requireMemberConversation(caller, conversationId);
         long effective = cursors.advanceRead(conversationId, caller.id(), request.seq());
         for (ImMember member : conversations.members(conversationId)) {
@@ -255,7 +367,7 @@ public final class ImMessagingService {
      * @return 同步结果
      */
     public SessionSyncResp sync(Caller caller, String deviceId, Long sinceSeq) {
-        String device = requireDevice(deviceId);
+        String device = ImProtocolIds.device(deviceId);
         List<ImConversation> convs =
                 conversations.conversationsOfSubject(caller.tenantId(), caller.id());
         List<SessionSyncResp.ConversationView> views = new ArrayList<>(convs.size());
@@ -313,14 +425,7 @@ public final class ImMessagingService {
      * @return 投递视图
      */
     public ChatDeliver toDeliver(ImMessage message) {
-        return new ChatDeliver(
-                message.id().toString(),
-                message.conversationId().toString(),
-                message.seq(),
-                message.senderId(),
-                message.kind().name(),
-                message.body(),
-                message.createdAt().toEpochMilli());
+        return ImDeliveries.of(message);
     }
 
     private ImConversation resolveConversation(
@@ -328,7 +433,7 @@ public final class ImMessagingService {
         if (request.conversationId() != null && !request.conversationId().isBlank()) {
             ImConversation conversation =
                     conversationService.requireMemberConversation(
-                            caller, parseConversationId(request.conversationId()));
+                            caller, ImProtocolIds.conversation(request.conversationId()));
             if (required != null && conversation.kind() != required) {
                 throw new ContractException(
                         ContractErrorCode.INVALID_PAYLOAD, "该命令只接受 " + required + " 会话");
@@ -357,12 +462,39 @@ public final class ImMessagingService {
         }
     }
 
-    private void requireBodyWithinLimit(Map<String, Object> body) {
-        int limit = properties.message().maxBodyBytes();
-        int size = JSON.writeValueAsBytes(body == null ? Map.of() : body).length;
-        if (size > limit) {
+    private void validateBody(ImMessageKind kind, Map<String, Object> body) {
+        ImAttachments.validate(
+                kind,
+                body,
+                properties.message().maxBodyBytes(),
+                properties.message().maxAttachmentBytes(),
+                JSON);
+    }
+
+    private ImMessage requireMessage(Caller caller, ImConversation conversation, String messageId) {
+        UUID id = ImProtocolIds.message(messageId);
+        ImMessage message =
+                messages.find(id)
+                        .orElseThrow(
+                                () ->
+                                        new ContractException(
+                                                ContractErrorCode.OBJECT_NOT_FOUND,
+                                                "消息不存在: " + messageId));
+        if (!message.conversationId().equals(conversation.id())) {
             throw new ContractException(
-                    ContractErrorCode.INVALID_PAYLOAD, "消息体超过上限: " + size + " > " + limit);
+                    ContractErrorCode.OBJECT_NOT_FOUND, "消息不存在于该会话: " + messageId);
+        }
+        if (!message.tenantId().equals(caller.tenantId())) {
+            throw new ContractException(ContractErrorCode.FORBIDDEN, "跨租户消息不可访问");
+        }
+        return message;
+    }
+
+    private void broadcast(ImConversation conversation, byte cmd, Object body) {
+        List<String> subjects =
+                conversations.members(conversation.id()).stream().map(ImMember::subjectId).toList();
+        if (!subjects.isEmpty()) {
+            push.deliverMany(subjects, cmd, body);
         }
     }
 
@@ -374,16 +506,22 @@ public final class ImMessagingService {
         return Math.min(requested, configured);
     }
 
-    private OutboxRecord event(ImConversation conversation, ImMessage message) {
+    private OutboxRecord event(
+            String type,
+            String outboxId,
+            ImConversation conversation,
+            ImMessage message,
+            String actorId) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("message_id", message.id().toString());
         payload.put("conversation_id", conversation.id().toString());
         payload.put("seq", message.seq());
         payload.put("sender_id", message.senderId());
         payload.put("kind", message.kind().name());
+        payload.put("actor_id", actorId);
         return OutboxRecord.of(
-                message.id().toString(),
-                EVENT_TYPE,
+                outboxId,
+                type,
                 conversation.id().toString(),
                 "application/json",
                 JSON.writeValueAsBytes(payload));
@@ -411,22 +549,6 @@ public final class ImMessagingService {
         } catch (IllegalArgumentException unknown) {
             throw new ContractException(ContractErrorCode.INVALID_PAYLOAD, "未知消息类型: " + kind);
         }
-    }
-
-    private static UUID parseConversationId(String conversationId) {
-        if (conversationId == null || conversationId.isBlank()) {
-            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD, "会话标识不能为空");
-        }
-        try {
-            return UUID.fromString(conversationId);
-        } catch (IllegalArgumentException malformed) {
-            throw new ContractException(
-                    ContractErrorCode.INVALID_PAYLOAD, "会话标识格式非法: " + conversationId);
-        }
-    }
-
-    private static String requireDevice(String deviceId) {
-        return deviceId == null || deviceId.isBlank() ? "unknown" : deviceId;
     }
 
     /**

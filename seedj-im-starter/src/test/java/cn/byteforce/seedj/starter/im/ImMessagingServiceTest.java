@@ -2,6 +2,7 @@ package cn.byteforce.seedj.starter.im;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;
@@ -19,13 +20,16 @@ import cn.byteforce.seedj.infra.local.im.AtomicLongSequenceAllocator;
 import cn.byteforce.seedj.infra.local.im.InMemoryImConversationStore;
 import cn.byteforce.seedj.infra.local.im.InMemoryImCursorStore;
 import cn.byteforce.seedj.infra.local.im.InMemoryImMessageStore;
+import cn.byteforce.seedj.outbox.OutboxRecord;
 import cn.byteforce.seedj.outbox.OutboxWriter;
 import cn.byteforce.seedj.starter.im.protocol.Cmd;
 import cn.byteforce.seedj.starter.im.protocol.body.AckReq;
 import cn.byteforce.seedj.starter.im.protocol.body.ChatSendReq;
+import cn.byteforce.seedj.starter.im.protocol.body.EditReq;
 import cn.byteforce.seedj.starter.im.protocol.body.OfflinePullReq;
 import cn.byteforce.seedj.starter.im.protocol.body.OfflinePullResp;
 import cn.byteforce.seedj.starter.im.protocol.body.ReadReceiptReq;
+import cn.byteforce.seedj.starter.im.protocol.body.RecallReq;
 import cn.byteforce.seedj.starter.im.protocol.body.SessionSyncResp;
 import java.time.Clock;
 import java.time.Instant;
@@ -304,6 +308,231 @@ class ImMessagingServiceTest {
                 .isEqualTo(ContractErrorCode.OBJECT_NOT_FOUND);
     }
 
+    @Test
+    @DisplayName("发送者撤回：落 recalled_at、投递视图清空正文、广播撤回通知")
+    void recallOwnMessage() {
+        ImMessage message =
+                messaging.send(
+                        alice, new ChatSendReq("c-1", null, "u-2", "TEXT", Map.of("text", "hi")));
+        push.clear();
+
+        ImMessage recalled =
+                messaging.recall(
+                        alice,
+                        new RecallReq(
+                                message.conversationId().toString(), message.id().toString()));
+
+        assertThat(recalled.recalledAt()).isEqualTo(NOW);
+        assertThat(messaging.toDeliver(recalled).body()).isEmpty();
+        assertThat(messaging.toDeliver(recalled).recalledAt()).isEqualTo(NOW.toEpochMilli());
+        assertThat(push.details())
+                .extracting(Delivery::subjectId, Delivery::cmd)
+                .containsExactly(tuple("u-1", Cmd.RECALL_REQ), tuple("u-2", Cmd.RECALL_REQ));
+
+        push.clear();
+        ImMessage again =
+                messaging.recall(
+                        alice,
+                        new RecallReq(
+                                message.conversationId().toString(), message.id().toString()));
+        assertThat(again.recalledAt()).isEqualTo(recalled.recalledAt());
+        assertThat(push.details()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("非发送者不能撤回；跨会话 message_id 视为不存在；已撤回不能编辑")
+    void recallAndEditAreAuthorized() {
+        ImMessage message =
+                messaging.send(
+                        alice, new ChatSendReq("c-1", null, "u-2", "TEXT", Map.of("text", "hi")));
+        String conversationId = message.conversationId().toString();
+        String messageId = message.id().toString();
+
+        assertThatThrownBy(() -> messaging.recall(bob, new RecallReq(conversationId, messageId)))
+                .isInstanceOf(ContractException.class)
+                .extracting(error -> ((ContractException) error).code())
+                .isEqualTo(ContractErrorCode.FORBIDDEN);
+
+        ImMessage other =
+                messaging.send(
+                        alice,
+                        new ChatSendReq("c-2", null, "u-3", "TEXT", Map.of("text", "other")));
+        assertThatThrownBy(
+                        () ->
+                                messaging.edit(
+                                        alice,
+                                        new EditReq(
+                                                other.conversationId().toString(),
+                                                messageId,
+                                                Map.of("text", "x"))))
+                .isInstanceOf(ContractException.class)
+                .extracting(error -> ((ContractException) error).code())
+                .isEqualTo(ContractErrorCode.OBJECT_NOT_FOUND);
+
+        messaging.recall(alice, new RecallReq(conversationId, messageId));
+        assertThatThrownBy(
+                        () ->
+                                messaging.edit(
+                                        alice,
+                                        new EditReq(
+                                                conversationId, messageId, Map.of("text", "x"))))
+                .isInstanceOf(ContractException.class)
+                .extracting(error -> ((ContractException) error).code())
+                .isEqualTo(ContractErrorCode.COMMAND_REJECTED);
+    }
+
+    @Test
+    @DisplayName("编辑改正文并广播；非发送者 403")
+    void editOwnMessageBroadcasts() {
+        ImMessage message =
+                messaging.send(
+                        alice, new ChatSendReq("c-1", null, "u-2", "TEXT", Map.of("text", "hi")));
+        push.clear();
+
+        ImMessage edited =
+                messaging.edit(
+                        alice,
+                        new EditReq(
+                                message.conversationId().toString(),
+                                message.id().toString(),
+                                Map.of("text", "改过")));
+
+        assertThat(edited.body()).containsEntry("text", "改过");
+        assertThat(edited.editedAt()).isEqualTo(NOW);
+        assertThat(edited.seq()).isEqualTo(message.seq());
+        assertThat(push.details())
+                .extracting(Delivery::subjectId, Delivery::cmd)
+                .containsExactly(tuple("u-1", Cmd.EDIT_REQ), tuple("u-2", Cmd.EDIT_REQ));
+        assertThat(messaging.toDeliver(edited).editedAt()).isEqualTo(NOW.toEpochMilli());
+
+        assertThatThrownBy(
+                        () ->
+                                messaging.edit(
+                                        bob,
+                                        new EditReq(
+                                                message.conversationId().toString(),
+                                                message.id().toString(),
+                                                Map.of("text", "x"))))
+                .isInstanceOf(ContractException.class)
+                .extracting(error -> ((ContractException) error).code())
+                .isEqualTo(ContractErrorCode.FORBIDDEN);
+    }
+
+    @Test
+    @DisplayName("撤回/编辑的 outbox 事件 id 与发送事件不同，不会被去重吞掉")
+    void mutationsGetDistinctOutboxIds() {
+        List<OutboxRecord> records = new ArrayList<>();
+        ImMessagingService service =
+                new ImMessagingService(
+                        conversationService,
+                        conversations,
+                        messages,
+                        cursors,
+                        numbers,
+                        push,
+                        policy,
+                        TransactionRunner.direct(),
+                        records::add,
+                        ImProperties.defaults());
+        ImMessage message =
+                service.send(
+                        alice, new ChatSendReq("c-1", null, "u-2", "TEXT", Map.of("text", "hi")));
+        service.edit(
+                alice,
+                new EditReq(
+                        message.conversationId().toString(),
+                        message.id().toString(),
+                        Map.of("text", "改过")));
+        service.recall(
+                alice, new RecallReq(message.conversationId().toString(), message.id().toString()));
+
+        assertThat(records)
+                .extracting(OutboxRecord::destination)
+                .containsExactly("im.message.sent", "im.message.edited", "im.message.recalled");
+        assertThat(records).extracting(OutboxRecord::messageId).doesNotHaveDuplicates();
+    }
+
+    @Test
+    @DisplayName("附件消息必须带 key，size 必须是十进制数字且不超过上限")
+    void attachmentsAreValidated() {
+        assertThatThrownBy(
+                        () ->
+                                messaging.send(
+                                        alice,
+                                        new ChatSendReq(
+                                                "a-1", null, "u-2", "FILE", Map.of("name", "x"))))
+                .isInstanceOf(ContractException.class)
+                .extracting(error -> ((ContractException) error).code())
+                .isEqualTo(ContractErrorCode.INVALID_PAYLOAD);
+
+        assertThatThrownBy(
+                        () ->
+                                messaging.send(
+                                        alice,
+                                        new ChatSendReq(
+                                                "a-2",
+                                                null,
+                                                "u-2",
+                                                "FILE",
+                                                Map.of("key", "k", "size", "huge"))))
+                .isInstanceOf(ContractException.class)
+                .extracting(error -> ((ContractException) error).code())
+                .isEqualTo(ContractErrorCode.INVALID_PAYLOAD);
+
+        assertThatThrownBy(
+                        () ->
+                                messaging.send(
+                                        alice,
+                                        new ChatSendReq(
+                                                "a-3",
+                                                null,
+                                                "u-2",
+                                                "IMAGE",
+                                                Map.of("key", "k", "size", 200_000_000))))
+                .isInstanceOf(ContractException.class)
+                .extracting(error -> ((ContractException) error).code())
+                .isEqualTo(ContractErrorCode.INVALID_PAYLOAD);
+
+        assertThatThrownBy(
+                        () ->
+                                messaging.send(
+                                        alice,
+                                        new ChatSendReq(
+                                                "a-4",
+                                                null,
+                                                "u-2",
+                                                "FILE",
+                                                Map.of("key", "k", "size", 1.5))))
+                .isInstanceOf(ContractException.class)
+                .extracting(error -> ((ContractException) error).code())
+                .isEqualTo(ContractErrorCode.INVALID_PAYLOAD);
+        assertThatThrownBy(
+                        () ->
+                                messaging.send(
+                                        alice,
+                                        new ChatSendReq(
+                                                "a-5",
+                                                null,
+                                                "u-2",
+                                                "FILE",
+                                                Map.of(
+                                                        "key",
+                                                        "k",
+                                                        "size",
+                                                        new java.math.BigInteger(
+                                                                "18446744073709551616")))))
+                .isInstanceOf(ContractException.class)
+                .extracting(error -> ((ContractException) error).code())
+                .isEqualTo(ContractErrorCode.INVALID_PAYLOAD);
+
+        ImMessage attached =
+                messaging.send(
+                        alice,
+                        new ChatSendReq(
+                                "a-6", null, "u-2", "FILE", Map.of("key", "k", "size", "1024")));
+        assertThat(attached.kind()).isEqualTo(ImMessageKind.FILE);
+    }
+
     private ImMessagingService newService(
             ImConversationPolicy conversationPolicy, ImConversationService service) {
         return newService(conversationPolicy, service, ImProperties.defaults());
@@ -330,14 +559,14 @@ class ImMessagingServiceTest {
         return new ImProperties(
                 true,
                 ImProperties.Store.MEMORY,
-                new ImProperties.Push("local"),
+                new ImProperties.Push("local", null),
                 new ImProperties.Tcp(false, 0),
                 new ImProperties.Ws(false, 0, "/ws"),
                 null,
                 0,
                 0,
                 null,
-                new ImProperties.Message(64, null),
+                new ImProperties.Message(64, null, null, null, null),
                 null,
                 null,
                 null);
@@ -360,10 +589,12 @@ class ImMessagingServiceTest {
     private static final class RecordingPush implements ImPushProvider {
 
         private final List<String> deliveries = new ArrayList<>();
+        private final List<Delivery> details = new ArrayList<>();
 
         @Override
         public void deliver(String subjectId, byte cmd, Object body) {
             deliveries.add(subjectId + "|" + cmd);
+            details.add(new Delivery(subjectId, cmd, body));
         }
 
         @Override
@@ -375,8 +606,16 @@ class ImMessagingServiceTest {
             return List.copyOf(deliveries);
         }
 
+        List<Delivery> details() {
+            return List.copyOf(details);
+        }
+
         void clear() {
             deliveries.clear();
+            details.clear();
         }
     }
+
+    /** 一次投递的完整记录。 */
+    private record Delivery(String subjectId, byte cmd, Object body) {}
 }

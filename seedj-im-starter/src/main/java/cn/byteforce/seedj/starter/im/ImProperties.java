@@ -1,6 +1,7 @@
 package cn.byteforce.seedj.starter.im;
 
 import java.time.Duration;
+import java.util.Locale;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
@@ -51,7 +52,7 @@ public record ImProperties(
     public ImProperties {
         enabled = enabled == null ? Boolean.TRUE : enabled;
         store = store == null ? Store.MEMORY : store;
-        push = push == null ? new Push(null) : push;
+        push = push == null ? new Push(null, null) : push;
         tcp = tcp == null ? new Tcp(null, DEFAULT_TCP_PORT) : tcp;
         ws = ws == null ? new Ws(null, DEFAULT_WS_PORT, null) : ws;
         if (heartbeatTimeout == null
@@ -63,7 +64,7 @@ public record ImProperties(
         maxSessionsPerUser =
                 maxSessionsPerUser <= 0 ? DEFAULT_MAX_SESSIONS_PER_USER : maxSessionsPerUser;
         sessionOverflow = sessionOverflow == null ? SessionOverflow.REJECT : sessionOverflow;
-        message = message == null ? new Message(null, null) : message;
+        message = message == null ? new Message(null, null, null, null, null) : message;
         sync = sync == null ? new Sync(null, null) : sync;
         executor = executor == null ? new Executor(null, null) : executor;
         http = http == null ? new Http(null) : http;
@@ -107,12 +108,17 @@ public record ImProperties(
     /**
      * 推送配置。
      *
-     * @param provider 推送提供方，默认 {@code local}
+     * @param provider 推送提供方：{@code local}（默认）或 {@code coord}
+     * @param nodeId 节点标识；coord 模式下用稳定值区分每个节点的消费组，空则进程启动时随机生成
      */
-    public record Push(String provider) {
+    public record Push(String provider, String nodeId) {
 
         public Push {
-            provider = provider == null || provider.isBlank() ? DEFAULT_PUSH_PROVIDER : provider;
+            provider =
+                    provider == null || provider.isBlank()
+                            ? DEFAULT_PUSH_PROVIDER
+                            : provider.trim().toLowerCase(Locale.ROOT);
+            nodeId = nodeId == null || nodeId.isBlank() ? null : nodeId.trim();
         }
     }
 
@@ -158,9 +164,21 @@ public record ImProperties(
      * 消息配置。
      *
      * @param maxBodyBytes 单条消息体上限，默认 64KB
-     * @param retention 保留期；空表示永久保留（清理任务在 P4 落地）
+     * @param retention 保留期；空表示永久保留
+     * @param maxAttachmentBytes 单个附件引用的大小上限，默认 100MiB
+     * @param retentionSweep 清理任务扫描间隔，默认 1 小时
+     * @param retentionBatch 单批删除条数，默认 500
      */
-    public record Message(Integer maxBodyBytes, Duration retention) {
+    public record Message(
+            Integer maxBodyBytes,
+            Duration retention,
+            Integer maxAttachmentBytes,
+            Duration retentionSweep,
+            Integer retentionBatch) {
+
+        public static final int DEFAULT_MAX_ATTACHMENT_BYTES = 104_857_600;
+        public static final Duration DEFAULT_RETENTION_SWEEP = Duration.ofHours(1);
+        public static final int DEFAULT_RETENTION_BATCH = 500;
 
         public Message {
             int limit = maxBodyBytes == null ? DEFAULT_MAX_BODY_BYTES : maxBodyBytes;
@@ -168,6 +186,15 @@ public record ImProperties(
             if (retention != null && (retention.isZero() || retention.isNegative())) {
                 retention = null;
             }
+            int attachmentLimit =
+                    maxAttachmentBytes == null ? DEFAULT_MAX_ATTACHMENT_BYTES : maxAttachmentBytes;
+            maxAttachmentBytes =
+                    attachmentLimit <= 0 ? DEFAULT_MAX_ATTACHMENT_BYTES : attachmentLimit;
+            if (retentionSweep == null || retentionSweep.isZero() || retentionSweep.isNegative()) {
+                retentionSweep = DEFAULT_RETENTION_SWEEP;
+            }
+            int batch = retentionBatch == null ? DEFAULT_RETENTION_BATCH : retentionBatch;
+            retentionBatch = batch <= 0 ? DEFAULT_RETENTION_BATCH : batch;
         }
     }
 

@@ -185,6 +185,26 @@ public final class ImConversationService {
     }
 
     /**
+     * 会话成员：当前任期或某个序号时刻的任期。
+     *
+     * @param caller 调用方；必须在会话中
+     * @param conversationId 会话标识
+     * @param atSeq 时点序号；{@code null} 表示当前成员
+     * @return 成员列表
+     */
+    public List<ImMember> members(Caller caller, UUID conversationId, Long atSeq) {
+        ImConversation conversation = requireMemberConversation(caller, conversationId);
+        if (atSeq == null) {
+            return conversations.members(conversation.id());
+        }
+        if (atSeq <= 0) {
+            throw new ContractException(
+                    ContractErrorCode.INVALID_PAYLOAD, "at_seq 必须是正数: " + atSeq);
+        }
+        return conversations.membersAt(conversation.id(), atSeq);
+    }
+
+    /**
      * 校验调用方属于该会话且租户一致，返回会话。
      *
      * @param caller 调用方

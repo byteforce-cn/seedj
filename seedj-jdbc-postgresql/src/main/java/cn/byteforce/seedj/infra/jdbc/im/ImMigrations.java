@@ -24,7 +24,8 @@ public final class ImMigrations {
         return List.of(
                 new Migration(1, "im conversations and membership", V1, ROLLBACK_V1),
                 new Migration(2, "im messages", V2, ROLLBACK_V2),
-                new Migration(3, "im cursors", V3, ROLLBACK_V3));
+                new Migration(3, "im cursors", V3, ROLLBACK_V3),
+                new Migration(4, "im message retention index", V4, ROLLBACK_V4));
     }
 
     private static final String V1 =
@@ -127,6 +128,12 @@ public final class ImMigrations {
             );
             """;
 
+    private static final String V4 =
+            """
+            CREATE INDEX IF NOT EXISTS idx_im_message_created
+                ON im_message (created_at);
+            """;
+
     private static final String ROLLBACK_V1 =
             """
             DROP TABLE IF EXISTS im_conversation_event;
@@ -142,4 +149,6 @@ public final class ImMigrations {
             DROP TABLE IF EXISTS im_sync_cursor;
             DROP TABLE IF EXISTS im_read_cursor;
             """;
+
+    private static final String ROLLBACK_V4 = "DROP INDEX IF EXISTS idx_im_message_created";
 }

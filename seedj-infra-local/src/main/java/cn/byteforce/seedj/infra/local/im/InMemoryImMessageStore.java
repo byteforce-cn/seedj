@@ -6,10 +6,12 @@ import cn.byteforce.seedj.im.ImMessage;
 import cn.byteforce.seedj.im.ImMessageDraft;
 import cn.byteforce.seedj.im.spi.ImMessageStore;
 import java.time.Clock;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -126,6 +128,112 @@ public final class InMemoryImMessageStore implements ImMessageStore {
                 .filter(message -> message.conversationId().equals(conversationId))
                 .filter(message -> message.seq() > afterSeq)
                 .count();
+    }
+
+    @Override
+    public synchronized ImMessage edit(UUID id, Map<String, Object> body) {
+        ImMessage current = require(id);
+        if (current.recalledAt() != null) {
+            throw new ContractException(ContractErrorCode.COMMAND_REJECTED, "已撤回的消息不能编辑: " + id);
+        }
+        ImMessage updated =
+                new ImMessage(
+                        current.id(),
+                        current.tenantId(),
+                        current.conversationId(),
+                        current.seq(),
+                        current.senderId(),
+                        current.kind(),
+                        body,
+                        current.clientMsgId(),
+                        current.createdAt(),
+                        clock.instant(),
+                        null);
+        replace(updated);
+        return updated;
+    }
+
+    @Override
+    public synchronized ImMessage recall(UUID id) {
+        ImMessage current = require(id);
+        if (current.recalledAt() != null) {
+            return current;
+        }
+        ImMessage updated =
+                new ImMessage(
+                        current.id(),
+                        current.tenantId(),
+                        current.conversationId(),
+                        current.seq(),
+                        current.senderId(),
+                        current.kind(),
+                        current.body(),
+                        current.clientMsgId(),
+                        current.createdAt(),
+                        current.editedAt(),
+                        clock.instant());
+        replace(updated);
+        return updated;
+    }
+
+    @Override
+    public synchronized int deleteBefore(Instant cutoff, int limit) {
+        if (cutoff == null) {
+            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD, "cutoff 不能为空");
+        }
+        int bounded = requireLimit(limit);
+        List<ImMessage> removed = new ArrayList<>();
+        Iterator<ImMessage> iterator = messages.iterator();
+        while (iterator.hasNext() && removed.size() < bounded) {
+            ImMessage message = iterator.next();
+            if (message.createdAt().isBefore(cutoff)) {
+                iterator.remove();
+                removed.add(message);
+            }
+        }
+        for (ImMessage message : removed) {
+            seqs.remove(seqKey(message.conversationId(), message.seq()));
+            if (message.clientMsgId() != null) {
+                byClientMsgId.remove(
+                        clientKey(
+                                message.conversationId(),
+                                message.senderId(),
+                                message.clientMsgId()));
+            }
+        }
+        return removed.size();
+    }
+
+    private ImMessage require(UUID id) {
+        return messages.stream()
+                .filter(message -> message.id().equals(id))
+                .findFirst()
+                .orElseThrow(
+                        () ->
+                                new ContractException(
+                                        ContractErrorCode.OBJECT_NOT_FOUND,
+                                        "message not found: " + id));
+    }
+
+    private void replace(ImMessage updated) {
+        for (int index = 0; index < messages.size(); index++) {
+            if (messages.get(index).id().equals(updated.id())) {
+                messages.set(index, updated);
+                if (updated.clientMsgId() != null) {
+                    byClientMsgId.put(
+                            clientKey(
+                                    updated.conversationId(),
+                                    updated.senderId(),
+                                    updated.clientMsgId()),
+                            updated);
+                }
+                return;
+            }
+        }
+    }
+
+    private static String seqKey(UUID conversationId, long seq) {
+        return conversationId + "\u0000" + seq;
     }
 
     /** 测试辅助：当前保存的消息条数。 */

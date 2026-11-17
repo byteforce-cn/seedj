@@ -3,9 +3,9 @@
 `seedj-im-starter` 把 IM 长连接接进 seedj 基座：帧协议、Netty TCP/WebSocket 传输、IAM JWT
 握手与在线连接注册表。宿主只留一个 `@EnableImServer`。
 
-> 当前阶段：登录、心跳、单聊与群聊（发送/投递/确认/已读/补拉/同步）、HTTP 管理端点、命令分发与
-> 两套存储（内存 / PostgreSQL）。撤回、编辑、在线状态与跨节点广播在下个阶段落地；未注册的命令字
-> 仍回 `501`。
+> 当前阶段：登录、心跳、单聊与群聊（发送/投递/确认/已读/补拉/同步）、撤回与编辑、会话/成员列表、
+> 输入中与在线状态、附件引用、HTTP 管理端点、命令分发、两套存储（内存 / PostgreSQL）、
+> `push.provider=coord` 跨节点投递与保留期清理。未注册的命令字仍回 `501`。
 
 ## 依赖与启用
 
@@ -47,7 +47,8 @@ seedj:
 |---|---|---|
 | `seedj.im.enabled` | `true` | 总开关；关掉后传输、存储、HTTP 全部不生效 |
 | `seedj.im.store` | `memory` | 存储：`memory` 进程内，`jdbc` PostgreSQL |
-| `seedj.im.push.provider` | `local` | 推送提供方；跨节点广播留给后续阶段 |
+| `seedj.im.push.provider` | `local` | 投递：`local` 只投本节点，`coord` 经 EventBus 广播给其它节点 |
+| `seedj.im.push.node-id` | 空 | coord 模式的节点标识；空则进程启动时随机，生产建议每个实例配稳定值 |
 | `seedj.im.tcp.enabled` | `true` | 是否监听 TCP |
 | `seedj.im.tcp.port` | `9090` | TCP 端口；测试通常填 `0` |
 | `seedj.im.ws.enabled` | `true` | 是否监听 WebSocket |
@@ -58,7 +59,10 @@ seedj:
 | `seedj.im.max-sessions-per-user` | `1000` | 单用户会话数上限（登录时生效） |
 | `seedj.im.session-overflow` | `reject` | 超限行为：`reject` 回 `429` 并关闭；`evict-oldest` 先关最早连接 |
 | `seedj.im.message.max-body-bytes` | `65536` | 单条消息体上限，超限拒绝 |
-| `seedj.im.message.retention` | 空 | 消息保留期（例 `P180D`）；空表示永久，清理任务尚未落地 |
+| `seedj.im.message.max-attachment-bytes` | `104857600` | 单个附件引用的大小上限（`IMAGE` / `FILE` 的 `size`） |
+| `seedj.im.message.retention` | 空 | 消息保留期（例 `P180D`）；空表示永久 |
+| `seedj.im.message.retention-sweep` | `1h` | 清理任务扫描间隔 |
+| `seedj.im.message.retention-batch` | `500` | 单批删除条数；循环到不足一批 |
 | `seedj.im.sync.page-size` | `200` | 单次增量拉取最大条数 |
 | `seedj.im.sync.replay-history` | `false` | 入群前历史是否回放 |
 | `seedj.im.executor.threads` | `4` | 命令执行泳道数；命令不在 Netty IO 线程执行 |
@@ -168,6 +172,51 @@ B.SESSION_SYNC {since_seq}            → 会话快照（last_seq / unread）+ �
 多端：同一 subject 可同时登录多条连接（`max-sessions-per-user` 与 `session-overflow` 管住上限），
 同步游标按「设备」维度记录；已读回执只发给其它成员，自己的其它端靠 `SESSION_SYNC` 补齐。
 
+## 撤回、编辑与附件
+
+```text
+RECALL_REQ  {conversation_id, message_id} → RECALL_RESP {message_id, conversation_id, seq, ts}
+                                          → 向会话成员广播 RECALL_REQ 通知（msgType=2）
+EDIT_REQ    {conversation_id, message_id, body} → EDIT_RESP 同发送响应
+                                          → 广播 EDIT_REQ 通知（新 body + edited_at）
+```
+
+- **权限**：撤回默认是「本人，或群主/管理员撤回群内消息」；编辑只有发送者本人。宿主覆盖
+  `ImConversationPolicy.canRecall` 即可加时间窗（例如 2 分钟后拒绝）。
+- **幂等**：重复撤回返回当前消息、不重复广播；已撤回的消息不能编辑（`400`）。
+- **正文清空**：撤回只写 `recalled_at`，库里保留原文（取证），读路径（投递/补拉/同步）把 body
+  置空并带上 `recalled_at`；编辑带 `edited_at`。客户端按 `message_id` 覆盖本地副本。
+- **附件**：`kind=IMAGE|FILE` 时 body 必须带非空 `key`（对象存储引用，二进制上传归宿主），
+  可选 `name` / `content_type` / `size`；`size` 必须是十进制数字且不超过
+  `seedj.im.message.max-attachment-bytes`。系统不代理文件上传，也不把二进制放进消息体。
+
+## 会话列表、成员列表、输入中与在线状态
+
+```text
+CONVERSATION_LIST_REQ {page?, size?}        → CONVERSATION_LIST_RESP {conversations[], page, size, total}
+MEMBER_LIST_REQ {conversation_id, at_seq?}  → MEMBER_LIST_RESP {conversation_id, members[]}
+TYPING {conversation_id, typing}            → 向其它成员转发 TYPING_NOTIFY（不回包）
+PRESENCE_REQ {subject_ids[]}                → PRESENCE_RESP {entries[{subject_id, online, devices}]}
+```
+
+- 成员列表的 `at_seq` 走成员任期：给序号就回答「那时谁在群里」，不给就是当前成员；
+  `display_name` 由 `ImDisplayNameResolver` 解析，默认返回 subject，宿主可覆盖接 IAM。
+- 输入中不落库；同一（会话，主体）2 秒内重复的 `typing=true` 被静默丢弃，`typing=false`
+  不节流。指示器以最后一条通知的时间戳为准。
+- 在线状态来自本节点的 `ChannelRegistry`，查询只返回与调用方同会话的 subject；上线/下线只
+  向**单聊对端**推送变化通知，避免群成员变动刷屏。**多节点部署时查询结果只反映本节点**，
+  跨节点的一致性留给客户端重试与业务容忍。
+
+## 保留期清理与跨节点投递
+
+- `seedj.im.message.retention` 非空时，starter 自带 daemon 调度按
+  `retention-sweep` 周期删除 `created_at < now - retention` 的消息，每批
+  `retention-batch` 条；删除失败只记日志，下一轮重试。清理只删消息，不动会话与事件。
+- `seedj.im.push.provider=coord` 把投递意向写进 outbox，由 EventBus 送到每个节点；事件里
+  **只有 message_id 与收件人，没有正文**，其它节点按 id 回读消息。宿主需要打开
+  `seedj.eventbus.transport=coord`（以及消费端所需的数据源/账本）；`store=memory` 时跨节点
+  回读不到正文，启动会打 WARN，只适合本地联调。`local` 是默认值，不依赖 EventBus。
+
 ## 命令扩展
 
 宿主注册一个 `ImCommandHandler` bean 就能新增命令字，不用改 starter，也不用 fork 分发逻辑：
@@ -221,6 +270,12 @@ UUID）。
 | `OFFLINE_PULL_REQ` | `0x0B` | 增量补拉：`{cursor, limit}` |
 | `READ_RECEIPT` | `0x0D` | 已读上报：`{conversation_id, seq}`，向其它成员转发同形状通知 |
 | `SESSION_SYNC_REQ` | `0x0E` | 会话同步：`{since_seq}` |
+| `RECALL_REQ` | `0x10` | 撤回：`{conversation_id, message_id}`；响应 `RECALL_RESP`，并向成员广播同命令字通知 |
+| `EDIT_REQ` | `0x12` | 编辑：`{conversation_id, message_id, body}`；响应 `EDIT_RESP`，并广播通知 |
+| `CONVERSATION_LIST_REQ` | `0x14` | 会话列表：`{page?, size?}`；响应 `CONVERSATION_LIST_RESP` |
+| `MEMBER_LIST_REQ` | `0x16` | 成员列表：`{conversation_id, at_seq?}`；响应 `MEMBER_LIST_RESP` |
+| `TYPING` | `0x18` | 输入中：`{conversation_id, typing}`；其它成员收到 `TYPING_NOTIFY`（`0x19`） |
+| `PRESENCE_REQ` | `0x1A` | 在线状态：`{subject_ids[]}`；响应 `PRESENCE_RESP`（`0x1B`），变化也走同命令字通知 |
 | `ERROR` | `0x7F` | 错误响应，body 为 `{"code":…,"message":…}` |
 
 ## 握手、心跳与错误
@@ -280,7 +335,7 @@ TCP 客户端不要把一次 `read` 当成一帧：先读满 16 字节帧头，�
 |---|---|
 | 登录回 `401` | 令牌缺失/过期，或 IM 的 `issuer-uri` 与 IAM 不一致 |
 | 一直连不上 | IAM 未启动、`seedj.biz.dev-auth.enabled` 仍为 `true`，或端口被占用 |
-| 发业务命令回 `501` | 阶段 1 正常行为；业务命令在后续阶段落地 |
+| 发业务命令回 `501` | 命令字未注册；内置命令清单见上表 |
 | 连接突然关闭 | 帧超过 `max-frame-length`，或读空闲超过 `heartbeat-timeout` |
 | 日志提示没有 `JwtDecoder` | 宿主未配置资源服务器 issuer，或没有引入 biz 安全装配 |
 

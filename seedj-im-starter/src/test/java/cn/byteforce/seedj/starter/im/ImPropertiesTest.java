@@ -37,6 +37,10 @@ class ImPropertiesTest {
                             .isEqualTo(ImProperties.SessionOverflow.REJECT);
                     assertThat(properties.message().maxBodyBytes()).isEqualTo(65_536);
                     assertThat(properties.message().retention()).isNull();
+                    assertThat(properties.message().maxAttachmentBytes()).isEqualTo(104_857_600);
+                    assertThat(properties.message().retentionSweep())
+                            .isEqualTo(Duration.ofHours(1));
+                    assertThat(properties.message().retentionBatch()).isEqualTo(500);
                     assertThat(properties.sync().pageSize()).isEqualTo(200);
                     assertThat(properties.sync().isReplayHistory()).isFalse();
                 });
@@ -55,11 +59,32 @@ class ImPropertiesTest {
     @Test
     @DisplayName("push.provider 可覆盖")
     void bindsPushProvider() {
-        runner.withPropertyValues("seedj.im.push.provider=redis")
+        runner.withPropertyValues("seedj.im.push.provider=COORD", "seedj.im.push.node-id=im-1")
                 .run(
-                        context ->
-                                assertThat(context.getBean(ImProperties.class).push().provider())
-                                        .isEqualTo("redis"));
+                        context -> {
+                            ImProperties.Push push = context.getBean(ImProperties.class).push();
+                            assertThat(push.provider()).isEqualTo("coord");
+                            assertThat(push.nodeId()).isEqualTo("im-1");
+                        });
+    }
+
+    @Test
+    @DisplayName("retention 与附件上限可覆盖")
+    void bindsRetentionAndAttachmentLimits() {
+        runner.withPropertyValues(
+                        "seedj.im.message.retention=PT720H",
+                        "seedj.im.message.retention-sweep=PT5M",
+                        "seedj.im.message.retention-batch=10",
+                        "seedj.im.message.max-attachment-bytes=1024")
+                .run(
+                        context -> {
+                            ImProperties.Message message =
+                                    context.getBean(ImProperties.class).message();
+                            assertThat(message.retention()).isEqualTo(Duration.ofDays(30));
+                            assertThat(message.retentionSweep()).isEqualTo(Duration.ofMinutes(5));
+                            assertThat(message.retentionBatch()).isEqualTo(10);
+                            assertThat(message.maxAttachmentBytes()).isEqualTo(1024);
+                        });
     }
 
     @Test
