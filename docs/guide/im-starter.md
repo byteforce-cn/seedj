@@ -3,8 +3,9 @@
 `seedj-im-starter` 把 IM 长连接接进 seedj 基座：帧协议、Netty TCP/WebSocket 传输、IAM JWT
 握手与在线连接注册表。宿主只留一个 `@EnableImServer`。
 
-> 当前阶段：登录、心跳、单聊（发送/投递/确认/已读/补拉/同步）、命令分发与两套存储
-> （内存 / PostgreSQL）。群聊的 socket 命令与 HTTP 管理端点在下个阶段落地；未注册的命令字仍回 `501`。
+> 当前阶段：登录、心跳、单聊与群聊（发送/投递/确认/已读/补拉/同步）、HTTP 管理端点、命令分发与
+> 两套存储（内存 / PostgreSQL）。撤回、编辑、在线状态与跨节点广播在下个阶段落地；未注册的命令字
+> 仍回 `501`。
 
 ## 依赖与启用
 
@@ -149,6 +150,24 @@ B.SESSION_SYNC {since_seq}            → 会话快照（last_seq / unread）+ �
 同步）从自己的 HTTP 端点复用同一条路径；默认策略 bean 是 `ImConversationPolicy` 与
 `ImAuthorizationGate`，覆盖它们即可接入好友、黑名单与组织模型。
 
+## 群聊与 HTTP 端点
+
+群聊发送用 `CHAT_GROUP_REQ`，必须带 `conversation_id`（不接受 `peer_id`），响应走
+`CHAT_GROUP_RESP`；群内广播以发送时刻的当前成员为准。单聊命令收到群会话、或群命令缺
+`conversation_id`，都回 `400`。
+
+`seedj.im.http.enabled=true`（默认）时注册一组管理端点，授权仍是「已认证 + 会话服务判定」：
+
+| 端点 | 作用 |
+|---|---|
+| `POST /im/conversations` | `{kind: "single"\|"group", peer_id?, title?, member_ids?}` 建会话 |
+| `GET /im/conversations` | 当前调用方的会话视图（`last_seq` / `unread`） |
+| `POST /im/conversations/{id}/members` | `{subject_id, role?}` 加人 |
+| `DELETE /im/conversations/{id}/members/{subjectId}` | 退群或被移出 |
+
+多端：同一 subject 可同时登录多条连接（`max-sessions-per-user` 与 `session-overflow` 管住上限），
+同步游标按「设备」维度记录；已读回执只发给其它成员，自己的其它端靠 `SESSION_SYNC` 补齐。
+
 ## 命令扩展
 
 宿主注册一个 `ImCommandHandler` bean 就能新增命令字，不用改 starter，也不用 fork 分发逻辑：
@@ -197,7 +216,7 @@ UUID）。
 | `HEARTBEAT_PING` | `0x03` | 回 `HEARTBEAT_PONG` |
 | `HEARTBEAT_PONG` | `0x04` | 服务端下发 |
 | `CHAT_SINGLE_REQ` | `0x05` | 单聊发送：`{client_msg_id, conversation_id?, peer_id?, kind, body}` |
-| `CHAT_GROUP_REQ` | `0x07` | 群聊发送：下个阶段 |
+| `CHAT_GROUP_REQ` | `0x07` | 群聊发送：`{client_msg_id, conversation_id, kind, body}` |
 | `ACK_REQ` | `0x0A` | 客户端确认：`{conversation_id, seq}`，成功不回包 |
 | `OFFLINE_PULL_REQ` | `0x0B` | 增量补拉：`{cursor, limit}` |
 | `READ_RECEIPT` | `0x0D` | 已读上报：`{conversation_id, seq}`，向其它成员转发同形状通知 |

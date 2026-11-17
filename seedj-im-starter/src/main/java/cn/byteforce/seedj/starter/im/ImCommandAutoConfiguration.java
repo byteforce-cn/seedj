@@ -98,6 +98,12 @@ public class ImCommandAutoConfiguration {
     }
 
     @Bean
+    @ConditionalOnMissingBean(name = "imChatGroupSendHandler")
+    ImCommandHandler<ChatSendReq> imChatGroupSendHandler(ImMessagingService messaging) {
+        return new ImBuiltInHandlers.SendGroup(messaging);
+    }
+
+    @Bean
     @ConditionalOnMissingBean(name = "imAckHandler")
     ImCommandHandler<AckReq> imAckHandler(ImMessagingService messaging) {
         return new ImBuiltInHandlers.Ack(messaging);

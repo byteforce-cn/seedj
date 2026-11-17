@@ -235,6 +235,7 @@ class ImWsAdapterTest {
                 ImProperties.SessionOverflow.REJECT,
                 null,
                 null,
+                null,
                 null);
     }
 }

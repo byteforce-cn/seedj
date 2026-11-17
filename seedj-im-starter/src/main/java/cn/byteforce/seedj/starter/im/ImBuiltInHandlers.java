@@ -58,6 +58,41 @@ final class ImBuiltInHandlers {
         }
     }
 
+    /** 群聊发送。 */
+    static final class SendGroup implements ImCommandHandler<ChatSendReq> {
+
+        private final ImMessagingService messaging;
+
+        SendGroup(ImMessagingService messaging) {
+            this.messaging = messaging;
+        }
+
+        @Override
+        public byte cmd() {
+            return Cmd.CHAT_GROUP_REQ;
+        }
+
+        @Override
+        public Class<ChatSendReq> bodyType() {
+            return ChatSendReq.class;
+        }
+
+        @Override
+        public ImReply handle(ImCallContext context, ChatSendReq body) {
+            if (body == null) {
+                throw new ContractException(ContractErrorCode.INVALID_PAYLOAD, "缺少发送请求体");
+            }
+            ImMessage message = messaging.sendGroup(context.caller(), body);
+            return ImReply.of(
+                    Cmd.CHAT_GROUP_RESP,
+                    new ChatSendResp(
+                            message.id().toString(),
+                            message.conversationId().toString(),
+                            message.seq(),
+                            message.createdAt().toEpochMilli()));
+        }
+    }
+
     /** 客户端确认。 */
     static final class Ack implements ImCommandHandler<AckReq> {
 

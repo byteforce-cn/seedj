@@ -29,6 +29,10 @@
 - IM 命令在 `ImSessionExecutor` 里执行（Netty IO 线程不做 JDBC），队列满回 `429`；宿主可覆盖
   `ImConversationPolicy` / `ImAuthorizationGate`，或用 `ImConversationService` /
   `ImMessagingService` 从自己的端点复用同一路径。
+- IM 群聊：`CHAT_GROUP_REQ` / `CHAT_GROUP_RESP`，群内广播按当前成员，单聊/群聊命令字严格区分；
+  `send` 遇到序号冲突重试一次。
+- IM HTTP 管理端点（`seedj.im.http.enabled`，默认开）：建单聊/群聊、列会话、加人、退群，授权沿用
+  会话服务（租户 + 成员 + 策略）。
 - `seedj-it` 的 coord 端到端：`CoordIT` 在真 coord v2 集群（server + agent 容器）上验证 ID、编号、
   全局序列、分布式锁、EventBus 发布/消费与「重试 → 死信」，并核对 coord 侧 topic 与消息。
 - 开发者文档站（`docs/`，VitePress）与 GitHub Pages 发布。
