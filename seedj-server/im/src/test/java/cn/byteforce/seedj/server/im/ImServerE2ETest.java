@@ -67,7 +67,7 @@ class ImServerE2ETest {
                                 "--server.port=0");
         try {
             try (FrameClient client = new FrameClient(TCP_PORT)) {
-                client.send(frame(Cmd.LOGIN_REQ, 1, new LoginReq(validToken())));
+                client.send(frame(Cmd.LOGIN_REQ, 1, new LoginReq(validToken(), "dev-1")));
 
                 ImFrame login = client.next();
                 assertThat(login.cmd()).isEqualTo(Cmd.LOGIN_RESP);

@@ -32,6 +32,13 @@ class ImPropertiesTest {
                     assertThat(properties.heartbeatTimeout()).isEqualTo(Duration.ofSeconds(90));
                     assertThat(properties.maxFrameLength()).isEqualTo(1_048_576);
                     assertThat(properties.maxSessionsPerUser()).isEqualTo(1000);
+                    assertThat(properties.store()).isEqualTo(ImProperties.Store.MEMORY);
+                    assertThat(properties.sessionOverflow())
+                            .isEqualTo(ImProperties.SessionOverflow.REJECT);
+                    assertThat(properties.message().maxBodyBytes()).isEqualTo(65_536);
+                    assertThat(properties.message().retention()).isNull();
+                    assertThat(properties.sync().pageSize()).isEqualTo(200);
+                    assertThat(properties.sync().isReplayHistory()).isFalse();
                 });
     }
 
@@ -53,6 +60,35 @@ class ImPropertiesTest {
                         context ->
                                 assertThat(context.getBean(ImProperties.class).push().provider())
                                         .isEqualTo("redis"));
+    }
+
+    @Test
+    @DisplayName("store 与溢出策略可覆盖")
+    void bindsStoreAndSessionOverflow() {
+        runner.withPropertyValues("seedj.im.store=jdbc", "seedj.im.session-overflow=evict-oldest")
+                .run(
+                        context -> {
+                            ImProperties properties = context.getBean(ImProperties.class);
+                            assertThat(properties.store()).isEqualTo(ImProperties.Store.JDBC);
+                            assertThat(properties.sessionOverflow())
+                                    .isEqualTo(ImProperties.SessionOverflow.EVICT_OLDEST);
+                        });
+    }
+
+    @Test
+    @DisplayName("零或负值被默认值兜底")
+    void nonPositiveValuesFallBackToDefaults() {
+        runner.withPropertyValues(
+                        "seedj.im.message.max-body-bytes=0",
+                        "seedj.im.sync.page-size=-1",
+                        "seedj.im.max-sessions-per-user=0")
+                .run(
+                        context -> {
+                            ImProperties properties = context.getBean(ImProperties.class);
+                            assertThat(properties.message().maxBodyBytes()).isEqualTo(65_536);
+                            assertThat(properties.sync().pageSize()).isEqualTo(200);
+                            assertThat(properties.maxSessionsPerUser()).isEqualTo(1000);
+                        });
     }
 
     @Configuration(proxyBeanMethods = false)

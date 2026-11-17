@@ -4,6 +4,7 @@ import cn.byteforce.seedj.starter.security.JwtClaimsMapper;
 import io.netty.bootstrap.ServerBootstrap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -64,6 +65,12 @@ public class ImServerAutoConfiguration {
         return new ChannelRegistry();
     }
 
+    @Bean
+    @ConditionalOnMissingBean
+    ImCommandRegistry imCommandRegistry(ObjectProvider<ImCommandHandler<?>> handlers) {
+        return new ImCommandRegistry(handlers.orderedStream().toList());
+    }
+
     /** 传输层只在握手器就绪时启动；没有 JwtDecoder 时不监听端口。 */
     @Configuration(proxyBeanMethods = false)
     static class TransportConfiguration {
@@ -79,15 +86,32 @@ public class ImServerAutoConfiguration {
         @ConditionalOnMissingBean
         @ConditionalOnBean(ImJwtAuthenticator.class)
         ImHandshakeHandler imHandshakeHandler(
-                ImCodec codec, ImJwtAuthenticator authenticator, ChannelRegistry registry) {
-            return new ImHandshakeHandler(codec, authenticator, registry);
+                ImCodec codec,
+                ImJwtAuthenticator authenticator,
+                ChannelRegistry registry,
+                ImProperties properties) {
+            return new ImHandshakeHandler(codec, authenticator, registry, properties);
         }
 
         @Bean
         @ConditionalOnMissingBean
         @ConditionalOnBean(ImJwtAuthenticator.class)
-        ImDispatchHandler imDispatchHandler(ImCodec codec) {
-            return new ImDispatchHandler(codec);
+        ImDispatchHandler imDispatchHandler(
+                ImCodec codec, ObjectProvider<ImCommandRegistry> registry) {
+            return new ImDispatchHandler(
+                    codec,
+                    registry.getIfAvailable(() -> new ImCommandRegistry(java.util.List.of())));
+        }
+
+        @Bean
+        @ConditionalOnMissingBean(ImPushProvider.class)
+        @ConditionalOnProperty(
+                prefix = "seedj.im.push",
+                name = "provider",
+                havingValue = "local",
+                matchIfMissing = true)
+        ImPushProvider imPushProvider(ImCodec codec, ChannelRegistry registry) {
+            return new LocalPushProvider(codec, registry);
         }
 
         @Bean

@@ -16,6 +16,13 @@
   （MQ v2 join/poll/ack + KV 投递账本），支持毫秒级租约、延迟重试、attempts 与按组合查询死信；
   到期重投按位点回读，retention 缺失转死信。
 - `seedj-im-starter`（阶段 1）：帧协议、Netty TCP/WebSocket 传输、IAM JWT 握手、心跳与未实现命令 `501`；`seedj-server/im` 改为单类宿主。
+- IM 阶段 2 骨架：`core` 新增 `cn.byteforce.seedj.im` 契约（会话/成员任期/消息/游标/序号）与四个
+  存储端口；`seedj-infra-local` 与 `seedj-jdbc-postgresql` 各一套实现（`im_*` 五张表 + `im_seq`，
+  迁移 scope `im`，能力序号 220）；`seedj.im.store=memory|jdbc` 单开关，`jdbc` 缺数据源时启动失败。
+- IM 命令分发可扩展：`ImCommandHandler` + `ImCommandRegistry` 取代写死的 switch，宿主注册 bean
+  即可新增命令字，未注册仍回 `501`；处理器异常按契约错误码映射（403/404/409/500）。
+- IM 登录携带 `device_id`；`seedj.im.max-sessions-per-user` 真正生效，新增
+  `seedj.im.session-overflow=reject|evict-oldest`。
 - `seedj-it` 的 coord 端到端：`CoordIT` 在真 coord v2 集群（server + agent 容器）上验证 ID、编号、
   全局序列、分布式锁、EventBus 发布/消费与「重试 → 死信」，并核对 coord 侧 topic 与消息。
 - 开发者文档站（`docs/`，VitePress）与 GitHub Pages 发布。
