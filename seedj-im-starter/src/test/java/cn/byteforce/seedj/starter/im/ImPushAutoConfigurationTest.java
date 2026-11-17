@@ -54,7 +54,8 @@ class ImPushAutoConfigurationTest {
                         context ->
                                 assertThat(context)
                                         .getFailure()
-                                        .hasMessageContaining("unsupported seedj.im.push.provider"));
+                                        .hasMessageContaining(
+                                                "unsupported seedj.im.push.provider"));
     }
 
     @Test

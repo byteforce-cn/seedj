@@ -263,8 +263,7 @@ public final class JdbcImMessageStore implements ImMessageStore {
     }
 
     private ImMessage require(UUID id) {
-        return find(id)
-                .orElseThrow(
+        return find(id).orElseThrow(
                         () ->
                                 new ContractException(
                                         ContractErrorCode.OBJECT_NOT_FOUND,
@@ -280,8 +279,7 @@ public final class JdbcImMessageStore implements ImMessageStore {
     }
 
     private static ContractException rejected(UUID id) {
-        return new ContractException(
-                ContractErrorCode.COMMAND_REJECTED, "已撤回的消息不能编辑: " + id);
+        return new ContractException(ContractErrorCode.COMMAND_REJECTED, "已撤回的消息不能编辑: " + id);
     }
 
     private static int requireLimit(int limit) {

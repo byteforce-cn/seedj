@@ -101,9 +101,7 @@ class ImServerE2ETest {
                                 new MemberListReq(sendBody.conversationId(), null)));
                 ImFrame members = client.next();
                 assertThat(members.cmd()).isEqualTo(Cmd.MEMBER_LIST_RESP);
-                assertThat(
-                                JSON.readValue(members.body(), MemberListResp.class)
-                                        .members())
+                assertThat(JSON.readValue(members.body(), MemberListResp.class).members())
                         .hasSize(2);
 
                 client.send(frame(Cmd.CHAT_DELIVER, 5, null));

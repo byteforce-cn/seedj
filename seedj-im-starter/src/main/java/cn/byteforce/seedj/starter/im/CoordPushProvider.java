@@ -7,8 +7,7 @@ import java.util.Objects;
 /**
  * {@code seedj.im.push.provider=coord}：先投本节点，再把投递意向交给 {@link ImCoordPush} 广播。
  *
- * <p>本地投递不依赖事件总线，所以单节点部署即使 coord 不可用也照常工作；跨节点的部分失败只
- * 影响其它节点上的实时性，不丢消息。
+ * <p>本地投递不依赖事件总线，所以单节点部署即使 coord 不可用也照常工作；跨节点的部分失败只 影响其它节点上的实时性，不丢消息。
  *
  * @author ByteForce
  * @since 1.0.0

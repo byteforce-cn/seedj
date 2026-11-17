@@ -158,9 +158,7 @@ public final class ImMessagingService {
                 conversations
                         .member(conversationId, caller.id())
                         .orElseThrow(
-                                () ->
-                                        new ContractException(
-                                                ContractErrorCode.FORBIDDEN, "不在该会话中"));
+                                () -> new ContractException(ContractErrorCode.FORBIDDEN, "不在该会话中"));
         if (!policy.canRecall(caller, conversation, message, member)) {
             throw new ContractException(ContractErrorCode.FORBIDDEN, "不允许撤回该消息");
         }
@@ -473,12 +471,10 @@ public final class ImMessagingService {
                 JSON);
     }
 
-    private ImMessage requireMessage(
-            Caller caller, ImConversation conversation, String messageId) {
+    private ImMessage requireMessage(Caller caller, ImConversation conversation, String messageId) {
         UUID id = ImProtocolIds.message(messageId);
         ImMessage message =
-                messages
-                        .find(id)
+                messages.find(id)
                         .orElseThrow(
                                 () ->
                                         new ContractException(
@@ -496,9 +492,7 @@ public final class ImMessagingService {
 
     private void broadcast(ImConversation conversation, byte cmd, Object body) {
         List<String> subjects =
-                conversations.members(conversation.id()).stream()
-                        .map(ImMember::subjectId)
-                        .toList();
+                conversations.members(conversation.id()).stream().map(ImMember::subjectId).toList();
         if (!subjects.isEmpty()) {
             push.deliverMany(subjects, cmd, body);
         }

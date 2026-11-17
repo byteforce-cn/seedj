@@ -18,8 +18,8 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * 输入中：只做节流与转发，不落库。
  *
- * <p>同一（会话，主体）在 {@link #THROTTLE} 内重复上报“开始输入”会被静默丢弃；停止事件不节流， 保证客户端一定能收起指示器。节流状态是进程内的，重启或多节点部署时最多多转发几次，
- * 对端按时间戳覆盖即可。
+ * <p>同一（会话，主体）在 {@link #THROTTLE} 内重复上报“开始输入”会被静默丢弃；停止事件不节流，
+ * 保证客户端一定能收起指示器。节流状态是进程内的，重启或多节点部署时最多多转发几次， 对端按时间戳覆盖即可。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -45,7 +45,8 @@ final class ImTypingService {
             ImConversationStore conversations,
             ImPushProvider push,
             Clock clock) {
-        this.conversationService = Objects.requireNonNull(conversationService, "conversationService");
+        this.conversationService =
+                Objects.requireNonNull(conversationService, "conversationService");
         this.conversations = Objects.requireNonNull(conversations, "conversations");
         this.push = Objects.requireNonNull(push, "push");
         this.clock = Objects.requireNonNull(clock, "clock");

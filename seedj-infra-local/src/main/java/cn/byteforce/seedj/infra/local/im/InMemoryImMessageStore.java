@@ -134,8 +134,7 @@ public final class InMemoryImMessageStore implements ImMessageStore {
     public synchronized ImMessage edit(UUID id, Map<String, Object> body) {
         ImMessage current = require(id);
         if (current.recalledAt() != null) {
-            throw new ContractException(
-                    ContractErrorCode.COMMAND_REJECTED, "已撤回的消息不能编辑: " + id);
+            throw new ContractException(ContractErrorCode.COMMAND_REJECTED, "已撤回的消息不能编辑: " + id);
         }
         ImMessage updated =
                 new ImMessage(

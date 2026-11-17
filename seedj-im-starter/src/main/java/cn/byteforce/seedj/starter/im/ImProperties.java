@@ -19,7 +19,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param maxSessionsPerUser 单用户会话数上限，默认 1000
  * @param sessionOverflow 超出会话上限时的行为，默认拒绝新连接
  * @param message 消息配置
-     * @param sync 同步配置
+ * @param sync 同步配置
  * @param executor 命令执行器配置
  * @param http HTTP 管理端点配置
  */
@@ -187,20 +187,15 @@ public record ImProperties(
                 retention = null;
             }
             int attachmentLimit =
-                    maxAttachmentBytes == null
-                            ? DEFAULT_MAX_ATTACHMENT_BYTES
-                            : maxAttachmentBytes;
+                    maxAttachmentBytes == null ? DEFAULT_MAX_ATTACHMENT_BYTES : maxAttachmentBytes;
             maxAttachmentBytes =
                     attachmentLimit <= 0 ? DEFAULT_MAX_ATTACHMENT_BYTES : attachmentLimit;
-            if (retentionSweep == null
-                    || retentionSweep.isZero()
-                    || retentionSweep.isNegative()) {
+            if (retentionSweep == null || retentionSweep.isZero() || retentionSweep.isNegative()) {
                 retentionSweep = DEFAULT_RETENTION_SWEEP;
             }
             int batch = retentionBatch == null ? DEFAULT_RETENTION_BATCH : retentionBatch;
             retentionBatch = batch <= 0 ? DEFAULT_RETENTION_BATCH : batch;
         }
-
     }
 
     /**

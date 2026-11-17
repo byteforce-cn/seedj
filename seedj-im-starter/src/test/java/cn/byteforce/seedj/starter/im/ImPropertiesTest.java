@@ -59,8 +59,7 @@ class ImPropertiesTest {
     @Test
     @DisplayName("push.provider 可覆盖")
     void bindsPushProvider() {
-        runner.withPropertyValues(
-                        "seedj.im.push.provider=COORD", "seedj.im.push.node-id=im-1")
+        runner.withPropertyValues("seedj.im.push.provider=COORD", "seedj.im.push.node-id=im-1")
                 .run(
                         context -> {
                             ImProperties.Push push = context.getBean(ImProperties.class).push();

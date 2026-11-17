@@ -15,8 +15,8 @@ import org.slf4j.LoggerFactory;
 /**
  * 消息保留期清理：只删 {@code created_at < now - retention} 的消息，按批循环到不足一批。
  *
- * <p>没有配置 {@code seedj.im.message.retention} 时不启动调度，{@link #sweepOnce()} 是空操作。调度线程是
- * 本 bean 自带的 daemon 线程，宿主不需要 {@code @EnableScheduling}；单轮失败只记日志， 下一轮继续，避免一次数据库抖动让清理永久停摆。
+ * <p>没有配置 {@code seedj.im.message.retention} 时不启动调度，{@link #sweepOnce()} 是空操作。调度线程是 本 bean 自带的
+ * daemon 线程，宿主不需要 {@code @EnableScheduling}；单轮失败只记日志， 下一轮继续，避免一次数据库抖动让清理永久停摆。
  *
  * @author ByteForce
  * @since 1.0.0

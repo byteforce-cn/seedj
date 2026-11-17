@@ -18,9 +18,8 @@ import org.springframework.context.annotation.Bean;
 /**
  * 投递装配：{@code seedj.im.push.provider=local|coord}。
  *
- * <p>{@code local} 只投本节点连接；{@code coord} 额外把投递意向写入 outbox，由 EventBus（host 选择
- * {@code seedj.eventbus.transport=coord}）广播给其它节点。协调依赖是可选的：本模块只依赖
- * {@link EventPublisher} 接口，不依赖 coord SDK。
+ * <p>{@code local} 只投本节点连接；{@code coord} 额外把投递意向写入 outbox，由 EventBus（host 选择 {@code
+ * seedj.eventbus.transport=coord}）广播给其它节点。协调依赖是可选的：本模块只依赖 {@link EventPublisher} 接口，不依赖 coord SDK。
  *
  * @author ByteForce
  * @since 1.0.0

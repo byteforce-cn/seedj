@@ -20,8 +20,8 @@ import tools.jackson.databind.json.JsonMapper;
 /**
  * coord 模式的跨节点扇出：把投递意向写进 outbox，由 EventBus 送到每个节点。
  *
- * <p>发布失败只记日志：消息已经提交，客户端下次增量拉取会补齐；把投递失败冒泡成命令失败会让
- * 客户端重发、产生重复消息。{@code origin} 用于让发出节点跳过自己的事件——本地投递已经做过一次。
+ * <p>发布失败只记日志：消息已经提交，客户端下次增量拉取会补齐；把投递失败冒泡成命令失败会让 客户端重发、产生重复消息。{@code origin}
+ * 用于让发出节点跳过自己的事件——本地投递已经做过一次。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -76,16 +76,10 @@ final class ImCoordPush {
                     case null, default -> null;
                 };
         Map<String, Object> payload =
-                messageId == null && body != null
-                        ? JSON.convertValue(body, MAP)
-                        : Map.of();
+                messageId == null && body != null ? JSON.convertValue(body, MAP) : Map.of();
         ImDeliveryEvent event =
                 new ImDeliveryEvent(
-                        nodeId,
-                        Byte.toUnsignedInt(cmd),
-                        recipients,
-                        messageId,
-                        payload);
+                        nodeId, Byte.toUnsignedInt(cmd), recipients, messageId, payload);
         String eventId = UUID.randomUUID().toString();
         try {
             transaction.inTransaction(
@@ -103,10 +97,7 @@ final class ImCoordPush {
                         return null;
                     });
         } catch (RuntimeException failure) {
-            log.warn(
-                    "IM 跨节点投递发布失败，降级为仅本地投递: cmd={}, error={}",
-                    cmd,
-                    failure.getMessage());
+            log.warn("IM 跨节点投递发布失败，降级为仅本地投递: cmd={}, error={}", cmd, failure.getMessage());
         }
     }
 

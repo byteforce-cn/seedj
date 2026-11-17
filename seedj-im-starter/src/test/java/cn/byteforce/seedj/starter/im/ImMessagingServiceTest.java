@@ -313,8 +313,7 @@ class ImMessagingServiceTest {
     void recallOwnMessage() {
         ImMessage message =
                 messaging.send(
-                        alice,
-                        new ChatSendReq("c-1", null, "u-2", "TEXT", Map.of("text", "hi")));
+                        alice, new ChatSendReq("c-1", null, "u-2", "TEXT", Map.of("text", "hi")));
         push.clear();
 
         ImMessage recalled =
@@ -345,8 +344,7 @@ class ImMessagingServiceTest {
     void recallAndEditAreAuthorized() {
         ImMessage message =
                 messaging.send(
-                        alice,
-                        new ChatSendReq("c-1", null, "u-2", "TEXT", Map.of("text", "hi")));
+                        alice, new ChatSendReq("c-1", null, "u-2", "TEXT", Map.of("text", "hi")));
         String conversationId = message.conversationId().toString();
         String messageId = message.id().toString();
 
@@ -377,9 +375,7 @@ class ImMessagingServiceTest {
                                 messaging.edit(
                                         alice,
                                         new EditReq(
-                                                conversationId,
-                                                messageId,
-                                                Map.of("text", "x"))))
+                                                conversationId, messageId, Map.of("text", "x"))))
                 .isInstanceOf(ContractException.class)
                 .extracting(error -> ((ContractException) error).code())
                 .isEqualTo(ContractErrorCode.COMMAND_REJECTED);
@@ -390,8 +386,7 @@ class ImMessagingServiceTest {
     void editOwnMessageBroadcasts() {
         ImMessage message =
                 messaging.send(
-                        alice,
-                        new ChatSendReq("c-1", null, "u-2", "TEXT", Map.of("text", "hi")));
+                        alice, new ChatSendReq("c-1", null, "u-2", "TEXT", Map.of("text", "hi")));
         push.clear();
 
         ImMessage edited =
@@ -441,8 +436,7 @@ class ImMessagingServiceTest {
                         ImProperties.defaults());
         ImMessage message =
                 service.send(
-                        alice,
-                        new ChatSendReq("c-1", null, "u-2", "TEXT", Map.of("text", "hi")));
+                        alice, new ChatSendReq("c-1", null, "u-2", "TEXT", Map.of("text", "hi")));
         service.edit(
                 alice,
                 new EditReq(
@@ -450,8 +444,7 @@ class ImMessagingServiceTest {
                         message.id().toString(),
                         Map.of("text", "改过")));
         service.recall(
-                alice,
-                new RecallReq(message.conversationId().toString(), message.id().toString()));
+                alice, new RecallReq(message.conversationId().toString(), message.id().toString()));
 
         assertThat(records)
                 .extracting(OutboxRecord::destination)
@@ -467,11 +460,7 @@ class ImMessagingServiceTest {
                                 messaging.send(
                                         alice,
                                         new ChatSendReq(
-                                                "a-1",
-                                                null,
-                                                "u-2",
-                                                "FILE",
-                                                Map.of("name", "x"))))
+                                                "a-1", null, "u-2", "FILE", Map.of("name", "x"))))
                 .isInstanceOf(ContractException.class)
                 .extracting(error -> ((ContractException) error).code())
                 .isEqualTo(ContractErrorCode.INVALID_PAYLOAD);
@@ -508,11 +497,7 @@ class ImMessagingServiceTest {
                 messaging.send(
                         alice,
                         new ChatSendReq(
-                                "a-4",
-                                null,
-                                "u-2",
-                                "FILE",
-                                Map.of("key", "k", "size", "1024")));
+                                "a-4", null, "u-2", "FILE", Map.of("key", "k", "size", "1024")));
         assertThat(attached.kind()).isEqualTo(ImMessageKind.FILE);
     }
 

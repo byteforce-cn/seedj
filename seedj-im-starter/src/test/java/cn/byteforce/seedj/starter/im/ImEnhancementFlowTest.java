@@ -87,8 +87,7 @@ class ImEnhancementFlowTest {
                     TransactionRunner.direct(),
                     OutboxWriter.discard(),
                     ImProperties.defaults());
-    private final ImPresenceService presence =
-            new ImPresenceService(registry, conversations, push);
+    private final ImPresenceService presence = new ImPresenceService(registry, conversations, push);
     private final ImTypingService typing =
             new ImTypingService(conversationService, conversations, push, CLOCK);
     private final ImCommandRegistry commands =
@@ -102,7 +101,8 @@ class ImEnhancementFlowTest {
                             new ImBuiltInHandlers.Recall(messaging),
                             new ImBuiltInHandlers.Edit(messaging),
                             new ImBuiltInHandlers.Conversations(conversationService, messaging),
-                            new ImBuiltInHandlers.Members(conversationService, subject -> "n-" + subject),
+                            new ImBuiltInHandlers.Members(
+                                    conversationService, subject -> "n-" + subject),
                             new ImBuiltInHandlers.Typing(typing),
                             new ImBuiltInHandlers.Presence(presence)));
     private final ImJwtAuthenticator authenticator =
@@ -129,22 +129,23 @@ class ImEnhancementFlowTest {
             ImFrame recalledNotice = read(alice);
             assertThat(recalledNotice.cmd()).isEqualTo(Cmd.RECALL_REQ);
             assertThat(recalledNotice.msgType()).isEqualTo((byte) 2);
-            assertThat(codec.decode(recalledNotice, RecallNotify.class).actorId())
-                    .isEqualTo("u-1");
+            assertThat(codec.decode(recalledNotice, RecallNotify.class).actorId()).isEqualTo("u-1");
             assertThat(read(alice).cmd()).isEqualTo(Cmd.RECALL_RESP);
             assertThat(read(bob).cmd()).isEqualTo(Cmd.RECALL_REQ);
 
             bob.writeInbound(
                     frame(
                             Cmd.EDIT_REQ,
-                            new EditReq(sent.conversationId(), sent.messageId(), Map.of("text", "x")),
+                            new EditReq(
+                                    sent.conversationId(), sent.messageId(), Map.of("text", "x")),
                             11));
             assertThat(read(bob).cmd()).isEqualTo(Cmd.ERROR);
 
             alice.writeInbound(
                     frame(
                             Cmd.EDIT_REQ,
-                            new EditReq(sent.conversationId(), sent.messageId(), Map.of("text", "x")),
+                            new EditReq(
+                                    sent.conversationId(), sent.messageId(), Map.of("text", "x")),
                             12));
             assertThat(read(alice).cmd()).isEqualTo(Cmd.ERROR);
 
@@ -167,7 +168,10 @@ class ImEnhancementFlowTest {
 
             bob.writeInbound(frame(Cmd.OFFLINE_PULL_REQ, new OfflinePullReq(0L, 10), 14));
             List<ChatDeliver> pulled =
-                    codec.decode(read(bob), cn.byteforce.seedj.starter.im.protocol.body.OfflinePullResp.class)
+                    codec.decode(
+                                    read(bob),
+                                    cn.byteforce.seedj.starter.im.protocol.body.OfflinePullResp
+                                            .class)
                             .messages();
             assertThat(pulled).hasSize(2);
             assertThat(pulled.get(0).body()).isEmpty();
@@ -195,19 +199,16 @@ class ImEnhancementFlowTest {
             ChatSendResp sent = send(alice, "c-1", "u-2", "TEXT", Map.of("text", "hi"));
             assertThat(read(bob).cmd()).isEqualTo(Cmd.CHAT_DELIVER);
 
-            alice.writeInbound(frame(Cmd.CONVERSATION_LIST_REQ, new ConversationListReq(1, 20), 20));
-            ConversationListResp list =
-                    codec.decode(read(alice), ConversationListResp.class);
+            alice.writeInbound(
+                    frame(Cmd.CONVERSATION_LIST_REQ, new ConversationListReq(1, 20), 20));
+            ConversationListResp list = codec.decode(read(alice), ConversationListResp.class);
             assertThat(list.total()).isEqualTo(1);
             assertThat(list.conversations()).hasSize(1);
             assertThat(list.conversations().get(0).conversationId())
                     .isEqualTo(sent.conversationId());
 
             alice.writeInbound(
-                    frame(
-                            Cmd.MEMBER_LIST_REQ,
-                            new MemberListReq(sent.conversationId(), null),
-                            21));
+                    frame(Cmd.MEMBER_LIST_REQ, new MemberListReq(sent.conversationId(), null), 21));
             MemberListResp members = codec.decode(read(alice), MemberListResp.class);
             assertThat(members.members())
                     .extracting(MemberListResp.MemberView::subjectId)
@@ -215,25 +216,19 @@ class ImEnhancementFlowTest {
             assertThat(members.members().get(1).displayName()).isEqualTo("n-u-2");
 
             alice.writeInbound(
-                    frame(
-                            Cmd.MEMBER_LIST_REQ,
-                            new MemberListReq(sent.conversationId(), 0L),
-                            22));
+                    frame(Cmd.MEMBER_LIST_REQ, new MemberListReq(sent.conversationId(), 0L), 22));
             assertThat(read(alice).cmd()).isEqualTo(Cmd.ERROR);
 
-            bob.writeInbound(
-                    frame(Cmd.TYPING, new TypingReq(sent.conversationId(), true), 23));
+            bob.writeInbound(frame(Cmd.TYPING, new TypingReq(sent.conversationId(), true), 23));
             TypingNotify notice = codec.decode(read(alice), TypingNotify.class);
             assertThat(notice.subjectId()).isEqualTo("u-2");
             assertThat(notice.typing()).isTrue();
             assertThat(read(bob)).isNull();
 
-            bob.writeInbound(
-                    frame(Cmd.TYPING, new TypingReq(sent.conversationId(), true), 24));
+            bob.writeInbound(frame(Cmd.TYPING, new TypingReq(sent.conversationId(), true), 24));
             assertThat(read(alice)).isNull();
 
-            alice.writeInbound(
-                    frame(Cmd.PRESENCE_REQ, new PresenceReq(List.of("u-2", "u-9")), 25));
+            alice.writeInbound(frame(Cmd.PRESENCE_REQ, new PresenceReq(List.of("u-2", "u-9")), 25));
             PresenceResp presenceResp = codec.decode(read(alice), PresenceResp.class);
             assertThat(presenceResp.entries()).hasSize(1);
             assertThat(presenceResp.entries().get(0).subjectId()).isEqualTo("u-2");
@@ -265,7 +260,11 @@ class ImEnhancementFlowTest {
     }
 
     private ChatSendResp send(
-            EmbeddedChannel channel, String clientId, String peer, String kind, Map<String, Object> body) {
+            EmbeddedChannel channel,
+            String clientId,
+            String peer,
+            String kind,
+            Map<String, Object> body) {
         channel.writeInbound(
                 frame(Cmd.CHAT_SINGLE_REQ, new ChatSendReq(clientId, null, peer, kind, body), 2));
         return codec.decode(read(channel), ChatSendResp.class);

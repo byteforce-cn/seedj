@@ -352,8 +352,7 @@ final class ImBuiltInHandlers {
                                                     names.displayName(member.subjectId())))
                             .toList();
             return ImReply.of(
-                    Cmd.MEMBER_LIST_RESP,
-                    new MemberListResp(conversationId.toString(), views));
+                    Cmd.MEMBER_LIST_RESP, new MemberListResp(conversationId.toString(), views));
         }
     }
 
@@ -404,8 +403,7 @@ final class ImBuiltInHandlers {
 
         @Override
         public ImReply handle(ImCallContext context, PresenceReq body) {
-            return ImReply.of(
-                    Cmd.PRESENCE_RESP, presence.snapshot(context.caller(), body));
+            return ImReply.of(Cmd.PRESENCE_RESP, presence.snapshot(context.caller(), body));
         }
     }
 }
