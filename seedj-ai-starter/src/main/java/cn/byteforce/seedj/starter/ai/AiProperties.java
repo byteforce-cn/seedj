@@ -43,6 +43,12 @@ public record AiProperties(
     /** {@code runtime.maxSteps} 默认值；T0 上限是有界的 agent 循环。 */
     public static final int DEFAULT_MAX_STEPS = 6;
 
+    /** {@code runtime.decisionBaseUrl} / {@code runtime.commandBaseUrl} 的默认值：同进程部署。 */
+    public static final String DEFAULT_RUNTIME_BASE_URL = "http://localhost:8080";
+
+    /** {@code runtime.requestTimeout} 默认值。 */
+    public static final Duration DEFAULT_RUNTIME_REQUEST_TIMEOUT = Duration.ofSeconds(10);
+
     /** {@code decision.kid} 默认值：T0 只跑一把内置开发密钥。 */
     public static final String DEFAULT_KID = "agent-decision-2026-11";
 
@@ -52,7 +58,16 @@ public record AiProperties(
     public AiProperties {
         plane = plane == null ? new Plane(false, null, null, DEFAULT_RECONCILE_TTL) : plane;
         guard = guard == null ? new Guard(true) : guard;
-        runtime = runtime == null ? new Runtime(false, DEFAULT_MAX_STEPS) : runtime;
+        runtime =
+                runtime == null
+                        ? new Runtime(
+                                false,
+                                DEFAULT_MAX_STEPS,
+                                DEFAULT_RUNTIME_BASE_URL,
+                                DEFAULT_RUNTIME_BASE_URL,
+                                DEFAULT_RUNTIME_REQUEST_TIMEOUT,
+                                null)
+                        : runtime;
         identity = identity == null ? new Identity(null, null) : identity;
         decision =
                 decision == null
@@ -106,11 +121,46 @@ public record AiProperties(
     /**
      * 有界 agent 循环配置。
      *
+     * <p>地址与超时是 runtime 作为客户端的部署事实：决策面与命令面可能是同进程，也可能是两个别的服务。
+     * {@code model} 同样是部署事实（见 {@link Model}），不是运行时输入。
+     *
      * @param enabled 是否装配 agent 循环，默认 false
-     * @param maxSteps 单次任务的工具调用步数上限，默认 6
+     * @param maxSteps 单次任务的工具调用步数上限，默认 6；与任务契约的 {@code maxSteps} 取小
+     * @param decisionBaseUrl 决策面 base URL，默认 {@code http://localhost:8080}
+     * @param commandBaseUrl 命令面 base URL，默认 {@code http://localhost:8080}
+     * @param requestTimeout 单次 HTTP 请求的超时（连接与读取各自使用它），默认 10s
+     * @param model 本次部署的模型引用：决策请求与账本的 {@code model} 字段唯一来源
      */
     public record Runtime(
-            @DefaultValue("false") boolean enabled, @DefaultValue("6") int maxSteps) {}
+            @DefaultValue("false") boolean enabled,
+            @DefaultValue("6") int maxSteps,
+            @DefaultValue("http://localhost:8080") String decisionBaseUrl,
+            @DefaultValue("http://localhost:8080") String commandBaseUrl,
+            @DefaultValue("10s") Duration requestTimeout,
+            Model model) {
+
+        public Runtime {
+            decisionBaseUrl = blankToDefault(decisionBaseUrl, DEFAULT_RUNTIME_BASE_URL);
+            commandBaseUrl = blankToDefault(commandBaseUrl, DEFAULT_RUNTIME_BASE_URL);
+            requestTimeout =
+                    requestTimeout == null ? DEFAULT_RUNTIME_REQUEST_TIMEOUT : requestTimeout;
+            model = model == null ? new Model(null, null, null, null) : model;
+        }
+
+        /**
+         * 模型引用：「这个决定是哪一版模型、哪一版提示词做的」。
+         *
+         * <p><b>model 是部署事实，不是运行时输入</b>：它只来自配置，不由 agent 或请求方自报；换模型或换
+         * 提示词版本必须改配置。{@code runtime.enabled=true} 时 {@code name} 与 {@code version}
+         * 必填，缺失即启动失败。
+         *
+         * @param name 模型名（必填）
+         * @param version 模型版本（必填）
+         * @param promptVer 提示词版本；可空
+         * @param paramsDigest 采样参数摘要；可空
+         */
+        public record Model(String name, String version, String promptVer, String paramsDigest) {}
+    }
 
     /**
      * 决策身份配置：身份只来自配置，不取请求头。
@@ -147,6 +197,11 @@ public record AiProperties(
      * @param actionClass 命令的动作分类，guard 按它决定审批强度
      */
     public record Tool(String commandType, ActionClass actionClass) {}
+
+    /** 空串按未配置处理：绑定出来的空值不能把默认地址变成空地址。 */
+    private static String blankToDefault(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value;
+    }
 
     /**
      * 任务契约：把一组命令归给一个能力集，决策面据此判越权。
