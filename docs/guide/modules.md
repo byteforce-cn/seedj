@@ -16,6 +16,10 @@ seedj-server/ai           →  seedj-ai-starter  →  seedj-biz-starter
 `core` 不依赖 Spring，也不依赖任何适配器；适配器只实现 `core` 的 SPI，starter 负责把
 实现装配起来，宿主只做组合。
 
+AI 这一支的单向性由 ArchUnit 规则守着：`seedj-ai-starter` 依赖 `seedj-biz-starter`（拿
+`CallerProvider`、`CommandCatalog` 与命令入口线格式），**`seedj-biz-starter` 不得反向依赖
+`seedj-ai-starter`**，`cn.byteforce.seedj.ai` 也不得依赖 Spring 或 JDBC。
+
 ## 模块职责
 
 | 模块 | 职责 | 进发布物 |
@@ -29,7 +33,7 @@ seedj-server/ai           →  seedj-ai-starter  →  seedj-biz-starter
 | `seedj-biz-starter` | 业务装配：本地开发认证、命令、查询、审计、事件总线 | ✅ |
 | `seedj-im-starter` | IM 长连接装配：帧协议、Netty TCP/WebSocket、JWT 握手、连接注册表 | ✅ |
 | `seedj-iam-starter` | IAM 装配：OIDC、SCIM、RBAC、ABAC | ✅ |
-| `seedj-ai-starter` | AI 装配：决策账本接入、DecisionToken、执行侧 guard、决策面与有界 agent 循环 | ✅ |
+| `seedj-ai-starter` | AI 装配：决策账本、DecisionToken、guard、决策面与有界循环（[指南](ai-starter.md)） | ✅ |
 | `seedj-server/hr`、`seedj-server/iam`、`seedj-server/im`、`seedj-server/ai` | 可运行宿主（活样板） | ❌ |
 | `seedj-it` | 契约对照、并发与端到端测试 | ❌ |
 
@@ -46,7 +50,7 @@ seedj-server/ai           →  seedj-ai-starter  →  seedj-biz-starter
 
 ## 启动一个宿主
 
-三个宿主都是标准 Spring Boot 应用：
+四个宿主都是标准 Spring Boot 应用：
 
 ```bash
 ./mvnw -pl seedj-server/hr -am spring-boot:run -Dspring-boot.run.profiles=local

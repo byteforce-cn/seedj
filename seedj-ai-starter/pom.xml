@@ -16,9 +16,9 @@
     <description>AI 装配：决策账本接入、DecisionToken、执行侧 guard、决策面与有界 agent 循环</description>
 
     <properties>
-        <!-- Task 14 按模块实测值 ratchet；骨架期与功能实现期不设下限，避免 1.0 陷阱。 -->
-        <seedj.coverage.line>0.0</seedj.coverage.line>
-        <seedj.coverage.branch>0.0</seedj.coverage.branch>
+        <!-- 按 T0 实测值 ratchet（实测 LINE 0.8725 / BRANCH 0.6908，向下取两位）；只允许收紧。 -->
+        <seedj.coverage.line>0.87</seedj.coverage.line>
+        <seedj.coverage.branch>0.69</seedj.coverage.branch>
     </properties>
 
     <dependencies>

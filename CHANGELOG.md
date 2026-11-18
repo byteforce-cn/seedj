@@ -48,6 +48,12 @@
   `seedj.im.push.node-id` 区分（空则进程随机，生产建议显式配置）。
 - `seedj-it` 的 coord 端到端：`CoordIT` 在真 coord v2 集群（server + agent 容器）上验证 ID、编号、
   全局序列、分布式锁、EventBus 发布/消费与「重试 → 死信」，并核对 coord 侧 topic 与消息。
+- `seedj-ai-starter`（T0）：决策账本（内存 / PostgreSQL 两套实现 + 哈希链与只追加触发器）、
+  DecisionToken（Ed25519 签发/校验 + JWKS）、执行侧 guard（`x-agent-decision`，`POST /commands/*`）、
+  决策面（`POST /v1/decisions`、记录读、outcome 上报、对账）与有界 agent 循环；
+  `seedj-server/ai` 是只开决策面的可运行宿主，`seedj-it` 的 pilot 宿主进程内跑完
+  「脚本 LLM → 决策面 → guard → 命令」四件套。**T0 不含**策略求值、审批、不可逆动作的行级门禁、
+  外部副作用两段协议与 IM 回传，边界逐条见 [`docs/guide/ai-starter.md`](docs/guide/ai-starter.md)。
 - 开发者文档站（`docs/`，VitePress）与 GitHub Pages 发布。
 - 贡献指南、安全政策、行为准则、支持说明与 issue/PR 模板。
 

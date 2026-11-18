@@ -8,6 +8,8 @@
 | 命令/对象存储 | 内存，重启清空 | PostgreSQL，版本化迁移 |
 | 锁 | 内存 | PostgreSQL |
 | 审计 / outbox / eventbus | 关闭 | 开启 |
+| 决策账本（`seedj-server/ai`） | 内存 `InMemoryDecisionLedger`（重启即丢） | `agent_decision_*` 两张表 |
+| AI 角色开关（`seedj-server/ai`） | 只开决策面：`plane.enabled=true`、`guard` / `runtime` 关闭 | 同左（决策面与数据源无关） |
 | 开发认证 | `dev-auth` 固定调用方 `local-admin` | 关闭，走 OIDC |
 | 用途 | 本地开发与测试 | 接近生产的单实例 |
 
@@ -52,6 +54,12 @@ docker compose up -d
 | `seedj.outbox.relay.*` | 时长/批量 | relay 轮询与批量参数 |
 | `seedj.outbox.store.*` | 路径/表名 | outbox 存储位置 |
 | `seedj.command.degraded-mode` | `true` / `false` | 降级模式，仅本地允许 |
+| `seedj.ai.enabled` | `true` / `false` | AI 总闸；`false` 时连启用标记都不产 |
+| `seedj.ai.plane.enabled` | `true` / `false` | 决策面；默认 `false`，开启后租户与身份是启动期必填 |
+| `seedj.ai.guard.enabled` | `true` / `false` | 执行侧守卫；默认 `true`，只当决策面时关掉 |
+| `seedj.ai.runtime.enabled` | `true` / `false` | agent 循环；默认 `false`，开启后 `runtime.model.*` 必填 |
+| `seedj.ai.decision.kid` / `signing-key` | 字符串 | 密钥标识与 Ed25519 私钥；`signing-key` 空则临时密钥并 WARN |
+| `seedj.ai.provider` | `postgres` / 其它 | 账本实现；非 `postgres` 时不装配数据库账本 |
 
 ## coord 基础设施
 
