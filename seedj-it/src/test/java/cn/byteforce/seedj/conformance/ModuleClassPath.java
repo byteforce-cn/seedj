@@ -30,10 +30,12 @@ final class ModuleClassPath {
                     "seedj-jdbc-postgresql",
                     "seedj-biz-starter",
                     "seedj-im-starter",
+                    "seedj-ai-starter",
                     "seedj-iam-starter",
                     "seedj-server/hr",
                     "seedj-server/iam",
-                    "seedj-server/im");
+                    "seedj-server/im",
+                    "seedj-server/ai");
 
     private ModuleClassPath() {}
 

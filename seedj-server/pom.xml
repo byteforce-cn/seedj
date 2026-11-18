@@ -19,6 +19,7 @@
         <module>iam</module>
         <module>hr</module>
         <module>im</module>
+        <module>ai</module>
     </modules>
 
     <properties>

@@ -98,6 +98,12 @@
 
             <dependency>
                 <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>seedj-ai-starter</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
                 <artifactId>seedj-workflow-local</artifactId>
                 <version>${revision}</version>
             </dependency>
@@ -123,6 +129,12 @@
             <dependency>
                 <groupId>cn.byteforce.seedj</groupId>
                 <artifactId>seedj-server-im</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>seedj-server-ai</artifactId>
                 <version>${revision}</version>
             </dependency>
             <!-- 第三方构件 -->

@@ -8,6 +8,9 @@ seedj-server/im           →  seedj-im-starter  →  seedj-biz-starter
                           →  seedj-infra-local / seedj-jdbc-postgresql
                           →  seedj-infra-coord  →  coord-java-sdk
                           →  core
+seedj-server/ai           →  seedj-ai-starter  →  seedj-biz-starter
+                          →  seedj-infra-local / seedj-jdbc-postgresql
+                          →  core
 ```
 
 `core` 不依赖 Spring，也不依赖任何适配器；适配器只实现 `core` 的 SPI，starter 负责把
@@ -26,7 +29,8 @@ seedj-server/im           →  seedj-im-starter  →  seedj-biz-starter
 | `seedj-biz-starter` | 业务装配：本地开发认证、命令、查询、审计、事件总线 | ✅ |
 | `seedj-im-starter` | IM 长连接装配：帧协议、Netty TCP/WebSocket、JWT 握手、连接注册表 | ✅ |
 | `seedj-iam-starter` | IAM 装配：OIDC、SCIM、RBAC、ABAC | ✅ |
-| `seedj-server/hr`、`seedj-server/iam`、`seedj-server/im` | 可运行宿主（活样板） | ❌ |
+| `seedj-ai-starter` | AI 装配：决策账本接入、DecisionToken、执行侧 guard、决策面与有界 agent 循环 | ✅ |
+| `seedj-server/hr`、`seedj-server/iam`、`seedj-server/im`、`seedj-server/ai` | 可运行宿主（活样板） | ❌ |
 | `seedj-it` | 契约对照、并发与端到端测试 | ❌ |
 
 版本统一由 `bom` 管理；`config/public-api.txt` 是公共 API 的 allowlist，由门禁测试比对。
