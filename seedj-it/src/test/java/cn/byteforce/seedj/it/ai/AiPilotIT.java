@@ -267,5 +267,9 @@ class AiPilotIT extends AbstractPilotIT {
                 .as("读路径排除 writeOnly 字段")
                 .doesNotContainKey("internal_note")
                 .containsEntry("title", title);
+
+        assertThat(ledger.byDecision(TENANT, decision.decisionId()).get(0).body().toString())
+                .as("账本 args 不得落 writeOnly 原文（spec §6.2 只存脱敏后可展示参数）")
+                .doesNotContain(internalNote);
     }
 }

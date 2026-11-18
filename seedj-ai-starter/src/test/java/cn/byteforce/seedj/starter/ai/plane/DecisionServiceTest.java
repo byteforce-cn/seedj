@@ -404,6 +404,16 @@ class DecisionServiceTest {
     }
 
     @Test
+    @DisplayName("账本 args 不落原始 payload：脱敏未实现时留空")
+    void ledger_args_never_carry_the_raw_payload() {
+        DecisionService.DecisionResult result = service().decide(executeTool(CREATE));
+
+        List<DecisionRecord> records = ledger.byDecision(TENANT, result.decisionId());
+        assertThat(records.get(0).body()).doesNotContainKey("args");
+        assertThat(records.get(0).body().toString()).doesNotContain("128.00");
+    }
+
+    @Test
     @DisplayName("未知任务契约：deny CONTRACT_UNKNOWN，仍写 intent + outcome")
     void unknown_task_contract_is_denied() {
         DecisionService.DecisionResult result =

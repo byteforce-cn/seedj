@@ -244,7 +244,10 @@ public final class DecisionService {
                         commandRef,
                         argsHash,
                         IdemFingerprint.of(fingerprint),
-                        payload,
+                        // 账本只存“可展示参数”（spec §6.2），而 T0 没有实现字段级脱敏；
+                        // 存原文会把 writeOnly 字段写进哈希链账本，所以此处留空，
+                        // 指纹信息由 args_hash / idem_fingerprint 承担。
+                        Map.of(),
                         rationale,
                         evidence,
                         modelRef);
@@ -337,7 +340,9 @@ public final class DecisionService {
                     PolicyRef.none(),
                     new AgentIdentity(actor, onBehalfOf, null, ACTING_SERVICE),
                     null);
-        } catch (IllegalArgumentException | NullPointerException error) {
+        } catch (IllegalArgumentException error) {
+            // 只翻译"请求本身不合法"（kind↔action_class 双条件、approval 规则等）。
+            // NPE 故意不捕：那是编程错误，必须冒成 500；请求字段缺失已由本类的 required(...)/text(...) 前置拦住。
             String reason = error.getMessage();
             throw new ContractException(
                     ContractErrorCode.INVALID_PAYLOAD,
