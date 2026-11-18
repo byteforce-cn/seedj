@@ -1,0 +1,43 @@
+# 决策面宿主：只开 plane，guard / runtime 关闭。
+# plane.tenant 与 identity.* 是启动期必填 UUID——租户与身份只来自配置，决策面不接受请求自称的租户与主体。
+# 宿主不写数据源：生产由部署环境给出，本地走 application-local.yml（compose 的 PostgreSQL）。
+# 有数据源时命令、审计、outbox 走 PostgreSQL；决策面宿主没有业务对象，对象存储固定用内存实现。
+# 生产部署还需自行提供锁实现（如 seedj.lock.postgres.enabled=true）。
+seedj:
+  object:
+    provider: memory
+  ai:
+    plane:
+      enabled: true
+      tenant: 0190a5c0-0000-7000-8000-000000000001   # 部署时替换
+      reconcile:
+        enabled: false
+    # 本宿主只当决策面：同时开 guard 会让一个进程既签发 token 又校验 token，出问题分不清哪侧生效。
+    guard:
+      enabled: false
+    # agent 循环属于执行侧，决策面宿主不跑。
+    runtime:
+      enabled: false
+    identity:
+      actor: 0190a5c0-0000-7000-8000-0000000000a1
+      on-behalf-of: 0190a5c0-0000-7000-8000-0000000000b2
+    decision:
+      # 签发的 token 受众是本宿主；kid 与 JWKS 端点发布的公钥标识一致。
+      audience: seedj-server-ai
+      kid: agent-decision-2026-11
+
+spring:
+  application:
+    name: seedj-server-ai
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # 决策面的调用方凭 IAM 签发的访问令牌来访；启动期拉取 issuer 的 OIDC 元数据。
+          issuer-uri: ${SEEDJ_IAM_ISSUER:http://localhost:9000}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health

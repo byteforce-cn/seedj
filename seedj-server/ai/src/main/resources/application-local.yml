@@ -1,0 +1,17 @@
+# 本地联调：复用仓库自带 docker-compose 的 PostgreSQL（库/用户/口令都是 seedj，见根目录 docker-compose.yml），
+# 决策账本因此走真实迁移与真实表；数据源可用 SPRING_DATASOURCE_* 覆盖。
+# 锁用单实例内存实现；多实例部署换成 seedj.lock.postgres.enabled=true。
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/seedj}
+    username: ${SPRING_DATASOURCE_USERNAME:seedj}
+    password: ${SPRING_DATASOURCE_PASSWORD:seedj}
+
+seedj:
+  lock:
+    memory:
+      enabled: true
+  ai:
+    decision:
+      # 本地可留空（启动期生成临时密钥并 WARN），生产必须配置 base64url 32 字节 seed 或 PKCS#8。
+      signing-key:
