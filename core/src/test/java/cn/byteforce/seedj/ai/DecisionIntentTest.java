@@ -3,7 +3,9 @@ package cn.byteforce.seedj.ai;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -11,6 +13,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * 决策意图的构造口径：步骤类型决定是否需要动作分类，动作分类决定是否允许审批快照。
@@ -195,6 +199,46 @@ class DecisionIntentTest {
     @DisplayName("分区由租户派生")
     void partition_is_derived_from_tenant() {
         assertThat(new Fields().build().partition()).isEqualTo(DecisionRecord.partitionOf(TENANT));
+    }
+
+    @Test
+    @DisplayName("args 规范化为 JSON 树：列表/浮点/嵌套对象读回后与落账后一致")
+    void args_are_normalized_to_json_tree() {
+        Map<String, Object> raw = new LinkedHashMap<>();
+        raw.put("ids", List.of(1));
+        raw.put("ratio", 0.1f);
+        raw.put("nested", Map.of("amount", new BigDecimal("12.50"), "flag", true));
+        raw.put("absent", null);
+        Fields fields = new Fields();
+        fields.args = raw;
+
+        Map<String, Object> args = fields.build().args();
+
+        assertThat(args).containsOnlyKeys("ids", "ratio", "nested", "absent");
+        assertThat(args.get("ids")).isEqualTo(List.of(1));
+        assertThat(args.get("ratio")).isInstanceOf(Double.class).isEqualTo(0.1d);
+        assertThat(args.get("nested")).isEqualTo(Map.of("amount", 12.5d, "flag", true));
+        assertThat(args).containsEntry("absent", null);
+        assertThat(roundTrip(args)).isEqualTo(args);
+    }
+
+    @Test
+    @DisplayName("args 无法序列化为 JSON（自引用）：构造直接失败")
+    void non_serializable_args_are_rejected() {
+        Map<String, Object> cyclic = new LinkedHashMap<>();
+        cyclic.put("self", cyclic);
+        Fields fields = new Fields();
+        fields.args = cyclic;
+
+        assertThatThrownBy(fields::build)
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("args must be JSON-serializable");
+    }
+
+    private static Map<String, Object> roundTrip(Map<String, Object> args) {
+        JsonMapper json = JsonMapper.builder().build();
+        return json.readValue(
+                json.writeValueAsString(args), new TypeReference<Map<String, Object>>() {});
     }
 
     private static ApprovalSnapshot approved() {

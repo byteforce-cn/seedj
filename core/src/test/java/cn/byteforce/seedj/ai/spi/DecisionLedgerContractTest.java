@@ -169,19 +169,50 @@ public abstract class DecisionLedgerContractTest {
     @Test
     @DisplayName("append_approval 要求 intent 已存在：否则 IllegalArgumentException")
     void append_approval_requires_existing_intent() {
-        ApprovalSnapshot snapshot =
-                new ApprovalSnapshot(
-                        "wf-instance",
-                        "wf-task",
-                        ApprovalStatus.APPROVED,
-                        RECORDED_AT,
-                        ACTOR,
-                        RECORDED_AT,
-                        "sha256:" + "a".repeat(64),
-                        1L);
-
-        assertThatThrownBy(() -> ledger().appendApproval(decision(9), snapshot))
+        assertThatThrownBy(() -> ledger().appendApproval(decision(9), approvalSnapshot()))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("approval 与 reconciled 不幂等：每个 decision 可多条，sequence 连续")
+    void approval_and_reconciled_are_not_idempotent() {
+        DecisionIntent intent = intent(TENANT, decision(10));
+        ledger().appendIntent(intent);
+
+        ledger().appendApproval(intent.decisionId(), approvalSnapshot());
+        ledger().appendApproval(intent.decisionId(), approvalSnapshot());
+        ledger().appendOutcome(
+                intent.decisionId(), DecisionEffect.unknown(), OutcomeSource.RUNTIME_REPORTED);
+        ledger().appendReconciled(intent.decisionId(), DecisionEffect.unknown(), "第一次核对");
+        ledger().appendReconciled(intent.decisionId(), DecisionEffect.unknown(), "第二次核对");
+
+        List<DecisionRecord> records = ledger().byDecision(TENANT, intent.decisionId());
+        assertThat(records)
+                .extracting(DecisionRecord::kind)
+                .containsExactly(
+                        DecisionRecordKind.INTENT,
+                        DecisionRecordKind.APPROVAL,
+                        DecisionRecordKind.APPROVAL,
+                        DecisionRecordKind.OUTCOME,
+                        DecisionRecordKind.RECONCILED,
+                        DecisionRecordKind.RECONCILED);
+        assertThat(records)
+                .extracting(DecisionRecord::sequence)
+                .containsExactly(1L, 2L, 3L, 4L, 5L, 6L);
+        assertThat(ledger().verify(DecisionRecord.partitionOf(TENANT)).ok()).isTrue();
+    }
+
+    /** 已批准的审批快照：实现侧用例可复用。 */
+    protected static ApprovalSnapshot approvalSnapshot() {
+        return new ApprovalSnapshot(
+                "wf-instance",
+                "wf-task",
+                ApprovalStatus.APPROVED,
+                RECORDED_AT,
+                ACTOR,
+                RECORDED_AT,
+                "sha256:" + "a".repeat(64),
+                1L);
     }
 
     /** 两个线程同时 append，返回按 sequence 升序的结果。 */

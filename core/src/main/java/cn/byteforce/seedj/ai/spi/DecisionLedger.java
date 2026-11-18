@@ -22,33 +22,16 @@ import java.util.UUID;
  *       {@code decisionId} 反查既有意图得出；意图不存在时抛 {@link IllegalArgumentException}。
  *   <li>同一 {@code decisionId} 的意图重复追加是幂等的：返回首次记录，内容不同也不抛（内容比对由调用方负责）。
  *   <li>同一 {@code decisionId} 的结局重复追加是幂等的：返回首次记录。
+ *   <li>{@code approval} 与 {@code reconciled} <b>不幂等</b>：每个 decision 可多条 approval（每次观察一条审批事实），
+ *       reconciled 每次核对一条——它们是观察记录，不是效果副本。
  *   <li>{@link #byDecision} 按 {@code sequence} 升序返回；租户不匹配时返回空列表，不泄露记录是否存在。
  *   <li>{@link #find} 同样是租户作用域。
  * </ul>
  *
  * <p>本接口不负责签名或时间戳：{@code recordHash} 由实现按分区链计算，{@code recordedAt} 由实现写入。
  *
- * <p><b>记录体格式</b>（实现必须逐字对齐，null 字段一律省略；{@code record_hash} 覆盖整条记录， 两套实现写出的记录体不同就得不到同一个哈希）：
- *
- * <ul>
- *   <li>共同前缀：{@code "schema":"agent.decision.v1"}、{@code "record_kind":"<wire>"}；
- *   <li>{@code intent}：{@code task_contract_id}、{@code conversation_id}、{@code step}、{@code kind}、 {@code
- *       action_class}（仅 EXECUTE_TOOL）、{@code command}（{@code {type,targets[],expectedVersion}}）、 {@code
- *       args_hash}、{@code idem_fingerprint}、{@code args}（空则省略）、{@code rationale}、 {@code
- *       evidence[]}（{@code {kind,ref,digest}}）、{@code model}（{@code
- *       {name,version,prompt_ver,params_digest}}）、{@code policy}（{@code
- *       {engine,bundle,bundle_version,epoch,verdict,rule_ids[],explain_ref}}）、{@code identity}（{@code
- *       {actor,on_behalf_of,proxy_binding_id,acting_service}}）、{@code approval}；
- *   <li>{@code approval}：{@code approval}（{@code
- *       {instance_id,task_id,status,requested_at,approver,approved_at,args_hash,instance_revision}}）；
- *   <li>{@code outcome}：{@code source}（{@code runtime_reported} / {@code reconciled}）、{@code effect}（{@code
- *       {status,external_ref,audit_entry_id,command_id,error_code,completed_at}}）；
- *   <li>{@code reconciled}：同 {@code outcome}，另加 {@code reason} 与（已有 outcome 时）{@code
- *       supersedes_record_id}。
- * </ul>
- *
- * <p>时间字段序列化为 {@link java.time.Instant#toString()}，标识序列化为 UUID 字符串， {@code kind}/{@code status}
- * 等枚举用小写线格式名。
+ * <p><b>记录体格式</b>：由 {@link cn.byteforce.seedj.ai.DecisionRecordBodies} 唯一定义（两套实现都调它）， null
+ * 字段一律省略；{@code record_hash} 覆盖整条记录，两套实现写出的记录体不同就得不到同一个哈希。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -65,7 +48,7 @@ public interface DecisionLedger {
     DecisionRecord appendIntent(DecisionIntent intent);
 
     /**
-     * 追加人工审批快照。
+     * 追加人工审批快照；同一 decision 可追加多条（每次观察一条审批事实）。
      *
      * @param decisionId 决策标识
      * @param snapshot 审批快照
@@ -86,7 +69,7 @@ public interface DecisionLedger {
     DecisionRecord appendOutcome(UUID decisionId, DecisionEffect effect, OutcomeSource source);
 
     /**
-     * 追加事后核对得出的结局。
+     * 追加事后核对得出的结局；每次核对一条记录。
      *
      * @param decisionId 决策标识
      * @param effect 核对后的结局
@@ -115,7 +98,10 @@ public interface DecisionLedger {
     List<DecisionRecord> byDecision(UUID tenantId, UUID decisionId);
 
     /**
-     * 校对分区内的哈希链。
+     * 校对分区内的哈希链：逐条重算 {@code recordHash}、校验 {@code prevHash} 接上前一条，最后与链头
+     * （{@code last_sequence} / {@code last_hash}）比对。
+     *
+     * <p>链头比对是必需的：行级触发器挡不住 {@code TRUNCATE}，只走存活行无法发现「整条尾部被截掉」。
      *
      * @param partition 分区名（{@link DecisionRecord#partitionOf(UUID)}）
      * @return 校对结果

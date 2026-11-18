@@ -13,6 +13,7 @@ core|cn.byteforce.seedj.ai|DecisionEffect
 core|cn.byteforce.seedj.ai|DecisionIntent
 core|cn.byteforce.seedj.ai|DecisionKind
 core|cn.byteforce.seedj.ai|DecisionRecord
+core|cn.byteforce.seedj.ai|DecisionRecordBodies
 core|cn.byteforce.seedj.ai|DecisionRecordKind
 core|cn.byteforce.seedj.ai|DecisionTokenClaims
 core|cn.byteforce.seedj.ai|EffectStatus

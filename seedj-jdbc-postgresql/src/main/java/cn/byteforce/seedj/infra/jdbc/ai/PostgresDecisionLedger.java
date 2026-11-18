@@ -1,24 +1,19 @@
 package cn.byteforce.seedj.infra.jdbc.ai;
 
-import cn.byteforce.seedj.ai.AgentIdentity;
 import cn.byteforce.seedj.ai.ApprovalSnapshot;
-import cn.byteforce.seedj.ai.CommandRef;
 import cn.byteforce.seedj.ai.DecisionEffect;
 import cn.byteforce.seedj.ai.DecisionIntent;
 import cn.byteforce.seedj.ai.DecisionRecord;
+import cn.byteforce.seedj.ai.DecisionRecordBodies;
 import cn.byteforce.seedj.ai.DecisionRecordKind;
-import cn.byteforce.seedj.ai.Evidence;
 import cn.byteforce.seedj.ai.LedgerHash;
 import cn.byteforce.seedj.ai.LedgerVerification;
-import cn.byteforce.seedj.ai.ModelRef;
 import cn.byteforce.seedj.ai.OutcomeSource;
-import cn.byteforce.seedj.ai.PolicyRef;
 import cn.byteforce.seedj.ai.spi.DecisionLedger;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,16 +39,13 @@ import tools.jackson.databind.json.JsonMapper;
  * <p>幂等：{@code intent} 与 {@code outcome} 每个 decision 至多一条，先查后插；并发下先查后插会撞车， 最终由 partial unique
  * index 兜底——插入冲突时再查一次，返回已存在的那条。{@code approval} 与 {@code reconciled} 不幂等： 前者是每次观测一条审批事实，后者是每次核对一条观察。
  *
- * <p>记录体（{@code body}）的组装口径写在 {@link DecisionLedger} 的类注释里，内存实现必须逐字对齐—— {@code record_hash}
- * 覆盖整个记录体，两套实现写出的记录体不同，同一份决策在两套账本里的哈希就不同。
+ * <p>记录体（{@code body}）由 {@link DecisionRecordBodies} 组装，本类不自己拼 map：{@code record_hash} 覆盖整个
+ * 记录体，两套实现写出的记录体不同，同一份决策在两套账本里的哈希就不同。
  *
  * @author ByteForce
  * @since 1.0.0
  */
 public final class PostgresDecisionLedger implements DecisionLedger {
-
-    /** 记录体与 {@code schema_version} 列共用的 schema 名。 */
-    static final String SCHEMA = "agent.decision.v1";
 
     private static final String COLUMNS =
             """
@@ -129,7 +121,7 @@ public final class PostgresDecisionLedger implements DecisionLedger {
                     intent.tenantId(),
                     intent.decisionId(),
                     DecisionRecordKind.INTENT,
-                    intentBody(intent));
+                    DecisionRecordBodies.intent(intent));
         } catch (DuplicateKeyException e) {
             return existingAfterRace(intent.decisionId(), DecisionRecordKind.INTENT, e);
         }
@@ -141,7 +133,10 @@ public final class PostgresDecisionLedger implements DecisionLedger {
         Objects.requireNonNull(snapshot, "snapshot");
         UUID tenantId = requireTenant(decisionId);
         return inTransaction(
-                tenantId, decisionId, DecisionRecordKind.APPROVAL, approvalBody(snapshot));
+                tenantId,
+                decisionId,
+                DecisionRecordKind.APPROVAL,
+                DecisionRecordBodies.approval(snapshot));
     }
 
     @Override
@@ -157,7 +152,10 @@ public final class PostgresDecisionLedger implements DecisionLedger {
         }
         try {
             return inTransaction(
-                    tenantId, decisionId, DecisionRecordKind.OUTCOME, outcomeBody(effect, source));
+                    tenantId,
+                    decisionId,
+                    DecisionRecordKind.OUTCOME,
+                    DecisionRecordBodies.outcome(effect, source));
         } catch (DuplicateKeyException e) {
             return existingAfterRace(decisionId, DecisionRecordKind.OUTCOME, e);
         }
@@ -170,8 +168,12 @@ public final class PostgresDecisionLedger implements DecisionLedger {
         Objects.requireNonNull(reason, "reason");
         UUID tenantId = requireTenant(decisionId);
         DecisionRecord outcome = existing(decisionId, DecisionRecordKind.OUTCOME);
-        Map<String, Object> body = reconciledBody(effect, reason, outcome);
-        return inTransaction(tenantId, decisionId, DecisionRecordKind.RECONCILED, body);
+        String supersedes = outcome == null ? null : outcome.recordId().toString();
+        return inTransaction(
+                tenantId,
+                decisionId,
+                DecisionRecordKind.RECONCILED,
+                DecisionRecordBodies.reconciled(effect, reason, supersedes));
     }
 
     @Override
@@ -227,6 +229,33 @@ public final class PostgresDecisionLedger implements DecisionLedger {
                         partition, checked, record.recordId(), expectedHash, record.recordHash());
             }
             expectedPrev = record.recordHash();
+        }
+        return verifyChainHead(partition, records, checked);
+    }
+
+    /** 链头比对：存活记录数必须等于 {@code last_sequence}，最后一条哈希必须等于 {@code last_hash}。 */
+    private LedgerVerification verifyChainHead(
+            String partition, List<DecisionRecord> records, long checked) {
+        List<ChainHead> heads =
+                jdbc.query(
+                        "SELECT last_sequence, last_hash FROM agent_decision_chain WHERE partition = ?",
+                        (rs, rowNum) ->
+                                new ChainHead(
+                                        rs.getLong("last_sequence"), rs.getString("last_hash")),
+                        partition);
+        if (heads.isEmpty()) {
+            return LedgerVerification.ok(partition, checked);
+        }
+        ChainHead head = heads.get(0);
+        DecisionRecord last = records.isEmpty() ? null : records.get(records.size() - 1);
+        String lastHash = last == null ? LedgerHash.GENESIS : last.recordHash();
+        if (head.lastSequence() != checked || !head.lastHash().equals(lastHash)) {
+            return LedgerVerification.mismatch(
+                    partition,
+                    checked,
+                    last == null ? null : last.recordId(),
+                    head.lastHash(),
+                    lastHash);
         }
         return LedgerVerification.ok(partition, checked);
     }
@@ -284,7 +313,7 @@ public final class PostgresDecisionLedger implements DecisionLedger {
                                     recordHash,
                                     OffsetDateTime.ofInstant(recordedAt, ZoneOffset.UTC),
                                     tenantId,
-                                    SCHEMA,
+                                    DecisionRecordBodies.SCHEMA,
                                     JSON.writeValueAsString(body));
                             jdbc.update(ADVANCE_CHAIN, sequence, recordHash, partition);
                             return new DecisionRecord(
@@ -346,148 +375,6 @@ public final class PostgresDecisionLedger implements DecisionLedger {
             throw new IllegalArgumentException("unknown decision: " + decisionId);
         }
         return tenants.get(0);
-    }
-
-    /** intent 记录体（{@link DecisionLedger} 类注释中的格式说明）。 */
-    private static Map<String, Object> intentBody(DecisionIntent intent) {
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("schema", SCHEMA);
-        body.put("record_kind", DecisionRecordKind.INTENT.wire());
-        body.put("task_contract_id", intent.taskContractId().toString());
-        body.put("conversation_id", intent.conversationId().toString());
-        body.put("step", intent.step());
-        body.put("kind", intent.kind().wire());
-        if (intent.actionClass() != null) {
-            body.put("action_class", intent.actionClass().wire());
-        }
-        body.put("command", commandBody(intent.command()));
-        body.put("args_hash", intent.argsHash());
-        body.put("idem_fingerprint", intent.idemFingerprint());
-        if (!intent.args().isEmpty()) {
-            body.put("args", new LinkedHashMap<>(intent.args()));
-        }
-        body.put("rationale", intent.rationale());
-        List<Map<String, Object>> evidence = new ArrayList<>();
-        for (Evidence item : intent.evidence()) {
-            Map<String, Object> entry = new LinkedHashMap<>();
-            putIfPresent(entry, "kind", item.kind());
-            putIfPresent(entry, "ref", item.ref());
-            putIfPresent(entry, "digest", item.digest());
-            evidence.add(entry);
-        }
-        body.put("evidence", evidence);
-        body.put("model", modelBody(intent.model()));
-        if (intent.policy() != null) {
-            body.put("policy", policyBody(intent.policy()));
-        }
-        body.put("identity", identityBody(intent.identity()));
-        if (intent.approval() != null) {
-            body.put("approval", approvalFields(intent.approval()));
-        }
-        return body;
-    }
-
-    private static Map<String, Object> approvalBody(ApprovalSnapshot snapshot) {
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("schema", SCHEMA);
-        body.put("record_kind", DecisionRecordKind.APPROVAL.wire());
-        body.put("approval", approvalFields(snapshot));
-        return body;
-    }
-
-    private static Map<String, Object> outcomeBody(DecisionEffect effect, OutcomeSource source) {
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("schema", SCHEMA);
-        body.put("record_kind", DecisionRecordKind.OUTCOME.wire());
-        body.put("source", source.wire());
-        body.put("effect", effectFields(effect));
-        return body;
-    }
-
-    private static Map<String, Object> reconciledBody(
-            DecisionEffect effect, String reason, DecisionRecord outcome) {
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("schema", SCHEMA);
-        body.put("record_kind", DecisionRecordKind.RECONCILED.wire());
-        body.put("source", OutcomeSource.RECONCILED.wire());
-        body.put("effect", effectFields(effect));
-        body.put("reason", reason);
-        if (outcome != null) {
-            body.put("supersedes_record_id", outcome.recordId().toString());
-        }
-        return body;
-    }
-
-    private static Map<String, Object> effectFields(DecisionEffect effect) {
-        Map<String, Object> fields = new LinkedHashMap<>();
-        fields.put("status", effect.status().wire());
-        putIfPresent(fields, "external_ref", effect.externalRef());
-        putIfPresent(fields, "audit_entry_id", effect.auditEntryId());
-        putIfPresent(fields, "command_id", stringOf(effect.commandId()));
-        putIfPresent(fields, "error_code", effect.errorCode());
-        putIfPresent(fields, "completed_at", stringOf(effect.completedAt()));
-        return fields;
-    }
-
-    private static Map<String, Object> commandBody(CommandRef command) {
-        Map<String, Object> fields = new LinkedHashMap<>();
-        fields.put("type", command.type());
-        fields.put("targets", command.targets().stream().map(UUID::toString).toList());
-        putIfPresent(fields, "expectedVersion", command.expectedVersion());
-        return fields;
-    }
-
-    private static Map<String, Object> modelBody(ModelRef model) {
-        Map<String, Object> fields = new LinkedHashMap<>();
-        fields.put("name", model.name());
-        fields.put("version", model.version());
-        putIfPresent(fields, "prompt_ver", model.promptVer());
-        putIfPresent(fields, "params_digest", model.paramsDigest());
-        return fields;
-    }
-
-    private static Map<String, Object> policyBody(PolicyRef policy) {
-        Map<String, Object> fields = new LinkedHashMap<>();
-        fields.put("engine", policy.engine());
-        putIfPresent(fields, "bundle", policy.bundle());
-        putIfPresent(fields, "bundle_version", policy.bundleVersion());
-        putIfPresent(fields, "epoch", policy.epoch());
-        putIfPresent(fields, "verdict", policy.verdict());
-        fields.put("rule_ids", List.copyOf(policy.ruleIds()));
-        putIfPresent(fields, "explain_ref", policy.explainRef());
-        return fields;
-    }
-
-    private static Map<String, Object> identityBody(AgentIdentity identity) {
-        Map<String, Object> fields = new LinkedHashMap<>();
-        fields.put("actor", identity.actor().toString());
-        putIfPresent(fields, "on_behalf_of", stringOf(identity.onBehalfOf()));
-        putIfPresent(fields, "proxy_binding_id", stringOf(identity.proxyBindingId()));
-        putIfPresent(fields, "acting_service", identity.actingService());
-        return fields;
-    }
-
-    private static Map<String, Object> approvalFields(ApprovalSnapshot snapshot) {
-        Map<String, Object> fields = new LinkedHashMap<>();
-        fields.put("instance_id", snapshot.instanceId());
-        fields.put("task_id", snapshot.taskId());
-        fields.put("status", snapshot.status().wire());
-        putIfPresent(fields, "requested_at", stringOf(snapshot.requestedAt()));
-        putIfPresent(fields, "approver", stringOf(snapshot.approver()));
-        putIfPresent(fields, "approved_at", stringOf(snapshot.approvedAt()));
-        fields.put("args_hash", snapshot.argsHash());
-        putIfPresent(fields, "instance_revision", snapshot.instanceRevision());
-        return fields;
-    }
-
-    private static void putIfPresent(Map<String, Object> target, String key, Object value) {
-        if (value != null) {
-            target.put(key, value);
-        }
-    }
-
-    private static String stringOf(Object value) {
-        return value == null ? null : value.toString();
     }
 
     private static Map<String, Object> readBody(String json) {

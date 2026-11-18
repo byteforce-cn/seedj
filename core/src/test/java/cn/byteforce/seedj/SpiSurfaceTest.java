@@ -135,6 +135,7 @@ class SpiSurfaceTest {
                             "DecisionIntent",
                             "DecisionKind",
                             "DecisionRecord",
+                            "DecisionRecordBodies",
                             "DecisionRecordKind",
                             "DecisionTokenClaims",
                             "EffectStatus",

@@ -6,6 +6,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * 决策意图：agent 决定“下一步做什么”的完整声明，账本的第一条记录。
@@ -26,7 +29,7 @@ import java.util.UUID;
  * @param command 命令引用
  * @param argsHash 参数指纹（{@code sha256:} 前缀）
  * @param idemFingerprint 幂等指纹（64 位小写十六进制）
- * @param args 脱敏后的可展示参数；{@code null} 入参视为空映射；允许 null value，键序保留
+ * @param args 脱敏后的可展示参数；{@code null} 入参视为空映射。入参会被规范化为 JSON 树（按存储读回的方式过一遍 JSON 文本：{@code List<Integer>}、{@code Double}、嵌套 {@code Map}），保留键序与 null 值；非 JSON 可序列化的对象直接失败
  * @param rationale 决策理由
  * @param evidence 支撑证据；{@code null} 视为空列表
  * @param model 决策所用模型
@@ -55,11 +58,18 @@ public record DecisionIntent(
         AgentIdentity identity,
         ApprovalSnapshot approval) {
 
+    private static final JsonMapper JSON = JsonMapper.builder().build();
+
+    private static final TypeReference<Map<String, Object>> ARGS = new TypeReference<>() {};
+
     /**
-     * 校验必填项与“步骤类型 ↔ 动作分类/审批”的对应关系。
+     * 校验必填项、把 {@code args} 规范化为 JSON 树，并校验“步骤类型 ↔ 动作分类/审批”的对应关系。
+     *
+     * <p>{@code args} 规范化：按存储看到的方式过一遍 JSON 文本（写一次再读回）。账本哈希覆盖记录体， 内存实现看的是这里的对象图、PostgreSQL 实现看的是 jsonb 读回的文本，两边的装箱类型（{@code Float}/{@code
+     * Long} 等）不同会让“写入时哈希”与“校验时哈希”分叉；过了 JSON 文本后两边看到同一棵树： 浮点数落成 {@code Double}、整数落成 {@code Integer}/{@code Long}，金额请以字符串传入。
      *
      * @throws NullPointerException 必填项为 {@code null}
-     * @throws IllegalArgumentException 必填文本为空白、步骤类型与动作分类错配，或不该有审批的步骤带了审批快照
+     * @throws IllegalArgumentException 必填文本为空白、{@code args} 含非 JSON 可序列化对象、 步骤类型与动作分类错配，或不该有审批的步骤带了审批快照
      */
     public DecisionIntent {
         Objects.requireNonNull(decisionId, "decisionId");
@@ -81,8 +91,22 @@ public record DecisionIntent(
         if (approval != null && (actionClass == null || !actionClass.requiresApproval())) {
             throw new IllegalArgumentException("approval is only allowed for approval-requiring actions");
         }
-        args = args == null ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(args));
+        args = normalize(args);
         evidence = evidence == null ? List.of() : List.copyOf(evidence);
+    }
+
+    /** 把入参换成存储读回后的值：过一遍 JSON 文本、键序保留、null 值保留。 */
+    private static Map<String, Object> normalize(Map<String, Object> args) {
+        if (args == null || args.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Object> normalized;
+        try {
+            normalized = JSON.readValue(JSON.writeValueAsString(args), ARGS);
+        } catch (JacksonException | IllegalArgumentException e) {
+            throw new IllegalArgumentException("args must be JSON-serializable", e);
+        }
+        return Collections.unmodifiableMap(new LinkedHashMap<>(normalized));
     }
 
     /**
