@@ -98,10 +98,12 @@ public interface DecisionLedger {
     List<DecisionRecord> byDecision(UUID tenantId, UUID decisionId);
 
     /**
-     * 校对分区内的哈希链：逐条重算 {@code recordHash}、校验 {@code prevHash} 接上前一条，最后与链头
-     * （{@code last_sequence} / {@code last_hash}）比对。
+     * 校对分区内的哈希链：<b>先读链头，再按链头截断扫记录</b>——{@code sequence <= last_sequence} 的记录逐条重算
+     * {@code recordHash} 并校验 {@code prevHash} 接上前一条，最后校验记录数与末条哈希对得上链头。
      *
-     * <p>链头比对是必需的：行级触发器挡不住 {@code TRUNCATE}，只走存活行无法发现「整条尾部被截掉」。
+     * <p>为什么要这个顺序：记录与链头在同一个追加事务里提交，所以「读到的链头是第 N 条」意味着记录 1..N 都已提交；
+     * 之后才提交的 N+1 被 {@code sequence <= N} 排除，两次读之间有人追加也不会误报篡改。反过来，记录数少于 N
+     * 或末条 {@code record_hash} 对不上链头就是尾部被截断——行级触发器挡不住 {@code TRUNCATE}，这一条比对必需。
      *
      * @param partition 分区名（{@link DecisionRecord#partitionOf(UUID)}）
      * @return 校对结果

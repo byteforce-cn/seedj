@@ -205,16 +205,29 @@ public final class PostgresDecisionLedger implements DecisionLedger {
                 tenantId);
     }
 
+    /**
+     * 校对分区：<b>先读链头，再按链头截断扫记录</b>。
+     *
+     * <p>记录与链头在同一个追加事务里提交，所以「读到的链头是第 N 条」意味着记录 1..N 都已提交；之后才提交的
+     * N+1 被 {@code sequence <= N} 排除，不会因为两次读之间有人追加而误报篡改。反过来，记录数少于 N 或者末条
+     * {@code record_hash} 对不上链头，就是尾部被截断或改过——行级触发器挡不住 {@code TRUNCATE}，这一条比对是必需的。
+     */
     @Override
     public LedgerVerification verify(String partition) {
         Objects.requireNonNull(partition, "partition");
+        ChainHead head = readChainHead(partition);
+        if (head == null) {
+            return LedgerVerification.ok(partition, 0);
+        }
         List<DecisionRecord> records =
                 jdbc.query(
                         "SELECT "
                                 + COLUMNS
-                                + " FROM agent_decision_record WHERE partition = ? ORDER BY sequence",
+                                + " FROM agent_decision_record WHERE partition = ? AND sequence <= ?"
+                                + " ORDER BY sequence",
                         RECORD_MAPPER,
-                        partition);
+                        partition,
+                        head.lastSequence());
         String expectedPrev = LedgerHash.GENESIS;
         long checked = 0;
         for (DecisionRecord record : records) {
@@ -230,26 +243,9 @@ public final class PostgresDecisionLedger implements DecisionLedger {
             }
             expectedPrev = record.recordHash();
         }
-        return verifyChainHead(partition, records, checked);
-    }
-
-    /** 链头比对：存活记录数必须等于 {@code last_sequence}，最后一条哈希必须等于 {@code last_hash}。 */
-    private LedgerVerification verifyChainHead(
-            String partition, List<DecisionRecord> records, long checked) {
-        List<ChainHead> heads =
-                jdbc.query(
-                        "SELECT last_sequence, last_hash FROM agent_decision_chain WHERE partition = ?",
-                        (rs, rowNum) ->
-                                new ChainHead(
-                                        rs.getLong("last_sequence"), rs.getString("last_hash")),
-                        partition);
-        if (heads.isEmpty()) {
-            return LedgerVerification.ok(partition, checked);
-        }
-        ChainHead head = heads.get(0);
         DecisionRecord last = records.isEmpty() ? null : records.get(records.size() - 1);
         String lastHash = last == null ? LedgerHash.GENESIS : last.recordHash();
-        if (head.lastSequence() != checked || !head.lastHash().equals(lastHash)) {
+        if (checked != head.lastSequence() || !head.lastHash().equals(lastHash)) {
             return LedgerVerification.mismatch(
                     partition,
                     checked,
@@ -258,6 +254,18 @@ public final class PostgresDecisionLedger implements DecisionLedger {
                     lastHash);
         }
         return LedgerVerification.ok(partition, checked);
+    }
+
+    /** 读分区链头；分区还没写过时返回 {@code null}。 */
+    private ChainHead readChainHead(String partition) {
+        List<ChainHead> heads =
+                jdbc.query(
+                        "SELECT last_sequence, last_hash FROM agent_decision_chain WHERE partition = ?",
+                        (rs, rowNum) ->
+                                new ChainHead(
+                                        rs.getLong("last_sequence"), rs.getString("last_hash")),
+                        partition);
+        return heads.isEmpty() ? null : heads.get(0);
     }
 
     /** 单个追加事务：锁链头、算序号与哈希、插入记录、推进链头。 */

@@ -116,7 +116,8 @@ class PostgresDecisionLedgerTest extends DecisionLedgerContractTest {
         String partition = DecisionRecord.partitionOf(tenant);
         UUID recordId = UUID.randomUUID();
         String forgedHash = "f".repeat(64);
-        ensureChain(partition);
+        // 直连写记录，并把链头推到这条「写坏了」的记录：记录落在快照内，才轮得到逐条重算。
+        setChainHead(partition, 1L, forgedHash);
         insertRecord(recordId, decision(23), partition, LedgerHash.GENESIS, forgedHash, tenant);
 
         LedgerVerification verification = ledger().verify(partition);
@@ -147,7 +148,7 @@ class PostgresDecisionLedgerTest extends DecisionLedgerContractTest {
                         recordedAt,
                         tenant,
                         Map.of("schema", "agent.decision.v1"));
-        ensureChain(partition);
+        setChainHead(partition, 1L, LedgerHash.of(forged));
         insertRecord(
                 recordId,
                 decisionId,
@@ -180,6 +181,22 @@ class PostgresDecisionLedgerTest extends DecisionLedgerContractTest {
         assertThat(verification.failedRecordId()).isNull();
         assertThat(verification.expectedHash()).isEqualTo(last.recordHash());
         assertThat(verification.actualHash()).isEqualTo(LedgerHash.GENESIS);
+    }
+
+    @Test
+    @DisplayName("连续 append 每次都 verify 都 ok：先读链头再截断扫记录，读偏移不会误报")
+    void verify_after_more_appends_stays_ok() {
+        String partition = DecisionRecord.partitionOf(TENANT);
+
+        for (int round = 1; round <= 3; round++) {
+            ledger().appendIntent(intent(TENANT, decision(50 + round)));
+
+            // 两次读之间的追加窗口由「先读链头、再按 sequence <= 链头序号 扫记录」结构性消除，不需要加锁。
+            LedgerVerification verification = ledger().verify(partition);
+
+            assertThat(verification.ok()).isTrue();
+            assertThat(verification.checkedRecords()).isEqualTo(round);
+        }
     }
 
     @Test
@@ -223,14 +240,19 @@ class PostgresDecisionLedgerTest extends DecisionLedgerContractTest {
         }
     }
 
-    private static void ensureChain(String partition) {
+    /** 直连把分区链头改到指定位置（记录表有触发器，链头表是普通表）。 */
+    private static void setChainHead(String partition, long lastSequence, String lastHash) {
         jdbc.update(
                 """
                 INSERT INTO agent_decision_chain (partition, last_sequence, last_hash)
-                VALUES (?, 0, ?) ON CONFLICT (partition) DO NOTHING
+                VALUES (?, ?, ?)
+                ON CONFLICT (partition) DO UPDATE
+                    SET last_sequence = EXCLUDED.last_sequence,
+                        last_hash = EXCLUDED.last_hash
                 """,
                 partition,
-                LedgerHash.GENESIS);
+                lastSequence,
+                lastHash);
     }
 
     /** 直连数据库写一条记录，绕过账本的哈希与链头维护。 */
