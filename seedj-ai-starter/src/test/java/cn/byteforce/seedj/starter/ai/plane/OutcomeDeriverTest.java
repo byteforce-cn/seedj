@@ -9,12 +9,14 @@ import cn.byteforce.seedj.ai.ActionClass;
 import cn.byteforce.seedj.ai.AgentIdentity;
 import cn.byteforce.seedj.ai.AgentToolSpec;
 import cn.byteforce.seedj.ai.CommandRef;
+import cn.byteforce.seedj.ai.DecisionEffect;
 import cn.byteforce.seedj.ai.DecisionIntent;
 import cn.byteforce.seedj.ai.DecisionKind;
 import cn.byteforce.seedj.ai.DecisionRecord;
 import cn.byteforce.seedj.ai.DecisionRecordKind;
 import cn.byteforce.seedj.ai.EffectStatus;
 import cn.byteforce.seedj.ai.ModelRef;
+import cn.byteforce.seedj.ai.OutcomeSource;
 import cn.byteforce.seedj.ai.PolicyRef;
 import cn.byteforce.seedj.ai.spi.ToolRegistry;
 import cn.byteforce.seedj.core.exception.ContractErrorCode;
@@ -54,6 +56,9 @@ import org.testcontainers.junit.jupiter.Testcontainers;
  * <p>两条断言贯穿全类：<b>上报不是结论</b>——runtime 只能报 {@code command_id}，结局一律由链上事实推导，
  * {@code audit_entry_id} 在上报阶段永远为空；<b>对账才补链校验</b>——{@code reconciled} 记录按
  * {@code audit_entry > command_record} 的关联补 {@code audit_entry_id}，绝不回填原 outcome。
+ *
+ * <p>对账还要<b>去重</b>：{@code reconciled} 在账本里不幂等（每次一条观察），而 outcome 落账后永远是
+ * {@code ok + audit_entry_id=null}，所以同一 decision 只补一次链校验记录，重复运行是 no-op。
  *
  * <p>业务库用真 PostgreSQL（{@code command_record} 与 {@code audit_entry} 的约束、jsonb 取值都在测试里落实），
  * 账本用 {@link InMemoryDecisionLedger}：这里验的是派生与对账规则，不是账本实现（那有各自的契约测试）。
@@ -179,11 +184,12 @@ class OutcomeDeriverTest {
     }
 
     @Test
-    @DisplayName("有意图无效果且过了 TTL 的决策才会被对账入口列出")
-    void intent_without_outcome_after_ttl_is_listed() {
+    @DisplayName("只有 intent 没有 outcome：源即使列出来，对账也不改账本")
+    void intent_only_decision_changes_nothing() {
         UUID decisionId = newDecision();
         List<Instant> cutoffs = new ArrayList<>();
-        List<UUID> scanned = new ArrayList<>();
+        List<UUID> listed = new ArrayList<>();
+        // 夹具源：只验证作业把 now - ttl 作为截止时间、并原样处理源给的清单；真实实现按 outcome 的落账时间过滤
         ReconciliationJob scanning =
                 new ReconciliationJob(
                         dataSource,
@@ -191,7 +197,7 @@ class OutcomeDeriverTest {
                         before -> {
                             cutoffs.add(before);
                             if (intentOf(decisionId).recordedAt().isBefore(before)) {
-                                scanned.add(decisionId);
+                                listed.add(decisionId);
                                 return List.of(decisionId);
                             }
                             return List.of();
@@ -201,13 +207,67 @@ class OutcomeDeriverTest {
 
         assertThat(scanning.reconcileOnce(now)).isZero();
         assertThat(cutoffs).containsExactly(now.minus(TTL));
-        assertThat(scanned).isEmpty();
+        assertThat(listed).isEmpty();
 
         assertThat(scanning.reconcileOnce(now.plus(TTL).plusSeconds(60))).isEqualTo(1);
-        assertThat(scanned).containsExactly(decisionId);
+        assertThat(listed).containsExactly(decisionId);
+        // 有意图无效果：对账只登记待核对，不伪造 outcome，也不造 reconciled
         assertThat(ledger.byDecision(TENANT, decisionId))
                 .extracting(DecisionRecord::kind)
                 .containsExactly(DecisionRecordKind.INTENT);
+    }
+
+    @Test
+    @DisplayName("对账去重：同一决策只补一次 chain_verified，重复运行是 no-op")
+    void reconcile_twice_appends_once() {
+        UUID decisionId = newDecision();
+        UUID commandId = insertAccepted(decisionId, FINGERPRINT);
+        String auditEntryId = insertAuditEntry(commandId);
+        deriver.report(decisionId, commandId);
+
+        assertThat(job.reconcile(decisionId)).isPresent();
+        assertThat(job.reconcile(decisionId)).isEmpty();
+
+        List<DecisionRecord> records = ledger.byDecision(TENANT, decisionId);
+        assertThat(records)
+                .extracting(DecisionRecord::kind)
+                .containsExactly(
+                        DecisionRecordKind.INTENT,
+                        DecisionRecordKind.OUTCOME,
+                        DecisionRecordKind.RECONCILED);
+        assertThat(effectOf(records.get(2))).containsEntry("audit_entry_id", auditEntryId);
+    }
+
+    @Test
+    @DisplayName("非 ok 的 outcome 不去对账：没有任何追加")
+    void rejected_outcome_is_not_reconciled() {
+        UUID decisionId = newDecision();
+        insertRejected(decisionId, "FORBIDDEN");
+        deriver.report(decisionId, UUID.randomUUID());
+
+        assertThat(job.reconcile(decisionId)).isEmpty();
+
+        assertThat(ledger.byDecision(TENANT, decisionId))
+                .extracting(DecisionRecord::kind)
+                .containsExactly(DecisionRecordKind.INTENT, DecisionRecordKind.OUTCOME);
+    }
+
+    @Test
+    @DisplayName("outcome 自带 audit_entry_id：已链校验过，不再对账")
+    void already_verified_outcome_is_not_reconciled() {
+        UUID decisionId = newDecision();
+        UUID commandId = UUID.randomUUID();
+        // 模拟别的组件已写出的「已链校验」outcome：report() 永远不会造出这种记录
+        ledger.appendOutcome(
+                decisionId,
+                DecisionEffect.ok("audit-verified", commandId),
+                OutcomeSource.RUNTIME_REPORTED);
+
+        assertThat(job.reconcile(decisionId)).isEmpty();
+
+        assertThat(ledger.byDecision(TENANT, decisionId))
+                .extracting(DecisionRecord::kind)
+                .containsExactly(DecisionRecordKind.INTENT, DecisionRecordKind.OUTCOME);
     }
 
     @Test

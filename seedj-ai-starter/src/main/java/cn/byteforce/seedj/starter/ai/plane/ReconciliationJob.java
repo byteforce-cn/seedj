@@ -27,15 +27,19 @@ import org.springframework.scheduling.annotation.Scheduled;
  *       {@code reconciled(ok(audit_entry_id, command_id), "chain_verified")}；查不到就追加
  *       {@code reconciled(unknown(), "audit_entry_missing")}——自称成功却没有链条目是数据不一致，降为未知，「不得把
  *       unknown 当成成功」。
- *   <li>其它情况（已链校验过、非 ok、没有 outcome）不动。{@code reconciled} 不幂等：每次核对一条记录，历史留在
- *       链上，旧 outcome 不改写（账本没有更新入口）。
+ *   <li>其它情况（已链校验过、非 ok、没有 outcome）不动。
+ *   <li><b>去重</b>：账本的 {@code reconciled} <b>不幂等</b>（每次核对一条观察），而 outcome 落账后永远还是
+ *       {@code ok + audit_entry_id=null}；不去重的话一个 60 秒一次的调度会为同一个 decision 无限追加同样的
+ *       {@code chain_verified}。所以追加前先看账本：已经有带 {@code audit_entry_id} 的 {@code reconciled} 就返回空——
+ *       同一 decision 只补一次链校验记录，重复运行是 no-op。旧 outcome、旧记录都不改写（账本没有更新入口）。
  * </ul>
  *
  * <p><b>T0 的范围收窄（有意为之）</b>：{@link DecisionLedger} 只有「租户 + decision_id」作用域的读接口，没有跨租户
- * 按时间扫描的入口，所以 T0 <b>不实现</b>「有 intent、无 outcome、且超过 TTL」的全量发现。待核对清单来自
- * {@link PlaneReconciliationSource}：生产默认实现 {@link ConfiguredReconciliationSource} 返回空列表并在启动时 WARN，
- * 真正的驱动来自 Task 13 的夹具、运维脚本或宿主自定义 bean。定时包装即使打开也扫不到东西——这不是全量对账，别把
- * 它当全量对账。
+ * 按时间扫描的入口，所以 T0 <b>不实现</b>「有 intent、无 outcome、且超过 TTL」的全量发现——这类决策本类也只会
+ * no-op（没有 outcome 就没有可核对的链事实），所以它不在 {@link PlaneReconciliationSource} 的契约里。待核对清单来自
+ * {@link PlaneReconciliationSource}，它列的是「已有 outcome、{@code status=ok}、但 {@code audit_entry_id} 仍为
+ * null」的决策；生产默认实现 {@link ConfiguredReconciliationSource} 返回空列表并在启动时 WARN，真正的驱动来自 Task 13
+ * 的夹具、运维脚本或宿主自定义 bean。定时包装即使打开也扫不到东西——这不是全量对账，别把它当全量对账。
  *
  * <p><b>定时</b>：只有 {@code seedj.ai.plane.reconcile.enabled=true} 时才装配 {@link Scheduler}，且宿主必须自己写
  * {@code @EnableScheduling}（starter 不改宿主的调度配置）。测试与运维直接调 {@link #reconcileOnce(Instant)}，不依赖
@@ -91,14 +95,18 @@ public final class ReconciliationJob {
     /**
      * 按已知决策核对一次：需要时追加一条 {@code reconciled}。
      *
+     * <p>同一 decision 只补一次链校验记录：已经存在带 {@code audit_entry_id} 的 {@code reconciled} 时直接返回空，
+     * 不再追加（详见类注释的去重说明）。
+     *
      * @param decisionId 决策标识
-     * @return 追加的 {@code reconciled} 记录；不需要核对（没有 outcome、已链校验过、非 ok）时为空
+     * @return 追加的 {@code reconciled} 记录；不需要核对（没有 outcome、非 ok、已链校验过、已补过链校验记录）时为空
      * @throws NullPointerException {@code decisionId} 为 {@code null}
      */
     public Optional<DecisionRecord> reconcile(UUID decisionId) {
         Objects.requireNonNull(decisionId, "decisionId");
+        List<DecisionRecord> records = ledger.byDecision(tenantId, decisionId);
         Optional<DecisionRecord> outcome =
-                ledger.byDecision(tenantId, decisionId).stream()
+                records.stream()
                         .filter(record -> record.kind() == DecisionRecordKind.OUTCOME)
                         .findFirst();
         if (outcome.isEmpty()) {
@@ -106,6 +114,9 @@ public final class ReconciliationJob {
         }
         RecordedEffect effect = RecordedEffect.of(outcome.get());
         if (effect.status() != EffectStatus.OK || effect.auditEntryId() != null) {
+            return Optional.empty();
+        }
+        if (chainVerified(records)) {
             return Optional.empty();
         }
         Optional<String> auditEntryId =
@@ -126,6 +137,18 @@ public final class ReconciliationJob {
                                                 decisionId,
                                                 DecisionEffect.unknown(),
                                                 REASON_AUDIT_ENTRY_MISSING)));
+    }
+
+    /**
+     * 已经补过链校验记录：存在一条带 {@code audit_entry_id} 的 {@code reconciled}。
+     *
+     * <p>只看带 {@code audit_entry_id} 的那些：{@code audit_entry_missing} 的结论是「链上没有条目」，链条目补写后还要
+     * 再核，不能被当成已完成。
+     */
+    private static boolean chainVerified(List<DecisionRecord> records) {
+        return records.stream()
+                .filter(record -> record.kind() == DecisionRecordKind.RECONCILED)
+                .anyMatch(record -> RecordedEffect.of(record).auditEntryId() != null);
     }
 
     /**
