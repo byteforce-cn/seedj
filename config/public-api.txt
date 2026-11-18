@@ -1,3 +1,7 @@
+core|cn.byteforce.seedj.ai|ActionClass
+core|cn.byteforce.seedj.ai|ArgsHash
+core|cn.byteforce.seedj.ai|CommandFingerprint
+core|cn.byteforce.seedj.ai|IdemFingerprint
 core|cn.byteforce.seedj.audit.spi|AuditStore
 core|cn.byteforce.seedj.audit|AuditAnchor
 core|cn.byteforce.seedj.audit|AuditAppendRequest
@@ -650,6 +654,7 @@ seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.workflow|WorkflowMigrations
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.workflow|WorkflowSchemaCapability
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.workflow|WorkflowTimerPoller
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc|JdbcMigrationRunner
+seedj-server/ai|cn.byteforce.seedj.server.ai|AiServer
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|EmployeeNoSequence
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeConfiguration
 seedj-server/hr|cn.byteforce.seedj.server.hr.employee|HrEmployeeCreate
