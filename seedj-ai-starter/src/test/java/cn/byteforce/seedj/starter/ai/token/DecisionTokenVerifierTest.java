@@ -395,6 +395,69 @@ class DecisionTokenVerifierTest {
     }
 
     @Test
+    @DisplayName("header typ 不是 agent-decision+jws 时拒绝（别的 JOSE 对象不是决策凭据）")
+    void wrong_typ_is_rejected() {
+        JWSHeader header =
+                new JWSHeader.Builder(JWSAlgorithm.EdDSA)
+                        .type(new JOSEObjectType("JWT"))
+                        .keyID(KID)
+                        .build();
+        Fixture fixture = new Fixture();
+        String token = rawSign(fixture.claims(), header);
+
+        GuardVerdict verdict = VERIFIER.verify(token, fixture.context(), NOW);
+
+        assertThat(verdict)
+                .isInstanceOfSatisfying(
+                        GuardVerdict.Reject.class,
+                        reject -> {
+                            assertThat(reject.code().wire()).isEqualTo("token_invalid");
+                            assertThat(reject.detail()).contains("typ");
+                        });
+    }
+
+    @Test
+    @DisplayName("单条 token 超过 4096 字节直接拒绝（不截断、也不进解析器）")
+    void oversized_token_is_rejected() {
+        String oversized = "a".repeat(4100);
+
+        GuardVerdict verdict = VERIFIER.verify(oversized, new Fixture().context(), NOW);
+
+        assertThat(verdict)
+                .isInstanceOfSatisfying(
+                        GuardVerdict.Reject.class,
+                        reject -> {
+                            assertThat(reject.code().wire()).isEqualTo("token_invalid");
+                            assertThat(reject.detail()).contains("too large");
+                        });
+        // 恰好 4096 字节的串仍走正常解析路径（拒绝理由换成「不是 JWS」，而不是长度）。
+        assertThat(VERIFIER.verify("a".repeat(4096), new Fixture().context(), NOW))
+                .isInstanceOfSatisfying(
+                        GuardVerdict.Reject.class,
+                        reject -> assertThat(reject.detail()).doesNotContain("too large"));
+    }
+
+    @Test
+    @DisplayName("identity_mismatch 的 detail 带期望与实际的 actor/tenant（都不是秘密）")
+    void identity_mismatch_names_expected_and_actual() {
+        Fixture fixture = new Fixture();
+        fixture.ctxActor = OTHER_ACTOR;
+
+        GuardVerdict verdict = VERIFIER.verify(fixture.jws(), fixture.context(), NOW);
+
+        assertThat(verdict)
+                .isInstanceOfSatisfying(
+                        GuardVerdict.Reject.class,
+                        reject -> {
+                            assertThat(reject.code().wire()).isEqualTo("identity_mismatch");
+                            assertThat(reject.detail())
+                                    .contains(ACTOR.toString())
+                                    .contains(OTHER_ACTOR.toString())
+                                    .contains(TENANT);
+                        });
+    }
+
+    @Test
     @DisplayName("expectedVersion=null 的 token 能放行，且 wire 上保留该 null 键")
     void expected_version_null_is_carried_on_the_wire() throws ParseException {
         Fixture fixture = new Fixture();

@@ -19,6 +19,8 @@ seedj:
     plane:
       enabled: true
       tenant: 0190a5c0-0000-7000-8000-000000000001   # 部署时替换
+      # 决策面只放行带该权限的调用方：认证只回答「你是谁」，不回答「你能否驱动 agent」。
+      permission: agent:decide
       reconcile:
         enabled: false
     # 本宿主只当决策面：同时开 guard 会让一个进程既签发 token 又校验 token，出问题分不清哪侧生效。

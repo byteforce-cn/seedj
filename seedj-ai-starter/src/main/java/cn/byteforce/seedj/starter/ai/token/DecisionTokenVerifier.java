@@ -36,7 +36,14 @@ import org.slf4j.LoggerFactory;
  * Evaluate}（计划 R7），所以本类从不比对 {@link DecisionTokenClaims#policy()}，{@code
  * AiErrorCode.POLICY_STALE} 也恒不被返回。等 U8（{@code Evaluate} 返回求值版本）落地后在 T1 补。
  *
- * <p><b>追加校验</b>：{@code aud} 不是 §7.3 的条目，是本实现为防止「token 跨服务复用」追加的检查；受众口径见下。
+ * <p><b>追加校验</b>（都不是 §7.3 的条目，是本实现补的）：
+ *
+ * <ul>
+ *   <li>{@code aud}：防止「token 跨服务复用」，受众口径见下；
+ *   <li>{@code typ}：必须是 {@value #TOKEN_TYPE}，否则拒绝——不把别的 JOSE 对象当决策凭据；
+ *   <li>长度：单条 token 超过 {@value #TOKEN_MAX_LENGTH} 字节直接拒绝（§7.2 的上限），<b>不截断</b>——截断等于把
+ *       一个坏凭据改成另一个坏凭据。
+ * </ul>
  *
  * <p>拒绝说明只带 {@code kid} 与 {@code decision_id} 前 8 位：token 原文不进日志、不进错误响应。
  *
@@ -53,6 +60,12 @@ public final class DecisionTokenVerifier {
     private static final long CLOCK_SKEW_SECONDS = 60;
 
     private static final int SHORT_ID_LENGTH = 8;
+
+    /** header {@code typ} 的唯一合法值（与 {@link DecisionTokenIssuer} 签发的一致）。 */
+    static final String TOKEN_TYPE = "agent-decision+jws";
+
+    /** 单条 token 的长度上限，spec §7.2：超过就不解析，直接拒绝。 */
+    static final int TOKEN_MAX_LENGTH = 4096;
 
     private final Map<String, PublicKey> publicKeys;
 
@@ -92,14 +105,30 @@ public final class DecisionTokenVerifier {
         Objects.requireNonNull(context, "context");
         Objects.requireNonNull(now, "now");
 
+        if (jws == null || jws.isBlank()) {
+            return reject(AiErrorCode.TOKEN_INVALID, null, "token is missing");
+        }
+        if (jws.length() > TOKEN_MAX_LENGTH) {
+            // 先看长度再解析：超限的串不该进入 JOSE 解析器（不截断，截断会改掉凭据的含义）。
+            return reject(
+                    AiErrorCode.TOKEN_INVALID,
+                    null,
+                    "token too large: more than " + TOKEN_MAX_LENGTH + " bytes");
+        }
+
         JWSObject token;
         try {
-            if (jws == null || jws.isBlank()) {
-                return reject(AiErrorCode.TOKEN_INVALID, null, "token is missing");
-            }
             token = JWSObject.parse(jws);
         } catch (ParseException | RuntimeException e) {
-            return reject(AiErrorCode.TOKEN_INVALID, null, "token is not a JWS compact serialization");
+            return reject(
+                    AiErrorCode.TOKEN_INVALID, null, "token is not a JWS compact serialization");
+        }
+
+        if (!TOKEN_TYPE.equals(typeOf(token))) {
+            return reject(
+                    AiErrorCode.TOKEN_INVALID,
+                    token.getHeader().getKeyID(),
+                    "typ must be " + TOKEN_TYPE + ", was " + typeOf(token));
         }
 
         String kid = token.getHeader().getKeyID();
@@ -111,7 +140,8 @@ public final class DecisionTokenVerifier {
         }
         if (token.getHeader().getCriticalParams() != null
                 && !token.getHeader().getCriticalParams().isEmpty()) {
-            return reject(AiErrorCode.TOKEN_INVALID, kid, "critical header parameters are not supported");
+            return reject(
+                    AiErrorCode.TOKEN_INVALID, kid, "critical header parameters are not supported");
         }
         PublicKey publicKey = kid == null ? null : publicKeys.get(kid);
         if (publicKey == null) {
@@ -149,7 +179,14 @@ public final class DecisionTokenVerifier {
         if (!claims.actor().equals(context.actor())
                 || !claims.tenant().equals(context.tenantId())
                 || claims.onBehalfOf() == null) {
-            return reject(AiErrorCode.IDENTITY_MISMATCH, label, "actor/tenant/on_behalf_of mismatch");
+            // 期望 vs 实际都写出来：这两个值都不是秘密，缺了它们运维只能靠猜「哪一侧表示不一样」。
+            return reject(
+                    AiErrorCode.IDENTITY_MISMATCH,
+                    label,
+                    "actor/tenant mismatch: expected actor " + claims.actor()
+                            + " tenant " + claims.tenant()
+                            + ", got actor " + context.actor()
+                            + " tenant " + context.tenantId());
         }
 
         Optional<AgentToolSpec> tool;
@@ -231,6 +268,10 @@ public final class DecisionTokenVerifier {
         String message = label == null ? detail : detail + " (" + label + ")";
         LOG.debug("decision token rejected: code={} detail={}", code.wire(), message);
         return new GuardVerdict.Reject(code, message);
+    }
+
+    private static String typeOf(JWSObject token) {
+        return token.getHeader().getType() == null ? null : token.getHeader().getType().getType();
     }
 
     private static String shortId(UUID decisionId) {

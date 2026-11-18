@@ -14,7 +14,8 @@ import tools.jackson.databind.PropertyNamingStrategies;
 import tools.jackson.databind.annotation.JsonNaming;
 
 /**
- * 决策面的 HTTP 客户端：{@code POST {decisionBaseUrl}/v1/decisions}。
+ * 决策面的 HTTP 客户端：{@code POST {decisionBaseUrl}/v1/decisions} 求值，
+ * {@code POST {decisionBaseUrl}/v1/decisions/{id}/outcome} 上报执行结局。
  *
  * <p>线格式与决策面的 {@code DecisionService.DecisionRequest} 同构（snake_case）：
  * {@code task_contract_id} / {@code conversation_id} / {@code step} / {@code kind} /
@@ -26,7 +27,7 @@ import tools.jackson.databind.annotation.JsonNaming;
  * {@link AiRuntimeAutoConfiguration}），不由 agent 或请求方自报。换模型或换提示词版本必须改配置。
  *
  * <p><b>失败语义</b>：{@code deny} 是正常返回（{@link DecisionGrant#denyRule()} 有值）；HTTP 非 2xx 或响应缺必要
- * 字段抛 {@link IllegalStateException}。异常消息只带状态码，不含响应体，也不含任何凭据。
+ * 字段抛 {@link IllegalStateException}。异常消息只带状态码，不含响应体，也不含任何凭据。outcome 上报同样只带状态码。
  *
  * <p><b>T0 的调用方只会在 {@code EXECUTE_TOOL} 时调用本类</b>：{@link BoundedLoop} 不对只读/收尾提案求值（决策面
  * 的 intent 要求 {@code command} 必填，而 {@code Proposal} 只对执行工具携带命令引用）；只读路径由宿主直接组合本类
@@ -39,6 +40,9 @@ public final class HttpDecisionClient implements DecisionClient {
 
     /** 决策面求值入口的路径。 */
     static final String DECISIONS_PATH = "/v1/decisions";
+
+    /** 结局面报的路径后缀（接在 {@code /v1/decisions/{id}} 之后）。 */
+    static final String OUTCOME_PATH_SUFFIX = "/outcome";
 
     private static final String VERDICT_ALLOW = "allow";
 
@@ -96,6 +100,38 @@ public final class HttpDecisionClient implements DecisionClient {
                     "决策面返回 HTTP " + error.getStatusCode().value(), error);
         }
         return grant(response);
+    }
+
+    /**
+     * 上报一次执行结局。
+     *
+     * <p>请求体只有 {@code command_id}（snake_case）：状态与链条目标识都只来自链上事实，运行时说了不算。
+     *
+     * @param decisionId 决策标识
+     * @param commandId 命令标识
+     * @throws NullPointerException 任一参数为 {@code null}
+     * @throws IllegalStateException 决策面返回非 2xx（消息只带状态码）
+     */
+    @Override
+    public void report(UUID decisionId, UUID commandId) {
+        Objects.requireNonNull(decisionId, "decisionId");
+        Objects.requireNonNull(commandId, "commandId");
+        try {
+            client.post()
+                    .uri(
+                            baseUrl
+                                    + DECISIONS_PATH
+                                    + "/"
+                                    + decisionId
+                                    + OUTCOME_PATH_SUFFIX)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(Map.of("command_id", commandId.toString()))
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (RestClientResponseException error) {
+            throw new IllegalStateException(
+                    "决策面 outcome 上报返回 HTTP " + error.getStatusCode().value(), error);
+        }
     }
 
     private Map<String, Object> requestBody(

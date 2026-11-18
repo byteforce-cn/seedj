@@ -21,6 +21,7 @@ import cn.byteforce.seedj.ai.Evidence;
 import cn.byteforce.seedj.ai.LedgerVerification;
 import cn.byteforce.seedj.ai.OutcomeSource;
 import cn.byteforce.seedj.ai.spi.DecisionLedger;
+import cn.byteforce.seedj.core.security.Caller;
 import cn.byteforce.seedj.ai.spi.ToolRegistry;
 import cn.byteforce.seedj.core.clock.Clock;
 import cn.byteforce.seedj.core.exception.ContractErrorCode;
@@ -38,6 +39,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -134,7 +136,8 @@ class DecisionServiceTest {
         assertThat(records)
                 .extracting(DecisionRecord::kind)
                 .containsExactly(DecisionRecordKind.INTENT, DecisionRecordKind.OUTCOME);
-        assertThat(records.get(1).body()).containsEntry("source", "runtime_reported");
+        // 来源是决策面自己：只有 runtime 上报与对账才写 runtime_reported / reconciled。
+        assertThat(records.get(1).body()).containsEntry("source", "plane_decided");
         assertThat(effectOf(records.get(1)))
                 .containsEntry("status", "not_issued")
                 .containsEntry("error_code", DecisionService.SIGNING_FAILED);
@@ -155,6 +158,7 @@ class DecisionServiceTest {
         assertThat(records)
                 .extracting(DecisionRecord::kind)
                 .containsExactly(DecisionRecordKind.INTENT, DecisionRecordKind.OUTCOME);
+        assertThat(records.get(1).body()).containsEntry("source", "plane_decided");
         assertThat(effectOf(records.get(1)))
                 .containsEntry("status", "rejected")
                 .containsEntry("error_code", "CONTRACT_CAPABILITY");
@@ -278,6 +282,7 @@ class DecisionServiceTest {
         assertThat(records)
                 .extracting(DecisionRecord::kind)
                 .containsExactly(DecisionRecordKind.INTENT, DecisionRecordKind.OUTCOME);
+        assertThat(records.get(1).body()).containsEntry("source", "plane_decided");
         assertThat(effectOf(records.get(1))).containsEntry("status", "not_applicable");
         assertThat(intents).singleElement().extracting(DecisionIntent::actionClass).isNull();
     }
@@ -448,7 +453,12 @@ class DecisionServiceTest {
     @DisplayName("HTTP 线格式：POST 返回 snake_case，GET 回读记录，未知决策 404")
     void decision_endpoints_use_snake_case_wire() throws Exception {
         MockMvc mvc =
-                MockMvcBuilders.standaloneSetup(new DecisionController(service(), null))
+                MockMvcBuilders.standaloneSetup(
+                                new DecisionController(
+                                        service(),
+                                        null,
+                                        () -> Optional.of(permittedCaller()),
+                                        AiProperties.DEFAULT_PLANE_PERMISSION))
                         .setControllerAdvice(new ContractErrorHandler())
                         .build();
 
@@ -559,6 +569,20 @@ class DecisionServiceTest {
                         });
     }
 
+    /** 带决策面权限的调用方：`/v1/decisions` 现在既认证也授权。 */
+    private static Caller permittedCaller() {
+        return new Caller(
+                ACTOR.toString(),
+                "agent-runtime",
+                TENANT.toString(),
+                Set.of("agent"),
+                Set.of(AiProperties.DEFAULT_PLANE_PERMISSION),
+                Set.of(),
+                Set.of(),
+                null,
+                null);
+    }
+
     private DecisionService service() {
         return service(recordingSigner());
     }
@@ -649,7 +673,12 @@ class DecisionServiceTest {
     private static AiProperties properties(String audience) {
         return new AiProperties(
                 true,
-                new AiProperties.Plane(true, TENANT, null, Duration.ofMinutes(10)),
+                new AiProperties.Plane(
+                        true,
+                        TENANT,
+                        AiProperties.DEFAULT_PLANE_PERMISSION,
+                        null,
+                        Duration.ofMinutes(10)),
                 null,
                 null,
                 new AiProperties.Identity(ACTOR.toString(), ON_BEHALF_OF.toString()),

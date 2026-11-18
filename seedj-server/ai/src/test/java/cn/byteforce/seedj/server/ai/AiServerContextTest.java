@@ -39,7 +39,8 @@ import org.springframework.test.web.servlet.MockMvc;
             AiServerTestFixtures.NO_DATASOURCE,
             AiServerTestFixtures.AUDIT_OFF,
             AiServerTestFixtures.DEGRADED_MODE,
-            AiServerTestFixtures.DEV_AUTH
+            AiServerTestFixtures.DEV_AUTH,
+            AiServerTestFixtures.DEV_AUTH_DECIDE
         })
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -92,7 +93,8 @@ class AiServerContextTest {
                                                 AiServerTestFixtures.NO_DATASOURCE,
                                                 AiServerTestFixtures.AUDIT_OFF,
                                                 AiServerTestFixtures.DEGRADED_MODE,
-                                                AiServerTestFixtures.DEV_AUTH)
+                                                AiServerTestFixtures.DEV_AUTH,
+                                                AiServerTestFixtures.DEV_AUTH_DECIDE)
                                         .run("--server.port=0", "--seedj.ai.plane.tenant="))
                 .hasMessageContaining("seedj.ai.plane.tenant");
     }

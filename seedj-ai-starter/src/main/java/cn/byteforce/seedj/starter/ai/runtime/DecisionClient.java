@@ -1,6 +1,7 @@
 package cn.byteforce.seedj.starter.ai.runtime;
 
 import cn.byteforce.seedj.ai.Proposal;
+import java.util.UUID;
 
 /**
  * 决策端口：把 agent 的提案交给决策面求值。
@@ -31,4 +32,18 @@ public interface DecisionClient {
      * @throws IllegalStateException 决策面返回非 2xx，或响应缺少必要字段
      */
     DecisionGrant ask(TaskContract contract, int step, Proposal proposal, String audience);
+
+    /**
+     * 上报一次执行结局：{@code POST /v1/decisions/{decisionId}/outcome}。
+     *
+     * <p>工具确认执行成功之后调用（{@link ToolResult#ok()} 为 {@code true}）。上报的成功与否不影响已经发生的
+     * 副作用，所以 {@link BoundedLoop} 把它当尽力而为的动作：失败只 WARN，不让循环失败。
+     *
+     * <p>上报的内容只有 {@code command_id}：结局状态、链条目标识都由决策面按链上事实推导，运行时说了不算。
+     *
+     * @param decisionId 本次执行的决策标识
+     * @param commandId 命令面返回的命令标识
+     * @throws IllegalStateException 决策面返回非 2xx
+     */
+    void report(UUID decisionId, UUID commandId);
 }

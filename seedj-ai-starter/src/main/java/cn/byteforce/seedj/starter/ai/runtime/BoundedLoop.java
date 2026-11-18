@@ -5,6 +5,9 @@ import cn.byteforce.seedj.ai.Proposal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * 有界 agent 循环：每一步先问模型，再按提案类型分叉（spec §5.1）。
@@ -15,6 +18,7 @@ import java.util.Objects;
  *   <li>{@link LlmGateway#next(Prompt)} —— 一步一个提案；
  *   <li>{@code FINISH} 收尾，不调决策面、不调工具；
  *   <li>{@code EXECUTE_TOOL} 才 {@link DecisionClient#ask}：拒绝即停，放行才用发放的 token 调工具；
+ *       工具确认执行后再 {@link DecisionClient#report} 上报 outcome；
  *   <li>{@code READ} / {@code ASK_USER} / {@code ESCALATE} 是<b>循环内转换</b>（记一行观测，下一步由模型接着决定），
  *       不调决策面、不落账。
  * </ol>
@@ -27,6 +31,10 @@ import java.util.Objects;
  * <p><b>停止条件之后不再有动作</b>：拒绝、{@code finish}、工具失败、走满上限都立刻返回，不再问决策面、也不再调
  * 工具。上限取 {@code min(contract.maxSteps, 部署上限)}——任务可以比部署更保守，不能更宽松。
  *
+ * <p><b>outcome 上报是尽力而为</b>：工具已返回 {@code ok}，副作用已经发生，上报失败不能让循环失败（那会抹掉
+ * 一次成功执行的观察）。失败只打一条 WARN（带 {@code decision_id}，不带 token），循环照常往下走。后果是那个决策在账本
+ * 上停在「有 intent 无 outcome」：T0 的对账入口（{@code PlaneReconciliationSource} 默认返回空）无法自动修补。
+ *
  * <p><b>不做授权判定</b>：能不能执行由决策面按契约能力集判，本类只消费 {@link DecisionGrant}。本类不写入 token：
  * 它只把 token 从判定传给工具端口；{@link LoopResult#detail()} 是工具返回体原文（外部文本，截断到
  * {@value LoopResult#MAX_DETAIL_CHARS} 字符），观测里只有步骤描述。
@@ -37,6 +45,8 @@ import java.util.Objects;
  * @since 1.0.0
  */
 public final class BoundedLoop {
+
+    private static final Logger LOG = LoggerFactory.getLogger(BoundedLoop.class);
 
     private final LlmGateway gateway;
 
@@ -105,11 +115,29 @@ public final class BoundedLoop {
                     if (!result.ok()) {
                         return LoopResult.toolFailed(step, result.body(), observations);
                     }
+                    reportOutcome(grant.decisionId(), result.commandId());
                 }
                 case READ, ASK_USER, ESCALATE -> observations.add(describe(step, proposal, null));
             }
         }
         return LoopResult.maxStepsReached(maxSteps, observations);
+    }
+
+    /**
+     * 上报一次执行结局；失败只 WARN——命令已经执行成功，上报失败不能把整个循环算成失败。
+     *
+     * <p>日志里只有 {@code decision_id}：token 从不进日志。没有 {@code command_id} 时无法构造可解释的上报，直接跳过。
+     */
+    private void reportOutcome(UUID decisionId, UUID commandId) {
+        if (commandId == null) {
+            LOG.warn("outcome report skipped for decision {}: command id is missing", decisionId);
+            return;
+        }
+        try {
+            decisions.report(decisionId, commandId);
+        } catch (RuntimeException error) {
+            LOG.warn("outcome report failed for decision {}", decisionId, error);
+        }
     }
 
     private static Prompt prompt(TaskContract contract, int step, List<String> observations) {

@@ -32,6 +32,8 @@ seedj:
     plane:
       enabled: true
       tenant: 018f2e3a-0000-7000-8000-0000000b0007
+      # 决策面只放行带该权限的调用方（PilotTestConfiguration 的 Caller 授予了它）。
+      permission: agent:decide
       reconcile:
         # 用例直接调 ReconciliationJob#reconcile，不依赖定时调度（也就不要 @EnableScheduling）。
         enabled: false

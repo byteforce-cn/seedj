@@ -20,6 +20,7 @@ import cn.byteforce.seedj.ai.OutcomeSource;
 import cn.byteforce.seedj.ai.PolicyRef;
 import cn.byteforce.seedj.ai.spi.ToolRegistry;
 import cn.byteforce.seedj.core.exception.ContractErrorCode;
+import cn.byteforce.seedj.core.security.Caller;
 import cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner;
 import cn.byteforce.seedj.infra.jdbc.ai.AiSchemaCapability;
 import cn.byteforce.seedj.infra.jdbc.audit.AuditSchemaCapability;
@@ -34,6 +35,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.sql.DataSource;
@@ -378,7 +380,12 @@ class OutcomeDeriverTest {
     @DisplayName("HTTP 面：只收 command_id，返回 snake_case 的 status，未知决策 404，缺字段 400")
     void outcome_endpoint_accepts_only_command_id() throws Exception {
         MockMvc mvc =
-                MockMvcBuilders.standaloneSetup(new DecisionController(decisions(), deriver))
+                MockMvcBuilders.standaloneSetup(
+                                new DecisionController(
+                                        decisions(),
+                                        deriver,
+                                        () -> Optional.of(permittedCaller()),
+                                        AiProperties.DEFAULT_PLANE_PERMISSION))
                         .setControllerAdvice(new ContractErrorHandler())
                         .build();
         UUID decisionId = newDecision();
@@ -551,11 +558,29 @@ class OutcomeDeriverTest {
         return (Map<String, Object>) record.body().get("effect");
     }
 
+    /** 带决策面权限的调用方：`/v1/decisions` 现在既认证也授权。 */
+    private static Caller permittedCaller() {
+        return new Caller(
+                ACTOR.toString(),
+                "agent-runtime",
+                TENANT.toString(),
+                Set.of("agent"),
+                Set.of(AiProperties.DEFAULT_PLANE_PERMISSION),
+                Set.of(),
+                Set.of(),
+                null,
+                null);
+    }
+
     private static AiProperties properties() {
         return new AiProperties(
                 true,
                 new AiProperties.Plane(
-                        true, TENANT, new AiProperties.Reconcile(null, false), TTL),
+                        true,
+                        TENANT,
+                        AiProperties.DEFAULT_PLANE_PERMISSION,
+                        new AiProperties.Reconcile(null, false),
+                        TTL),
                 null,
                 null,
                 new AiProperties.Identity(ACTOR.toString(), ON_BEHALF_OF.toString()),

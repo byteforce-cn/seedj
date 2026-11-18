@@ -6,6 +6,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import cn.byteforce.seedj.ai.spi.DecisionLedger;
 import cn.byteforce.seedj.core.clock.Clock;
+import cn.byteforce.seedj.core.security.Caller;
+import cn.byteforce.seedj.core.security.CallerProvider;
 import cn.byteforce.seedj.infra.local.ai.InMemoryDecisionLedger;
 import cn.byteforce.seedj.starter.ai.AiEnabledMarker;
 import cn.byteforce.seedj.starter.ai.plane.DecisionController;
@@ -16,6 +18,9 @@ import cn.byteforce.seedj.starter.web.ContractErrorHandler;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.DisplayName;
@@ -146,6 +151,23 @@ class ReconcileWiringTest {
         @Bean
         Clock clock() {
             return () -> Instant.parse("2026-11-17T09:41:00Z");
+        }
+
+        /** 带 agent:decide 权限的调用方：决策面端点先认证/授权，再暴露 503 之类的装配结论。 */
+        @Bean
+        CallerProvider callerProvider() {
+            Caller caller =
+                    new Caller(
+                            ACTOR.toString(),
+                            "agent",
+                            TENANT.toString(),
+                            Set.of("agent"),
+                            Set.of("agent:decide"),
+                            Set.of(),
+                            Set.of(Caller.DEFAULT_AMR),
+                            Caller.DEFAULT_ACR,
+                            Map.of());
+            return () -> Optional.of(caller);
         }
 
         @Bean

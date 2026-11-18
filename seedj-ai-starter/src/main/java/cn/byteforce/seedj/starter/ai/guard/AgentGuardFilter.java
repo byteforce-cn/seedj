@@ -60,6 +60,10 @@ import tools.jackson.databind.json.JsonMapper;
  * If-Match} 优先于 body，两者都给且不等则 400）。否则 token 钉死的版本可被绕过：只带 {@code If-Match} 就能换版本，
  * 或干脆两边都不带让版本守卫失效。
  *
+ * <p><b>受众不从请求头推</b>：{@code aud} 直接取 {@code seedj.ai.decision.audience}（装配期强制非空）。早先的实现
+ * 在配置为空时回退到 {@code request.getServerName()}，而 {@code Host} 是攻击者可控的——换个 {@code Host} 就能把
+ * 发给 A 服务的 token 重放到 B 服务。受众只是部署事实，不由请求参与决定。
+ *
  * <p><b>错误响应</b>：缺凭据 401（{@code WWW-Authenticate: AgentDecision}），token 校验不过 403，坏载荷 400；body
  * 统一 {@code {"code": ..., "detail": ...}}。这里的 {@code token_missing}、{@code unauthenticated}、{@code
  * invalid_payload} 是<b>过滤器层</b>的 wire 字面量，与 {@link AiErrorCode} 不是同一套——后者只描述 token 校验结论。
@@ -89,7 +93,7 @@ public final class AgentGuardFilter extends OncePerRequestFilter {
 
     private static final int CHUNK_BYTES = 8192;
 
-    private static final JsonMapper MAPPER = JsonMapper.builder().build();
+    private final JsonMapper mapper;
 
     private final DecisionTokenVerifier verifier;
 
@@ -107,8 +111,9 @@ public final class AgentGuardFilter extends OncePerRequestFilter {
      * @param verifier token 校验器：十条校验的唯一实现
      * @param callers 当前调用方；由 biz 安全链填充
      * @param callerIds 调用方标识 → actor 的编解码：必须与 {@code CommandController} 用同一个策略
-     * @param audience 本服务名；{@code null} 或空白表示用请求的 server name
+     * @param audience 本服务名（{@code seedj.ai.decision.audience}）；装配期强制非空，不从请求头推
      * @param clock 取时入口，用于 token 有效期判定
+     * @param mapper JSON 编解码；由装配方注入宿主的 {@link JsonMapper}，缺省用默认构造（数字映射与决策面一致）
      * @throws NullPointerException 除 {@code audience} 外任一参数为 {@code null}
      */
     public AgentGuardFilter(
@@ -116,12 +121,14 @@ public final class AgentGuardFilter extends OncePerRequestFilter {
             CallerProvider callers,
             CallerIdCodec callerIds,
             String audience,
-            Clock clock) {
+            Clock clock,
+            JsonMapper mapper) {
         this.verifier = Objects.requireNonNull(verifier, "verifier");
         this.callers = Objects.requireNonNull(callers, "callers");
         this.callerIds = Objects.requireNonNull(callerIds, "callerIds");
         this.audience = audience;
         this.clock = Objects.requireNonNull(clock, "clock");
+        this.mapper = Objects.requireNonNull(mapper, "mapper");
     }
 
     @Override
@@ -178,7 +185,7 @@ public final class AgentGuardFilter extends OncePerRequestFilter {
 
         CommandRequest command;
         try {
-            command = MAPPER.readValue(body, CommandRequest.class);
+            command = mapper.readValue(body, CommandRequest.class);
         } catch (JacksonException notJson) {
             reject(response, WIRE_INVALID_PAYLOAD, "command request body is not valid JSON", false);
             return;
@@ -209,7 +216,7 @@ public final class AgentGuardFilter extends OncePerRequestFilter {
                             command.targets(),
                             expectedVersion,
                             command.idempotencyKey(),
-                            audienceOf(request));
+                            audience);
         } catch (RuntimeException invalidRequest) {
             // GuardContext 的校验（含 List.copyOf 对 null 元素的拒绝）都是坏请求，不能漏成 500。
             reject(response, WIRE_INVALID_PAYLOAD, "invalid command request", false);
@@ -276,15 +283,6 @@ public final class AgentGuardFilter extends OncePerRequestFilter {
         }
     }
 
-    /** 受众：配置优先，未配置时取请求到了哪个服务；都拿不到时用不匹配 token 的占位值（fail-closed）。 */
-    private String audienceOf(HttpServletRequest request) {
-        if (audience != null && !audience.isBlank()) {
-            return audience;
-        }
-        String serverName = request.getServerName();
-        return serverName == null || serverName.isBlank() ? "unknown" : serverName;
-    }
-
     /**
      * 读原始请求体；超过 {@link #MAX_BODY_BYTES} 返回空。
      *
@@ -308,7 +306,7 @@ public final class AgentGuardFilter extends OncePerRequestFilter {
         return Optional.of(buffer.toByteArray());
     }
 
-    private static void reject(
+    private void reject(
             HttpServletResponse response, String code, String detail, boolean challenge)
             throws IOException {
         response.setStatus(challenge ? HttpServletResponse.SC_UNAUTHORIZED : statusFor(code));
@@ -317,7 +315,7 @@ public final class AgentGuardFilter extends OncePerRequestFilter {
         }
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-        MAPPER.writeValue(
+        mapper.writeValue(
                 response.getOutputStream(),
                 Map.of("code", code, "detail", Objects.requireNonNullElse(detail, "")));
     }

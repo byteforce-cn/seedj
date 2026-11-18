@@ -86,7 +86,7 @@ class AiEnumsTest {
     @DisplayName("OutcomeSource 的 wire 名是冻结的小写名")
     void outcome_source_wire_names_are_frozen() {
         assertThat(Arrays.stream(OutcomeSource.values()).map(OutcomeSource::wire))
-                .containsExactly("runtime_reported", "reconciled");
+                .containsExactly("runtime_reported", "plane_decided", "reconciled");
     }
 
     @Test

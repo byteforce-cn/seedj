@@ -28,6 +28,9 @@ final class AiServerTestFixtures {
     /** 本地固定调用方，避免上下文测试拉起 IdP。 */
     static final String DEV_AUTH = "seedj.biz.dev-auth.enabled=true";
 
+    /** 决策面要求 {@code agent:decide}：dev 调用方必须带它，否则请求停在 403、进不到控制器。 */
+    static final String DEV_AUTH_DECIDE = "seedj.biz.dev-auth.permissions=agent:decide";
+
     private AiServerTestFixtures() {}
 
     /** 测试账本：与 PG 账本同语义的内存实现。 */

@@ -150,7 +150,8 @@ class AgentGuardFilterTest {
     /** 用给定 codec 建一个独立的 MVC 实例：actor 的解析策略必须与 {@code CommandController} 一致。 */
     private MockMvc mvcWith(CallerIdCodec codec) {
         AgentGuardFilter filter =
-                new AgentGuardFilter(VERIFIER, callers, codec, AUDIENCE, (Clock) () -> NOW);
+                new AgentGuardFilter(
+                        VERIFIER, callers, codec, AUDIENCE, (Clock) () -> NOW, MAPPER);
         return MockMvcBuilders.standaloneSetup(new ProbeController()).addFilter(filter).build();
     }
 
@@ -394,6 +395,21 @@ class AgentGuardFilterTest {
     }
 
     @Test
+    @DisplayName("guard.enabled=true 但 audience 空白：启动失败并点名 seedj.ai.decision.audience")
+    void guard_requires_audience_at_startup() {
+        new WebApplicationContextRunner()
+                .withConfiguration(AutoConfigurations.of(AiGuardAutoConfiguration.class))
+                .withUserConfiguration(GuardHost.class)
+                .run(
+                        context -> {
+                            assertThat(context).hasFailed();
+                            assertThat(messages(context.getStartupFailure()))
+                                    .as("受众只能来自配置：留空就只能靠请求头猜，等于允许跨服务重放")
+                                    .contains("seedj.ai.decision.audience");
+                        });
+    }
+
+    @Test
     @DisplayName("guard.enabled=false 时不注册过滤器")
     void guard_disabled_registers_no_filter() {
         guardRunner()
@@ -524,6 +540,15 @@ class AgentGuardFilterTest {
         return body;
     }
 
+    /** 把启动失败的整条 cause 链拍成一行：断言配置键名用。 */
+    private static String messages(Throwable error) {
+        List<String> messages = new ArrayList<>();
+        for (Throwable current = error; current != null; current = current.getCause()) {
+            messages.add(String.valueOf(current.getMessage()));
+        }
+        return String.join(" | ", messages);
+    }
+
     private static String json(Map<String, Object> body) {
         return MAPPER.writeValueAsString(body);
     }
@@ -548,7 +573,8 @@ class AgentGuardFilterTest {
     private static WebApplicationContextRunner guardRunner() {
         return new WebApplicationContextRunner()
                 .withConfiguration(AutoConfigurations.of(AiGuardAutoConfiguration.class))
-                .withUserConfiguration(GuardHost.class);
+                .withUserConfiguration(GuardHost.class)
+                .withPropertyValues("seedj.ai.decision.audience=" + AUDIENCE);
     }
 
     /** 一个最小的 guard 宿主：启用标记、调用方、时钟与（空）命令目录。 */

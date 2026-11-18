@@ -109,6 +109,9 @@ public interface DecisionLedger {
      * 之后才提交的 N+1 被 {@code sequence <= N} 排除，两次读之间有人追加也不会误报篡改。反过来，记录数少于 N
      * 或末条 {@code record_hash} 对不上链头就是尾部被截断——行级触发器挡不住 {@code TRUNCATE}，这一条比对必需。
      *
+     * <p><b>只校对链头快照内的记录</b>：绕过账本直接 {@code INSERT}、且没有推进链头 {@code last_sequence} 的记录
+     * 不在快照内，本方法不报它们。要发现这类幽灵记录得比对表行数与链头 {@code last_sequence}（见 T0 明确不做）。
+     *
      * @param partition 分区名（{@link DecisionRecord#partitionOf(UUID)}）
      * @return 校对结果
      */

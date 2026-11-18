@@ -50,6 +50,9 @@ import tools.jackson.databind.annotation.JsonNaming;
  *   <li>allow + 其它 {@code kind}：同一调用里写 {@code outcome(not_applicable)}，不签 token。
  * </ol>
  *
+ * <p>上述三条是<b>决策面自己的结论</b>，账本里记 {@code source = plane_decided}；只有 runtime 上报与对账才写
+ * {@code runtime_reported} / {@code reconciled}——来源失真会让「这条结局是谁观测到的」无法回答。
+ *
  * <p>因此「token 签发失败」不会让意图悬空：intent 已提交，随后追加 {@code outcome(not_issued, signing_failed)}，
  * 请求仍返回 500——不签发就不可能有执行，账本也不会留下「有意图无结局」的洞（spec §6.4(3)）。
  *
@@ -254,13 +257,13 @@ public final class DecisionService {
         DecisionRecord intentRecord = ledger.appendIntent(intent);
         if (denyRule != null) {
             ledger.appendOutcome(
-                    decisionId, DecisionEffect.rejected(denyRule), OutcomeSource.RUNTIME_REPORTED);
+                    decisionId, DecisionEffect.rejected(denyRule), OutcomeSource.PLANE_DECIDED);
             return new DecisionResult(
                     decisionId, intentRecord.recordId(), VERDICT_DENY, denyRule, null, null);
         }
         if (kind != DecisionKind.EXECUTE_TOOL) {
             ledger.appendOutcome(
-                    decisionId, DecisionEffect.notApplicable(), OutcomeSource.RUNTIME_REPORTED);
+                    decisionId, DecisionEffect.notApplicable(), OutcomeSource.PLANE_DECIDED);
             return new DecisionResult(
                     decisionId, intentRecord.recordId(), VERDICT_ALLOW, null, null, null);
         }
@@ -289,7 +292,7 @@ public final class DecisionService {
             ledger.appendOutcome(
                     decisionId,
                     DecisionEffect.notIssued(SIGNING_FAILED),
-                    OutcomeSource.RUNTIME_REPORTED);
+                    OutcomeSource.PLANE_DECIDED);
             throw error;
         }
         return new DecisionResult(

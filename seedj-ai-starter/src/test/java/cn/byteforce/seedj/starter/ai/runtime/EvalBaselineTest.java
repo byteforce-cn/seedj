@@ -316,6 +316,11 @@ class EvalBaselineTest {
             return new DecisionGrant(
                     DECISION_ID, TOKEN, null, Instant.parse("2026-11-17T09:41:12Z"));
         }
+
+        @Override
+        public void report(UUID decisionId, UUID commandId) {
+            // eval 只看循环结局，不测账本：上报是 no-op。
+        }
     }
 
     /** 假工具口：只记下流过它的命令类型，一律成功。 */

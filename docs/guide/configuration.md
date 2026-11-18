@@ -59,7 +59,7 @@ docker compose up -d
 | `seedj.ai.guard.enabled` | `true` / `false` | 执行侧守卫；默认 `true`，只当决策面时关掉 |
 | `seedj.ai.runtime.enabled` | `true` / `false` | agent 循环；默认 `false`，开启后 `runtime.model.*` 必填 |
 | `seedj.ai.decision.kid` / `signing-key` | 字符串 | 密钥标识与 Ed25519 私钥；`signing-key` 空则临时密钥并 WARN |
-| `seedj.ai.provider` | `postgres` / 其它 | 账本实现；非 `postgres` 时不装配数据库账本 |
+| `seedj.ai.provider` | `postgres`（`matchIfMissing=true`）/ 其它 | 账本实现的**开关**，不是 `AiProperties` 的绑定项：由 `seedj-jdbc-postgresql` 的 `PostgresAiAutoConfiguration` 读取，等于 `postgres` 时装配数据库账本，其它值让它整体退出；starter 不提供内存账本 bean，非 `postgres` 场景宿主必须自备 `DecisionLedger` |
 
 ## coord 基础设施
 

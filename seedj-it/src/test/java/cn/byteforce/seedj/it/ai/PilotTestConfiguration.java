@@ -47,7 +47,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * <ul>
  *   <li><b>调用方</b>由固定 {@link CallerProvider} 给出：guard 用 {@code CallerIdCodec.uuid()} 把 {@code
  *       id} 解析成 token 里的 {@code actor}，用 {@code tenantId} 逐字比对 token 的 {@code tenant}——所以两者
- *       都必须是 UUID 字符串，且与 {@code seedj.ai.plane.tenant}/{@code identity.*} 是同一个值。
+ *       都必须是 UUID 字符串，且与 {@code seedj.ai.plane.tenant}/{@code identity.*} 是同一个值。它还带
+ *       {@code agent:decide} 权限，否则决策面自己就会 403（{@code seedj.ai.plane.permission}）。
  *   <li><b>授权判定</b>一律放行：本 pilot 要证明的是决策 token 这道门（guard），seedj 自己的命令/对象权限层若也拦，就
  *       分不清是「决策面没签」还 是「授权没给」。这是夹具的取舍；生产上两层都要在。
  *   <li><b>工单表</b>用 {@code TemporalDdl} 从 {@link Ticket} 的 schema 建表：字段仍只有一个来源，迁移只在本进程启动时
@@ -78,6 +79,9 @@ public class PilotTestConfiguration {
     /** 决策 token 的受众；与 {@code seedj.ai.decision.audience} 同一个值。 */
     public static final String AUDIENCE = "ticket-service";
 
+    /** 调决策面所需的权限；与 {@code seedj.ai.plane.permission} 同一个值。 */
+    public static final String DECIDE_PERMISSION = "agent:decide";
+
     /**
      * 当前调用方：pilot 的 agent。
      *
@@ -91,7 +95,8 @@ public class PilotTestConfiguration {
                         "pilot-agent",
                         TENANT.toString(),
                         Set.of("agent"),
-                        Set.of(),
+                        // 决策面要求 agent:decide：只认证不授权的话任何已认证用户都能拿 token。
+                        Set.of(DECIDE_PERMISSION),
                         Set.of(),
                         Set.of(Caller.DEFAULT_AMR),
                         Caller.DEFAULT_ACR,

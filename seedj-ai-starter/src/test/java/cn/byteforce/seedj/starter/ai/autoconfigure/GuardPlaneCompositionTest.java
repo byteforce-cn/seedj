@@ -48,6 +48,7 @@ class GuardPlaneCompositionTest {
                                     DecisionPlaneAutoConfiguration.class))
                     .withPropertyValues(
                             "seedj.ai.plane.enabled=true",
+                            "seedj.ai.decision.audience=seedj-ai-test",
                             "seedj.ai.identity.actor=" + ACTOR,
                             "seedj.ai.identity.on-behalf-of=" + ON_BEHALF_OF,
                             "seedj.ai.plane.tenant=" + TENANT);

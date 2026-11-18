@@ -153,6 +153,53 @@ class BoundedLoopTest {
     }
 
     @Test
+    @DisplayName("工具成功后 runtime 自己上报 outcome：每次执行一次，参数是 decision_id 与 command_id")
+    void successful_tool_reports_outcome() {
+        ScriptedGateway gateway = new ScriptedGateway(executeProposal());
+        ScriptedDecisionClient decisions = new ScriptedDecisionClient(allowGrant());
+        RecordingToolInvoker tools =
+                new RecordingToolInvoker(new ToolResult(true, "{}", COMMAND_ID));
+
+        LoopResult result = loop(gateway, decisions, tools).run(contract(2));
+
+        assertThat(result.outcome()).isEqualTo(LoopResult.Outcome.MAX_STEPS_REACHED);
+        assertThat(decisions.reported)
+                .as("每次成功的执行都要有一条 outcome 上报，否则账本里永久「有 intent 无 outcome」")
+                .containsExactly(DECISION_ID + "/" + COMMAND_ID, DECISION_ID + "/" + COMMAND_ID);
+    }
+
+    @Test
+    @DisplayName("工具失败不上报 outcome：没有执行成功就没有结局")
+    void failed_tool_reports_no_outcome() {
+        ScriptedGateway gateway = new ScriptedGateway(executeProposal());
+        ScriptedDecisionClient decisions = new ScriptedDecisionClient(allowGrant());
+        RecordingToolInvoker tools =
+                new RecordingToolInvoker(new ToolResult(false, "payment rejected", null));
+
+        loop(gateway, decisions, tools).run(contract(3));
+
+        assertThat(decisions.reported).isEmpty();
+    }
+
+    @Test
+    @DisplayName("上报失败只 WARN：命令已经执行成功，循环仍然 FINISHED")
+    void report_failure_does_not_fail_the_loop() {
+        ScriptedGateway gateway =
+                new ScriptedGateway(executeProposal(), finishProposal());
+        ScriptedDecisionClient decisions = new ScriptedDecisionClient(allowGrant());
+        decisions.reportFailure = new IllegalStateException("决策面 outcome 上报返回 HTTP 503");
+        RecordingToolInvoker tools =
+                new RecordingToolInvoker(new ToolResult(true, "{}", COMMAND_ID));
+
+        LoopResult result = loop(gateway, decisions, tools).run(contract(3));
+
+        assertThat(result.outcome()).isEqualTo(LoopResult.Outcome.FINISHED);
+        assertThat(result.steps()).isEqualTo(2);
+        assertThat(decisions.reported).hasSize(1);
+        assertThat(tools.executed).hasSize(1);
+    }
+
+    @Test
     @DisplayName("EXECUTE_TOOL 缺 rationale：本地 fast-fail，不问决策面也不调工具")
     void execute_without_rationale_fails_locally() {
         Proposal noRationale =
@@ -398,6 +445,51 @@ class BoundedLoopTest {
     }
 
     @Test
+    @DisplayName("outcome 上报：POST /v1/decisions/{id}/outcome，body 只有 command_id")
+    void outcome_report_matches_wire_format() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        HttpDecisionClient client = new HttpDecisionClient(builder, DECISION_BASE, model());
+
+        server.expect(
+                        requestTo(
+                                DECISION_BASE + "/v1/decisions/" + DECISION_ID + "/outcome"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(jsonPath("$.command_id").value(COMMAND_ID.toString()))
+                .andExpect(jsonPath("$.status").doesNotExist())
+                .andExpect(jsonPath("$.audit_entry_id").doesNotExist())
+                .andExpect(content().string(not(containsString(TOKEN))))
+                .andRespond(withSuccess("{\"status\":\"ok\"}", MediaType.APPLICATION_JSON));
+
+        client.report(DECISION_ID, COMMAND_ID);
+
+        server.verify();
+    }
+
+    @Test
+    @DisplayName("outcome 上报非 2xx：抛 IllegalStateException，消息只带状态码")
+    void outcome_report_non_2xx_throws_with_status_code() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        HttpDecisionClient client = new HttpDecisionClient(builder, DECISION_BASE, model());
+
+        server.expect(
+                        requestTo(
+                                DECISION_BASE + "/v1/decisions/" + DECISION_ID + "/outcome"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(
+                        withStatus(HttpStatus.SERVICE_UNAVAILABLE)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .body("{\"code\":\"unavailable\"}"));
+
+        assertThatThrownBy(() -> client.report(DECISION_ID, COMMAND_ID))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("503")
+                .satisfies(error -> assertThat(error.getMessage()).doesNotContain(TOKEN));
+        server.verify();
+    }
+
+    @Test
     @DisplayName("audience 为空时决策请求不含 audience 键")
     void audience_omitted_when_null() {
         RestClient.Builder builder = RestClient.builder();
@@ -589,7 +681,11 @@ class BoundedLoopTest {
 
         private final List<DecisionGrant> grants;
 
+        private final List<String> reported = new ArrayList<>();
+
         private int calls;
+
+        private RuntimeException reportFailure;
 
         ScriptedDecisionClient(DecisionGrant... grants) {
             this.grants = List.of(grants);
@@ -601,6 +697,14 @@ class BoundedLoopTest {
             DecisionGrant grant = grants.get(Math.min(calls, grants.size() - 1));
             calls++;
             return grant;
+        }
+
+        @Override
+        public void report(UUID decisionId, UUID commandId) {
+            reported.add(decisionId + "/" + commandId);
+            if (reportFailure != null) {
+                throw reportFailure;
+            }
         }
     }
 

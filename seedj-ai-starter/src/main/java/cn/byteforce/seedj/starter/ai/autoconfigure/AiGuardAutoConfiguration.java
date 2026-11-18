@@ -26,6 +26,7 @@ import org.springframework.boot.security.autoconfigure.web.servlet.SecurityFilte
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * 执行侧 guard 装配：工具注册表、DecisionToken 签发/校验与命令入口过滤器。
@@ -36,6 +37,10 @@ import org.springframework.context.annotation.Configuration;
  *
  * <p>{@link DecisionTokenIssuer} 在 guard 侧也提供（{@code @ConditionalOnMissingBean}）：T0 里决策面与执行侧同进程，
  * 守卫用同一个 issuer 发布的公钥验签；分角色部署时守卫需要的是公钥，未来换 JWKS 拉取（T0 不做）。
+ *
+ * <p><b>{@code decision.audience} 在 guard 侧是启动期必填</b>：它是本服务名的唯一来源，决定 token 的 {@code aud}
+ * 比什么。没有它就只能拿请求头（{@code Host} / server name）猜，而请求头是攻击者可控的——换个 {@code Host} 就能把
+ * 发给 A 服务的 token 重放到 B 服务。所以 {@code guard.enabled=true} 且受众为空白时本配置直接让启动失败。
  *
  * <p>登记进 {@code AutoConfiguration.imports} 是安全的：没有 AI 启用标记的宿主（IAM / IM / HR 等）不会拿到任何 guard
  * bean，命令端点也不会被误拦。
@@ -52,6 +57,24 @@ import org.springframework.context.annotation.Configuration;
         matchIfMissing = true)
 @EnableConfigurationProperties(AiProperties.class)
 public class AiGuardAutoConfiguration {
+
+    /**
+     * 启动期校验 guard 侧的必需配置。
+     *
+     * <p>放在构造器里而不是某个 bean 方法里：无论宿主是否覆盖了过滤器或校验器，缺受众都必须起不来。
+     *
+     * @param properties AI 配置
+     * @throws IllegalStateException {@code seedj.ai.decision.audience} 为空白
+     */
+    public AiGuardAutoConfiguration(AiProperties properties) {
+        String audience = properties.decision().audience();
+        if (audience == null || audience.isBlank()) {
+            throw new IllegalStateException(
+                    "seedj.ai.decision.audience 未配置：guard 用它判定 token 的 aud"
+                            + "（防跨服务重放），不能从请求头推断；只当决策面时请把"
+                            + " seedj.ai.guard.enabled 设成 false");
+        }
+    }
 
     /**
      * 工具注册表：{@code seedj.ai.tools[]} 的唯一读入口，启动期与命令目录交叉校验。
@@ -88,7 +111,7 @@ public class AiGuardAutoConfiguration {
      *
      * @param issuer 签发方（公钥来源）
      * @param registry 工具注册表
-     * @param properties AI 配置；{@code decision.audience} 为空时按请求的 server name 判定
+     * @param properties AI 配置；{@code decision.audience} 已由构造器保证非空
      * @return 校验器
      */
     @Bean
@@ -112,10 +135,15 @@ public class AiGuardAutoConfiguration {
          * <p>{@code CallerIdCodec} 与 {@code CommandController} 共用：缺省 {@code CallerIdCodec.uuid()}，
          * 名称型标识的部署必须让两侧拿到同一个 {@code nameUuid()} 实现。
          *
+         * <p>{@link JsonMapper} 同样由宿主注入（缺省用默认构造）：宿主自定义了数字映射（例如把 JSON 数字读成
+         * {@code BigDecimal}）时，guard 解析命令体与决策面算 {@code args_hash} 必须是同一套 mapper，否则每次写命令都
+         * 403。
+         *
          * @param verifier token 校验器
          * @param callers 当前调用方（由 biz 安全链填充）
          * @param callerIds 调用方标识 → actor 的编解码；缺省按 UUID 解析
          * @param clock 取时入口
+         * @param mappers 宿主的 JSON 编解码；缺省用默认构造
          * @param properties AI 配置
          * @return 守卫过滤器
          */
@@ -126,10 +154,12 @@ public class AiGuardAutoConfiguration {
                 CallerProvider callers,
                 ObjectProvider<CallerIdCodec> callerIds,
                 Clock clock,
+                ObjectProvider<JsonMapper> mappers,
                 AiProperties properties) {
             CallerIdCodec codec = callerIds.getIfAvailable(CallerIdCodec::uuid);
+            JsonMapper mapper = mappers.getIfAvailable(() -> JsonMapper.builder().build());
             return new AgentGuardFilter(
-                    verifier, callers, codec, properties.decision().audience(), clock);
+                    verifier, callers, codec, properties.decision().audience(), clock, mapper);
         }
 
         /**

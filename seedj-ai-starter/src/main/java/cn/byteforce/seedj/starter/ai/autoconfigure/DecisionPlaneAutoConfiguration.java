@@ -4,6 +4,7 @@ import cn.byteforce.seedj.ai.AgentToolSpec;
 import cn.byteforce.seedj.ai.spi.DecisionLedger;
 import cn.byteforce.seedj.ai.spi.ToolRegistry;
 import cn.byteforce.seedj.core.clock.Clock;
+import cn.byteforce.seedj.core.security.CallerProvider;
 import cn.byteforce.seedj.cqrs.CommandCatalog;
 import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.starter.ai.AiEnabledMarker;
@@ -20,6 +21,7 @@ import cn.byteforce.seedj.starter.ai.plane.ReconciliationJob;
 import cn.byteforce.seedj.starter.ai.token.DecisionTokenIssuer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import javax.sql.DataSource;
 import org.slf4j.Logger;
@@ -53,6 +55,10 @@ import org.springframework.context.annotation.Configuration;
  * 点名配置键。租户没有运行时来源（T0 无租户上下文注入），只能由配置钉死；身份同理——决策面不接受请求自称的主体。
  * {@code seedj.ai.decision.audience} 不做启动期强制：请求可以逐条给受众，两者都缺时那条请求 400。
  *
+ * <p><b>授权在服务前校验</b>：{@link DecisionController} 只放行带 {@code seedj.ai.plane.permission}（默认
+ * {@code agent:decide}）权限的调用方——认证只回答「你是谁」，不回答「你能否让 agent 动这个命令」。权限名为空白时
+ * {@code plane.enabled=true} 直接启动失败并点名配置键。
+ *
  * <p><b>outcome 上报与对账是可选的</b>：{@link OutcomeDeriver} 与 {@link ReconciliationJob} 只在能找到对账数据源时
  * 装配——{@code seedj.ai.plane.reconcile.datasource} 非空就按 bean 名取，空就用主 {@link DataSource}；两者都没有时
  * 一个也不装配（上报端点 503）并 WARN 一次，决策面本身不受影响。定时对账还要再加一道
@@ -69,6 +75,24 @@ import org.springframework.context.annotation.Configuration;
 public class DecisionPlaneAutoConfiguration {
 
     private static final Logger log = LoggerFactory.getLogger(DecisionPlaneAutoConfiguration.class);
+
+    /**
+     * 启动期校验决策面的必需配置。
+     *
+     * <p>{@code permission} 空白意味着「决策面不设授权门槛」，而决策面签的 token 能让 agent 动业务命令——这种默认
+     * 不可用，只能启动失败并点名配置键。租户与身份由 {@link DecisionService} 的构造器校验。
+     *
+     * @param properties AI 配置
+     * @throws IllegalStateException {@code seedj.ai.plane.permission} 为空白
+     */
+    public DecisionPlaneAutoConfiguration(AiProperties properties) {
+        String permission = properties.plane().permission();
+        if (permission == null || permission.isBlank()) {
+            throw new IllegalStateException(
+                    "seedj.ai.plane.permission 未配置：决策面必须校验调用方权限"
+                            + "（默认 agent:decide），否则任何已认证用户都能以 agent 身份拿 token");
+        }
+    }
 
     /**
      * 工具注册表：{@code seedj.ai.tools[]} 的唯一读入口（与 guard 的同名 bean 二选一）。
@@ -174,13 +198,22 @@ public class DecisionPlaneAutoConfiguration {
      *
      * @param decisions 决策服务
      * @param outcomes outcome 派生器；没有对账数据源时为空，上报端点回 503
+     * @param callers 当前调用方；求值与读记录都要求带 {@code seedj.ai.plane.permission} 权限
+     * @param properties AI 配置：权限名
      * @return 控制器
      */
     @Bean
     @ConditionalOnMissingBean
     public DecisionController decisionController(
-            DecisionService decisions, ObjectProvider<OutcomeDeriver> outcomes) {
-        return new DecisionController(decisions, outcomes.getIfAvailable());
+            DecisionService decisions,
+            ObjectProvider<OutcomeDeriver> outcomes,
+            ObjectProvider<CallerProvider> callers,
+            AiProperties properties) {
+        return new DecisionController(
+                decisions,
+                outcomes.getIfAvailable(),
+                callers.getIfAvailable(() -> Optional::empty),
+                properties.plane().permission());
     }
 
     /**

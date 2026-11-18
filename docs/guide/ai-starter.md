@@ -107,9 +107,10 @@ cn.byteforce.seedj.starter.ai.runtime.AiRuntimeAutoConfiguration
 | 键 | 必填时机 | 说明 |
 |---|---|---|
 | `seedj.ai.plane.tenant` | `plane` 开，**启动期 UUID** | 租户只来自配置；账本分区与 token 都用它 |
+| `seedj.ai.plane.permission` | `plane` 开，**启动期非空白**（默认 `agent:decide`） | 调 `/v1/decisions`、读记录与上报 outcome 所需的权限名；空白即启动失败 |
 | `seedj.ai.identity.actor` | `plane` 开，**启动期 UUID** | agent 自身身份；缺失即启动失败 |
 | `seedj.ai.identity.on-behalf-of` | `plane` 开，**启动期 UUID** | 被代办的自然人；同上 |
-| `seedj.ai.decision.audience` | 运行期 | token 的 `aud`；请求体也给了时以请求为准 |
+| `seedj.ai.decision.audience` | **guard 开时必填**（启动期） | 本服务名，token 的 `aud` 比什么；**只能来自配置**，不从 `Host` 等请求头推。`plane` 侧可空：空则要求每条请求自带 `audience`，两者都缺那条 `execute_tool` 400 |
 | `seedj.ai.decision.kid` | 有默认值 | 密钥标识；未知 `kid` 的 token 一律拒绝 |
 | `seedj.ai.decision.signing-key` | 生产必填 | Ed25519 私钥；空则临时密钥并 WARN |
 | `seedj.ai.runtime.model.name` / `.version` | `runtime` 开，**启动期** | 决策请求与账本的 `model` 唯一来源 |
@@ -118,15 +119,39 @@ cn.byteforce.seedj.starter.ai.runtime.AiRuntimeAutoConfiguration
 | `seedj.ai.plane.reconcile.datasource` | 可空 | 对账读的业务库 bean 名；空则用主数据源 |
 | `seedj.ai.plane.reconcile.enabled` | `false` | 是否装配 60 秒定时对账 |
 | `seedj.ai.plane.reconcile-ttl` | `10m` | 只核对早于 `now - ttl` 的 outcome |
-| `seedj.ai.provider` | `postgres`（有数据源时） | 账本实现；非 `postgres` 时不装配数据库账本 |
+| `seedj.ai.provider` | `postgres`（`matchIfMissing=true`） | **不是 `AiProperties` 的绑定项**：它是 `seedj-jdbc-postgresql` 的 `PostgresAiAutoConfiguration` 读的开关。等于 `postgres` 时装配数据库账本；其它值让该自动配置整体退出，而 starter 不提供内存账本 bean——那种宿主必须自备 `DecisionLedger` bean |
 
 启动期失败的原文（照抄进告警规则用）：
 
+- `seedj.ai.decision.audience 未配置：guard 用它判定 token 的 aud（防跨服务重放），不能从请求头推断`；
+- `seedj.ai.plane.permission 未配置：决策面必须校验调用方权限（默认 agent:decide）`；
 - `seedj.ai.plane.tenant 未配置：决策面的租户由配置钉死，不从请求读取`；
 - `seedj.ai.identity.actor 未配置` / `... 不是 UUID`（`on-behalf-of` 同一条模板）；
 - `seedj.ai.runtime.model.name`（或 `.version`）未配置：`runtime.enabled=true` 时必填；
 - `seedj.ai.tools 的 <命令类型> 缺少 action-class`、`seedj.ai.tools 存在缺少 command-type 的条目`；
 - `seedj.ai.contracts 的 <id> 声明了未在 seedj.ai.tools 登记的命令类型: <type>`。
+
+`seedj.ai.decision.audience` 在 guard 侧没有默认值也没有回退：早先的实现会在它为空时用
+`request.getServerName()`，而 `Host` 是攻击者可控的——换个 `Host` 就能把发给 A 服务的 token 重放到 B
+服务。所以 guard 开着就要求配置它；只当决策面时把 `seedj.ai.guard.enabled` 设成 `false`。
+
+### 身份与租户的表示必须逐字一致
+
+token 里的 `tenant` / `actor` 来自决策面的配置（`seedj.ai.plane.tenant`、`seedj.ai.identity.actor`），
+guard 拿它们与执行侧的**运行时事实**逐字比较（`Caller.tenantId()`、`CallerIdCodec` 解析出的 actor）。
+三者不是同一套表示时，每个写命令都会 `403 identity_mismatch`，而且账本上看起来「一切正常」：
+
+- `seedj.ai.plane.tenant` 绑定成 `UUID`，所以它**永远是 UUID 字符串**（例如
+  `018f2e3a-0000-7000-8000-0000000b0007`）；而执行侧 `Caller.tenantId()` 是**不透明字符串**，seedj 的
+  默认值是 `default`。guard 逐字比较两者，因此：**IAM 令牌必须带这个租户 id**（`tenant_id` claim 就是
+  同一个 UUID 字符串），否则调用方租户会落到 `default`、与 plane 的 UUID 永远对不上。这也意味着
+  「plane 配一个 `default` 之外的普通名字」不可行——`default` 与任何 UUID 都比不上，只能让 IAM 发同一个
+  UUID。**两边表示不同 = 100% 403，与签名、密钥都无关。**
+- `seedj.ai.identity.actor` 必须是**执行侧 `CallerIdCodec` 解析出的同一个 UUID**：默认 `uuid()` 要求
+  调用方 `id` 本身就是 UUID；换成 `nameUuid()` 的部署要让 guard 与决策面共用同一个 codec 实现。
+
+`identity_mismatch` 的 `detail` 会带上期望值与实际值（`expected actor … tenant …, got actor … tenant …`），
+两者都不是秘密，第一次部署时先看这条。
 
 `seedj.ai.plane.reconcile.datasource` 为空且宿主没有主 `DataSource` 时不算启动失败：outcome 上报
 （`POST /v1/decisions/{id}/outcome`）返回 `503`，对账不装配，启动打一次 WARN。
@@ -282,17 +307,32 @@ LoopResult result = loop.run(new TaskContract(contractId, conversationId, "记�
 ```
 
 每一轮：问模型要一个提案 → `EXECUTE_TOOL` 才问决策面 → 放行才用 token 调
-`POST /commands/{type}` → `FINISH` 收尾。上限取 `min(任务契约的 maxSteps,
-seedj.ai.runtime.max-steps)`：任务可以更保守，不能更宽松。`EXECUTE_TOOL` 缺 `rationale` 时本地直接抛
-`IllegalArgumentException`（不发一趟注定 `400` 的请求）。
+`POST /commands/{type}` → 工具确认成功就 `POST /v1/decisions/{id}/outcome` 上报 → `FINISH` 收尾。上限取
+`min(任务契约的 maxSteps, seedj.ai.runtime.max-steps)`：任务可以更保守，不能更宽松。`EXECUTE_TOOL` 缺
+`rationale` 时本地直接抛 `IllegalArgumentException`（不发一趟注定 `400` 的请求）。
+
+**上报是运行时自己的责任，且是尽力而为。** 没有它，每个 runtime 驱动的写动作都会在账本上永久停在「有
+intent 无 outcome」——四件套只在手工调 `/outcome` 的用例里成立。所以工具返回 `ok` 之后循环会主动上报；
+上报失败**不让循环失败**（命令已经执行成功，把循环判失败会抹掉一次真实发生的副作用），只打一条带
+`decision_id` 的 WARN 然后继续。代价很明确：**那一次决策就进入「有决策无效果」，T0 的对账无法自动修复
+它**——`PlaneReconciliationSource` 默认实现返回空列表（见[第 5 条](#t0-明确不做)），没有「按租户/时间扫描
+缺 outcome 的 intent」的入口。要收敛得靠 T1 的扫描接口，或运维按告警手工补。
 
 ## 安全与运维
 
 - **token 不落库、不落日志。** 它只在两个地方出现：`POST /v1/decisions` 的响应体一次，与
   `x-agent-decision` 请求头。账本存 `args_hash` / `idem_fingerprint`（哈希）与可展示参数 `args`
-  （T0 就是命令载荷本身），但从不存 token；
+  （T0 恒为空映射，见[第 9 条](#t0-明确不做)），但从不存 token；**单条 token 超过 4096 字节直接拒绝**
+  （不截断——截断只会把一个坏凭据变成另一个坏凭据），`header.typ` 也必须是 `agent-decision+jws`；
   守卫的拒绝说明只带 `kid` 与 `decision_id` 前 8 位；循环观测（`LoopResult.observations`）只有
   `step / kind / type / ok / commandId`。
+- **outcome 记录里的 `source` 有三种取值**：`runtime_reported`（运行时执行后上报）、`plane_decided`
+  （决策面自己的结论：拒绝、无需执行、签发失败）、`reconciled`（事后与链上事实核对）。来源决定可信度：
+  核对可以修正「结果未知」，不能改写运行时已观测到的成功或失败。
+- **outcome 是 first-wins 且不可改。** 同一决策的第二次上报只返回首条记录，账本的 `before update or
+  delete` 触发器也拒绝改写。T0 的 `reconcile` 只修 `ok + audit_entry_id 为空` 这一类（补链目标识），
+  早期误报（例如上报时命令刚提交、被记成 `command_not_found`）**不会被自动覆盖**——要修只能追加
+  `reconciled` 观察，或等 T1 的对账扫描入口。
 - **JWKS 端点必须匿名可读**：`GET /.well-known/agent-decision-jwks.json`。执行侧按 token 里的
   `kid` 来取公钥，被鉴权挡在门外就等于端点不存在。注意 `seedj.biz.public-paths` 一旦设置就是
   **整体替换**默认公开路径，所以要连默认那几项一起列全（`seedj-server/ai` 的 `application.yml`
@@ -310,6 +350,11 @@ seedj.ai.runtime.max-steps)`：任务可以更保守，不能更宽松。`EXECUT
   实现（如 `seedj.lock.postgres.enabled=true`）。
 - **账本只能追加**：`agent_decision_record` 的 `before update or delete` 触发器在数据库层拒绝改写，
   与 SPI 语义互为双保险。
+- **决策面只做认证 + 权限校验，不是「谁都能用」。** `/v1/decisions`、`/v1/decisions/{id}` 与
+  `/v1/decisions/{id}/outcome` 都要求调用方
+  带 `seedj.ai.plane.permission`（默认 `agent:decide`），否则 `403`。只认证不授权等于「任何 IAM 用户
+  都能以配置的 agent 身份拿一枚可执行写的 token」。生产上决策面还必须**只对 runtime 的网络可达**
+  （私网 / mTLS / 网关白名单），别把它暴露在公网入口后面。
 - **guard 的装配顺序是安全约束**：过滤器 order 取
   `SecurityFilterProperties.DEFAULT_FILTER_ORDER + 10`，即安全链之后、命令入口之前。放到安全链之前
   会让 `CallerProvider` 恒空、每个写命令都 `401`（`AgentGuardFilterTest` 有专门用例）。
@@ -342,6 +387,10 @@ seedj.ai.runtime.max-steps)`：任务可以更保守，不能更宽松。`EXECUT
 8. **`seedj-ai-starter` 自己的单测需要 Docker。** 账本契约（`PostgresDecisionLedgerTest`）、对账与
    决策面宿主测试都用 Testcontainers 起 `postgres:16-alpine`；没有 Docker 时这个模块的 `verify` 跑
    不完。纯规则测试不需要 Docker（如 `EvalBaselineTest`）。
+9. **账本的 `args` 在 T0 恒为空映射。** spec §6.2 要求 `args` 存**脱敏后**的可展示参数，而 T0 没有实现
+   字段级脱敏（`ObjectSchema` 的 `writeOnly` 与命令专用字段都在命令注册表里，决策面没有接）。存原文会把
+   `writeOnly` 字段写进哈希链账本，因此决策面选择留空：指纹信息由 `args_hash` 与 `idem_fingerprint`
+   承担，账本不承载载荷文本。等 T1 接上按 schema 的脱敏后再补 `args`。
 
 ## 已知仓库级问题（写给维护者）
 
@@ -363,7 +412,3 @@ seedj.ai.runtime.max-steps)`：任务可以更保守，不能更宽松。`EXECUT
 - [上游诉求与收敛路径](ai-upstream.md)：U2/U3/U8/U9/U10/U11/U12 与 IM 的 D6/D7/D10
 - [配置说明](configuration.md)
 - [安全](security.md)
-9. **账本的 `args` 在 T0 恒为空映射。** spec §6.2 要求 `args` 存**脱敏后**的可展示参数，而 T0 没有实现
-   字段级脱敏（`ObjectSchema` 的 `writeOnly` 与命令专用字段都在命令注册表里，决策面没有接）。存原文会把
-   `writeOnly` 字段写进哈希链账本，因此决策面选择留空：指纹信息由 `args_hash` 与 `idem_fingerprint`
-   承担，账本不承载载荷文本。等 T1 接上按 schema 的脱敏后再补 `args`。

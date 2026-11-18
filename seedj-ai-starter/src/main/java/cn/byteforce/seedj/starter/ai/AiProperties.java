@@ -55,8 +55,15 @@ public record AiProperties(
     /** {@code decision.ttl} 默认值。 */
     public static final Duration DEFAULT_DECISION_TTL = Duration.ofSeconds(300);
 
+    /** {@code plane.permission} 默认值：调用决策面的权限名。 */
+    public static final String DEFAULT_PLANE_PERMISSION = "agent:decide";
+
     public AiProperties {
-        plane = plane == null ? new Plane(false, null, null, DEFAULT_RECONCILE_TTL) : plane;
+        plane =
+                plane == null
+                        ? new Plane(
+                                false, null, DEFAULT_PLANE_PERMISSION, null, DEFAULT_RECONCILE_TTL)
+                        : plane;
         guard = guard == null ? new Guard(true) : guard;
         runtime =
                 runtime == null
@@ -84,14 +91,19 @@ public record AiProperties(
      * 所以它必须在配置里钉死（缺 UUID 即启动失败）。它也是 {@code identity} 只来自配置的同一条思路——
      * 决策面不接受请求自称的租户与主体。
      *
+     * <p>{@code permission} 是决策面的<b>授权</b>门槛：{@code /v1/decisions} 只做认证是不够的——任何已认证的 IAM 用户
+     * 都能以配置的 agent 身份拿 token。调用方必须带这个权限名，否则 403。
+     *
      * @param enabled 是否装配决策面，默认 false（执行侧不需要它）
      * @param tenant 决策面所属租户（必填 UUID）；账本分区 {@code t_<tenant>} 与 token 的 {@code tenant} claim 都用它
+     * @param permission 调用决策面所需的权限名，默认 {@code agent:decide}；{@code plane.enabled=true} 时不得为空白
      * @param reconcile 对账配置（数据源 bean 名与定时开关）；未配置时给空实例
      * @param reconcileTtl 对账时间窗（{@code seedj.ai.plane.reconcile-ttl}），默认 10m
      */
     public record Plane(
             @DefaultValue("false") boolean enabled,
             UUID tenant,
+            @DefaultValue("agent:decide") String permission,
             Reconcile reconcile,
             @DefaultValue("10m") Duration reconcileTtl) {
 
@@ -181,8 +193,9 @@ public record AiProperties(
      *     临时密钥（仅供本地/测试，生产必须配置）
      * @param kid 密钥标识，默认 {@link #DEFAULT_KID}
      * @param ttl 令牌有效期，默认 300s
-     * @param audience 校验方期望的 audience；guard 侧空表示不限，决策面要求「请求 audience 或本键至少一个」，
-     *     两者都缺时那条 {@code execute_tool} 请求 400（{@code seedj.ai.decision.audience}）
+     * @param audience 本服务的受众名：guard 侧<b>必填</b>（{@code guard.enabled=true} 时空白即启动失败——
+     *     它只能来自配置，不能从 {@code Host} 之类攻击者可控的请求头推），决策面侧可空：空表示要求每条请求自带
+     *     audience，两者都缺时那条 {@code execute_tool} 请求 400（{@code seedj.ai.decision.audience}）
      */
     public record Decision(
             String signingKey,

@@ -17,6 +17,8 @@ import cn.byteforce.seedj.ai.Proposal;
 import cn.byteforce.seedj.domain.TemporalQuery;
 import cn.byteforce.seedj.domain.TemporalRow;
 import cn.byteforce.seedj.starter.ai.runtime.BoundedLoop;
+import cn.byteforce.seedj.starter.ai.runtime.DecisionClient;
+import cn.byteforce.seedj.starter.ai.runtime.DecisionGrant;
 import cn.byteforce.seedj.starter.ai.runtime.HttpDecisionClient;
 import cn.byteforce.seedj.starter.ai.runtime.HttpToolInvoker;
 import cn.byteforce.seedj.starter.ai.runtime.LoopResult;
@@ -80,10 +82,14 @@ class AiPilotIT extends AbstractPilotIT {
                         Map.of("title", title, "status", "open"),
                         "为本次故障建一张工单，便于后续追踪",
                         List.of());
+        RecordingDecisionClient decisions =
+                new RecordingDecisionClient(
+                        new HttpDecisionClient(
+                                RestClient.builder(), baseUrl(), pilotModel()));
         BoundedLoop loop =
                 new BoundedLoop(
                         ScriptedLlmGateway.of(create, ScriptedLlmGateway.finish()),
-                        new HttpDecisionClient(RestClient.builder(), baseUrl(), pilotModel()),
+                        decisions,
                         new HttpToolInvoker(RestClient.builder(), baseUrl()),
                         4,
                         AUDIENCE);
@@ -95,6 +101,29 @@ class AiPilotIT extends AbstractPilotIT {
         assertThat(result.steps()).isEqualTo(2);
         TemporalRow row = objects.current("ticket", objectIdOf(title)).orElseThrow();
         assertThat(row.fields()).containsEntry("title", title).containsEntry("status", "open");
+
+        // runtime 自己上报了 outcome：用例不再手工调 /outcome，账本里却已经补齐 intent + outcome。
+        UUID commandId =
+                jdbc.queryForObject(
+                        "select id from command_record where payload->>'title' = ?",
+                        UUID.class,
+                        title);
+        List<DecisionRecord> records = ledger.byDecision(TENANT, decisions.decisionId());
+        assertThat(records)
+                .extracting(DecisionRecord::kind)
+                .containsExactly(DecisionRecordKind.INTENT, DecisionRecordKind.OUTCOME);
+        DecisionRecord outcome = records.get(1);
+        assertThat(outcome.body())
+                .as("来源是 runtime 上报，不是决策面自己写的结论")
+                .containsEntry("source", "runtime_reported");
+        Map<?, ?> effect = (Map<?, ?>) outcome.body().get("effect");
+        assertThat((Object) effect.get("status"))
+                .as("命令在库里是 accepted")
+                .isEqualTo("ok");
+        assertThat(String.valueOf(effect.get("command_id"))).isEqualTo(commandId.toString());
+        assertThat((Object) effect.get("audit_entry_id"))
+                .as("上报阶段不写链目标识：那是 reconcile 的事")
+                .isNull();
     }
 
     @Test
@@ -226,6 +255,38 @@ class AiPilotIT extends AbstractPilotIT {
                                 Integer.class,
                                 commandId))
                 .isEqualTo(1);
+    }
+
+    /** 记下每一步拿到的 {@code decision_id}：runtime 自己上报 outcome 后，用例才能按它查账本。 */
+    private static final class RecordingDecisionClient implements DecisionClient {
+
+        private final DecisionClient delegate;
+
+        private UUID decisionId;
+
+        private RecordingDecisionClient(DecisionClient delegate) {
+            this.delegate = delegate;
+        }
+
+        private UUID decisionId() {
+            return decisionId;
+        }
+
+        @Override
+        public DecisionGrant ask(
+                TaskContract contract,
+                int step,
+                Proposal proposal,
+                String audience) {
+            DecisionGrant grant = delegate.ask(contract, step, proposal, audience);
+            decisionId = grant.decisionId();
+            return grant;
+        }
+
+        @Override
+        public void report(UUID reportedDecision, UUID commandId) {
+            delegate.report(reportedDecision, commandId);
+        }
     }
 
     @Test

@@ -3,6 +3,8 @@ package cn.byteforce.seedj.starter.ai.plane;
 import cn.byteforce.seedj.ai.DecisionRecord;
 import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;
+import cn.byteforce.seedj.core.security.Caller;
+import cn.byteforce.seedj.core.security.CallerProvider;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
@@ -21,6 +23,12 @@ import tools.jackson.databind.annotation.JsonNaming;
  * <p>控制器只做绑定与状态码，判定、落账与派生全在 {@link DecisionService} 与 {@link OutcomeDeriver}：请求体与响应体的
  * 线格式由服务侧的值类型定义（两侧都是 snake_case，不存在第二套映射）。三者合成一个控制器，是因为它们属于同一个
  * {@code /v1/decisions/{id}} 资源族：决策、它的记录、它的结局。
+ *
+ * <p><b>授权</b>：求值与读记录都先校验调用方带 {@code seedj.ai.plane.permission}（默认 {@code agent:decide}）
+ * 权限，缺权限 403。只认证不授权等于「任何 IAM 用户都能以配置的 agent 身份拿 token」——认证回答「你是谁」，
+ * 不回答「你能否驱动这个 agent」。outcome 上报同样校验它：outcome 是 first-wins 不可改的，
+ * 允许任何已认证用户抢先上报就可能把一条决策永久钉成 {@code failed}；生产上决策面应当
+ * 只对 runtime 的网络可达。
  *
  * <p><b>状态码</b>：求值成功是 200（账本写入失败会让请求 500——此时 intent 已落账，这是刻意的不对称：没有意图的执行
  * 绝不允许，但有意图无效果可以对账；签发失败同样是 500，但账本会留下 intent + {@code outcome(not_issued)} 终态，见
@@ -46,15 +54,27 @@ public final class DecisionController {
 
     private final OutcomeDeriver outcomes;
 
+    private final CallerProvider callers;
+
+    private final String permission;
+
     /**
      * 构造控制器。
      *
      * @param decisions 决策服务
      * @param outcomes outcome 派生器；{@code null} 表示没有对账数据源，上报端点返回 503
+     * @param callers 当前调用方；未认证即 401
+     * @param permission 调用决策面所需的权限名（{@code seedj.ai.plane.permission}），非空白
      */
-    public DecisionController(DecisionService decisions, OutcomeDeriver outcomes) {
+    public DecisionController(
+            DecisionService decisions,
+            OutcomeDeriver outcomes,
+            CallerProvider callers,
+            String permission) {
         this.decisions = Objects.requireNonNull(decisions, "decisions");
         this.outcomes = outcomes;
+        this.callers = Objects.requireNonNull(callers, "callers");
+        this.permission = Objects.requireNonNull(permission, "permission");
     }
 
     /**
@@ -62,10 +82,13 @@ public final class DecisionController {
      *
      * @param request 请求体
      * @return 决策结果：deny 只带原因码，allow 的执行工具步骤才带 token
+     * @throws ContractException {@code unauthenticated}：没有已认证调用方；{@code forbidden}：缺
+     *     {@code seedj.ai.plane.permission} 权限
      */
     @PostMapping(DECISIONS_PATH)
     public DecisionService.DecisionResult decide(
             @RequestBody DecisionService.DecisionRequest request) {
+        requirePermission();
         return decisions.decide(request);
     }
 
@@ -74,10 +97,12 @@ public final class DecisionController {
      *
      * @param id 决策标识
      * @return {@code {decision_id, records:[{record_id, kind, sequence, recorded_at}]}}
-     * @throws ContractException {@code object_not_found}：本租户下没有该决策
+     * @throws ContractException {@code unauthenticated} / {@code forbidden}：同求值端点；
+     *     {@code object_not_found}：本租户下没有该决策
      */
     @GetMapping(DECISION_PATH)
     public DecisionRecords records(@PathVariable UUID id) {
+        requirePermission();
         List<DecisionRecord> records = decisions.records(id);
         if (records.isEmpty()) {
             throw new ContractException(
@@ -110,6 +135,7 @@ public final class DecisionController {
      */
     @PostMapping(DECISION_OUTCOME_PATH)
     public OutcomeReport report(@PathVariable UUID id, @RequestBody OutcomeRequest request) {
+        requirePermission();
         UUID commandId = request == null ? null : request.commandId();
         if (commandId == null) {
             throw new ContractException(
@@ -123,6 +149,22 @@ public final class DecisionController {
         OutcomeDeriver.Reported reported = outcomes.report(id, commandId);
         return new OutcomeReport(
                 reported.decisionId(), reported.outcomeRecordId(), reported.status().wire());
+    }
+
+    /** 授权门槛：未认证 401，缺权限 403（两者都不泄露决策是否存在）。 */
+    private void requirePermission() {
+        Caller caller =
+                callers.find()
+                        .orElseThrow(
+                                () ->
+                                        new ContractException(
+                                                ContractErrorCode.UNAUTHENTICATED,
+                                                "决策面要求已认证的调用方"));
+        if (!caller.hasPermission(permission)) {
+            throw new ContractException(
+                    ContractErrorCode.FORBIDDEN,
+                    "缺少权限 " + permission + "（seedj.ai.plane.permission）");
+        }
     }
 
     /**
