@@ -2,6 +2,7 @@ package cn.byteforce.seedj.server.ai;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -16,6 +17,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtException;
@@ -37,7 +39,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
  *       {@code postgres} 会因无 schema 声明直接启动失败）等，默认 profile 的用例排除了数据源自动配置，从来看不到它们；
  *   <li><b>鉴权口径</b>——JWKS 必须匿名可读（执行侧按 {@code kid} 拉公钥），默认公开路径里没有它，靠
  *       {@code seedj.biz.public-paths} 显式加；这里走真实安全链（不是 {@code dev-auth} 放行链），不带任何
- *       {@code Authorization} 也能取到才算数。
+ *       {@code Authorization} 也能取到才算数——反过来，公开路径之外（{@code /v1/decisions}）不带令牌则是 401。
  * </ul>
  *
  * <p>启动本身就会跑 {@code InfrastructureInitializer} 的迁移，因此「上下文起来了」同时意味着账本/命令/审计的表建好了；
@@ -98,6 +100,13 @@ class AiServerPostgresProfileTest {
     @DisplayName("健康检查匿名可达")
     void health_is_public() throws Exception {
         mvc.perform(get("/actuator/health")).andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("公开路径之外仍要鉴权：匿名 POST /v1/decisions 401")
+    void non_public_path_requires_authentication() throws Exception {
+        mvc.perform(post("/v1/decisions").contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test

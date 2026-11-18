@@ -7,8 +7,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import cn.byteforce.seedj.ai.spi.DecisionLedger;
-import cn.byteforce.seedj.infra.local.ai.InMemoryDecisionLedger;
 import cn.byteforce.seedj.starter.ai.guard.AgentGuardFilter;
 import cn.byteforce.seedj.starter.security.BizSecurityProperties;
 import org.junit.jupiter.api.DisplayName;
@@ -16,10 +14,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.ApplicationContext;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
@@ -33,45 +29,22 @@ import org.springframework.test.web.servlet.MockMvc;
  * token，出问题时无法判断是哪一侧的配置生效。
  *
  * <p>用例不依赖真实 PostgreSQL：{@code DataSourceAutoConfiguration} 被排除（其余 JDBC 自动配置随之退出），账本由
- * {@link InMemoryDecisionLedger} 提供（与 PG 账本同语义）。调用方由 {@code seedj.biz.dev-auth} 注入，所以这里验证的
+ * {@link AiServerTestFixtures} 里的内存实现提供（与 PG 账本同语义）。调用方由 {@code seedj.biz.dev-auth} 注入，所以这里验证的
  * 是「宿主把 starter 装配起来了」，不是鉴权矩阵——真实安全链下的匿名可达性在 {@link AiServerPostgresProfileTest} 里断言；
  * 这里只钉住「JWKS 路径确实在公开路径清单里」，防止配置被删掉还绿。
  */
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {
-            AiServerContextTest.NO_DATASOURCE,
-            AiServerContextTest.AUDIT_OFF,
-            AiServerContextTest.DEGRADED_MODE,
-            AiServerContextTest.DEV_AUTH
+            AiServerTestFixtures.NO_DATASOURCE,
+            AiServerTestFixtures.AUDIT_OFF,
+            AiServerTestFixtures.DEGRADED_MODE,
+            AiServerTestFixtures.DEV_AUTH
         })
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@Import(AiServerContextTest.InMemoryLedgerConfiguration.class)
+@Import(AiServerTestFixtures.InMemoryLedgerConfiguration.class)
 class AiServerContextTest {
-
-    /**
-     * 无 PostgreSQL 的本地覆盖：数据源自动配置退出（JdbcTemplate 与事务管理器随之不装配）、审计关闭、命令运行时降级、
-     * 本地固定调用方。用例 4 用同一份覆盖启动真宿主，因此它们只在这里写一次。
-     */
-    static final String NO_DATASOURCE =
-            "spring.autoconfigure.exclude="
-                    + "org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration";
-
-    static final String AUDIT_OFF = "seedj.audit.enabled=false";
-
-    static final String DEGRADED_MODE = "seedj.command.degraded-mode=true";
-
-    static final String DEV_AUTH = "seedj.biz.dev-auth.enabled=true";
-
-    @TestConfiguration(proxyBeanMethods = false)
-    static class InMemoryLedgerConfiguration {
-
-        @Bean
-        DecisionLedger decisionLedger() {
-            return new InMemoryDecisionLedger();
-        }
-    }
 
     @Autowired private MockMvc mvc;
 
@@ -111,13 +84,15 @@ class AiServerContextTest {
         assertThatThrownBy(
                         () ->
                                 new SpringApplicationBuilder(
-                                                AiServer.class, InMemoryLedgerConfiguration.class)
+                                                AiServer.class,
+                                                AiServerTestFixtures
+                                                        .InMemoryLedgerConfiguration.class)
                                         .profiles("test")
                                         .properties(
-                                                NO_DATASOURCE,
-                                                AUDIT_OFF,
-                                                DEGRADED_MODE,
-                                                DEV_AUTH)
+                                                AiServerTestFixtures.NO_DATASOURCE,
+                                                AiServerTestFixtures.AUDIT_OFF,
+                                                AiServerTestFixtures.DEGRADED_MODE,
+                                                AiServerTestFixtures.DEV_AUTH)
                                         .run("--server.port=0", "--seedj.ai.plane.tenant="))
                 .hasMessageContaining("seedj.ai.plane.tenant");
     }
