@@ -579,6 +579,7 @@ seedj-im-starter|cn.byteforce.seedj.starter.im|ImStoreAutoConfiguration
 seedj-infra-coord|cn.byteforce.seedj.infra.coord|CoordAutoConfiguration
 seedj-infra-coord|cn.byteforce.seedj.infra.coord|CoordProperties
 seedj-infra-coord|cn.byteforce.seedj.infra.coord|CoordProviderGuardAutoConfiguration
+seedj-infra-local|cn.byteforce.seedj.infra.local.ai|InMemoryDecisionLedger
 seedj-infra-local|cn.byteforce.seedj.infra.local.audit|InMemoryAuditAutoConfiguration
 seedj-infra-local|cn.byteforce.seedj.infra.local.audit|InMemoryAuditStore
 seedj-infra-local|cn.byteforce.seedj.infra.local.cqrs|InMemoryCommandStore
