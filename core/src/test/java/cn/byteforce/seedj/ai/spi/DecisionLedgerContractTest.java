@@ -1,0 +1,199 @@
+package cn.byteforce.seedj.ai.spi;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import cn.byteforce.seedj.ai.ActionClass;
+import cn.byteforce.seedj.ai.AgentIdentity;
+import cn.byteforce.seedj.ai.CommandRef;
+import cn.byteforce.seedj.ai.DecisionEffect;
+import cn.byteforce.seedj.ai.DecisionIntent;
+import cn.byteforce.seedj.ai.DecisionKind;
+import cn.byteforce.seedj.ai.DecisionRecord;
+import cn.byteforce.seedj.ai.DecisionRecordKind;
+import cn.byteforce.seedj.ai.Evidence;
+import cn.byteforce.seedj.ai.ModelRef;
+import cn.byteforce.seedj.ai.OutcomeSource;
+import cn.byteforce.seedj.ai.PolicyRef;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+/**
+ * 决策账本的契约测试：任何 {@link DecisionLedger} 实现都必须满足这批行为。
+ *
+ * <p>子类放在实现模块（内存、PostgreSQL），位于 {@code extends} 位置；{@code core} 自身不实例化本类。 契约只约束可观察行为，不约束存储形态：
+ * intent/outcome 每个 decision 恰一条、同一分区内序列严格递增且哈希链连续、 记录只追加、跨 tenant 查询不泄露存在性。
+ *
+ * @author ByteForce
+ * @since 1.0.0
+ */
+public abstract class DecisionLedgerContractTest {
+
+    /** 契约用例的租户：每个用例用自己的租户，互不干扰。 */
+    protected static final UUID TENANT = UUID.fromString("11111111-1111-1111-1111-111111111111");
+
+    /** 另一个租户，用于验证 tenant 作用域。 */
+    protected static final UUID OTHER_TENANT =
+            UUID.fromString("22222222-2222-2222-2222-222222222222");
+
+    private static final UUID ACTOR = UUID.fromString("33333333-3333-3333-3333-333333333333");
+    private static final UUID ON_BEHALF_OF = UUID.fromString("44444444-4444-4444-4444-444444444444");
+    private static final UUID TASK_CONTRACT =
+            UUID.fromString("55555555-5555-5555-5555-555555555555");
+    private static final UUID CONVERSATION = UUID.fromString("66666666-6666-6666-6666-666666666666");
+    private static final Instant RECORDED_AT = Instant.parse("2026-11-18T00:00:00Z");
+
+    /** 被测账本：由子类在 {@link #ledger()} 返回同一个实例（不要在方法里新建）。 */
+    protected abstract DecisionLedger ledger();
+
+    /** 清空同一实例的全部状态，供每个用例从空账本开始。 */
+    protected abstract void reset();
+
+    @BeforeEach
+    void resetLedger() {
+        reset();
+    }
+
+    @Test
+    @DisplayName("同一 decision 重复 append intent 是幂等的：只留一条记录")
+    void intent_is_unique_per_decision() {
+        DecisionIntent intent = intent(TENANT, decision(1));
+
+        DecisionRecord first = ledger().appendIntent(intent);
+        DecisionRecord second = ledger().appendIntent(intent);
+
+        assertThat(first.kind()).isEqualTo(DecisionRecordKind.INTENT);
+        assertThat(second.recordId()).isEqualTo(first.recordId());
+        assertThat(ledger().byDecision(TENANT, intent.decisionId())).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("同一 decision 重复 append outcome 是幂等的：只留一条 outcome 记录")
+    void outcome_is_unique_per_decision() {
+        DecisionIntent intent = intent(TENANT, decision(2));
+        ledger().appendIntent(intent);
+        DecisionEffect effect = DecisionEffect.ok("audit-1", UUID.randomUUID());
+
+        DecisionRecord first =
+                ledger().appendOutcome(
+                        intent.decisionId(), effect, OutcomeSource.RUNTIME_REPORTED);
+        DecisionRecord second =
+                ledger().appendOutcome(intent.decisionId(), effect, OutcomeSource.RECONCILED);
+
+        assertThat(second.recordId()).isEqualTo(first.recordId());
+        List<DecisionRecord> records = ledger().byDecision(TENANT, intent.decisionId());
+        assertThat(records)
+                .extracting(DecisionRecord::kind)
+                .containsExactly(DecisionRecordKind.INTENT, DecisionRecordKind.OUTCOME);
+    }
+
+    @Test
+    @DisplayName("同一分区内 append 串行：sequence 递增且 prev_hash 接上前一条 record_hash")
+    void append_is_serial_per_partition() throws Exception {
+        DecisionIntent first = intent(TENANT, decision(3));
+        DecisionIntent second = intent(TENANT, decision(4));
+
+        List<DecisionRecord> records = appendConcurrently(first, second);
+
+        assertThat(records).extracting(DecisionRecord::sequence).containsExactly(1L, 2L);
+        assertThat(records.get(1).prevHash()).isEqualTo(records.get(0).recordHash());
+        assertThat(records.get(0).partition()).isEqualTo(records.get(1).partition());
+        assertThat(ledger().verify(records.get(0).partition()).ok()).isTrue();
+    }
+
+    @Test
+    @DisplayName("账本只追加：SPI 上没有 update/delete/remove 入口")
+    void records_are_append_only() {
+        List<String> mutating =
+                List.of(DecisionLedger.class.getMethods()).stream()
+                        .map(method -> method.getName().toLowerCase(Locale.ROOT))
+                        .filter(
+                                name ->
+                                        name.contains("update")
+                                                || name.contains("delete")
+                                                || name.contains("remove"))
+                        .toList();
+
+        assertThat(mutating).as("账本 SPI 不得暴露修改/删除入口").isEmpty();
+        assertThat(ledger().byDecision(TENANT, decision(5))).isEmpty();
+    }
+
+    @Test
+    @DisplayName("by_decision 按 tenant 作用域：别的租户查同一 decision 得到空列表")
+    void by_decision_is_tenant_scoped() {
+        DecisionIntent intent = intent(TENANT, decision(6));
+        DecisionRecord record = ledger().appendIntent(intent);
+
+        assertThat(ledger().byDecision(OTHER_TENANT, intent.decisionId())).isEmpty();
+        assertThat(ledger().find(OTHER_TENANT, record.recordId())).isEmpty();
+        assertThat(ledger().find(TENANT, record.recordId())).isPresent();
+    }
+
+    /** 两个线程同时 append，返回按 sequence 升序的结果。 */
+    private List<DecisionRecord> appendConcurrently(DecisionIntent first, DecisionIntent second)
+            throws Exception {
+        CountDownLatch start = new CountDownLatch(1);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            List<Future<DecisionRecord>> futures = new ArrayList<>();
+            for (DecisionIntent intent : List.of(first, second)) {
+                futures.add(
+                        executor.submit(
+                                () -> {
+                                    start.await();
+                                    return ledger().appendIntent(intent);
+                                }));
+            }
+            start.countDown();
+            List<DecisionRecord> records = new ArrayList<>();
+            for (Future<DecisionRecord> future : futures) {
+                records.add(future.get(30, TimeUnit.SECONDS));
+            }
+            records.sort((left, right) -> Long.compare(left.sequence(), right.sequence()));
+            return records;
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    /** 构造一个合法的 EXECUTE_TOOL intent；实现侧用例可复用。 */
+    protected static DecisionIntent intent(UUID tenantId, UUID decisionId) {
+        return new DecisionIntent(
+                decisionId,
+                tenantId,
+                TASK_CONTRACT,
+                CONVERSATION,
+                0,
+                DecisionKind.EXECUTE_TOOL,
+                ActionClass.REVERSIBLE,
+                new CommandRef(
+                        "ticket.create",
+                        List.of(UUID.fromString("77777777-7777-7777-7777-777777777777")),
+                        7L),
+                "sha256:" + "a".repeat(64),
+                "b".repeat(64),
+                Map.of("title", "t"),
+                "用户要求创建工单",
+                List.of(new Evidence("message", "im://conversation/6666", "c".repeat(64))),
+                new ModelRef("seedj-agent", "2026-11", "prompt-v1", "d".repeat(64)),
+                PolicyRef.none(),
+                new AgentIdentity(ACTOR, ON_BEHALF_OF, null, "seedj-ai-starter"),
+                null);
+    }
+
+    /** 用例内的 decision 标识，按序号生成，避免用例之间撞号。 */
+    protected static UUID decision(int index) {
+        return UUID.fromString(String.format("00000000-0000-0000-0000-%012d", index));
+    }
+}

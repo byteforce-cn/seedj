@@ -1,5 +1,7 @@
 package cn.byteforce.seedj.ai;
 
+import java.util.Locale;
+
 /**
  * 命令动作分类：决定审批强度与是否允许自动执行。
  *
@@ -25,5 +27,28 @@ public enum ActionClass {
     /**
      * 不可逆外部副作用：消息已送达外部系统、单据已推送第三方等。 审批口径：强制人工审批；执行前先固化外部可见内容，执行后只做事实记录，不再假装可撤销。
      */
-    IRREVERSIBLE_EXTERNAL
+    IRREVERSIBLE_EXTERNAL;
+
+    /**
+     * 线格式名称。
+     *
+     * <p>小写下划线名是 token、账本与决策面共用的稳定字符串，冻结后不要改名。
+     *
+     * @return 小写动作分类名
+     */
+    public String wire() {
+        return name().toLowerCase(Locale.ROOT);
+    }
+
+    /**
+     * 该分类是否强制人工审批。
+     *
+     * <p>只有两个不可逆档位返回 {@code true}：它们一旦执行无法由系统撤回，守卫必须要求决策 token 携带 审批快照。可补偿变更按业务策略审批，不进入 T0
+     * 的强制路径。
+     *
+     * @return 不可逆动作返回 {@code true}
+     */
+    public boolean requiresApproval() {
+        return this == IRREVERSIBLE_FINANCIAL || this == IRREVERSIBLE_EXTERNAL;
+    }
 }
