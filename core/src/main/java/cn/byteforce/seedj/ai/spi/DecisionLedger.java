@@ -22,6 +22,9 @@ import java.util.UUID;
  *       {@code decisionId} 反查既有意图得出；意图不存在时抛 {@link IllegalArgumentException}。
  *   <li>同一 {@code decisionId} 的意图重复追加是幂等的：返回首次记录，内容不同也不抛（内容比对由调用方负责）。
  *   <li>同一 {@code decisionId} 的结局重复追加是幂等的：返回首次记录。
+ *   <li>一个 {@code decisionId} 只属于一个租户：别的租户复用同一 {@code decisionId} 追加意图/结局时<b>一律拒绝</b>，抛
+ *       {@link IllegalArgumentException}（消息包含 {@code another tenant}）——不返回已有租户的记录（不泄露存在性），
+ *       也不写第二条影子记录。
  *   <li>{@code approval} 与 {@code reconciled} <b>不幂等</b>：每个 decision 可多条 approval（每次观察一条审批事实），
  *       reconciled 每次核对一条——它们是观察记录，不是效果副本。
  *   <li>{@link #byDecision} 按 {@code sequence} 升序返回；租户不匹配时返回空列表，不泄露记录是否存在。
@@ -44,6 +47,7 @@ public interface DecisionLedger {
      * @param intent 决策意图
      * @return 落账后的记录
      * @throws NullPointerException {@code intent} 为 {@code null}
+     * @throws IllegalArgumentException 同一 {@code decisionId} 已属于另一个租户
      */
     DecisionRecord appendIntent(DecisionIntent intent);
 
@@ -64,7 +68,7 @@ public interface DecisionLedger {
      * @param effect 执行结局
      * @param source 结局来源
      * @return 落账后的记录
-     * @throws IllegalArgumentException 该决策没有意图记录
+     * @throws IllegalArgumentException 该决策没有意图记录，或已属于另一个租户
      */
     DecisionRecord appendOutcome(UUID decisionId, DecisionEffect effect, OutcomeSource source);
 

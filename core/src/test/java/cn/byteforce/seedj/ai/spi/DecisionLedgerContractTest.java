@@ -144,6 +144,23 @@ public abstract class DecisionLedgerContractTest {
     }
 
     @Test
+    @DisplayName("跨租户复用同一 decision_id 一律拒绝：不返回别人的记录，也不写影子记录")
+    void reusing_decision_id_in_another_tenant_is_rejected() {
+        DecisionIntent owned = intent(TENANT, decision(11));
+        DecisionRecord record = ledger().appendIntent(owned);
+
+        DecisionIntent reused = intent(OTHER_TENANT, owned.decisionId());
+
+        assertThatThrownBy(() -> ledger().appendIntent(reused))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("another tenant");
+        assertThat(ledger().byDecision(OTHER_TENANT, owned.decisionId())).isEmpty();
+        assertThat(ledger().byDecision(TENANT, owned.decisionId()))
+                .extracting(DecisionRecord::recordId)
+                .containsExactly(record.recordId());
+    }
+
+    @Test
     @DisplayName("分区名按租户规则：t_<tenantId>")
     void partition_follows_tenant_rule() {
         DecisionRecord record = ledger().appendIntent(intent(TENANT, decision(7)));

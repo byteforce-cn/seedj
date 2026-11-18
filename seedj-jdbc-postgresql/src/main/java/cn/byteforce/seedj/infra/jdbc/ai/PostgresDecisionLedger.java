@@ -39,6 +39,11 @@ import tools.jackson.databind.json.JsonMapper;
  * <p>幂等：{@code intent} 与 {@code outcome} 每个 decision 至多一条，先查后插；并发下先查后插会撞车， 最终由 partial unique
  * index 兜底——插入冲突时再查一次，返回已存在的那条。{@code approval} 与 {@code reconciled} 不幂等： 前者是每次观测一条审批事实，后者是每次核对一条观察。
  *
+ * <p><b>跨租户 fail-closed</b>：{@code partial unique index} 按 {@code decision_id} 全库唯一，同一 {@code
+ * decision_id} 只属于一个租户。别的租户复用同一 {@code decision_id} 时一律拒绝（抛 {@link IllegalArgumentException}），
+ * 既不返回已有租户的记录（不泄露存在性），也不写第二条影子记录——{@code find} / {@code byDecision} 是租户作用域
+ * 的，返回别人的记录等于越权。
+ *
  * <p>记录体（{@code body}）由 {@link DecisionRecordBodies} 组装，本类不自己拼 map：{@code record_hash} 覆盖整个
  * 记录体，两套实现写出的记录体不同，同一份决策在两套账本里的哈希就不同。
  *
@@ -114,7 +119,7 @@ public final class PostgresDecisionLedger implements DecisionLedger {
         Objects.requireNonNull(intent, "intent");
         DecisionRecord existing = existing(intent.decisionId(), DecisionRecordKind.INTENT);
         if (existing != null) {
-            return existing;
+            return existingForTenant(existing, intent.tenantId());
         }
         try {
             return inTransaction(
@@ -123,7 +128,9 @@ public final class PostgresDecisionLedger implements DecisionLedger {
                     DecisionRecordKind.INTENT,
                     DecisionRecordBodies.intent(intent));
         } catch (DuplicateKeyException e) {
-            return existingAfterRace(intent.decisionId(), DecisionRecordKind.INTENT, e);
+            return existingForTenant(
+                    existingAfterRace(intent.decisionId(), DecisionRecordKind.INTENT, e),
+                    intent.tenantId());
         }
     }
 
@@ -148,7 +155,7 @@ public final class PostgresDecisionLedger implements DecisionLedger {
         UUID tenantId = requireTenant(decisionId);
         DecisionRecord existing = existing(decisionId, DecisionRecordKind.OUTCOME);
         if (existing != null) {
-            return existing;
+            return existingForTenant(existing, tenantId);
         }
         try {
             return inTransaction(
@@ -157,7 +164,8 @@ public final class PostgresDecisionLedger implements DecisionLedger {
                     DecisionRecordKind.OUTCOME,
                     DecisionRecordBodies.outcome(effect, source));
         } catch (DuplicateKeyException e) {
-            return existingAfterRace(decisionId, DecisionRecordKind.OUTCOME, e);
+            return existingForTenant(
+                    existingAfterRace(decisionId, DecisionRecordKind.OUTCOME, e), tenantId);
         }
     }
 
@@ -368,6 +376,20 @@ public final class PostgresDecisionLedger implements DecisionLedger {
             throw cause;
         }
         return raced;
+    }
+
+    /**
+     * 同一 {@code decision_id} 只属于一个租户：租户相同则幂等返回首条，不同则 fail-closed 拒绝。
+     *
+     * <p>{@code partial unique index} 按 {@code decision_id} 全库唯一，所以跨租户复用必然撞上别人的记录；把它返回给
+     * 调用方就是跨租户数据泄露，与 {@code find} / {@code byDecision} 的租户作用域自相矛盾。
+     */
+    private static DecisionRecord existingForTenant(DecisionRecord existing, UUID tenantId) {
+        if (!existing.tenantId().equals(tenantId)) {
+            throw new IllegalArgumentException(
+                    "decision_id belongs to another tenant: " + existing.decisionId());
+        }
+        return existing;
     }
 
     /** 非 intent 记录的租户由已落账的 intent 反查。 */

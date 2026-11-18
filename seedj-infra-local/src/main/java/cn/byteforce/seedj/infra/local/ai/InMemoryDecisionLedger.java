@@ -33,6 +33,11 @@ import java.util.concurrent.locks.ReentrantLock;
  * <p>幂等：{@code intent} 与 {@code outcome} 每个 decision 至多一条（重复追加返回首次记录）；{@code approval} 与
  * {@code reconciled} 不幂等，每次一条。非 intent 记录的租户由已落账的 intent 反查。
  *
+ * <p><b>跨租户 fail-closed</b>：PG 的两个 partial unique index 按 {@code decision_id} 全库唯一，同一 {@code
+ * decision_id} 只属于一个租户。内存侧用两张全局索引（{@code decision_id} → 首条 intent / outcome）表达同一约束：
+ * 别的租户复用同一 {@code decision_id} 时一律拒绝（抛 {@link IllegalArgumentException}），既不返回已有租户的记录
+ * （不泄露存在性），也不写第二条影子记录。
+ *
  * <p>状态在堆上，进程重启即丢；这是本地开发与测试的参照实现，不用于生产。
  *
  * @author ByteForce
@@ -43,15 +48,36 @@ public final class InMemoryDecisionLedger implements DecisionLedger {
     /** 分区名 → 分区状态。 */
     private final ConcurrentHashMap<String, Partition> partitions = new ConcurrentHashMap<>();
 
+    /** {@code decision_id} → 首条 intent，对应 PG 的 {@code agent_decision_intent_uk}。 */
+    private final ConcurrentHashMap<UUID, DecisionRecord> intents = new ConcurrentHashMap<>();
+
+    /** {@code decision_id} → 首条 outcome，对应 PG 的 {@code agent_decision_outcome_uk}。 */
+    private final ConcurrentHashMap<UUID, DecisionRecord> outcomes = new ConcurrentHashMap<>();
+
+    /** 全局唯一性锁：「查重 → 落账 → 登记索引」对同一 {@code decision_id} 原子，跨分区也成立。 */
+    private final ReentrantLock uniqueLock = new ReentrantLock();
+
     @Override
     public DecisionRecord appendIntent(DecisionIntent intent) {
         Objects.requireNonNull(intent, "intent");
-        return append(
-                partition(intent.tenantId()),
-                intent.decisionId(),
-                DecisionRecordKind.INTENT,
-                DecisionRecordBodies.intent(intent),
-                true);
+        UUID decisionId = intent.decisionId();
+        uniqueLock.lock();
+        try {
+            DecisionRecord existing = intents.get(decisionId);
+            if (existing != null) {
+                return existingForTenant(existing, intent.tenantId());
+            }
+            DecisionRecord record =
+                    append(
+                            partition(intent.tenantId()),
+                            decisionId,
+                            DecisionRecordKind.INTENT,
+                            DecisionRecordBodies.intent(intent));
+            intents.put(decisionId, record);
+            return record;
+        } finally {
+            uniqueLock.unlock();
+        }
     }
 
     @Override
@@ -62,8 +88,7 @@ public final class InMemoryDecisionLedger implements DecisionLedger {
                 partition(tenantOf(decisionId)),
                 decisionId,
                 DecisionRecordKind.APPROVAL,
-                DecisionRecordBodies.approval(snapshot),
-                false);
+                DecisionRecordBodies.approval(snapshot));
     }
 
     @Override
@@ -71,12 +96,24 @@ public final class InMemoryDecisionLedger implements DecisionLedger {
         Objects.requireNonNull(decisionId, "decisionId");
         Objects.requireNonNull(effect, "effect");
         Objects.requireNonNull(source, "source");
-        return append(
-                partition(tenantOf(decisionId)),
-                decisionId,
-                DecisionRecordKind.OUTCOME,
-                DecisionRecordBodies.outcome(effect, source),
-                true);
+        UUID tenantId = tenantOf(decisionId);
+        uniqueLock.lock();
+        try {
+            DecisionRecord existing = outcomes.get(decisionId);
+            if (existing != null) {
+                return existingForTenant(existing, tenantId);
+            }
+            DecisionRecord record =
+                    append(
+                            partition(tenantId),
+                            decisionId,
+                            DecisionRecordKind.OUTCOME,
+                            DecisionRecordBodies.outcome(effect, source));
+            outcomes.put(decisionId, record);
+            return record;
+        } finally {
+            uniqueLock.unlock();
+        }
     }
 
     @Override
@@ -93,8 +130,7 @@ public final class InMemoryDecisionLedger implements DecisionLedger {
                     partition,
                     decisionId,
                     DecisionRecordKind.RECONCILED,
-                    DecisionRecordBodies.reconciled(effect, reason, supersedes),
-                    false);
+                    DecisionRecordBodies.reconciled(effect, reason, supersedes));
         } finally {
             partition.lock.unlock();
         }
@@ -188,9 +224,25 @@ public final class InMemoryDecisionLedger implements DecisionLedger {
         }
     }
 
-    /** 清空全部分区（测试用）。 */
+    /** 清空全部分区与全局索引（测试用）。 */
     void clear() {
         partitions.clear();
+        intents.clear();
+        outcomes.clear();
+    }
+
+    /**
+     * 同一 {@code decision_id} 只属于一个租户：租户相同则幂等返回首条，不同则 fail-closed 拒绝。
+     *
+     * <p>PG 的两个 partial unique index 按 {@code decision_id} 全库唯一；把别的租户的记录返回给调用方就是跨租户数据泄露，
+     * 与 {@code find} / {@code byDecision} 的租户作用域自相矛盾。
+     */
+    private static DecisionRecord existingForTenant(DecisionRecord existing, UUID tenantId) {
+        if (!existing.tenantId().equals(tenantId)) {
+            throw new IllegalArgumentException(
+                    "decision_id belongs to another tenant: " + existing.decisionId());
+        }
+        return existing;
     }
 
     /** 取租户分区；分区还没写过时建一个空链。 */
@@ -214,16 +266,12 @@ public final class InMemoryDecisionLedger implements DecisionLedger {
         throw new IllegalArgumentException("unknown decision: " + decisionId);
     }
 
-    /** 在分区锁内追加一条记录；{@code idempotent} 为真时同 decision 同 kind 只留首次记录。 */
+    /** 在分区锁内追加一条记录。 */
     private DecisionRecord append(
-            Partition partition,
-            UUID decisionId,
-            DecisionRecordKind kind,
-            Map<String, Object> body,
-            boolean idempotent) {
+            Partition partition, UUID decisionId, DecisionRecordKind kind, Map<String, Object> body) {
         partition.lock.lock();
         try {
-            return appendLocked(partition, decisionId, kind, body, idempotent);
+            return appendLocked(partition, decisionId, kind, body);
         } finally {
             partition.lock.unlock();
         }
@@ -231,17 +279,7 @@ public final class InMemoryDecisionLedger implements DecisionLedger {
 
     /** 追加记录并推进链头；调用方必须已持有 {@code partition.lock}。 */
     private DecisionRecord appendLocked(
-            Partition partition,
-            UUID decisionId,
-            DecisionRecordKind kind,
-            Map<String, Object> body,
-            boolean idempotent) {
-        if (idempotent) {
-            DecisionRecord existing = partition.existing(decisionId, kind);
-            if (existing != null) {
-                return existing;
-            }
-        }
+            Partition partition, UUID decisionId, DecisionRecordKind kind, Map<String, Object> body) {
         long sequence = partition.sequence + 1;
         Instant recordedAt = Instant.now().truncatedTo(ChronoUnit.MICROS);
         DecisionRecord unsigned =
