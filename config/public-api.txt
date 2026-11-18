@@ -406,9 +406,13 @@ seedj-ai-starter|cn.byteforce.seedj.starter.ai.autoconfigure|DecisionPlaneAutoCo
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.guard|AgentGuardFilter
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.guard|ConfiguredToolRegistry
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.plane|CapabilityRegistry
+seedj-ai-starter|cn.byteforce.seedj.starter.ai.plane|ConfiguredReconciliationSource
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.plane|DecisionController
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.plane|DecisionService
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.plane|JwksController
+seedj-ai-starter|cn.byteforce.seedj.starter.ai.plane|OutcomeDeriver
+seedj-ai-starter|cn.byteforce.seedj.starter.ai.plane|PlaneReconciliationSource
+seedj-ai-starter|cn.byteforce.seedj.starter.ai.plane|ReconciliationJob
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.token|DecisionTokenIssuer
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.token|DecisionTokenVerifier
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.token|Ed25519Jwks

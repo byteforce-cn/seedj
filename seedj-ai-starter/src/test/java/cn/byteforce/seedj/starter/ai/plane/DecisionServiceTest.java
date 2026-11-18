@@ -317,7 +317,7 @@ class DecisionServiceTest {
     @DisplayName("HTTP 线格式：POST 返回 snake_case，GET 回读记录，未知决策 404")
     void decision_endpoints_use_snake_case_wire() throws Exception {
         MockMvc mvc =
-                MockMvcBuilders.standaloneSetup(new DecisionController(service()))
+                MockMvcBuilders.standaloneSetup(new DecisionController(service(), null))
                         .setControllerAdvice(new ContractErrorHandler())
                         .build();
 

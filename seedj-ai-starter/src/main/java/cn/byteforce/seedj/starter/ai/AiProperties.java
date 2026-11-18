@@ -71,8 +71,8 @@ public record AiProperties(
      *
      * @param enabled 是否装配决策面，默认 false（执行侧不需要它）
      * @param tenant 决策面所属租户（必填 UUID）；账本分区 {@code t_<tenant>} 与 token 的 {@code tenant} claim 都用它
-     * @param reconcile 校对数据源配置；未配置时给空实例
-     * @param reconcileTtl intent 校对的时间窗，默认 10m
+     * @param reconcile 对账配置（数据源 bean 名与定时开关）；未配置时给空实例
+     * @param reconcileTtl 对账时间窗（{@code seedj.ai.plane.reconcile-ttl}），默认 10m
      */
     public record Plane(
             @DefaultValue("false") boolean enabled,
@@ -81,16 +81,20 @@ public record AiProperties(
             @DefaultValue("10m") Duration reconcileTtl) {
 
         public Plane {
-            reconcile = reconcile == null ? new Reconcile(null) : reconcile;
+            reconcile = reconcile == null ? new Reconcile(null, false) : reconcile;
         }
     }
 
     /**
-     * 校对数据源配置：键路径是 {@code seedj.ai.plane.reconcile.datasource}。
+     * 对账配置：键路径是 {@code seedj.ai.plane.reconcile.*}。
      *
-     * @param datasource 校对用的数据源 bean 名称；空表示用主数据源
+     * <p>开关与数据源放在同一个分组下，因为它们是同一件事的两面：打开定时对账，就得知道去哪个业务库读链上事实。
+     *
+     * @param datasource 对账用的数据源 bean 名称；空表示用主数据源
+     * @param enabled 是否装配定时对账，默认 false（宿主还需自己写 {@code @EnableScheduling}）
      */
-    public record Reconcile(String datasource) {}
+    public record Reconcile(
+            String datasource, @DefaultValue("false") boolean enabled) {}
 
     /**
      * 执行侧 guard 配置。
