@@ -1,5 +1,7 @@
 package cn.byteforce.seedj.ai;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -13,7 +15,7 @@ import java.util.Objects;
  * @param kind 步骤类型
  * @param actionClass 动作分类；{@code kind == EXECUTE_TOOL} 时必填
  * @param command 命令引用；{@code kind == EXECUTE_TOOL} 时必填
- * @param payload 命令载荷；{@code kind == EXECUTE_TOOL} 时必填
+ * @param payload 命令载荷；{@code kind == EXECUTE_TOOL} 时必填；允许 null value，键序保留
  * @param rationale 提议理由；{@code null} 表示未给出
  * @param evidence 支撑证据；{@code null} 视为空列表
  * @author ByteForce
@@ -39,7 +41,7 @@ public record Proposal(
             Objects.requireNonNull(actionClass, "actionClass");
             Objects.requireNonNull(command, "command");
             Objects.requireNonNull(payload, "payload");
-            payload = Map.copyOf(payload);
+            payload = Collections.unmodifiableMap(new LinkedHashMap<>(payload));
         } else if (actionClass != null || command != null || payload != null) {
             throw new IllegalArgumentException(
                     "actionClass/command/payload are only allowed for EXECUTE_TOOL");

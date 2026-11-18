@@ -1,5 +1,7 @@
 package cn.byteforce.seedj.ai;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -24,7 +26,7 @@ import java.util.UUID;
  * @param command 命令引用
  * @param argsHash 参数指纹（{@code sha256:} 前缀）
  * @param idemFingerprint 幂等指纹（64 位小写十六进制）
- * @param args 脱敏后的可展示参数；{@code null} 视为空映射
+ * @param args 脱敏后的可展示参数；{@code null} 入参视为空映射；允许 null value，键序保留
  * @param rationale 决策理由
  * @param evidence 支撑证据；{@code null} 视为空列表
  * @param model 决策所用模型
@@ -79,7 +81,7 @@ public record DecisionIntent(
         if (approval != null && (actionClass == null || !actionClass.requiresApproval())) {
             throw new IllegalArgumentException("approval is only allowed for approval-requiring actions");
         }
-        args = args == null ? Map.of() : Map.copyOf(args);
+        args = args == null ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(args));
         evidence = evidence == null ? List.of() : List.copyOf(evidence);
     }
 

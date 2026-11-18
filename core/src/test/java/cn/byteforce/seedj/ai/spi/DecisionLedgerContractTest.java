@@ -1,9 +1,12 @@
 package cn.byteforce.seedj.ai.spi;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import cn.byteforce.seedj.ai.ActionClass;
 import cn.byteforce.seedj.ai.AgentIdentity;
+import cn.byteforce.seedj.ai.ApprovalSnapshot;
+import cn.byteforce.seedj.ai.ApprovalStatus;
 import cn.byteforce.seedj.ai.CommandRef;
 import cn.byteforce.seedj.ai.DecisionEffect;
 import cn.byteforce.seedj.ai.DecisionIntent;
@@ -140,6 +143,47 @@ public abstract class DecisionLedgerContractTest {
         assertThat(ledger().find(TENANT, record.recordId())).isPresent();
     }
 
+    @Test
+    @DisplayName("分区名按租户规则：t_<tenantId>")
+    void partition_follows_tenant_rule() {
+        DecisionRecord record = ledger().appendIntent(intent(TENANT, decision(7)));
+
+        assertThat(record.partition()).isEqualTo(DecisionRecord.partitionOf(TENANT));
+    }
+
+    @Test
+    @DisplayName("同 decisionId 内容不同的第二个 intent 也是幂等的：保留首次记录")
+    void intent_idempotent_even_with_different_content() {
+        DecisionIntent first = intent(TENANT, decision(8), 0, "第一次判断");
+        DecisionIntent second = intent(TENANT, decision(8), 3, "改了理由的第二次判断");
+
+        DecisionRecord firstRecord = ledger().appendIntent(first);
+        DecisionRecord secondRecord = ledger().appendIntent(second);
+
+        assertThat(secondRecord.recordId()).isEqualTo(firstRecord.recordId());
+        assertThat(ledger().byDecision(TENANT, first.decisionId()))
+                .extracting(DecisionRecord::kind)
+                .containsExactly(DecisionRecordKind.INTENT);
+    }
+
+    @Test
+    @DisplayName("append_approval 要求 intent 已存在：否则 IllegalArgumentException")
+    void append_approval_requires_existing_intent() {
+        ApprovalSnapshot snapshot =
+                new ApprovalSnapshot(
+                        "wf-instance",
+                        "wf-task",
+                        ApprovalStatus.APPROVED,
+                        RECORDED_AT,
+                        ACTOR,
+                        RECORDED_AT,
+                        "sha256:" + "a".repeat(64),
+                        1L);
+
+        assertThatThrownBy(() -> ledger().appendApproval(decision(9), snapshot))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
     /** 两个线程同时 append，返回按 sequence 升序的结果。 */
     private List<DecisionRecord> appendConcurrently(DecisionIntent first, DecisionIntent second)
             throws Exception {
@@ -169,12 +213,18 @@ public abstract class DecisionLedgerContractTest {
 
     /** 构造一个合法的 EXECUTE_TOOL intent；实现侧用例可复用。 */
     protected static DecisionIntent intent(UUID tenantId, UUID decisionId) {
+        return intent(tenantId, decisionId, 0, "用户要求创建工单");
+    }
+
+    /** 带自定步号与理由的 EXECUTE_TOOL intent，用于验证内容不同时的幂等口径。 */
+    protected static DecisionIntent intent(
+            UUID tenantId, UUID decisionId, int step, String rationale) {
         return new DecisionIntent(
                 decisionId,
                 tenantId,
                 TASK_CONTRACT,
                 CONVERSATION,
-                0,
+                step,
                 DecisionKind.EXECUTE_TOOL,
                 ActionClass.REVERSIBLE,
                 new CommandRef(
@@ -184,7 +234,7 @@ public abstract class DecisionLedgerContractTest {
                 "sha256:" + "a".repeat(64),
                 "b".repeat(64),
                 Map.of("title", "t"),
-                "用户要求创建工单",
+                rationale,
                 List.of(new Evidence("message", "im://conversation/6666", "c".repeat(64))),
                 new ModelRef("seedj-agent", "2026-11", "prompt-v1", "d".repeat(64)),
                 PolicyRef.none(),

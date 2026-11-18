@@ -11,8 +11,9 @@ import java.util.UUID;
  * {@code command} + {@code argsHash} 固定命令与参数，{@code actor}/{@code onBehalfOf}/{@code tenant}
  * 固定主体，{@code issuedAt}/{@code expiresAt}/{@code audience} 固定有效期与受众。
  *
- * <p>{@link #approval()} 与 {@link ActionClass#requiresApproval()} 的对应关系在这里就强制：需要审批的动作分类 必须带审批快照，不需要的必须不带。这样签名端签不出“越权 token”，守卫的
- * {@code approval_missing} 只是最后一道。
+ * <p>{@link #approval()} 与 {@link ActionClass#requiresApproval()} 的对应关系在这里就强制：需要审批的动作分类 必须带
+ * <b>已批准</b>的审批快照，不需要的必须不带。只校验“快照非空”不够：{@code rejected}/{@code pending} 的审批
+ * 会签出一张“无法拒绝”的 token，而守卫的错误码表里没有“审批未通过”这一项。
  *
  * @param v claim 版本，固定为 {@value #VERSION}
  * @param decisionId 决策标识
@@ -24,7 +25,7 @@ import java.util.UUID;
  * @param tenant 租户标识
  * @param actionClass 动作分类
  * @param policy 策略判定引用；{@code null} 表示 T0 未挂策略层
- * @param approval 审批快照；{@code actionClass.requiresApproval()} 时必填，否则必须为 {@code null}
+ * @param approval 审批快照；{@code actionClass.requiresApproval()} 时必须为已批准，否则必须为 {@code null}
  * @param issuedAt 签发时间
  * @param expiresAt 过期时间
  * @param audience 受众（服务名）
@@ -53,7 +54,8 @@ public record DecisionTokenClaims(
     /**
      * 校验版本、必填项与“动作分类 ↔ 审批快照”的对应关系。
      *
-     * @throws IllegalArgumentException {@code v} 不是 {@value #VERSION}、文本为空白，或审批快照与动作分类不匹配
+     * @throws IllegalArgumentException {@code v} 不是 {@value #VERSION}、文本为空白、审批状态不是 {@code approved}，
+     *     或审批快照与动作分类不匹配
      * @throws NullPointerException 必填项为 {@code null}
      */
     public DecisionTokenClaims {
@@ -72,7 +74,12 @@ public record DecisionTokenClaims(
         Objects.requireNonNull(expiresAt, "expiresAt");
         audience = requiredText(audience, "audience");
         if (actionClass.requiresApproval()) {
-            Objects.requireNonNull(approval, "approval");
+            approval = Objects.requireNonNull(approval, "approval");
+            if (approval.status() != ApprovalStatus.APPROVED) {
+                throw new IllegalArgumentException(
+                        "approval.status must be approved for approval-requiring actions, was "
+                                + approval.status().wire());
+            }
         } else if (approval != null) {
             throw new IllegalArgumentException(
                     "approval is only allowed for approval-requiring actions");

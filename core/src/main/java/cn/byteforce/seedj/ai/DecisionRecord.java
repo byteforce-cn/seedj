@@ -1,6 +1,8 @@
 package cn.byteforce.seedj.ai;
 
 import java.time.Instant;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -23,7 +25,7 @@ import java.util.regex.Pattern;
  * @param recordHash 本条记录的哈希（64 位小写十六进制）
  * @param recordedAt 落账时间
  * @param tenantId 租户
- * @param body 记录体（按 {@code kind} 不同而不同）
+ * @param body 记录体（按 {@code kind} 不同而不同）；允许 null value，键序保留
  * @author ByteForce
  * @since 1.0.0
  */
@@ -63,7 +65,7 @@ public record DecisionRecord(
         recordHash = requiredHash(recordHash, "recordHash");
         Objects.requireNonNull(recordedAt, "recordedAt");
         Objects.requireNonNull(tenantId, "tenantId");
-        body = Map.copyOf(Objects.requireNonNull(body, "body"));
+        body = Collections.unmodifiableMap(new LinkedHashMap<>(Objects.requireNonNull(body, "body")));
     }
 
     /**
