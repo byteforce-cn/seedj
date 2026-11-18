@@ -334,6 +334,101 @@ class DecisionTokenVerifierTest {
         assertThat(verdict).isInstanceOf(GuardVerdict.Admit.class);
     }
 
+    @Test
+    @DisplayName("T0 不比 policy：PolicyRef.none() 的不可逆 token 仍然放行（§7.3 第 9 条未实现）")
+    void policy_check_is_not_part_of_t0() {
+        Fixture fixture = new Fixture();
+        fixture.actionClass = ActionClass.IRREVERSIBLE_FINANCIAL;
+        fixture.approval = approved(DEFAULT_ARGS_HASH);
+        fixture.registry =
+                type -> Optional.of(new AgentToolSpec(type, ActionClass.IRREVERSIBLE_FINANCIAL));
+        String token = fixture.jws();
+
+        GuardVerdict verdict =
+                new DecisionTokenVerifier(KEYS, fixture.registry, AUDIENCE)
+                        .verify(token, fixture.context(), NOW);
+
+        assertThat(verdict)
+                .isInstanceOfSatisfying(
+                        GuardVerdict.Admit.class,
+                        admit -> {
+                            assertThat(admit.claims().policy()).isEqualTo(PolicyRef.none());
+                            assertThat(admit.claims().actionClass())
+                                    .isEqualTo(ActionClass.IRREVERSIBLE_FINANCIAL);
+                        });
+    }
+
+    @Test
+    @DisplayName("exp == now 已过期（RFC 7519：exp 是不得再被接受的时刻）")
+    void exp_equal_now_is_rejected() {
+        Fixture fixture = new Fixture();
+        fixture.issuedAt = NOW.minusSeconds(300);
+        fixture.expiresAt = NOW;
+        String token = fixture.jws();
+
+        GuardVerdict verdict = VERIFIER.verify(token, fixture.context(), NOW);
+
+        assertThat(verdict)
+                .isInstanceOfSatisfying(
+                        GuardVerdict.Reject.class,
+                        reject -> assertThat(reject.code().wire()).isEqualTo("token_expired"));
+    }
+
+    @Test
+    @DisplayName("带未处理 crit 参数的 token 一律拒绝（fail-closed）")
+    void crit_header_is_rejected() {
+        JWSHeader header =
+                new JWSHeader.Builder(JWSAlgorithm.EdDSA)
+                        .type(new JOSEObjectType("agent-decision+jws"))
+                        .keyID(KID)
+                        .criticalParams(Set.of("exp"))
+                        .build();
+        Fixture fixture = new Fixture();
+        String token = rawSign(fixture.claims(), header);
+
+        GuardVerdict verdict = VERIFIER.verify(token, fixture.context(), NOW);
+
+        assertThat(verdict)
+                .isInstanceOfSatisfying(
+                        GuardVerdict.Reject.class,
+                        reject -> assertThat(reject.code().wire()).isEqualTo("token_invalid"));
+    }
+
+    @Test
+    @DisplayName("expectedVersion=null 的 token 能放行，且 wire 上保留该 null 键")
+    void expected_version_null_is_carried_on_the_wire() throws ParseException {
+        Fixture fixture = new Fixture();
+        fixture.command = new CommandRef(COMMAND_TYPE, TARGETS, null);
+        fixture.argsHash = ArgsHash.of(new CommandFingerprint(COMMAND_TYPE, PAYLOAD, TARGETS, null));
+        fixture.ctxExpectedVersion = null;
+        String token = fixture.jws();
+
+        GuardVerdict verdict = VERIFIER.verify(token, fixture.context(), NOW);
+
+        assertThat(verdict)
+                .isInstanceOfSatisfying(
+                        GuardVerdict.Admit.class,
+                        admit -> assertThat(admit.claims().command().expectedVersion()).isNull());
+        assertThat(new String(JWSObject.parse(token).getPayload().toBytes(), StandardCharsets.UTF_8))
+                .contains("\"expectedVersion\":null");
+    }
+
+    @Test
+    @DisplayName("构造器 audience 为空时改用 GuardContext.audience()")
+    void null_audience_falls_back_to_context() {
+        Fixture fixture = new Fixture();
+        DecisionTokenVerifier verifier = new DecisionTokenVerifier(KEYS, REGISTRY, null);
+
+        assertThat(verifier.verify(fixture.jws(), fixture.context(), NOW))
+                .isInstanceOf(GuardVerdict.Admit.class);
+
+        fixture.ctxAudience = "other-service";
+        assertThat(verifier.verify(fixture.jws(), fixture.context(), NOW))
+                .isInstanceOfSatisfying(
+                        GuardVerdict.Reject.class,
+                        reject -> assertThat(reject.code().wire()).isEqualTo("aud_mismatch"));
+    }
+
     /** 构造一条合法 token 与匹配的请求上下文；每个用例只改一处。 */
     private static final class Fixture {
 
@@ -419,11 +514,15 @@ class DecisionTokenVerifierTest {
     }
 
     private static String rawSign(DecisionTokenClaims claims, String kid) {
-        JWSHeader header =
+        return rawSign(
+                claims,
                 new JWSHeader.Builder(JWSAlgorithm.EdDSA)
                         .type(new JOSEObjectType("agent-decision+jws"))
                         .keyID(kid)
-                        .build();
+                        .build());
+    }
+
+    private static String rawSign(DecisionTokenClaims claims, JWSHeader header) {
         JWSObject jws = new JWSObject(header, new Payload(DecisionTokenPayload.canonical(claims)));
         try {
             jws.sign(TEST_SIGNER);
