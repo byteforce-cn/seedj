@@ -35,15 +35,15 @@ import org.testcontainers.junit.jupiter.Testcontainers;
  * <p>这条用例守的是两类会静默腐烂的配置：
  *
  * <ul>
- *   <li><b>只有有数据源时才会暴露的键</b>——{@code seedj.object.provider=memory}（决策面宿主没有业务对象，默认
- *       {@code postgres} 会因无 schema 声明直接启动失败）等，默认 profile 的用例排除了数据源自动配置，从来看不到它们；
- *   <li><b>鉴权口径</b>——JWKS 必须匿名可读（执行侧按 {@code kid} 拉公钥），默认公开路径里没有它，靠
- *       {@code seedj.biz.public-paths} 显式加；这里走真实安全链（不是 {@code dev-auth} 放行链），不带任何
- *       {@code Authorization} 也能取到才算数——反过来，公开路径之外（{@code /v1/decisions}）不带令牌则是 401。
+ *   <li><b>只有有数据源时才会暴露的键</b>——{@code seedj.object.provider=memory}（决策面宿主没有业务对象，默认 {@code postgres}
+ *       会因无 schema 声明直接启动失败）等，默认 profile 的用例排除了数据源自动配置，从来看不到它们；
+ *   <li><b>鉴权口径</b>——JWKS 必须匿名可读（执行侧按 {@code kid} 拉公钥），默认公开路径里没有它，靠 {@code seedj.biz.public-paths}
+ *       显式加；这里走真实安全链（不是 {@code dev-auth} 放行链），不带任何 {@code Authorization} 也能取到才算数——反过来，公开路径之外（{@code
+ *       /v1/decisions}）不带令牌则是 401。
  * </ul>
  *
- * <p>启动本身就会跑 {@code InfrastructureInitializer} 的迁移，因此「上下文起来了」同时意味着账本/命令/审计的表建好了；
- * 用例再钉一条 {@code agent_decision_record} 可查，避免迁移被跳过还绿。
+ * <p>启动本身就会跑 {@code InfrastructureInitializer} 的迁移，因此「上下文起来了」同时意味着账本/命令/审计的表建好了； 用例再钉一条 {@code
+ * agent_decision_record} 可查，避免迁移被跳过还绿。
  */
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -91,7 +91,8 @@ class AiServerPostgresProfileTest {
     @Test
     @DisplayName("postgres profile 起得来：账本走 PostgreSQL，迁移已执行")
     void postgres_profile_selects_postgres_ledger() {
-        assertThat(context.getBean(DecisionLedger.class)).isInstanceOf(PostgresDecisionLedger.class);
+        assertThat(context.getBean(DecisionLedger.class))
+                .isInstanceOf(PostgresDecisionLedger.class);
         assertThat(jdbc.queryForObject("SELECT count(*) FROM agent_decision_record", Integer.class))
                 .isZero();
     }

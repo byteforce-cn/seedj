@@ -12,12 +12,11 @@ import org.springframework.context.ConfigurableApplicationContext;
 /**
  * 宿主「不写就起不来」的签发方配置：缺 token issuer 时启动期就失败。
  *
- * <p>决策面的调用方凭 IAM 签发的访问令牌来访，所以 biz 资源服务器必须知道 issuer：
- * {@code spring.security.oauth2.resourceserver.jwt.issuer-uri} 是 base {@code application.yml} 里那半个
+ * <p>决策面的调用方凭 IAM 签发的访问令牌来访，所以 biz 资源服务器必须知道 issuer： {@code
+ * spring.security.oauth2.resourceserver.jwt.issuer-uri} 是 base {@code application.yml} 里那半个
  * 「不写就起不来」的键，另一半是 {@code seedj.object.provider=memory}（由 {@link AiServerPostgresProfileTest}
- * 在**有数据源**的形态下覆盖——它删掉这个键就起不来）。这里补的是 issuer 这一半：
- * {@link AiServerPostgresProfileTest} 用 stub {@code JwtDecoder} 挡掉了启动期的 OIDC 拉取，
- * 恰好绕开了唯一读 issuer 的那行代码，删掉 yml 里的 issuer 它照样绿。
+ * 在**有数据源**的形态下覆盖——它删掉这个键就起不来）。这里补的是 issuer 这一半： {@link AiServerPostgresProfileTest} 用 stub {@code
+ * JwtDecoder} 挡掉了启动期的 OIDC 拉取， 恰好绕开了唯一读 issuer 的那行代码，删掉 yml 里的 issuer 它照样绿。
  *
  * <p>两条用例合起来才有牙：{@link #host_supplies_token_issuer()} 断言 base {@code application.yml} 确实提供了
  * issuer（删掉那行就红），{@link #host_requires_token_issuer()} 断言缺了它宿主启动失败并点名配置项。
@@ -55,8 +54,8 @@ class AiServerIssuerConfigurationTest {
                         () ->
                                 new SpringApplicationBuilder(
                                                 AiServer.class,
-                                                AiServerTestFixtures
-                                                        .InMemoryLedgerConfiguration.class)
+                                                AiServerTestFixtures.InMemoryLedgerConfiguration
+                                                        .class)
                                         .profiles("test")
                                         .properties(
                                                 AiServerTestFixtures.NO_DATASOURCE,

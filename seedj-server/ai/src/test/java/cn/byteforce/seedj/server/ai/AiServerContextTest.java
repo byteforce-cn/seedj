@@ -24,14 +24,13 @@ import org.springframework.test.web.servlet.MockMvc;
 /**
  * 决策面宿主的上下文契约：端点可达、只当决策面、启动期配置校验。
  *
- * <p>宿主默认角色是<b>决策面</b>（{@code seedj.ai.plane.enabled=true}）：暴露 {@code /v1/decisions} 与 JWKS；
- * {@code seedj.ai.guard.enabled=false} 则让它不同时充当执行侧守卫——两侧都开会让同一个进程既签发 token 又校验
- * token，出问题时无法判断是哪一侧的配置生效。
+ * <p>宿主默认角色是<b>决策面</b>（{@code seedj.ai.plane.enabled=true}）：暴露 {@code /v1/decisions} 与 JWKS； {@code
+ * seedj.ai.guard.enabled=false} 则让它不同时充当执行侧守卫——两侧都开会让同一个进程既签发 token 又校验 token，出问题时无法判断是哪一侧的配置生效。
  *
- * <p>用例不依赖真实 PostgreSQL：{@code DataSourceAutoConfiguration} 被排除（其余 JDBC 自动配置随之退出），账本由
- * {@link AiServerTestFixtures} 里的内存实现提供（与 PG 账本同语义）。调用方由 {@code seedj.biz.dev-auth} 注入，所以这里验证的
- * 是「宿主把 starter 装配起来了」，不是鉴权矩阵——真实安全链下的匿名可达性在 {@link AiServerPostgresProfileTest} 里断言；
- * 这里只钉住「JWKS 路径确实在公开路径清单里」，防止配置被删掉还绿。
+ * <p>用例不依赖真实 PostgreSQL：{@code DataSourceAutoConfiguration} 被排除（其余 JDBC 自动配置随之退出），账本由 {@link
+ * AiServerTestFixtures} 里的内存实现提供（与 PG 账本同语义）。调用方由 {@code seedj.biz.dev-auth} 注入，所以这里验证的 是「宿主把
+ * starter 装配起来了」，不是鉴权矩阵——真实安全链下的匿名可达性在 {@link AiServerPostgresProfileTest} 里断言； 这里只钉住「JWKS
+ * 路径确实在公开路径清单里」，防止配置被删掉还绿。
  */
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -86,8 +85,8 @@ class AiServerContextTest {
                         () ->
                                 new SpringApplicationBuilder(
                                                 AiServer.class,
-                                                AiServerTestFixtures
-                                                        .InMemoryLedgerConfiguration.class)
+                                                AiServerTestFixtures.InMemoryLedgerConfiguration
+                                                        .class)
                                         .profiles("test")
                                         .properties(
                                                 AiServerTestFixtures.NO_DATASOURCE,
