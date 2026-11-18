@@ -1,6 +1,7 @@
 package cn.byteforce.seedj.starter.ai.runtime;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
@@ -37,8 +38,9 @@ import org.springframework.web.client.RestClient;
 /**
  * 有界 agent 循环与两个 HTTP 端口（spec §5.1 两条路径、§7.2 token 只走 {@code x-agent-decision}）。
  *
- * <p>循环的每个用例都钉两件事：<b>决策一次走一步</b>（多调一次 {@code ask} 或工具调用次数多一次都是错），以及
- * <b>停止条件之后绝不再调工具</b>——{@code stops_at_max_steps} 用工具调用次数证明上限真的是上限。
+ * <p>循环的每个用例都钉三件事：<b>只有写动作才问决策面</b>（{@code finish}/只读提案一次 {@code ask} 都不该有）、
+ * <b>决策一次走一步</b>（多调一次 {@code ask} 或工具调用次数多一次都是错），以及<b>停止条件之后绝不再调工具</b>——
+ * {@code stops_at_max_steps} 用工具调用次数证明上限真的是上限。
  *
  * <p>两个 HTTP 端口用 {@link MockRestServiceServer} 断言线格式：token 只出现在请求头，从不进 body；决策请求是
  * snake_case，且不接受 {@code decision_id}/{@code idempotency_key}。
@@ -84,6 +86,23 @@ class BoundedLoopTest {
     }
 
     @Test
+    @DisplayName("部署上限比任务契约更紧时，以部署上限为准")
+    void deployment_cap_is_tighter_than_contract() {
+        ScriptedGateway gateway = new ScriptedGateway(executeProposal());
+        ScriptedDecisionClient decisions = new ScriptedDecisionClient(allowGrant());
+        RecordingToolInvoker tools =
+                new RecordingToolInvoker(new ToolResult(true, "{}", COMMAND_ID));
+
+        LoopResult result =
+                new BoundedLoop(gateway, decisions, tools, 3, AUDIENCE).run(contract(10));
+
+        assertThat(tools.executed).hasSize(3);
+        assertThat(decisions.calls).isEqualTo(3);
+        assertThat(result.outcome()).isEqualTo(LoopResult.Outcome.MAX_STEPS_REACHED);
+        assertThat(result.steps()).isEqualTo(3);
+    }
+
+    @Test
     @DisplayName("越权提案被拒：不调工具，detail 是 denyRule")
     void proposal_outside_capabilities_is_denied_without_tool_call() {
         ScriptedGateway gateway = new ScriptedGateway(executeProposal());
@@ -112,6 +131,7 @@ class BoundedLoopTest {
         LoopResult result = loop(gateway, decisions, tools).run(contract(3));
 
         assertThat(tools.executed).isEmpty();
+        assertThat(decisions.calls).isZero();
         assertThat(result.outcome()).isEqualTo(LoopResult.Outcome.FINISHED);
         assertThat(result.steps()).isEqualTo(1);
     }
@@ -133,6 +153,29 @@ class BoundedLoopTest {
     }
 
     @Test
+    @DisplayName("EXECUTE_TOOL 缺 rationale：本地 fast-fail，不问决策面也不调工具")
+    void execute_without_rationale_fails_locally() {
+        Proposal noRationale =
+                new Proposal(
+                        DecisionKind.EXECUTE_TOOL,
+                        ActionClass.REVERSIBLE,
+                        new CommandRef("billing.refund", List.of(TARGET), 7L),
+                        Map.of("amount", 100),
+                        null,
+                        List.of());
+        ScriptedGateway gateway = new ScriptedGateway(noRationale);
+        ScriptedDecisionClient decisions = new ScriptedDecisionClient(allowGrant());
+        RecordingToolInvoker tools =
+                new RecordingToolInvoker(new ToolResult(true, "{}", COMMAND_ID));
+
+        assertThatThrownBy(() -> loop(gateway, decisions, tools).run(contract(3)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("rationale");
+        assertThat(decisions.calls).isZero();
+        assertThat(tools.executed).isEmpty();
+    }
+
+    @Test
     @DisplayName("read 不是命令：只进观测，不调 execute")
     void read_proposal_is_not_executed_as_command() {
         ScriptedGateway gateway = new ScriptedGateway(readProposal(), finishProposal());
@@ -144,8 +187,29 @@ class BoundedLoopTest {
 
         assertThat(tools.executed).isEmpty();
         assertThat(tools.reads).isZero();
+        assertThat(decisions.calls).isZero();
         assertThat(result.outcome()).isEqualTo(LoopResult.Outcome.FINISHED);
         assertThat(result.steps()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("每步都重算提示：第 2 步的 step 是 2，观测含第 1 步的内容")
+    void prompt_is_recomputed_each_step() {
+        ScriptedGateway gateway = new ScriptedGateway(executeProposal());
+        ScriptedDecisionClient decisions = new ScriptedDecisionClient(allowGrant());
+        RecordingToolInvoker tools =
+                new RecordingToolInvoker(new ToolResult(true, "done", COMMAND_ID));
+
+        loop(gateway, decisions, tools).run(contract(2));
+
+        assertThat(gateway.prompts).hasSize(2);
+        Prompt second = gateway.prompts.get(1);
+        assertThat(second.step()).isEqualTo(2);
+        assertThat(second.observations()).hasSize(1);
+        assertThat(second.observations().get(0))
+                .contains("step 1")
+                .contains("billing.refund")
+                .contains("ok");
     }
 
     @Test
@@ -181,16 +245,55 @@ class BoundedLoopTest {
     }
 
     @Test
+    @DisplayName("命令面 409 是失败结果，不是异常：循环以 TOOL_FAILED 收场")
+    void tool_conflict_is_a_failed_result_not_an_exception() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        HttpToolInvoker invoker = new HttpToolInvoker(builder, COMMAND_BASE);
+
+        server.expect(requestTo(COMMAND_BASE + "/commands/billing.refund"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(
+                        withStatus(HttpStatus.CONFLICT)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .body(
+                                        "{\"code\":\"idempotency_conflict\",\"idempotency_key\":\""
+                                                + DECISION_ID
+                                                + "\"}"));
+
+        ScriptedGateway gateway = new ScriptedGateway(executeProposal());
+        ScriptedDecisionClient decisions = new ScriptedDecisionClient(allowGrant());
+        LoopResult result = loop(gateway, decisions, invoker).run(contract(3));
+
+        server.verify();
+        assertThat(result.outcome()).isEqualTo(LoopResult.Outcome.TOOL_FAILED);
+        assertThat(result.detail()).contains("idempotency_conflict");
+    }
+
+    @Test
+    @DisplayName("命令类型含 / 时本地拒绝：请求根本发不出去")
+    void command_type_with_slash_is_rejected_locally() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        HttpToolInvoker invoker = new HttpToolInvoker(builder, COMMAND_BASE);
+
+        assertThatThrownBy(
+                        () ->
+                                invoker.execute(
+                                        new Call("billing/refund", Map.of(), List.of(), null),
+                                        TOKEN,
+                                        DECISION_ID))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("invalid command type");
+        server.verify();
+    }
+
+    @Test
     @DisplayName("决策请求是 snake_case，且不含 token")
     void decision_request_matches_wire_format() {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        HttpDecisionClient client =
-                new HttpDecisionClient(
-                        builder,
-                        DECISION_BASE,
-                        new AiProperties.Runtime.Model(
-                                "qwen2.5-72b", "2026-11-01", "refund-v12", null));
+        HttpDecisionClient client = new HttpDecisionClient(builder, DECISION_BASE, model());
 
         server.expect(requestTo(DECISION_BASE + "/v1/decisions"))
                 .andExpect(method(HttpMethod.POST))
@@ -213,17 +316,7 @@ class BoundedLoopTest {
                 .andExpect(jsonPath("$.decision_id").doesNotExist())
                 .andExpect(jsonPath("$.idempotency_key").doesNotExist())
                 .andExpect(content().string(not(containsString(TOKEN))))
-                .andRespond(
-                        withSuccess(
-                                "{\"decision_id\":\""
-                                        + DECISION_ID
-                                        + "\",\"intent_record_id\":\""
-                                        + UUID.randomUUID()
-                                        + "\",\"verdict\":\"allow\",\"deny_rule\":null,"
-                                        + "\"token\":\""
-                                        + TOKEN
-                                        + "\",\"expires_at\":\"2026-11-17T09:41:12Z\"}",
-                                MediaType.APPLICATION_JSON));
+                .andRespond(withSuccess(allowResponse(), MediaType.APPLICATION_JSON));
 
         DecisionGrant grant = client.ask(contract(3), 2, executeProposal(), AUDIENCE);
 
@@ -232,6 +325,44 @@ class BoundedLoopTest {
         assertThat(grant.decisionId()).isEqualTo(DECISION_ID);
         assertThat(grant.token()).isEqualTo(TOKEN);
         assertThat(grant.expiresAt()).isEqualTo(Instant.parse("2026-11-17T09:41:12Z"));
+    }
+
+    @Test
+    @DisplayName("决策面非 2xx：抛 IllegalStateException，消息带状态码且不含 token")
+    void decision_non_2xx_throws_without_token() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        HttpDecisionClient client = new HttpDecisionClient(builder, DECISION_BASE, model());
+
+        server.expect(requestTo(DECISION_BASE + "/v1/decisions"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(
+                        withStatus(HttpStatus.BAD_REQUEST)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .body("{\"code\":\"invalid_payload\"}"));
+
+        assertThatThrownBy(() -> client.ask(contract(3), 2, executeProposal(), AUDIENCE))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("400")
+                .satisfies(error -> assertThat(error.getMessage()).doesNotContain(TOKEN));
+        server.verify();
+    }
+
+    @Test
+    @DisplayName("audience 为空时决策请求不含 audience 键")
+    void audience_omitted_when_null() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        HttpDecisionClient client = new HttpDecisionClient(builder, DECISION_BASE, model());
+
+        server.expect(requestTo(DECISION_BASE + "/v1/decisions"))
+                .andExpect(content().string(not(containsString("audience"))))
+                .andRespond(withSuccess(allowResponse(), MediaType.APPLICATION_JSON));
+
+        DecisionGrant grant = client.ask(contract(3), 2, executeProposal(), null);
+
+        server.verify();
+        assertThat(grant.allowed()).isTrue();
     }
 
     @Test
@@ -339,6 +470,20 @@ class BoundedLoopTest {
         return new TaskContract(CONTRACT_ID, CONVERSATION_ID, "refund the order", maxSteps);
     }
 
+    private static AiProperties.Runtime.Model model() {
+        return new AiProperties.Runtime.Model("qwen2.5-72b", "2026-11-01", "refund-v12", null);
+    }
+
+    private static String allowResponse() {
+        return "{\"decision_id\":\""
+                + DECISION_ID
+                + "\",\"intent_record_id\":\""
+                + UUID.randomUUID()
+                + "\",\"verdict\":\"allow\",\"deny_rule\":null,\"token\":\""
+                + TOKEN
+                + "\",\"expires_at\":\"2026-11-17T09:41:12Z\"}";
+    }
+
     private static Proposal executeProposal() {
         return new Proposal(
                 DecisionKind.EXECUTE_TOOL,
@@ -374,6 +519,8 @@ class BoundedLoopTest {
 
         private final List<Proposal> script;
 
+        private final List<Prompt> prompts = new ArrayList<>();
+
         private int calls;
 
         ScriptedGateway(Proposal... script) {
@@ -382,6 +529,7 @@ class BoundedLoopTest {
 
         @Override
         public Proposal next(Prompt prompt) {
+            prompts.add(prompt);
             Proposal proposal = script.get(Math.min(calls, script.size() - 1));
             calls++;
             return proposal;

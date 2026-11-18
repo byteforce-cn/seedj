@@ -26,7 +26,10 @@ import tools.jackson.databind.json.JsonMapper;
  *
  * <p><b>结果语义</b>：2xx 为成功，其余（业务拒绝、幂等/版本冲突、准入失败）都是失败，响应体原样带回——业务拒绝是
  * 工具结果，不是传输异常。只读请求不带 token：只读路径不签发 DecisionToken（spec §5.1 只读路径）；{@code payload}
- * 作为 query 参数传给查询端点（T0 pilot 不走 read，这里只保证行为朴素可预期）。
+ * 作为 query 参数传给查询端点（T0 的循环不执行查询，{@code read} 供宿主直接驱动）。
+ *
+ * <p><b>路径里的命令类型来自模型输出</b>：拼进 URL 前先按 {@code [A-Za-z0-9_.-]+} 校验，含 {@code /}、{@code ..} 或
+ * 空白的类型直接拒绝——否则模型能把请求导向另一个端点。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -64,6 +67,7 @@ public final class HttpToolInvoker implements ToolInvoker {
      * @param call 查询类型与过滤条件
      * @return 查询结果
      * @throws NullPointerException {@code call} 为 {@code null}
+     * @throws IllegalArgumentException 查询类型含非法字符
      */
     @Override
     public ToolResult read(Call call) {
@@ -85,22 +89,23 @@ public final class HttpToolInvoker implements ToolInvoker {
      * @param decisionId 决策标识，同时是幂等键
      * @return 命令结果
      * @throws NullPointerException {@code call}、{@code token} 或 {@code decisionId} 为 {@code null}
-     * @throws IllegalArgumentException {@code token} 为空白
+     * @throws IllegalArgumentException {@code token} 为空白，或命令类型含非法字符
      */
     @Override
     public ToolResult execute(Call call, String token, UUID decisionId) {
         Objects.requireNonNull(call, "call");
+        String type = commandType(call.commandType());
         String decisionToken = requiredToken(token);
         UUID idempotencyKey = Objects.requireNonNull(decisionId, "decisionId");
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put("type", call.commandType());
+        body.put("type", type);
         body.put("payload", call.payload());
         body.put("idempotency_key", idempotencyKey.toString());
         body.put("targets", call.targets());
         body.put("expected_version", call.expectedVersion());
         ResponseEntity<String> response =
                 client.post()
-                        .uri(baseUrl + COMMANDS_PATH + call.commandType())
+                        .uri(baseUrl + COMMANDS_PATH + type)
                         .contentType(MediaType.APPLICATION_JSON)
                         .header(AgentGuardFilter.DECISION_HEADER, decisionToken)
                         .body(body)
@@ -130,7 +135,8 @@ public final class HttpToolInvoker implements ToolInvoker {
 
     private URI queryUri(Call call) {
         UriComponentsBuilder builder =
-                UriComponentsBuilder.fromUriString(baseUrl + QUERIES_PATH + call.commandType());
+                UriComponentsBuilder.fromUriString(
+                        baseUrl + QUERIES_PATH + commandType(call.commandType()));
         call.payload()
                 .forEach(
                         (name, value) -> {
@@ -139,6 +145,18 @@ public final class HttpToolInvoker implements ToolInvoker {
                             }
                         });
         return builder.build().encode().toUri();
+    }
+
+    /**
+     * 校验命令类型：它来自模型输出，拼进 URL 前只允许保守的字符集。
+     *
+     * @throws IllegalArgumentException 含 {@code [A-Za-z0-9_.-]} 以外的字符
+     */
+    private static String commandType(String value) {
+        if (value == null || !value.matches("[A-Za-z0-9_.-]+")) {
+            throw new IllegalArgumentException("invalid command type");
+        }
+        return value;
     }
 
     private static String requiredToken(String value) {

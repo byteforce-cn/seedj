@@ -28,6 +28,10 @@ import tools.jackson.databind.annotation.JsonNaming;
  * <p><b>失败语义</b>：{@code deny} 是正常返回（{@link DecisionGrant#denyRule()} 有值）；HTTP 非 2xx 或响应缺必要
  * 字段抛 {@link IllegalStateException}。异常消息只带状态码，不含响应体，也不含任何凭据。
  *
+ * <p><b>T0 的调用方只会在 {@code EXECUTE_TOOL} 时调用本类</b>：{@link BoundedLoop} 不对只读/收尾提案求值（决策面
+ * 的 intent 要求 {@code command} 必填，而 {@code Proposal} 只对执行工具携带命令引用）；只读路径由宿主直接组合本类
+ * 时自行保证请求带得上 {@code command}。
+ *
  * @author ByteForce
  * @since 1.0.0
  */

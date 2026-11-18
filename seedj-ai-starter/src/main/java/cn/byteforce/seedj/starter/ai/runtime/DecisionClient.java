@@ -11,6 +11,10 @@ import cn.byteforce.seedj.ai.Proposal;
  *
  * <p>本接口不判权：能不能做由决策面按任务契约能力集决定，runtime 只消费结论（{@link DecisionGrant}）。
  *
+ * <p><b>T0 的调用方只会在 {@code EXECUTE_TOOL} 时调用本接口</b>：只读/追问/升级/收尾提案由
+ * {@link BoundedLoop} 在循环内转换，不经过决策面（决策面的 intent 要求 {@code command} 必填，而
+ * {@link Proposal} 只对执行工具携带 {@link cn.byteforce.seedj.ai.CommandRef}）。
+ *
  * @author ByteForce
  * @since 1.0.0
  */

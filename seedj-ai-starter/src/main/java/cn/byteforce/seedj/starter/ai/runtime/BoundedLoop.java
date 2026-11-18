@@ -7,23 +7,29 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * 有界 agent 循环：每一步先问模型，再问决策面，然后才动工具（spec §5.1）。
+ * 有界 agent 循环：每一步先问模型，再按提案类型分叉（spec §5.1）。
  *
- * <p><b>顺序是契约</b>：
+ * <p><b>T0 只对写动作走决策面</b>：
  *
  * <ol>
  *   <li>{@link LlmGateway#next(Prompt)} —— 一步一个提案；
- *   <li>{@link DecisionClient#ask} —— <b>每一步都问</b>，包括 {@code finish} 与只读步骤（决策面要为它们落
- *       intent + outcome）；
- *   <li>按判定分叉：拒绝即停；{@code finish} 即收尾且不调工具；{@code execute_tool} 才用放行给的 token 调工具；
- *       {@code read} / {@code ask_user} / {@code escalate} 只记一步观测。
+ *   <li>{@code FINISH} 收尾，不调决策面、不调工具；
+ *   <li>{@code EXECUTE_TOOL} 才 {@link DecisionClient#ask}：拒绝即停，放行才用发放的 token 调工具；
+ *   <li>{@code READ} / {@code ASK_USER} / {@code ESCALATE} 是<b>循环内转换</b>（记一行观测，下一步由模型接着决定），
+ *       不调决策面、不落账。
  * </ol>
+ *
+ * <p><b>为什么只读/终结步骤不问决策面</b>：决策面的 intent 要求 {@code command} 必填，而 {@link Proposal} 只在
+ * {@code EXECUTE_TOOL} 时携带 {@link CommandRef}——拿只读/终结提案去问决策面，只会拿到 400（或一条能力集 deny），
+ * 账本上留下的也不是一条可解释的决策。等价的只读事实由运行时的观测承载；决策面的只读路径仍可由宿主直接调用
+ * {@link HttpDecisionClient}（组合根自己带 {@code command} 时）。这条取舍是 T0 的范围收窄，不是「只读不需要决策」。
  *
  * <p><b>停止条件之后不再有动作</b>：拒绝、{@code finish}、工具失败、走满上限都立刻返回，不再问决策面、也不再调
  * 工具。上限取 {@code min(contract.maxSteps, 部署上限)}——任务可以比部署更保守，不能更宽松。
  *
- * <p><b>不做授权判定</b>：能不能执行由决策面按契约能力集判，本类只消费 {@link DecisionGrant}。token 只在本类里从
- * 判定传给工具端口，<b>不进观测、不进结局</b>。
+ * <p><b>不做授权判定</b>：能不能执行由决策面按契约能力集判，本类只消费 {@link DecisionGrant}。本类不写入 token：
+ * 它只把 token 从判定传给工具端口；{@link LoopResult#detail()} 是工具返回体原文（外部文本，截断到
+ * {@value LoopResult#MAX_DETAIL_CHARS} 字符），观测里只有步骤描述。
  *
  * <p>无状态（网关、决策口、工具口与上限都由外部注入），可单例使用。
  *
@@ -75,6 +81,7 @@ public final class BoundedLoop {
      * @param contract 任务契约（含本次任务的步数上限）
      * @return 结局：收尾、被拒、工具失败或走满上限
      * @throws NullPointerException {@code contract} 为 {@code null}
+     * @throws IllegalArgumentException {@code EXECUTE_TOOL} 提案缺少 {@code rationale}（决策面必填，本地先拦）
      */
     public LoopResult run(TaskContract contract) {
         Objects.requireNonNull(contract, "contract");
@@ -82,15 +89,16 @@ public final class BoundedLoop {
         List<String> observations = new ArrayList<>();
         for (int step = 1; step <= maxSteps; step++) {
             Proposal proposal = gateway.next(prompt(contract, step, observations));
-            DecisionGrant grant = decisions.ask(contract, step, proposal, audience);
-            if (!grant.allowed()) {
-                return LoopResult.denied(step, grant.denyRule(), observations);
-            }
             switch (proposal.kind()) {
                 case FINISH -> {
                     return LoopResult.finished(step, observations);
                 }
                 case EXECUTE_TOOL -> {
+                    requireRationale(proposal);
+                    DecisionGrant grant = decisions.ask(contract, step, proposal, audience);
+                    if (!grant.allowed()) {
+                        return LoopResult.denied(step, grant.denyRule(), observations);
+                    }
                     ToolResult result =
                             tools.execute(call(proposal), grant.token(), grant.decisionId());
                     observations.add(describe(step, proposal, result));
@@ -120,7 +128,19 @@ public final class BoundedLoop {
     }
 
     /**
-     * 生成一行观测：步序、步骤类型，执行工具时再加命令类型、成败与命令标识。
+     * 决策面要求 {@code rationale} 必填（≤1KB）：缺了就是一趟注定 400 的请求，本地先拦并点名原因。
+     *
+     * @throws IllegalArgumentException {@code rationale} 为 {@code null} 或空白
+     */
+    private static void requireRationale(Proposal proposal) {
+        if (proposal.rationale() == null || proposal.rationale().isBlank()) {
+            throw new IllegalArgumentException(
+                    "EXECUTE_TOOL 提议必须带 rationale：决策面要求 rationale");
+        }
+    }
+
+    /**
+     * 生成一行观测：步序、步骤类型；执行工具时再加命令类型、成败与命令标识。
      *
      * <p>观测会进下一轮的提示与日志，因此只放可展示事实：token 从不出现。
      */

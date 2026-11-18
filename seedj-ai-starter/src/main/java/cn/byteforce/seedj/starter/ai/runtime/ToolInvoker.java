@@ -11,6 +11,9 @@ import java.util.UUID;
  *
  * <p>{@link #read(Call)} 没有 token：只读路径不签发 DecisionToken（spec §5.1 只读路径）。
  *
+ * <p><b>T0 的循环不执行查询</b>：{@link BoundedLoop} 只对 {@code EXECUTE_TOOL} 调 {@link #execute}；{@code read}
+ * 供宿主直接驱动用（T0 pilot 不走查询），因此它不参与循环的观测与上限计数。
+ *
  * @author ByteForce
  * @since 1.0.0
  */
