@@ -115,8 +115,12 @@ public record AiProperties(
     /**
      * 决策身份配置：身份只来自配置，不取请求头。
      *
-     * @param actor agent 自身身份；空表示用匿名 agent
-     * @param onBehalfOf 代办的自然人身份；空表示 agent 自主决策
+     * <p>缺省语义按角色不同：guard/verifier 侧 {@code actor} 空表示把调用方当作匿名 agent、{@code onBehalfOf}
+     * 空表示 agent 自主决策；{@code seedj.ai.plane.enabled=true} 时两者都是<b>必填 UUID</b>——决策面不接受
+     * 「匿名写决策」，缺失或非 UUID 直接启动失败。
+     *
+     * @param actor agent 自身身份（{@code seedj.ai.identity.actor}）；决策面必填
+     * @param onBehalfOf 代办的自然人身份（{@code seedj.ai.identity.on-behalf-of}）；决策面必填
      */
     public record Identity(String actor, String onBehalfOf) {}
 
@@ -127,7 +131,8 @@ public record AiProperties(
      *     临时密钥（仅供本地/测试，生产必须配置）
      * @param kid 密钥标识，默认 {@link #DEFAULT_KID}
      * @param ttl 令牌有效期，默认 300s
-     * @param audience 校验方期望的 audience；空表示不限
+     * @param audience 校验方期望的 audience；guard 侧空表示不限，决策面要求「请求 audience 或本键至少一个」，
+     *     两者都缺时那条 {@code execute_tool} 请求 400（{@code seedj.ai.decision.audience}）
      */
     public record Decision(
             String signingKey,

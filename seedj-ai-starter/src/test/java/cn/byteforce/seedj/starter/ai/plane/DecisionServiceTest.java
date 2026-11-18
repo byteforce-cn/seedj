@@ -25,6 +25,7 @@ import cn.byteforce.seedj.ai.spi.ToolRegistry;
 import cn.byteforce.seedj.core.clock.Clock;
 import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;
+import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.infra.local.ai.InMemoryDecisionLedger;
 import cn.byteforce.seedj.starter.ai.AiEnabledMarker;
 import cn.byteforce.seedj.starter.ai.AiProperties;
@@ -92,6 +93,9 @@ class DecisionServiceTest {
     private static final Instant NOW = Instant.parse("2026-11-17T09:41:00Z");
     private static final Duration TTL = Duration.ofSeconds(300);
     private static final String AUDIENCE = "ticket-service";
+    private static final String RATIONALE = "为工单开票";
+    private static final UUID FIXED_DECISION_ID =
+            UUID.fromString("018f2e3a-1234-7000-8000-00000000a001");
     private static final String SEED = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8";
     private static final String KID = "agent-decision-test";
 
@@ -110,7 +114,7 @@ class DecisionServiceTest {
     private final CapabilityRegistry capabilities = capabilities();
 
     @Test
-    @DisplayName("签发失败时 intent 已经落账，异常向上抛")
+    @DisplayName("签发失败：intent 已落账，再写 outcome(not_issued)，异常仍向上抛")
     void intent_is_committed_before_token_is_returned() {
         DecisionService service =
                 service(
@@ -123,11 +127,15 @@ class DecisionServiceTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("signing failed");
 
-        assertThat(events).containsExactly("intent", "sign");
+        assertThat(events).containsExactly("intent", "sign", "outcome");
         assertThat(intents).hasSize(1);
-        assertThat(ledger.byDecision(TENANT, intents.get(0).decisionId()))
+        List<DecisionRecord> records = ledger.byDecision(TENANT, intents.get(0).decisionId());
+        assertThat(records)
                 .extracting(DecisionRecord::kind)
-                .containsExactly(DecisionRecordKind.INTENT);
+                .containsExactly(DecisionRecordKind.INTENT, DecisionRecordKind.OUTCOME);
+        assertThat(effectOf(records.get(1)))
+                .containsEntry("status", "not_issued")
+                .containsEntry("error_code", DecisionService.SIGNING_FAILED);
     }
 
     @Test
@@ -164,6 +172,63 @@ class DecisionServiceTest {
                         });
         assertThat(events).isEmpty();
         assertThat(intents).isEmpty();
+    }
+
+    @Test
+    @DisplayName("execute_tool 既无请求 audience 也无配置 audience：400，且不落账")
+    void execute_tool_without_audience_is_bad_request() {
+        DecisionService service = service(recordingSigner(), UUID::randomUUID, null);
+
+        assertThatThrownBy(
+                        () ->
+                                service.decide(
+                                        executeTool(
+                                                CONTRACT,
+                                                CREATE,
+                                                List.of(TARGET_A),
+                                                RATIONALE,
+                                                null)))
+                .isInstanceOfSatisfying(
+                        ContractException.class,
+                        error -> {
+                            assertThat(error.code()).isEqualTo(ContractErrorCode.INVALID_PAYLOAD);
+                            assertThat(error.reason()).contains("audience");
+                        });
+        assertThat(events).isEmpty();
+        assertThat(intents).isEmpty();
+    }
+
+    @Test
+    @DisplayName("rationale 超过 1KB（UTF-8）：400，且不落账")
+    void oversized_rationale_is_bad_request() {
+        DecisionService service = service();
+        service.decide(
+                executeTool(
+                        CONTRACT,
+                        CREATE,
+                        List.of(TARGET_A),
+                        "a".repeat(DecisionService.MAX_RATIONALE_BYTES),
+                        AUDIENCE));
+        assertThat(events).containsExactly("intent", "sign");
+
+        assertThatThrownBy(
+                        () ->
+                                service.decide(
+                                        executeTool(
+                                                CONTRACT,
+                                                CREATE,
+                                                List.of(TARGET_A),
+                                                "a".repeat(
+                                                        DecisionService.MAX_RATIONALE_BYTES + 1),
+                                                AUDIENCE)))
+                .isInstanceOfSatisfying(
+                        ContractException.class,
+                        error -> {
+                            assertThat(error.code()).isEqualTo(ContractErrorCode.INVALID_PAYLOAD);
+                            assertThat(error.reason())
+                                    .contains(String.valueOf(DecisionService.MAX_RATIONALE_BYTES));
+                        });
+        assertThat(events).containsExactly("intent", "sign");
     }
 
     @Test
@@ -280,6 +345,41 @@ class DecisionServiceTest {
         service.decide(executeTool(CREATE, List.of(TARGET_B, TARGET_A)));
 
         assertThat(signed.get(0).argsHash()).isNotEqualTo(signed.get(1).argsHash());
+    }
+
+    @Test
+    @DisplayName("claim 的 ledger_intent_id 就是账本 INTENT 记录的 record_id")
+    void claims_ledger_intent_id_points_at_intent_record() {
+        DecisionService.DecisionResult result = service().decide(executeTool(CREATE));
+
+        DecisionRecord intent =
+                ledger.byDecision(TENANT, result.decisionId()).stream()
+                        .filter(record -> record.kind() == DecisionRecordKind.INTENT)
+                        .findFirst()
+                        .orElseThrow();
+        assertThat(signed)
+                .singleElement()
+                .extracting(DecisionTokenClaims::ledgerIntentId)
+                .isEqualTo(intent.recordId());
+        assertThat(result.intentRecordId()).isEqualTo(intent.recordId());
+    }
+
+    @Test
+    @DisplayName("decision_id 来自注入的 IdGenerator")
+    void decision_id_comes_from_the_injected_generator() {
+        DecisionService service = service(recordingSigner(), () -> FIXED_DECISION_ID, AUDIENCE);
+
+        DecisionService.DecisionResult result = service.decide(executeTool(CREATE));
+
+        assertThat(result.decisionId()).isEqualTo(FIXED_DECISION_ID);
+        assertThat(intents)
+                .singleElement()
+                .extracting(DecisionIntent::decisionId)
+                .isEqualTo(FIXED_DECISION_ID);
+        assertThat(signed)
+                .singleElement()
+                .extracting(DecisionTokenClaims::decisionId)
+                .isEqualTo(FIXED_DECISION_ID);
     }
 
     @Test
@@ -405,17 +505,31 @@ class DecisionServiceTest {
     }
 
     private DecisionService service() {
-        return service(
-                claims -> {
-                    events.add("sign");
-                    signed.add(claims);
-                    return "jws-" + claims.decisionId();
-                });
+        return service(recordingSigner());
     }
 
     private DecisionService service(DecisionService.Signer signer) {
+        return service(signer, UUID::randomUUID, AUDIENCE);
+    }
+
+    private DecisionService service(
+            DecisionService.Signer signer, IdGenerator<UUID> ids, String audience) {
         return new DecisionService(
-                capabilities, tools, recordingLedger(), signer, () -> NOW, properties());
+                capabilities,
+                tools,
+                recordingLedger(),
+                signer,
+                ids,
+                () -> NOW,
+                properties(audience));
+    }
+
+    private DecisionService.Signer recordingSigner() {
+        return claims -> {
+            events.add("sign");
+            signed.add(claims);
+            return "jws-" + claims.decisionId();
+        };
     }
 
     private DecisionLedger recordingLedger() {
@@ -477,14 +591,14 @@ class DecisionServiceTest {
                 tools);
     }
 
-    private static AiProperties properties() {
+    private static AiProperties properties(String audience) {
         return new AiProperties(
                 true,
                 new AiProperties.Plane(true, TENANT, null, Duration.ofMinutes(10)),
                 null,
                 null,
                 new AiProperties.Identity(ACTOR.toString(), ON_BEHALF_OF.toString()),
-                new AiProperties.Decision(SEED, KID, TTL, AUDIENCE),
+                new AiProperties.Decision(SEED, KID, TTL, audience),
                 List.of(),
                 List.of());
     }
@@ -495,31 +609,35 @@ class DecisionServiceTest {
 
     private static DecisionService.DecisionRequest executeTool(
             String commandType, List<UUID> targets) {
-        return new DecisionService.DecisionRequest(
-                CONTRACT,
-                CONVERSATION,
-                0,
-                "execute_tool",
-                new DecisionService.Command(commandType, PAYLOAD, targets, EXPECTED_VERSION),
-                "为工单开票",
-                List.of(new Evidence("message", "im://msg/1", "sha256:abc")),
-                new DecisionService.Model("gpt", "2026-11", "prompt-3", "sha256:params"),
-                AUDIENCE);
+        return executeTool(CONTRACT, commandType, targets);
     }
 
     private static DecisionService.DecisionRequest executeTool(
             UUID taskContractId, String commandType) {
+        return executeTool(taskContractId, commandType, List.of(TARGET_A, TARGET_B));
+    }
+
+    private static DecisionService.DecisionRequest executeTool(
+            UUID taskContractId, String commandType, List<UUID> targets) {
+        return executeTool(taskContractId, commandType, targets, RATIONALE, AUDIENCE);
+    }
+
+    private static DecisionService.DecisionRequest executeTool(
+            UUID taskContractId,
+            String commandType,
+            List<UUID> targets,
+            String rationale,
+            String audience) {
         return new DecisionService.DecisionRequest(
                 taskContractId,
                 CONVERSATION,
                 0,
                 "execute_tool",
-                new DecisionService.Command(
-                        commandType, PAYLOAD, List.of(TARGET_A, TARGET_B), EXPECTED_VERSION),
-                "为工单开票",
-                List.of(),
-                new DecisionService.Model("gpt", "2026-11", null, null),
-                AUDIENCE);
+                new DecisionService.Command(commandType, PAYLOAD, targets, EXPECTED_VERSION),
+                rationale,
+                List.of(new Evidence("message", "im://msg/1", "sha256:abc")),
+                new DecisionService.Model("gpt", "2026-11", "prompt-3", "sha256:params"),
+                audience);
     }
 
     private static DecisionService.DecisionRequest readDecision(String commandType) {

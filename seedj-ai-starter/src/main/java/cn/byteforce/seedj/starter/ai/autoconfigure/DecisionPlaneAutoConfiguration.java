@@ -5,6 +5,7 @@ import cn.byteforce.seedj.ai.spi.DecisionLedger;
 import cn.byteforce.seedj.ai.spi.ToolRegistry;
 import cn.byteforce.seedj.core.clock.Clock;
 import cn.byteforce.seedj.cqrs.CommandCatalog;
+import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.starter.ai.AiEnabledMarker;
 import cn.byteforce.seedj.starter.ai.AiProperties;
 import cn.byteforce.seedj.starter.ai.guard.ConfiguredToolRegistry;
@@ -19,6 +20,7 @@ import cn.byteforce.seedj.starter.ai.plane.ReconciliationJob;
 import cn.byteforce.seedj.starter.ai.token.DecisionTokenIssuer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import javax.sql.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -114,10 +116,14 @@ public class DecisionPlaneAutoConfiguration {
     /**
      * 决策服务：判定契约能力、先落 intent、再决定签不签 token。
      *
+     * <p>{@code decision_id} 优先用宿主已有的 {@link IdGenerator}{@code <UUID>}（biz 的
+     * {@code commandIdGenerator} 是 UUIDv7，时间有序）；宿主没有时退化为 {@code UUID.randomUUID()}。
+     *
      * @param capabilities 能力集
      * @param registry 工具注册表
      * @param ledger 决策账本（由账本装配或宿主提供）
      * @param issuer 签发方
+     * @param idGenerators 宿主的标识生成器；缺失时用随机 UUID
      * @param clock 取时入口
      * @param properties AI 配置
      * @return 决策服务
@@ -129,9 +135,17 @@ public class DecisionPlaneAutoConfiguration {
             ToolRegistry registry,
             DecisionLedger ledger,
             DecisionTokenIssuer issuer,
+            ObjectProvider<IdGenerator<UUID>> idGenerators,
             Clock clock,
             AiProperties properties) {
-        return new DecisionService(capabilities, registry, ledger, issuer, clock, properties);
+        return new DecisionService(
+                capabilities,
+                registry,
+                ledger,
+                issuer,
+                idGenerators.getIfAvailable(() -> UUID::randomUUID),
+                clock,
+                properties);
     }
 
     /**

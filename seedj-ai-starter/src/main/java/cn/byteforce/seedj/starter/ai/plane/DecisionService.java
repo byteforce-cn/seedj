@@ -21,8 +21,10 @@ import cn.byteforce.seedj.ai.spi.ToolRegistry;
 import cn.byteforce.seedj.core.clock.Clock;
 import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;
+import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.starter.ai.AiProperties;
 import cn.byteforce.seedj.starter.ai.token.DecisionTokenIssuer;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -39,15 +41,17 @@ import tools.jackson.databind.annotation.JsonNaming;
  * <p><b>顺序是契约</b>：
  *
  * <ol>
- *   <li>校验请求（缺字段、未知 {@code kind}、命令类型未在工具注册表登记 → 400）；
+ *   <li>校验请求（缺字段、未知 {@code kind}、{@code rationale} 超 1KB、命令类型未在工具注册表登记 → 400）；
  *   <li>按 {@link CapabilityRegistry} 判契约能力；
  *   <li>{@link DecisionLedger#appendIntent} —— 返回即已提交，执行侧拿到的每个 token 都能追到一条意图；
  *   <li>deny：追加 {@code outcome(rejected)}，不签 token；
- *   <li>allow + {@code execute_tool}：签发 token。<b>此时不写 outcome</b>——执行结局由 guard 之后的运行时上报；
+ *   <li>allow + {@code execute_tool}：签发 token。<b>成功时不写 outcome</b>——执行结局由 guard 之后的运行时上报；
+ *       签发失败则先追加 {@code outcome(not_issued)} 再抛出（请求仍然 500）；
  *   <li>allow + 其它 {@code kind}：同一调用里写 {@code outcome(not_applicable)}，不签 token。
  * </ol>
  *
- * <p>因此「token 签发失败」不会让意图消失：intent 已提交，请求 500，对账看到的是「有决策无效果」而不是「凭空执行」。
+ * <p>因此「token 签发失败」不会让意图悬空：intent 已提交，随后追加 {@code outcome(not_issued, signing_failed)}，
+ * 请求仍返回 500——不签发就不可能有执行，账本也不会留下「有意图无结局」的洞（spec §6.4(3)）。
  *
  * <p><b>三类拒绝的边界</b>（deny 是决策，未登记是坏请求）：
  *
@@ -72,8 +76,9 @@ import tools.jackson.databind.annotation.JsonNaming;
  * 请求里不接受 {@code args_hash}；账本里的 {@code args} 是<b>可展示参数</b>（T0 就是 payload 本身，原文入库在 T0 不做，
  * 将来落对象存储）。
  *
- * <p><b>decision_id</b> 由本类生成，同时是命令的幂等键（{@code idempotency_key} 恒等于它，请求里不接受）。T0 用
- * {@code UUID.randomUUID()}：账本与幂等契约只要求 uuid，不要求时间有序的 v7。
+ * <p><b>decision_id</b> 由注入的 {@code IdGenerator<UUID>} 生成，同时是命令的幂等键（{@code idempotency_key} 恒等于它，
+ * 请求里不接受）。装配侧优先用宿主的 UUIDv7 生成器（时间有序，便于对账扫描与索引局部性），宿主没有时退化为
+ * {@code UUID.randomUUID()}。
  *
  * <p>非线程安全状态：本类无状态（账本、签发口、时钟都由外部注入），可单例使用。
  *
@@ -97,6 +102,12 @@ public final class DecisionService {
     /** 账本 {@code identity.acting_service}：写死为决策面自身，避免被请求影响。 */
     private static final String ACTING_SERVICE = "seedj-ai-plane";
 
+    /** spec §6.2 的 {@code rationale} 上限（UTF-8 字节）；账本是哈希链，不能吃任意大文本。 */
+    static final int MAX_RATIONALE_BYTES = 1024;
+
+    /** 签发失败写进 outcome 的 {@code error_code}：没有 token 就不可能有执行。 */
+    static final String SIGNING_FAILED = "signing_failed";
+
     private final CapabilityRegistry capabilities;
 
     private final ToolRegistry tools;
@@ -104,6 +115,8 @@ public final class DecisionService {
     private final DecisionLedger ledger;
 
     private final Signer signer;
+
+    private final IdGenerator<UUID> ids;
 
     private final Clock clock;
 
@@ -124,6 +137,7 @@ public final class DecisionService {
      * @param tools 工具注册表：动作分类的唯一来源
      * @param ledger 决策账本
      * @param issuer DecisionToken 签发方
+     * @param ids 决策标识生成器；{@code decision_id} 同时是外部幂等键，装配侧优先用宿主的 UUIDv7 生成器
      * @param clock 取时入口（{@code iat}/{@code exp} 与 {@code expires_at}）
      * @param properties AI 配置：{@code plane.tenant}、{@code identity.*}、
      *     {@code decision.ttl/audience}
@@ -135,6 +149,7 @@ public final class DecisionService {
             ToolRegistry tools,
             DecisionLedger ledger,
             DecisionTokenIssuer issuer,
+            IdGenerator<UUID> ids,
             Clock clock,
             AiProperties properties) {
         this(
@@ -142,6 +157,7 @@ public final class DecisionService {
                 tools,
                 ledger,
                 Objects.requireNonNull(issuer, "issuer")::sign,
+                ids,
                 clock,
                 properties);
     }
@@ -152,12 +168,14 @@ public final class DecisionService {
             ToolRegistry tools,
             DecisionLedger ledger,
             Signer signer,
+            IdGenerator<UUID> ids,
             Clock clock,
             AiProperties properties) {
         this.capabilities = Objects.requireNonNull(capabilities, "capabilities");
         this.tools = Objects.requireNonNull(tools, "tools");
         this.ledger = Objects.requireNonNull(ledger, "ledger");
         this.signer = Objects.requireNonNull(signer, "signer");
+        this.ids = Objects.requireNonNull(ids, "ids");
         this.clock = Objects.requireNonNull(clock, "clock");
         AiProperties config = Objects.requireNonNull(properties, "properties");
         this.tenantId = requiredTenant(config.plane().tenant());
@@ -174,7 +192,8 @@ public final class DecisionService {
      * @param request 请求体
      * @return 决策结果：deny 只带原因码，allow 的执行工具步骤才带 token
      * @throws NullPointerException {@code request} 为 {@code null}
-     * @throws ContractException {@code invalid_payload}：缺必填字段、未知 {@code kind}、命令类型未登记、
+     * @throws ContractException {@code invalid_payload}：缺必填字段、未知 {@code kind}、
+     *     {@code rationale} 超过 {@value #MAX_RATIONALE_BYTES} 字节、命令类型未登记、
      *     {@code execute_tool} 无可用受众
      */
     public DecisionResult decide(DecisionRequest request) {
@@ -185,7 +204,7 @@ public final class DecisionService {
         DecisionKind kind = kindOf(request.kind());
         Command command = required(request.command(), "command");
         String commandType = text(command.type(), "command.type");
-        String rationale = text(request.rationale(), "rationale");
+        String rationale = rationale(request.rationale());
         Model model = required(request.model(), "model");
         ModelRef modelRef =
                 new ModelRef(
@@ -213,7 +232,7 @@ public final class DecisionService {
                 new CommandFingerprint(commandType, payload, targets, command.expectedVersion());
         CommandRef commandRef = new CommandRef(commandType, targets, command.expectedVersion());
         String argsHash = ArgsHash.of(fingerprint);
-        UUID decisionId = UUID.randomUUID();
+        UUID decisionId = Objects.requireNonNull(ids.id(), "decision id");
         DecisionIntent intent =
                 newIntent(
                         decisionId,
@@ -244,23 +263,32 @@ public final class DecisionService {
         }
         Instant issuedAt = clock.now();
         Instant expiresAt = issuedAt.plus(ttl);
-        String token =
-                signer.sign(
-                        new DecisionTokenClaims(
-                                DecisionTokenClaims.VERSION,
-                                decisionId,
-                                intentRecord.recordId(),
-                                commandRef,
-                                argsHash,
-                                actor,
-                                onBehalfOf,
-                                tenantId.toString(),
-                                actionClass,
-                                PolicyRef.none(),
-                                null,
-                                issuedAt,
-                                expiresAt,
-                                tokenAudience));
+        DecisionTokenClaims claims =
+                new DecisionTokenClaims(
+                        DecisionTokenClaims.VERSION,
+                        decisionId,
+                        intentRecord.recordId(),
+                        commandRef,
+                        argsHash,
+                        actor,
+                        onBehalfOf,
+                        tenantId.toString(),
+                        actionClass,
+                        PolicyRef.none(),
+                        null,
+                        issuedAt,
+                        expiresAt,
+                        tokenAudience);
+        String token;
+        try {
+            token = signer.sign(claims);
+        } catch (RuntimeException error) {
+            ledger.appendOutcome(
+                    decisionId,
+                    DecisionEffect.notIssued(SIGNING_FAILED),
+                    OutcomeSource.RUNTIME_REPORTED);
+            throw error;
+        }
         return new DecisionResult(
                 decisionId, intentRecord.recordId(), VERDICT_ALLOW, null, token, expiresAt);
     }
@@ -361,6 +389,22 @@ public final class DecisionService {
                     ContractErrorCode.INVALID_PAYLOAD, "缺少必填字段 " + field);
         }
         return value;
+    }
+
+    /** spec §6.2：{@code rationale} 不得为空且不超过 {@value #MAX_RATIONALE_BYTES} 字节（UTF-8）。 */
+    private static String rationale(String value) {
+        String rationale = text(value, "rationale");
+        int bytes = rationale.getBytes(StandardCharsets.UTF_8).length;
+        if (bytes > MAX_RATIONALE_BYTES) {
+            throw new ContractException(
+                    ContractErrorCode.INVALID_PAYLOAD,
+                    "rationale 超过上限 "
+                            + MAX_RATIONALE_BYTES
+                            + " 字节（实际 "
+                            + bytes
+                            + " 字节）");
+        }
+        return rationale;
     }
 
     private static String blankToNull(String value) {

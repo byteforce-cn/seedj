@@ -416,7 +416,13 @@ class OutcomeDeriverTest {
                                         CONTRACT.toString(), List.of(COMMAND_TYPE))),
                         tools);
         return new DecisionService(
-                capabilities, tools, ledger, claims -> "jws", () -> Instant.now(), properties());
+                capabilities,
+                tools,
+                ledger,
+                claims -> "jws",
+                UUID::randomUUID,
+                () -> Instant.now(),
+                properties());
     }
 
     private DecisionRecord outcomeOf(UUID decisionId) {
