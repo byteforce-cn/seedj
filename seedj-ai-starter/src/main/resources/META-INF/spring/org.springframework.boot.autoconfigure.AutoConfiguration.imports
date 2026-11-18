@@ -2,3 +2,4 @@
 # 启用标记本身（AiEnablementConfiguration）不在此登记：否则每个依赖本模块的应用都会拿到标记。
 # 能力自动配置（ledger / plane / runtime）由后续任务逐个登记。
 cn.byteforce.seedj.starter.ai.autoconfigure.AiGuardAutoConfiguration
+cn.byteforce.seedj.starter.ai.autoconfigure.DecisionPlaneAutoConfiguration

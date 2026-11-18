@@ -3,6 +3,7 @@ package cn.byteforce.seedj.starter.ai;
 import cn.byteforce.seedj.ai.ActionClass;
 import java.time.Duration;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 
@@ -49,7 +50,7 @@ public record AiProperties(
     public static final Duration DEFAULT_DECISION_TTL = Duration.ofSeconds(300);
 
     public AiProperties {
-        plane = plane == null ? new Plane(false, null, DEFAULT_RECONCILE_TTL) : plane;
+        plane = plane == null ? new Plane(false, null, null, DEFAULT_RECONCILE_TTL) : plane;
         guard = guard == null ? new Guard(true) : guard;
         runtime = runtime == null ? new Runtime(false, DEFAULT_MAX_STEPS) : runtime;
         identity = identity == null ? new Identity(null, null) : identity;
@@ -64,12 +65,18 @@ public record AiProperties(
     /**
      * 决策面配置：intent 先行、只读不签 token。
      *
+     * <p>{@code tenant} 是决策面唯一的租户来源：T0 没有租户上下文注入，而账本按租户分区、读记录也按租户过滤，
+     * 所以它必须在配置里钉死（缺 UUID 即启动失败）。它也是 {@code identity} 只来自配置的同一条思路——
+     * 决策面不接受请求自称的租户与主体。
+     *
      * @param enabled 是否装配决策面，默认 false（执行侧不需要它）
+     * @param tenant 决策面所属租户（必填 UUID）；账本分区 {@code t_<tenant>} 与 token 的 {@code tenant} claim 都用它
      * @param reconcile 校对数据源配置；未配置时给空实例
      * @param reconcileTtl intent 校对的时间窗，默认 10m
      */
     public record Plane(
             @DefaultValue("false") boolean enabled,
+            UUID tenant,
             Reconcile reconcile,
             @DefaultValue("10m") Duration reconcileTtl) {
 
