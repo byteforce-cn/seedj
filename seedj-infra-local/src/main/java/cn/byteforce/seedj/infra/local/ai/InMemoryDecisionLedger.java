@@ -28,7 +28,8 @@ import java.util.concurrent.locks.ReentrantLock;
  * <p>与 {@code PostgresDecisionLedger} 同语义：记录体由 {@link DecisionRecordBodies} 组装、哈希由
  * {@link LedgerHash} 计算、分区名按 {@link DecisionRecord#partitionOf(UUID)}——同一份决策在两套账本里写出同一个
  * {@code record_hash}。追加时在分区锁内取 {@code sequence = lastSequence + 1} 与 {@code prevHash = lastHash}，
- * 写记录后推进链头，因此同分区的追加串行、不同分区互不阻塞。
+ * 写记录后推进链头：链推进按分区串行；{@code intent}/{@code outcome} 的全局唯一判定走 {@code uniqueLock}，因此这两类
+ * 追加全局串行，{@code approval}/{@code reconciled} 只受分区锁约束。
  *
  * <p>幂等：{@code intent} 与 {@code outcome} 每个 decision 至多一条（重复追加返回首次记录）；{@code approval} 与
  * {@code reconciled} 不幂等，每次一条。非 intent 记录的租户由已落账的 intent 反查。

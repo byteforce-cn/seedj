@@ -122,11 +122,13 @@ public final class PostgresDecisionLedger implements DecisionLedger {
             return existingForTenant(existing, intent.tenantId());
         }
         try {
-            return inTransaction(
-                    intent.tenantId(),
-                    intent.decisionId(),
-                    DecisionRecordKind.INTENT,
-                    DecisionRecordBodies.intent(intent));
+            return existingForTenant(
+                    inTransaction(
+                            intent.tenantId(),
+                            intent.decisionId(),
+                            DecisionRecordKind.INTENT,
+                            DecisionRecordBodies.intent(intent)),
+                    intent.tenantId());
         } catch (DuplicateKeyException e) {
             return existingForTenant(
                     existingAfterRace(intent.decisionId(), DecisionRecordKind.INTENT, e),
@@ -158,11 +160,13 @@ public final class PostgresDecisionLedger implements DecisionLedger {
             return existingForTenant(existing, tenantId);
         }
         try {
-            return inTransaction(
-                    tenantId,
-                    decisionId,
-                    DecisionRecordKind.OUTCOME,
-                    DecisionRecordBodies.outcome(effect, source));
+            return existingForTenant(
+                    inTransaction(
+                            tenantId,
+                            decisionId,
+                            DecisionRecordKind.OUTCOME,
+                            DecisionRecordBodies.outcome(effect, source)),
+                    tenantId);
         } catch (DuplicateKeyException e) {
             return existingForTenant(
                     existingAfterRace(decisionId, DecisionRecordKind.OUTCOME, e), tenantId);
@@ -383,6 +387,9 @@ public final class PostgresDecisionLedger implements DecisionLedger {
      *
      * <p>{@code partial unique index} 按 {@code decision_id} 全库唯一，所以跨租户复用必然撞上别人的记录；把它返回给
      * 调用方就是跨租户数据泄露，与 {@code find} / {@code byDecision} 的租户作用域自相矛盾。
+     *
+     * <p>追加路径的三个出口——外层预查命中、事务内查到的既有记录（READ COMMITTED 下能看到并发事务刚提交的行）、
+     * {@code unique index} 冲突后的回查——全部经本方法过一道，少一处就会把别人的记录当幂等结果返回。
      */
     private static DecisionRecord existingForTenant(DecisionRecord existing, UUID tenantId) {
         if (!existing.tenantId().equals(tenantId)) {

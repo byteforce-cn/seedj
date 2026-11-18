@@ -219,6 +219,83 @@ public abstract class DecisionLedgerContractTest {
         assertThat(ledger().verify(DecisionRecord.partitionOf(TENANT)).ok()).isTrue();
     }
 
+    /**
+     * 跨租户并发复用同一 {@code decision_id}：恰好一个成功、另一个被拒，且成功方拿到的永远是自己租户的记录。
+     *
+     * <p>这条用例是<b>概率性回归护栏</b>：修复前 PG 的「事务内查到的既有记录」出口没过租户校验，两个并发事务在 READ
+     * COMMITTED 下能互相看到对方刚提交的行，于是两边都拿到同一条记录。单轮命中率取决于线程交错，所以重复多轮。
+     */
+    @Test
+    @DisplayName("跨租户并发复用同一 decision_id：恰好一个成功，另一个被拒，绝不返回别人的记录")
+    void concurrent_cross_tenant_same_decision_never_leaks() throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            for (int round = 1; round <= 20; round++) {
+                UUID decisionId = decision(60 + round);
+                CountDownLatch start = new CountDownLatch(1);
+                List<Future<Attempt>> futures =
+                        List.of(
+                                executor.submit(
+                                        () -> attempt(start, intent(TENANT, decisionId))),
+                                executor.submit(
+                                        () -> attempt(start, intent(OTHER_TENANT, decisionId))));
+                start.countDown();
+                List<Attempt> attempts = new ArrayList<>();
+                for (Future<Attempt> future : futures) {
+                    attempts.add(future.get(30, TimeUnit.SECONDS));
+                }
+
+                List<Attempt> accepted = attempts.stream().filter(Attempt::isAccepted).toList();
+                List<Attempt> rejected = attempts.stream().filter(Attempt::isRejected).toList();
+                assertThat(accepted).as("第 %d 轮：恰好一个线程成功", round).hasSize(1);
+                assertThat(rejected).as("第 %d 轮：另一个必须被拒", round).hasSize(1);
+                assertThat(rejected.get(0).rejection())
+                        .hasMessageContaining("another tenant")
+                        .hasMessageContaining(decisionId.toString());
+                assertThat(accepted.get(0).record().tenantId())
+                        .as("第 %d 轮：不得把别人的记录当幂等结果返回", round)
+                        .isEqualTo(accepted.get(0).tenantId());
+                assertThat(
+                                ledger().byDecision(TENANT, decisionId).size()
+                                        + ledger().byDecision(OTHER_TENANT, decisionId).size())
+                        .as("第 %d 轮：全局只落一条 intent", round)
+                        .isEqualTo(1);
+            }
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    /** 一次并发尝试：成功拿到记录，或按契约被拒绝，二者恰有其一。 */
+    private record Attempt(UUID tenantId, DecisionRecord record, IllegalArgumentException rejection) {
+
+        private static Attempt accepted(UUID tenantId, DecisionRecord record) {
+            return new Attempt(tenantId, record, null);
+        }
+
+        private static Attempt rejected(UUID tenantId, IllegalArgumentException rejection) {
+            return new Attempt(tenantId, null, rejection);
+        }
+
+        private boolean isAccepted() {
+            return record != null;
+        }
+
+        private boolean isRejected() {
+            return rejection != null;
+        }
+    }
+
+    /** 等到同时放行后在同一 {@code decision_id} 上用自己的租户追加 intent。 */
+    private Attempt attempt(CountDownLatch start, DecisionIntent intent) throws InterruptedException {
+        start.await();
+        try {
+            return Attempt.accepted(intent.tenantId(), ledger().appendIntent(intent));
+        } catch (IllegalArgumentException rejected) {
+            return Attempt.rejected(intent.tenantId(), rejected);
+        }
+    }
+
     /** 已批准的审批快照：实现侧用例可复用。 */
     protected static ApprovalSnapshot approvalSnapshot() {
         return new ApprovalSnapshot(
