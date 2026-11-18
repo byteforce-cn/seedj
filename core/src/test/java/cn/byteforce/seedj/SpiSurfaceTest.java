@@ -141,6 +141,7 @@ class SpiSurfaceTest {
                             "Evidence",
                             "GuardVerdict",
                             "IdemFingerprint",
+                            "LedgerHash",
                             "LedgerVerification",
                             "ModelRef",
                             "OutcomeSource",

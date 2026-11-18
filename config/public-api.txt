@@ -19,6 +19,7 @@ core|cn.byteforce.seedj.ai|EffectStatus
 core|cn.byteforce.seedj.ai|Evidence
 core|cn.byteforce.seedj.ai|GuardVerdict
 core|cn.byteforce.seedj.ai|IdemFingerprint
+core|cn.byteforce.seedj.ai|LedgerHash
 core|cn.byteforce.seedj.ai|LedgerVerification
 core|cn.byteforce.seedj.ai|ModelRef
 core|cn.byteforce.seedj.ai|OutcomeSource
@@ -618,6 +619,9 @@ seedj-infra-local|cn.byteforce.seedj.infra.local.security|InMemorySecurityAuditS
 seedj-infra-local|cn.byteforce.seedj.infra.local.transit|BcTransitProvider
 seedj-infra-local|cn.byteforce.seedj.infra.local.transit|TransitAutoConfiguration
 seedj-infra-local|cn.byteforce.seedj.infra.local.transit|TransitProperties
+seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.ai|AiSchemaCapability
+seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.ai|PostgresAiAutoConfiguration
+seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.ai|PostgresDecisionLedger
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.audit|AuditSchemaCapability
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.audit|JdbcAuditStore
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.audit|PostgresAuditAutoConfiguration

@@ -28,6 +28,28 @@ import java.util.UUID;
  *
  * <p>本接口不负责签名或时间戳：{@code recordHash} 由实现按分区链计算，{@code recordedAt} 由实现写入。
  *
+ * <p><b>记录体格式</b>（实现必须逐字对齐，null 字段一律省略；{@code record_hash} 覆盖整条记录， 两套实现写出的记录体不同就得不到同一个哈希）：
+ *
+ * <ul>
+ *   <li>共同前缀：{@code "schema":"agent.decision.v1"}、{@code "record_kind":"<wire>"}；
+ *   <li>{@code intent}：{@code task_contract_id}、{@code conversation_id}、{@code step}、{@code kind}、 {@code
+ *       action_class}（仅 EXECUTE_TOOL）、{@code command}（{@code {type,targets[],expectedVersion}}）、 {@code
+ *       args_hash}、{@code idem_fingerprint}、{@code args}（空则省略）、{@code rationale}、 {@code
+ *       evidence[]}（{@code {kind,ref,digest}}）、{@code model}（{@code
+ *       {name,version,prompt_ver,params_digest}}）、{@code policy}（{@code
+ *       {engine,bundle,bundle_version,epoch,verdict,rule_ids[],explain_ref}}）、{@code identity}（{@code
+ *       {actor,on_behalf_of,proxy_binding_id,acting_service}}）、{@code approval}；
+ *   <li>{@code approval}：{@code approval}（{@code
+ *       {instance_id,task_id,status,requested_at,approver,approved_at,args_hash,instance_revision}}）；
+ *   <li>{@code outcome}：{@code source}（{@code runtime_reported} / {@code reconciled}）、{@code effect}（{@code
+ *       {status,external_ref,audit_entry_id,command_id,error_code,completed_at}}）；
+ *   <li>{@code reconciled}：同 {@code outcome}，另加 {@code reason} 与（已有 outcome 时）{@code
+ *       supersedes_record_id}。
+ * </ul>
+ *
+ * <p>时间字段序列化为 {@link java.time.Instant#toString()}，标识序列化为 UUID 字符串， {@code kind}/{@code status}
+ * 等枚举用小写线格式名。
+ *
  * @author ByteForce
  * @since 1.0.0
  */
