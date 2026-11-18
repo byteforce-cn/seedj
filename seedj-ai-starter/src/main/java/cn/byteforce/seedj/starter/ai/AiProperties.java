@@ -112,7 +112,8 @@ public record AiProperties(
     /**
      * DecisionToken 配置。
      *
-     * @param signingKey Ed25519 私钥（PEM 或 JWK 文本）；空表示不签发 token
+     * @param signingKey Ed25519 私钥：base64url 的 32 字节 seed（推荐）或 base64/base64url 的 PKCS#8 DER；空表示生成本地
+     *     临时密钥（仅供本地/测试，生产必须配置）
      * @param kid 密钥标识，默认 {@link #DEFAULT_KID}
      * @param ttl 令牌有效期，默认 300s
      * @param audience 校验方期望的 audience；空表示不限
