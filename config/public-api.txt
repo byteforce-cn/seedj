@@ -400,6 +400,9 @@ core|cn.byteforce.seedj.workflow.spi|WorkflowStateConflictException
 core|cn.byteforce.seedj.workflow.spi|WorkflowStatus
 core|cn.byteforce.seedj.workflow.spi|WorkflowTimeoutException
 core|cn.byteforce.seedj.workflow.spi|WorkflowVersionConflictException
+seedj-ai-starter|cn.byteforce.seedj.starter.ai.annotation|EnableAIServer
+seedj-ai-starter|cn.byteforce.seedj.starter.ai|AiEnablementConfiguration
+seedj-ai-starter|cn.byteforce.seedj.starter.ai|AiProperties
 seedj-biz-starter|cn.byteforce.seedj.starter.annotation|EnableBizServer
 seedj-biz-starter|cn.byteforce.seedj.starter.audit|AnnotationCommandAudit
 seedj-biz-starter|cn.byteforce.seedj.starter.audit|AuditAnchorJob
