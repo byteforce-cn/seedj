@@ -127,11 +127,13 @@ class ArchitectureTest {
             Predicate<JavaClass> forbiddenTarget) {
         Set<String> allowed = ModuleClassPath.readLines(ALLOWLIST);
 
+        int matched = 0;
         Set<String> violations = new java.util.TreeSet<>();
         for (JavaClass clazz : classes) {
             if (!origin.test(clazz)) {
                 continue;
             }
+            matched++;
             for (Dependency dependency : clazz.getDirectDependenciesFromSelf()) {
                 JavaClass target = dependency.getTargetClass();
                 if (!forbiddenTarget.test(target)) {
@@ -144,6 +146,9 @@ class ArchitectureTest {
             }
         }
 
+        assertThat(matched)
+                .as("规则 %s 的 origin 谓词未命中任何类（规则空跑，不能算通过）", rule)
+                .isPositive();
         assertThat(violations)
                 .as(
                         "规则 %s 存在未登记违规；修掉依赖，或在 %s 记录 " + "`%s|<origin> -> <target>`",

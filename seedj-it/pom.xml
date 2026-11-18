@@ -56,6 +56,24 @@
             <artifactId>seedj-biz-starter</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- 架构门禁按模块读 target/classes（ModuleClassPath.MODULES）：这里的每一项都必须是
+             seedj-it 的（直接或传递）依赖，否则 reactor 不构建它，干净克隆上必失败、本地则可能
+             读到陈旧字节码。 -->
+        <dependency>
+            <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>seedj-ai-starter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>seedj-server-ai</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>seedj-workflow-local</artifactId>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>cn.byteforce.seedj</groupId>
             <artifactId>seedj-infra-local</artifactId>
