@@ -401,6 +401,9 @@ core|cn.byteforce.seedj.workflow.spi|WorkflowStatus
 core|cn.byteforce.seedj.workflow.spi|WorkflowTimeoutException
 core|cn.byteforce.seedj.workflow.spi|WorkflowVersionConflictException
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.annotation|EnableAIServer
+seedj-ai-starter|cn.byteforce.seedj.starter.ai.autoconfigure|AiGuardAutoConfiguration
+seedj-ai-starter|cn.byteforce.seedj.starter.ai.guard|AgentGuardFilter
+seedj-ai-starter|cn.byteforce.seedj.starter.ai.guard|ConfiguredToolRegistry
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.token|DecisionTokenIssuer
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.token|DecisionTokenVerifier
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.token|Ed25519Jwks

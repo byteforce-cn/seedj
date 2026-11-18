@@ -1,3 +1,4 @@
 # AI 能力自动配置清单（能力 bean 全部由 AiEnabledMarker 门控，标记由 @EnableAIServer 引入）。
 # 启用标记本身（AiEnablementConfiguration）不在此登记：否则每个依赖本模块的应用都会拿到标记。
-# 能力自动配置（ledger / guard / plane / runtime）由后续任务逐个登记。
+# 能力自动配置（ledger / plane / runtime）由后续任务逐个登记。
+cn.byteforce.seedj.starter.ai.autoconfigure.AiGuardAutoConfiguration

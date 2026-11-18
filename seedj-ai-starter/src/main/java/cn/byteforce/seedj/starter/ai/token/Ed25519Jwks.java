@@ -1,6 +1,7 @@
 package cn.byteforce.seedj.starter.ai.token;
 
 import com.nimbusds.jose.util.Base64URL;
+import java.security.PublicKey;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -22,6 +23,8 @@ import java.util.Objects;
  * @since 1.0.0
  */
 public final class Ed25519Jwks {
+
+    private final byte[] rawPublicKey;
 
     private final Map<String, Object> document;
 
@@ -46,6 +49,7 @@ public final class Ed25519Jwks {
                             + " bytes, was "
                             + rawPublicKey.length);
         }
+        this.rawPublicKey = rawPublicKey.clone();
         Map<String, Object> key = new LinkedHashMap<>();
         key.put("kty", "OKP");
         key.put("crv", "Ed25519");
@@ -66,5 +70,16 @@ public final class Ed25519Jwks {
      */
     public Map<String, Object> document() {
         return document;
+    }
+
+    /**
+     * 公钥对象；用于构造验签器。
+     *
+     * <p>与 {@link #document()} 同源：发布出去的 {@code x} 参数就是这里验签用的公钥，守卫不需要另存一份裸公钥。
+     *
+     * @return Ed25519 公钥
+     */
+    public PublicKey publicKey() {
+        return Ed25519Keys.publicKey(rawPublicKey);
     }
 }
