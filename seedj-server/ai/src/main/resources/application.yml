@@ -1,9 +1,18 @@
 # 决策面宿主：只开 plane，guard / runtime 关闭。
 # plane.tenant 与 identity.* 是启动期必填 UUID——租户与身份只来自配置，决策面不接受请求自称的租户与主体。
-# 宿主不写数据源：生产由部署环境给出，本地走 application-local.yml（compose 的 PostgreSQL）。
+# 宿主不写数据源：本地零外部依赖走 local profile，需要有真实数据库时走 postgres profile，生产由部署环境给出。
 # 有数据源时命令、审计、outbox 走 PostgreSQL；决策面宿主没有业务对象，对象存储固定用内存实现。
 # 生产部署还需自行提供锁实现（如 seedj.lock.postgres.enabled=true）。
 seedj:
+  biz:
+    # 设置该键会整体替换默认公开路径，所以默认四项必须一并列出。
+    # JWKS 必须匿名可读：执行侧按 token 里的 kid 来取公钥，被鉴权挡在门外等于端点不存在。
+    public-paths:
+      - /actuator/health
+      - /actuator/info
+      - /error
+      - /api/public/**
+      - /.well-known/agent-decision-jwks.json
   object:
     provider: memory
   ai:

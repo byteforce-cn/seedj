@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import cn.byteforce.seedj.ai.spi.DecisionLedger;
 import cn.byteforce.seedj.infra.local.ai.InMemoryDecisionLedger;
 import cn.byteforce.seedj.starter.ai.guard.AgentGuardFilter;
+import cn.byteforce.seedj.starter.security.BizSecurityProperties;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,7 +34,8 @@ import org.springframework.test.web.servlet.MockMvc;
  *
  * <p>用例不依赖真实 PostgreSQL：{@code DataSourceAutoConfiguration} 被排除（其余 JDBC 自动配置随之退出），账本由
  * {@link InMemoryDecisionLedger} 提供（与 PG 账本同语义）。调用方由 {@code seedj.biz.dev-auth} 注入，所以这里验证的
- * 是「宿主把 starter 装配起来了」，不是鉴权矩阵。
+ * 是「宿主把 starter 装配起来了」，不是鉴权矩阵——真实安全链下的匿名可达性在 {@link AiServerPostgresProfileTest} 里断言；
+ * 这里只钉住「JWKS 路径确实在公开路径清单里」，防止配置被删掉还绿。
  */
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -41,8 +43,7 @@ import org.springframework.test.web.servlet.MockMvc;
             AiServerContextTest.NO_DATASOURCE,
             AiServerContextTest.AUDIT_OFF,
             AiServerContextTest.DEGRADED_MODE,
-            AiServerContextTest.DEV_AUTH,
-            AiServerContextTest.DERIVED_FIELD_KEYS
+            AiServerContextTest.DEV_AUTH
         })
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -63,8 +64,6 @@ class AiServerContextTest {
 
     static final String DEV_AUTH = "seedj.biz.dev-auth.enabled=true";
 
-    static final String DERIVED_FIELD_KEYS = "seedj.security.derived-field-keys=context-test";
-
     @TestConfiguration(proxyBeanMethods = false)
     static class InMemoryLedgerConfiguration {
 
@@ -78,12 +77,17 @@ class AiServerContextTest {
 
     @Autowired private ApplicationContext context;
 
+    @Autowired private BizSecurityProperties security;
+
     @Test
-    @DisplayName("决策面端点已装配：JWKS 200 且发布 OKP 公钥，空决策请求 400")
+    @DisplayName("决策面端点已装配：JWKS 不带 Authorization 也 200 且发布 OKP 公钥，空决策请求 400")
     void plane_endpoints_are_exposed() throws Exception {
         mvc.perform(get("/.well-known/agent-decision-jwks.json"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.keys[0].kty").value("OKP"));
+        assertThat(security.publicPaths())
+                .as("JWKS 必须列进 seedj.biz.public-paths，否则执行侧拿不到公钥")
+                .contains("/.well-known/agent-decision-jwks.json");
 
         mvc.perform(post("/v1/decisions").contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isBadRequest());
@@ -113,8 +117,7 @@ class AiServerContextTest {
                                                 NO_DATASOURCE,
                                                 AUDIT_OFF,
                                                 DEGRADED_MODE,
-                                                DEV_AUTH,
-                                                DERIVED_FIELD_KEYS)
+                                                DEV_AUTH)
                                         .run("--server.port=0", "--seedj.ai.plane.tenant="))
                 .hasMessageContaining("seedj.ai.plane.tenant");
     }
