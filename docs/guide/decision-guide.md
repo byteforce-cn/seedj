@@ -43,7 +43,29 @@
 4. 没有事件版本治理经验 → 默认路径；不要用事件溯源做「以后可能需要」的投机。
 5. **不要声称两条路径等价**：矩阵里的 ❌ 是契约，不是待办清单的装饰。
 
-## 3. 数据结构与查询
+## 3. 什么时候选 AI starter
+
+AI starter（[装配指南](ai-starter.md)）解决的是「agent 能不能动这条命令」：决策面先落 intent 再签
+DecisionToken，执行侧 guard 逐字核对请求。它是**给写动作上闸**的，不是「接入 LLM」的 SDK。
+
+要选，当三个条件同时成立：
+
+1. 有 agent（模型）在**发起写命令**，而不是只把模型输出回给人；
+2. 这些写动作里有需要可复核链条的（谁批的、拿什么参数、落到哪条审计条目）；
+3. 命令已经走 `/commands/{type}` 且能声明 `seedj.ai.tools[]` 的 `action-class`。
+
+不要选：
+
+- **只有 CRUD**：没有 agent、命令都是人直接调，决策账本只是把审计链再做一遍；
+- **没有 agent 但想要审批**：T0 没有审批流程（见 T2/T3），此时选它只能拿到 token 而没有批件；
+- **不可逆动作还没有过 T3 门禁**：`IRREVERSIBLE_FINANCIAL` / `IRREVERSIBLE_EXTERNAL` 在 T0
+  **没有可用的审批来源**，也没有数据库层的不可逆动作门禁。这类命令现在就不要写进
+  `seedj.ai.tools[]`——列进去只会在签发那一步砸（缺审批快照 → `500` + `not_issued`）；
+- **需要外部副作用两段协议或 IM 回传**：T0 都不做，等对应阶段。
+
+只想要「只读 agent」（查数据、总结）也不需要它：T0 的运行时循环只对 `EXECUTE_TOOL` 走决策面。
+
+## 4. 数据结构与查询
 
 | 需求 | 用什么 | 不用什么 |
 |---|---|---|
@@ -52,8 +74,9 @@
 | 字段声明 | `@SeedjObject` record（`seedj-codegen` 生成 schema；`view = true` 再生成读视图） | 手写 `ObjectSchema.builder` 或第二份 view record |
 | 新版本迁移 | `seedj-codegen` 生成候选 + 人工审阅后提交 V2/V3 | 修改已冻结的 V1 |
 
-## 4. 相关文档
+## 5. 相关文档
 
 - [概念与术语](concepts.md)
 - [命令契约](command-contract.md)
 - [读模型](read-model.md)
+- [AI 装配](ai-starter.md)：决策账本、DecisionToken、guard 与有界循环

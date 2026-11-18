@@ -1,0 +1,20 @@
+{"id":"ro-001","instruction":"查员工 e-1 的员工档案，只看入职日期","expected_tool":"hr.employee.get"}
+{"id":"ro-002","instruction":"用关键字「张」搜员工，取前 20 条","expected_tool":"hr.employee.search"}
+{"id":"ro-003","instruction":"给我西欧区的组织树，含每层单元名称","expected_tool":"hr.org-unit.tree"}
+{"id":"ro-004","instruction":"读工单 T-1 的工单详情，把状态念出来","expected_tool":"ticket.get"}
+{"id":"ro-005","instruction":"列出所有未分配的工单列表","expected_tool":"ticket.list"}
+{"id":"ro-006","instruction":"把工单 T-1 的处理时间线念给我听","expected_tool":"ticket.timeline"}
+{"id":"ro-007","instruction":"查审计条目，找 command_id 是 c-1 的那一条","expected_tool":"audit.entry.query"}
+{"id":"ro-008","instruction":"我手上有哪些待审批清单","expected_tool":"approval.pending.list"}
+{"id":"ro-009","instruction":"把这个月的工资批次汇总读出来","expected_tool":"payroll.run.summary"}
+{"id":"ro-010","instruction":"查角色授权：alice 现在挂了哪些角色","expected_tool":"iam.role.grants"}
+{"id":"ro-011","instruction":"员工 e-2 的员工档案里，职级是多少","expected_tool":"hr.employee.get"}
+{"id":"ro-012","instruction":"搜员工，条件是部门=财务","expected_tool":"hr.employee.search"}
+{"id":"ro-013","instruction":"展开整个组织树，我要看每个单元","expected_tool":"hr.org-unit.tree"}
+{"id":"ro-014","instruction":"工单详情 T-9 的标题是什么","expected_tool":"ticket.get"}
+{"id":"ro-015","instruction":"给我超时未处理的工单列表","expected_tool":"ticket.list"}
+{"id":"ro-016","instruction":"工单 T-9 的处理时间线有几条","expected_tool":"ticket.timeline"}
+{"id":"ro-017","instruction":"审计条目里最近 10 条是什么","expected_tool":"audit.entry.query"}
+{"id":"ro-018","instruction":"列一下待审批清单，我只要前 5 条","expected_tool":"approval.pending.list"}
+{"id":"ro-019","instruction":"工资批次汇总里扣款合计多少","expected_tool":"payroll.run.summary"}
+{"id":"ro-020","instruction":"角色授权里 bob 有没有 admin","expected_tool":"iam.role.grants"}

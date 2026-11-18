@@ -30,10 +30,12 @@ final class ModuleClassPath {
                     "seedj-jdbc-postgresql",
                     "seedj-biz-starter",
                     "seedj-im-starter",
+                    "seedj-ai-starter",
                     "seedj-iam-starter",
                     "seedj-server/hr",
                     "seedj-server/iam",
-                    "seedj-server/im");
+                    "seedj-server/im",
+                    "seedj-server/ai");
 
     private ModuleClassPath() {}
 
@@ -45,7 +47,12 @@ final class ModuleClassPath {
         Path dir = root().resolve(module).resolve("target/classes");
         if (!Files.isDirectory(dir)) {
             throw new IllegalStateException(
-                    "模块 " + module + " 尚未编译（" + dir + "）；先运行 ./mvnw -o -B -pl seedj-it -am test");
+                    "模块 "
+                            + module
+                            + " 尚未编译（"
+                            + dir
+                            + "）；先运行 ./mvnw -o -B -pl seedj-it -am test；"
+                            + "MODULES 的每一项都必须是 seedj-it 的依赖，才会被 reactor 构建");
         }
         return dir;
     }

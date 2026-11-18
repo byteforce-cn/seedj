@@ -1,0 +1,51 @@
+package cn.byteforce.seedj.ai;
+
+import java.util.Locale;
+
+/**
+ * 命令动作分类：决定审批强度与是否允许自动执行。
+ *
+ * <p>分类按“后果可恢复性”排序，从只读到不可逆外部副作用；审批口径逐项声明在常量说明里。分类是 命令元数据的一部分，由命令声明而非调用方传入——否则调用方可以挑最宽松的一档逃过审批。
+ *
+ * @author ByteForce
+ * @since 1.0.0
+ */
+public enum ActionClass {
+
+    /** 只读：不改变任何状态。审批口径：无需审批，可直接执行或缓存结果。 */
+    READ_ONLY,
+
+    /** 可逆变更：结果可由同一命令的逆操作直接撤销。审批口径：无需人工审批，保留撤销入口即可。 */
+    REVERSIBLE,
+
+    /** 可补偿变更：不能直接撤销，需以反向事务冲抵（会产生新的业务记录）。审批口径：需人工审批，并留存补偿依据。 */
+    COMPENSABLE,
+
+    /** 不可逆资金动作：出账、扣款、开票等，错误无法事后由系统撤回。审批口径：强制人工审批与双人复核，且必须留审计链。 */
+    IRREVERSIBLE_FINANCIAL,
+
+    /** 不可逆外部副作用：消息已送达外部系统、单据已推送第三方等。 审批口径：强制人工审批；执行前先固化外部可见内容，执行后只做事实记录，不再假装可撤销。 */
+    IRREVERSIBLE_EXTERNAL;
+
+    /**
+     * 线格式名称。
+     *
+     * <p>小写下划线名是 token、账本与决策面共用的稳定字符串，冻结后不要改名。
+     *
+     * @return 小写动作分类名
+     */
+    public String wire() {
+        return name().toLowerCase(Locale.ROOT);
+    }
+
+    /**
+     * 该分类是否强制人工审批。
+     *
+     * <p>只有两个不可逆档位返回 {@code true}：它们一旦执行无法由系统撤回，守卫必须要求决策 token 携带 审批快照。可补偿变更按业务策略审批，不进入 T0 的强制路径。
+     *
+     * @return 不可逆动作返回 {@code true}
+     */
+    public boolean requiresApproval() {
+        return this == IRREVERSIBLE_FINANCIAL || this == IRREVERSIBLE_EXTERNAL;
+    }
+}

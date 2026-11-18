@@ -48,7 +48,9 @@ class SpiSurfaceTest {
                     "cn.byteforce.seedj.cqrs", cn.byteforce.seedj.cqrs.IdCodec.class,
                     "cn.byteforce.seedj.cqrs.spi", cn.byteforce.seedj.cqrs.spi.EventStore.class,
                     "cn.byteforce.seedj.lock", cn.byteforce.seedj.lock.LockProvider.class,
-                    "cn.byteforce.seedj.core.security", CallerProvider.class);
+                    "cn.byteforce.seedj.core.security", CallerProvider.class,
+                    "cn.byteforce.seedj.ai", cn.byteforce.seedj.ai.ActionClass.class,
+                    "cn.byteforce.seedj.ai.spi", cn.byteforce.seedj.ai.spi.DecisionLedger.class);
 
     private static final Map<String, List<String>> EXTRA_ALLOWED =
             Map.of(
@@ -117,7 +119,37 @@ class SpiSurfaceTest {
                             "EventTypeRegistrar",
                             "TransactionRunner"),
                     "cn.byteforce.seedj.lock",
-                    List.of("LockErrorCode", "LockException", "LockLease", "LockProvider"));
+                    List.of("LockErrorCode", "LockException", "LockLease", "LockProvider"),
+                    "cn.byteforce.seedj.ai",
+                    List.of(
+                            "ActionClass",
+                            "AgentIdentity",
+                            "AgentToolSpec",
+                            "AiErrorCode",
+                            "ApprovalSnapshot",
+                            "ApprovalStatus",
+                            "ArgsHash",
+                            "CommandFingerprint",
+                            "CommandRef",
+                            "DecisionEffect",
+                            "DecisionIntent",
+                            "DecisionKind",
+                            "DecisionRecord",
+                            "DecisionRecordBodies",
+                            "DecisionRecordKind",
+                            "DecisionTokenClaims",
+                            "EffectStatus",
+                            "Evidence",
+                            "GuardVerdict",
+                            "IdemFingerprint",
+                            "LedgerHash",
+                            "LedgerVerification",
+                            "ModelRef",
+                            "OutcomeSource",
+                            "PolicyRef",
+                            "Proposal"),
+                    "cn.byteforce.seedj.ai.spi",
+                    List.of("DecisionLedger", "ToolRegistry"));
 
     private static final Map<String, List<String>> ALLOWED =
             Map.of(
@@ -286,7 +318,9 @@ class SpiSurfaceTest {
                 "cn.byteforce.seedj.cqrs",
                 "cn.byteforce.seedj.cqrs.spi",
                 "cn.byteforce.seedj.lock",
-                "cn.byteforce.seedj.core.security"
+                "cn.byteforce.seedj.core.security",
+                "cn.byteforce.seedj.ai",
+                "cn.byteforce.seedj.ai.spi"
             })
     void packageExposesOnlyWhitelistedPublicTypes(String packageName) throws Exception {
         Class<?> marker = markerOf(packageName);

@@ -34,6 +34,30 @@ class ArchitectureTest {
     }
 
     @Test
+    @DisplayName("core.ai 不依赖 Spring / JDBC")
+    void aiContractsAreFrameworkFree() {
+        assertNoDependencies(
+                "ai-contracts-framework-free",
+                ModuleClassPath.classesOf("core"),
+                clazz -> clazz.getPackageName().startsWith("cn.byteforce.seedj.ai"),
+                dependency ->
+                        dependency.getPackageName().startsWith("org.springframework")
+                                || dependency.getPackageName().startsWith("java.sql")
+                                || dependency.getPackageName().startsWith("javax.sql"));
+    }
+
+    @Test
+    @DisplayName("biz 契约不反向依赖 ai 实现")
+    void bizDoesNotDependOnAi() {
+        assertNoDependencies(
+                "biz-does-not-depend-on-ai",
+                ModuleClassPath.classesOf("seedj-biz-starter"),
+                clazz -> clazz.getPackageName().startsWith("cn.byteforce.seedj.starter"),
+                dependency ->
+                        dependency.getPackageName().startsWith("cn.byteforce.seedj.starter.ai"));
+    }
+
+    @Test
     @DisplayName("biz 契约不反向依赖 iam 实现")
     void bizDoesNotDependOnIam() {
         assertNoDependencies(
@@ -104,11 +128,13 @@ class ArchitectureTest {
             Predicate<JavaClass> forbiddenTarget) {
         Set<String> allowed = ModuleClassPath.readLines(ALLOWLIST);
 
+        int matched = 0;
         Set<String> violations = new java.util.TreeSet<>();
         for (JavaClass clazz : classes) {
             if (!origin.test(clazz)) {
                 continue;
             }
+            matched++;
             for (Dependency dependency : clazz.getDirectDependenciesFromSelf()) {
                 JavaClass target = dependency.getTargetClass();
                 if (!forbiddenTarget.test(target)) {
@@ -121,6 +147,7 @@ class ArchitectureTest {
             }
         }
 
+        assertThat(matched).as("规则 %s 的 origin 谓词未命中任何类（规则空跑，不能算通过）", rule).isPositive();
         assertThat(violations)
                 .as(
                         "规则 %s 存在未登记违规；修掉依赖，或在 %s 记录 " + "`%s|<origin> -> <target>`",

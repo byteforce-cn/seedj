@@ -1,0 +1,63 @@
+# T0 pilot：决策面 + 执行侧 + agent 运行时同进程（spec §5.1 两条路径的端到端形态）。
+#
+# 与 HR 的 application-postgres.yml 同一套 provider 选择：命令、对象、审计、outbox 全走 PostgreSQL，
+# 锁用数据库锁。差别只有两处：打开 AI 的三个角色，并把决策面的租户/身份/受众钉成 UUID 常量——
+# 决策面不接受请求自称的租户与主体，缺一个键就起不来（报错会点出键名）。
+#
+# 这里的每个 UUID 都与 PilotTestConfiguration 的常量一致：guard 用调用方的 tenantId 逐字比对 token 的
+# tenant claim，用 callers.id() 解析 token 的 actor，不一致就是每个写命令都 403。
+spring:
+  application:
+    name: seedj-ai-pilot
+
+seedj:
+  command:
+    provider: postgres
+  object:
+    provider: postgres
+  audit:
+    enabled: true
+  outbox:
+    enabled: true
+  lock:
+    memory:
+      enabled: false
+    postgres:
+      enabled: true
+  biz:
+    # 只允许在 local/test 打开（DegradedModeGuard）；用例用 @ActiveProfiles({"pilot", "test"})。
+    dev-auth:
+      enabled: true
+  ai:
+    plane:
+      enabled: true
+      tenant: 018f2e3a-0000-7000-8000-0000000b0007
+      # 决策面只放行带该权限的调用方（PilotTestConfiguration 的 Caller 授予了它）。
+      permission: agent:decide
+      reconcile:
+        # 用例直接调 ReconciliationJob#reconcile，不依赖定时调度（也就不要 @EnableScheduling）。
+        enabled: false
+    guard:
+      enabled: true
+    runtime:
+      enabled: true
+      max-steps: 4
+      # 地址由用例按 @LocalServerPort 组装（端口启动后才知道），这里只钉模型引用。
+      model:
+        name: pilot-model
+        version: "1"
+    identity:
+      actor: 018f2e3a-0000-7000-8000-0000000a9e01
+      on-behalf-of: 018f2e3a-0000-7000-8000-000000000118
+    decision:
+      audience: ticket-service
+      kid: agent-decision-2026-11
+    tools:
+      - command-type: ticket.create
+        action-class: COMPENSABLE
+      - command-type: ticket.comment
+        action-class: REVERSIBLE
+    contracts:
+      # id 必须是 UUID：runtime 的 TaskContract.id 会被解析成 task_contract_id。
+      - id: 018f2e3a-0000-7000-8000-00000000c017
+        commands: [ticket.create, ticket.comment]

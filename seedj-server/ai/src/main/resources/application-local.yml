@@ -1,0 +1,16 @@
+# 本地开发：零外部依赖（无数据库、无 IdP、无 IAM），重启即丢；只允许在本地/演示使用。
+# 数据源自动配置被显式排除，账本由 LocalDecisionLedgerConfiguration 的内存实现提供；
+# 审计关闭、命令运行时降级（无事务/无锁），调用方由 dev-auth 固定。
+# 需要有真实数据库时用 postgres profile（application-postgres.yml）。
+spring:
+  autoconfigure:
+    exclude: org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
+
+seedj:
+  command:
+    degraded-mode: true
+  audit:
+    enabled: false
+  biz:
+    dev-auth:
+      enabled: true
