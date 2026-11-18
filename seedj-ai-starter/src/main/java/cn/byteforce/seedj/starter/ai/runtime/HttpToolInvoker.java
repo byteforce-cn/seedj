@@ -28,8 +28,10 @@ import tools.jackson.databind.json.JsonMapper;
  * 工具结果，不是传输异常。只读请求不带 token：只读路径不签发 DecisionToken（spec §5.1 只读路径）；{@code payload}
  * 作为 query 参数传给查询端点（T0 的循环不执行查询，{@code read} 供宿主直接驱动）。
  *
- * <p><b>路径里的命令类型来自模型输出</b>：拼进 URL 前先按 {@code [A-Za-z0-9_.-]+} 校验，含 {@code /}、{@code ..} 或
- * 空白的类型直接拒绝——否则模型能把请求导向另一个端点。
+ * <p><b>路径里的命令类型来自模型输出</b>：拼进 URL 前按「点分段的标识符」校验——每段是
+ * {@code [A-Za-z0-9_-]+}、段间用单个点连接、首尾不允许点。{@code ticket.create} 合法；{@code .}、{@code ..}、
+ * {@code ticket.}、{@code a/b} 都不合法。理由是 {@code RestClient} 不做路径归一化，服务端会把 {@code /commands/..}
+ * 归一成别的路径，带 token 的 POST 就落到 {@code /commands/{type}} 之外。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -148,13 +150,17 @@ public final class HttpToolInvoker implements ToolInvoker {
     }
 
     /**
-     * 校验命令类型：它来自模型输出，拼进 URL 前只允许保守的字符集。
+     * 校验命令类型：它来自模型输出，拼进 URL 前只接受「点分段的标识符」。
      *
-     * @throws IllegalArgumentException 含 {@code [A-Za-z0-9_.-]} 以外的字符
+     * <p>每段 {@code [A-Za-z0-9_-]+}，段间一个点，不允许空段（{@code .} / {@code ..} / {@code ticket.} 都不行）。
+     * 只禁字符是不够的：{@code ..} 能用旧字符集过关，而 {@code RestClient} 不做路径归一化，服务端会把
+     * {@code /commands/..} 归一成根路径。
+     *
+     * @throws IllegalArgumentException 不符合点分段标识符规则
      */
     private static String commandType(String value) {
-        if (value == null || !value.matches("[A-Za-z0-9_.-]+")) {
-            throw new IllegalArgumentException("invalid command type");
+        if (value == null || !value.matches("[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*")) {
+            throw new IllegalArgumentException("invalid command type: " + value);
         }
         return value;
     }

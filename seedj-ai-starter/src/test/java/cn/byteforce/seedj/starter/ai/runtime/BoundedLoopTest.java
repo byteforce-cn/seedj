@@ -289,6 +289,55 @@ class BoundedLoopTest {
     }
 
     @Test
+    @DisplayName("命令类型 .. 被拒：路径归一化前就拦下")
+    void command_type_with_dot_dot_is_rejected() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        HttpToolInvoker invoker = new HttpToolInvoker(builder, COMMAND_BASE);
+
+        assertThatThrownBy(
+                        () ->
+                                invoker.execute(
+                                        new Call("..", Map.of(), List.of(), null),
+                                        TOKEN,
+                                        DECISION_ID))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("invalid command type");
+        server.verify();
+    }
+
+    @Test
+    @DisplayName("命令类型尾部点被拒：ticket. 不是点分段标识符")
+    void command_type_with_trailing_dot_is_rejected() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        HttpToolInvoker invoker = new HttpToolInvoker(builder, COMMAND_BASE);
+
+        assertThatThrownBy(
+                        () ->
+                                invoker.execute(
+                                        new Call("ticket.", Map.of(), List.of(), null),
+                                        TOKEN,
+                                        DECISION_ID))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("invalid command type");
+        server.verify();
+    }
+
+    @Test
+    @DisplayName("read 的命令类型含 / 同样本地拒绝：请求根本发不出去")
+    void read_command_type_with_slash_is_rejected() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        HttpToolInvoker invoker = new HttpToolInvoker(builder, COMMAND_BASE);
+
+        assertThatThrownBy(() -> invoker.read(new Call("../x", Map.of(), List.of(), null)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("invalid command type");
+        server.verify();
+    }
+
+    @Test
     @DisplayName("决策请求是 snake_case，且不含 token")
     void decision_request_matches_wire_format() {
         RestClient.Builder builder = RestClient.builder();
