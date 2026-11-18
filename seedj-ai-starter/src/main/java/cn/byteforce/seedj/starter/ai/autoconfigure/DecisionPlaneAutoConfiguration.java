@@ -116,14 +116,15 @@ public class DecisionPlaneAutoConfiguration {
     /**
      * 决策服务：判定契约能力、先落 intent、再决定签不签 token。
      *
-     * <p>{@code decision_id} 优先用宿主已有的 {@link IdGenerator}{@code <UUID>}（biz 的
-     * {@code commandIdGenerator} 是 UUIDv7，时间有序）；宿主没有时退化为 {@code UUID.randomUUID()}。
+     * <p>{@code decision_id} 优先用宿主已有的唯一 {@link IdGenerator}{@code <UUID>}（biz 的
+     * {@code commandIdGenerator} 是 UUIDv7，时间有序）；没有时退化为 {@code UUID.randomUUID()}，有多个时也退化为
+     * 随机 UUID 并 WARN（多 id 生成器的宿主很常见，不能因此启动失败）。
      *
      * @param capabilities 能力集
      * @param registry 工具注册表
      * @param ledger 决策账本（由账本装配或宿主提供）
      * @param issuer 签发方
-     * @param idGenerators 宿主的标识生成器；缺失时用随机 UUID
+     * @param idGenerators 宿主的标识生成器；无唯一候选时用随机 UUID
      * @param clock 取时入口
      * @param properties AI 配置
      * @return 决策服务
@@ -143,9 +144,29 @@ public class DecisionPlaneAutoConfiguration {
                 registry,
                 ledger,
                 issuer,
-                idGenerators.getIfAvailable(() -> UUID::randomUUID),
+                decisionIds(idGenerators),
                 clock,
                 properties);
+    }
+
+    /**
+     * 取 {@code decision_id} 的生成器：只接受唯一候选，否则回退随机 UUID。
+     *
+     * <p>{@code getIfUnique()} 在「没有」与「有多个且无 {@code @Primary}」两种情况下都返 {@code null}；后者必须只
+     * WARN 不失败——本仓常见多 id 生成器宿主（{@code commandIdGenerator}、业务自己的生成器），而这种宿主不应该因为
+     * 开了决策面就起不来。
+     */
+    private static IdGenerator<UUID> decisionIds(ObjectProvider<IdGenerator<UUID>> idGenerators) {
+        IdGenerator<UUID> unique = idGenerators.getIfUnique();
+        if (unique != null) {
+            return unique;
+        }
+        if (idGenerators.stream().count() > 1) {
+            log.warn(
+                    "seedj.ai.plane: 存在多个 IdGenerator<UUID> bean，decision_id 回退"
+                            + " UUID.randomUUID()（v4，非时间有序）");
+        }
+        return UUID::randomUUID;
     }
 
     /**

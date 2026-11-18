@@ -22,10 +22,10 @@ import tools.jackson.databind.annotation.JsonNaming;
  * 线格式由服务侧的值类型定义（两侧都是 snake_case，不存在第二套映射）。三者合成一个控制器，是因为它们属于同一个
  * {@code /v1/decisions/{id}} 资源族：决策、它的记录、它的结局。
  *
- * <p><b>状态码</b>：求值成功是 200（账本写入失败、签发失败会让请求 500——此时 intent 已落账，这是刻意的不对称：
- * 没有意图的执行绝不允许，但有意图无效果可以对账）；坏请求是 400，由 {@code ContractException} 交给宿主的
- * {@code ContractErrorHandler}；读不到记录是 404（租户不匹配同样 404，不泄露存在性）；没有装配对账数据源时上报是 503，
- * 决策本身仍然可用。
+ * <p><b>状态码</b>：求值成功是 200（账本写入失败会让请求 500——此时 intent 已落账，这是刻意的不对称：没有意图的执行
+ * 绝不允许，但有意图无效果可以对账；签发失败同样是 500，但账本会留下 intent + {@code outcome(not_issued)} 终态，见
+ * spec §6.4(3)）；坏请求是 400，由 {@code ContractException} 交给宿主的 {@code ContractErrorHandler}；读不到记录是
+ * 404（租户不匹配同样 404，不泄露存在性）；没有装配对账数据源时上报是 503，决策本身仍然可用。
  *
  * @author ByteForce
  * @since 1.0.0

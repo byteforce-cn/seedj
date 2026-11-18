@@ -28,10 +28,14 @@ import org.springframework.scheduling.annotation.Scheduled;
  *       {@code reconciled(unknown(), "audit_entry_missing")}——自称成功却没有链条目是数据不一致，降为未知，「不得把
  *       unknown 当成成功」。
  *   <li>其它情况（已链校验过、非 ok、没有 outcome）不动。
- *   <li><b>去重</b>：账本的 {@code reconciled} <b>不幂等</b>（每次核对一条观察），而 outcome 落账后永远还是
- *       {@code ok + audit_entry_id=null}；不去重的话一个 60 秒一次的调度会为同一个 decision 无限追加同样的
- *       {@code chain_verified}。所以追加前先看账本：已经有带 {@code audit_entry_id} 的 {@code reconciled} 就返回空——
- *       同一 decision 只补一次链校验记录，重复运行是 no-op。旧 outcome、旧记录都不改写（账本没有更新入口）。
+ *   <li><b>按 reason 去重</b>：账本的 {@code reconciled} <b>不幂等</b>（每次核对一条观察），而 outcome 落账后永远还是
+ *       {@code ok + audit_entry_id=null}；不去重的话一个 60 秒一次的调度会为同一个 decision 无限追加同样的记录。
+ *       规则是<b>同一 reason 只记一次</b>：<code>audit_entry_missing</code> 已经记过且本次仍查不到链条目 → 不追加；
+ *       已经有一条带 {@code audit_entry_id} 的 {@code chain_verified} → 不追加。
+ *       但「缺失 → 核对成功」是一次<b>状态跃迁</b>，允许再记一条 {@code chain_verified}（即使之前已记过
+ *       {@code audit_entry_missing}）——链条目补写后必须能升级。因此每个 decision 最多留下
+ *       {@code 1 × audit_entry_missing + 1 × chain_verified}，既有上界又能升级。旧 outcome、旧记录都不改写（账本没有
+ *       更新入口）。
  * </ul>
  *
  * <p><b>T0 的范围收窄（有意为之）</b>：{@link DecisionLedger} 只有「租户 + decision_id」作用域的读接口，没有跨租户
@@ -95,11 +99,12 @@ public final class ReconciliationJob {
     /**
      * 按已知决策核对一次：需要时追加一条 {@code reconciled}。
      *
-     * <p>同一 decision 只补一次链校验记录：已经存在带 {@code audit_entry_id} 的 {@code reconciled} 时直接返回空，
-     * 不再追加（详见类注释的去重说明）。
+     * <p>去重规则（详见类注释）：同一 reason 只记一次；{@code audit_entry_missing} → {@code chain_verified} 是状态
+     * 跃迁，允许再记一条。
      *
      * @param decisionId 决策标识
-     * @return 追加的 {@code reconciled} 记录；不需要核对（没有 outcome、非 ok、已链校验过、已补过链校验记录）时为空
+     * @return 追加的 {@code reconciled} 记录；不需要核对（没有 outcome、非 ok、已链校验过、同一 reason 已记过）
+     *     时为空
      * @throws NullPointerException {@code decisionId} 为 {@code null}
      */
     public Optional<DecisionRecord> reconcile(UUID decisionId) {
@@ -116,39 +121,45 @@ public final class ReconciliationJob {
         if (effect.status() != EffectStatus.OK || effect.auditEntryId() != null) {
             return Optional.empty();
         }
-        if (chainVerified(records)) {
-            return Optional.empty();
-        }
         Optional<String> auditEntryId =
                 effect.commandId() == null
                         ? Optional.empty()
                         : queries.auditEntryIdOf(effect.commandId());
+        if (auditEntryId.isPresent()) {
+            if (chainVerified(records)) {
+                return Optional.empty();
+            }
+            return Optional.of(
+                    ledger.appendReconciled(
+                            decisionId,
+                            DecisionEffect.ok(auditEntryId.get(), effect.commandId()),
+                            REASON_CHAIN_VERIFIED));
+        }
+        if (reconciledWithReason(records, REASON_AUDIT_ENTRY_MISSING)) {
+            return Optional.empty();
+        }
         return Optional.of(
-                auditEntryId
-                        .map(
-                                id ->
-                                        ledger.appendReconciled(
-                                                decisionId,
-                                                DecisionEffect.ok(id, effect.commandId()),
-                                                REASON_CHAIN_VERIFIED))
-                        .orElseGet(
-                                () ->
-                                        ledger.appendReconciled(
-                                                decisionId,
-                                                DecisionEffect.unknown(),
-                                                REASON_AUDIT_ENTRY_MISSING)));
+                ledger.appendReconciled(
+                        decisionId, DecisionEffect.unknown(), REASON_AUDIT_ENTRY_MISSING));
     }
 
     /**
      * 已经补过链校验记录：存在一条带 {@code audit_entry_id} 的 {@code reconciled}。
      *
-     * <p>只看带 {@code audit_entry_id} 的那些：{@code audit_entry_missing} 的结论是「链上没有条目」，链条目补写后还要
-     * 再核，不能被当成已完成。
+     * <p>用 {@code audit_entry_id} 而不是 reason 字符串判定：这是「链上确实有那条条目」的硬事实，没有它就不算
+     * 校验过。
      */
     private static boolean chainVerified(List<DecisionRecord> records) {
         return records.stream()
                 .filter(record -> record.kind() == DecisionRecordKind.RECONCILED)
                 .anyMatch(record -> RecordedEffect.of(record).auditEntryId() != null);
+    }
+
+    /** 账本里已记过同一个 reason 的核对结论（{@code audit_entry_missing} 的幂等依据）。 */
+    private static boolean reconciledWithReason(List<DecisionRecord> records, String reason) {
+        return records.stream()
+                .filter(record -> record.kind() == DecisionRecordKind.RECONCILED)
+                .anyMatch(record -> reason.equals(record.body().get("reason")));
     }
 
     /**

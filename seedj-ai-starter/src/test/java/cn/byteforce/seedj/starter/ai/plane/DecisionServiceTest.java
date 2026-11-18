@@ -56,8 +56,9 @@ import tools.jackson.databind.json.JsonMapper;
  * <p>核心断言是<b>顺序</b>：intent 先落账、token 后签发，中间任何一步失败都不能让「无意图的执行」发生。因此用例用
  * 一个记账的账本装饰器与一个可抛异常的签发口记录事件序列，而不是只看最终响应。
  *
- * <p>纯 JUnit：不启动 Spring。只有两条装配期用例（缺 {@code plane.tenant} 启动失败、JWKS 端点开关）用
- * {@link WebApplicationContextRunner}，因为它们是 {@code @ConditionalOnProperty} 与构造期校验的行为。
+ * <p>纯 JUnit：不启动 Spring。只有装配期用例（缺 {@code plane.tenant} 启动失败、JWKS 端点开关、多个
+ * {@code IdGenerator<UUID>} 时回退随机 UUID）用 {@link WebApplicationContextRunner}，因为它们是
+ * {@code @ConditionalOnProperty}、构造期校验与 bean 解析的行为。
  */
 class DecisionServiceTest {
 
@@ -133,6 +134,7 @@ class DecisionServiceTest {
         assertThat(records)
                 .extracting(DecisionRecord::kind)
                 .containsExactly(DecisionRecordKind.INTENT, DecisionRecordKind.OUTCOME);
+        assertThat(records.get(1).body()).containsEntry("source", "runtime_reported");
         assertThat(effectOf(records.get(1)))
                 .containsEntry("status", "not_issued")
                 .containsEntry("error_code", DecisionService.SIGNING_FAILED);
@@ -199,7 +201,7 @@ class DecisionServiceTest {
     }
 
     @Test
-    @DisplayName("rationale 超过 1KB（UTF-8）：400，且不落账")
+    @DisplayName("rationale 超过 1KB：按 UTF-8 字节而不是字符数计，400 且不落账")
     void oversized_rationale_is_bad_request() {
         DecisionService service = service();
         service.decide(
@@ -209,7 +211,10 @@ class DecisionServiceTest {
                         List.of(TARGET_A),
                         "a".repeat(DecisionService.MAX_RATIONALE_BYTES),
                         AUDIENCE));
-        assertThat(events).containsExactly("intent", "sign");
+        // 341 个汉字 = 1023 字节：字符数远小于 1024，但按字节也没超，必须允许
+        service.decide(
+                executeTool(CONTRACT, CREATE, List.of(TARGET_A), "票".repeat(341), AUDIENCE));
+        assertThat(events).containsExactly("intent", "sign", "intent", "sign");
 
         assertThatThrownBy(
                         () ->
@@ -228,7 +233,23 @@ class DecisionServiceTest {
                             assertThat(error.reason())
                                     .contains(String.valueOf(DecisionService.MAX_RATIONALE_BYTES));
                         });
-        assertThat(events).containsExactly("intent", "sign");
+        // 342 个汉字 = 1026 字节：字符数只有 342，按字节计超限——证明上限是 UTF-8 字节
+        assertThatThrownBy(
+                        () ->
+                                service.decide(
+                                        executeTool(
+                                                CONTRACT,
+                                                CREATE,
+                                                List.of(TARGET_A),
+                                                "票".repeat(342),
+                                                AUDIENCE)))
+                .isInstanceOfSatisfying(
+                        ContractException.class,
+                        error -> {
+                            assertThat(error.code()).isEqualTo(ContractErrorCode.INVALID_PAYLOAD);
+                            assertThat(error.reason()).contains("1026 字节");
+                        });
+        assertThat(events).containsExactly("intent", "sign", "intent", "sign");
     }
 
     @Test
@@ -504,6 +525,30 @@ class DecisionServiceTest {
                         });
     }
 
+    @Test
+    @DisplayName("多个 IdGenerator<UUID>：不阻断启动，decision_id 回退随机 UUID（v4）")
+    void multiple_id_generators_fall_back_to_random_uuid() {
+        new WebApplicationContextRunner()
+                .withUserConfiguration(PlaneHost.class, TwoIdGeneratorsHost.class)
+                .withConfiguration(AutoConfigurations.of(DecisionPlaneAutoConfiguration.class))
+                .withPropertyValues(
+                        "seedj.ai.plane.enabled=true",
+                        "seedj.ai.plane.tenant=" + TENANT,
+                        "seedj.ai.identity.actor=" + ACTOR,
+                        "seedj.ai.identity.on-behalf-of=" + ON_BEHALF_OF,
+                        "seedj.ai.decision.signing-key=" + SEED,
+                        "seedj.ai.decision.kid=" + KID)
+                .run(
+                        context -> {
+                            assertThat(context).hasNotFailed();
+                            DecisionService.DecisionResult result =
+                                    context.getBean(DecisionService.class)
+                                            .decide(readDecision(GET));
+                            // 两个候选都不是随机 UUID：返回 v4 证明走的是回退分支
+                            assertThat(result.decisionId().version()).isEqualTo(4);
+                        });
+    }
+
     private DecisionService service() {
         return service(recordingSigner());
     }
@@ -683,6 +728,21 @@ class DecisionServiceTest {
         @Bean
         DecisionLedger decisionLedger() {
             return new InMemoryDecisionLedger();
+        }
+    }
+
+    /** 两个 {@code IdGenerator<UUID>} 的宿主：本仓常见的多 id 生成器装配，不能因此启动失败。 */
+    @Configuration(proxyBeanMethods = false)
+    static class TwoIdGeneratorsHost {
+
+        @Bean(name = "commandIdGenerator")
+        IdGenerator<UUID> commandIdGenerator() {
+            return () -> UUID.fromString("018f2e3a-0000-7000-8000-000000000001");
+        }
+
+        @Bean(name = "hrCommandIds")
+        IdGenerator<UUID> hrCommandIds() {
+            return () -> UUID.fromString("018f2e3a-0000-7000-8000-000000000002");
         }
     }
 }

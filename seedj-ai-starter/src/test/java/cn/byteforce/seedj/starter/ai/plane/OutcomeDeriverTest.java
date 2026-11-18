@@ -239,6 +239,53 @@ class OutcomeDeriverTest {
     }
 
     @Test
+    @DisplayName("链上条目一直缺失：同一 reason 只记一条，重复运行不追加")
+    void repeated_missing_audit_entry_appends_once() {
+        UUID decisionId = newDecision();
+        UUID commandId = insertAccepted(decisionId, FINGERPRINT);
+        deriver.report(decisionId, commandId);
+
+        assertThat(job.reconcile(decisionId)).isPresent();
+        assertThat(job.reconcile(decisionId)).isEmpty();
+        assertThat(job.reconcile(decisionId)).isEmpty();
+
+        List<DecisionRecord> records = ledger.byDecision(TENANT, decisionId);
+        assertThat(records)
+                .extracting(DecisionRecord::kind)
+                .containsExactly(
+                        DecisionRecordKind.INTENT,
+                        DecisionRecordKind.OUTCOME,
+                        DecisionRecordKind.RECONCILED);
+        assertThat(records.get(2).body()).containsEntry("reason", "audit_entry_missing");
+        assertThat(effectOf(records.get(2))).containsEntry("status", "unknown");
+    }
+
+    @Test
+    @DisplayName("缺失 → 核对成功是一次状态跃迁：允许再记一条 chain_verified，此后不再追加")
+    void missing_then_found_appends_chain_verified() {
+        UUID decisionId = newDecision();
+        UUID commandId = insertAccepted(decisionId, FINGERPRINT);
+        deriver.report(decisionId, commandId);
+        assertThat(job.reconcile(decisionId)).isPresent();
+
+        String auditEntryId = insertAuditEntry(commandId);
+
+        assertThat(job.reconcile(decisionId)).isPresent();
+        assertThat(job.reconcile(decisionId)).isEmpty();
+        List<DecisionRecord> records = ledger.byDecision(TENANT, decisionId);
+        assertThat(records)
+                .extracting(DecisionRecord::kind)
+                .containsExactly(
+                        DecisionRecordKind.INTENT,
+                        DecisionRecordKind.OUTCOME,
+                        DecisionRecordKind.RECONCILED,
+                        DecisionRecordKind.RECONCILED);
+        assertThat(records.get(2).body()).containsEntry("reason", "audit_entry_missing");
+        assertThat(records.get(3).body()).containsEntry("reason", "chain_verified");
+        assertThat(effectOf(records.get(3))).containsEntry("audit_entry_id", auditEntryId);
+    }
+
+    @Test
     @DisplayName("非 ok 的 outcome 不去对账：没有任何追加")
     void rejected_outcome_is_not_reconciled() {
         UUID decisionId = newDecision();
