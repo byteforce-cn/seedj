@@ -19,7 +19,7 @@ import java.util.UUID;
  * 允许 null 值（与命令载荷的 JSON 语义一致），键序保留但不参与哈希。
  *
  * @param actor 已认证调用主体（agent principal）
- * @param tenantId 命令上下文的租户；与 token 的 {@code tenant}（字符串）按 {@code toString()} 比对
+ * @param tenantId 不透明租户标识，与 token 的 {@code tenant} claim 逐字比较（例如 {@code "t_07"}、{@code "default"}）
  * @param commandType 实际命令类型，必须与工具注册表登记的类型一致
  * @param payload 未脱敏命令载荷
  * @param targets 实际目标对象；{@code null} 视为空列表，顺序参与比对
@@ -31,7 +31,7 @@ import java.util.UUID;
  */
 public record GuardContext(
         UUID actor,
-        UUID tenantId,
+        String tenantId,
         String commandType,
         Map<String, Object> payload,
         List<UUID> targets,
@@ -44,11 +44,11 @@ public record GuardContext(
      *
      * @throws NullPointerException {@code actor}/{@code tenantId}/{@code payload}/{@code audience} 为 {@code
      *     null}
-     * @throws IllegalArgumentException {@code commandType} 或 {@code audience} 为空白
+     * @throws IllegalArgumentException {@code tenantId}/{@code commandType}/{@code audience} 为空白
      */
     public GuardContext {
         Objects.requireNonNull(actor, "actor");
-        Objects.requireNonNull(tenantId, "tenantId");
+        tenantId = requiredText(tenantId, "tenantId");
         commandType = requiredText(commandType, "commandType");
         Objects.requireNonNull(payload, "payload");
         payload = Collections.unmodifiableMap(new LinkedHashMap<>(payload));

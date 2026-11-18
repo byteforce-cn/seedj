@@ -14,9 +14,9 @@ import org.slf4j.LoggerFactory;
 /**
  * 由配置（{@code seedj.ai.tools[]}）构造的工具注册表：启动期校验，运行期只查表。
  *
- * <p>命令类型与动作分类的唯一来源是命令注册方；本类只把配置里声明的那一部分挑出来变成白名单。因此「配了一条不存在的命令」
- * 是装配错误而不是运行期拒绝：构造期抛 {@link IllegalStateException} 并点名具体命令类型，应用启动失败。重复的命令类型
- * 同样启动失败——同一命令两个动作分类会让审批强度取决于配置先后。
+ * <p>命令类型与动作分类的唯一来源是命令注册方；本类只把配置里声明的那一部分挑出来变成白名单。因此「配了一条不存在的
+ * 命令」是装配错误而不是运行期拒绝：构造期抛 {@link IllegalStateException} 并点名具体命令类型，应用启动失败。重复的
+ * 命令类型同样启动失败——同一命令两个动作分类会让审批强度取决于配置先后。
  *
  * <p>没有 {@link CommandCatalog} 的上下文（只开 guard、宿主没有命令）跳过交叉校验并打 {@code WARN}：这时只剩「非空 +
  * 不重复」两条本地校验，配置正确性由宿主的部署清单负责。
@@ -52,9 +52,7 @@ public final class ConfiguredToolRegistry implements ToolRegistry {
     public ConfiguredToolRegistry(List<AgentToolSpec> tools) {
         this.byType = index(tools, null);
         if (!byType.isEmpty()) {
-            LOG.warn(
-                    "seedj: 未找到 CommandCatalog，seedj.ai.tools 的 {} 条命令未与命令目录交叉校验",
-                    byType.size());
+            LOG.warn("seedj: 未找到 CommandCatalog，seedj.ai.tools 的 {} 条命令未与命令目录交叉校验", byType.size());
         }
     }
 
@@ -66,7 +64,9 @@ public final class ConfiguredToolRegistry implements ToolRegistry {
      */
     @Override
     public Optional<AgentToolSpec> find(String commandType) {
-        return commandType == null ? Optional.empty() : Optional.ofNullable(byType.get(commandType));
+        return commandType == null
+                ? Optional.empty()
+                : Optional.ofNullable(byType.get(commandType));
     }
 
     private static Map<String, AgentToolSpec> index(
@@ -80,12 +80,10 @@ public final class ConfiguredToolRegistry implements ToolRegistry {
                 throw new IllegalStateException("seedj.ai.tools 存在缺少 command-type 的条目");
             }
             if (byType.containsKey(commandType)) {
-                throw new IllegalStateException(
-                        "seedj.ai.tools 出现重复的命令类型: " + commandType);
+                throw new IllegalStateException("seedj.ai.tools 出现重复的命令类型: " + commandType);
             }
             if (catalog != null && catalog.find(commandType).isEmpty()) {
-                throw new IllegalStateException(
-                        "seedj.ai.tools 声明的命令类型不在命令目录中: " + commandType);
+                throw new IllegalStateException("seedj.ai.tools 声明的命令类型不在命令目录中: " + commandType);
             }
             byType.put(commandType, tool);
         }

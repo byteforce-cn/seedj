@@ -3,7 +3,9 @@ package cn.byteforce.seedj.starter.ai.guard;
 import cn.byteforce.seedj.ai.AiErrorCode;
 import cn.byteforce.seedj.ai.GuardVerdict;
 import cn.byteforce.seedj.core.clock.Clock;
+import cn.byteforce.seedj.core.exception.ContractException;
 import cn.byteforce.seedj.core.security.Caller;
+import cn.byteforce.seedj.core.security.CallerIdCodec;
 import cn.byteforce.seedj.core.security.CallerProvider;
 import cn.byteforce.seedj.starter.ai.token.DecisionTokenVerifier;
 import cn.byteforce.seedj.starter.ai.token.GuardContext;
@@ -13,8 +15,8 @@ import jakarta.servlet.ReadListener;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletInputStream;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpServletRequestWrapper;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -45,6 +47,10 @@ import tools.jackson.databind.json.JsonMapper;
  * 本过滤器（order = -90）再消费 {@link CallerProvider} 与 {@code x-agent-decision}；servlet filter 一律早于
  * {@code DispatcherServlet}，所以仍然在命令入口 {@code CommandController} 之前。顺序反了（跑在安全链之前）会让
  * {@code CallerProvider} 恒为空、每个写命令都 401。
+ *
+ * <p><b>身份口径</b>：{@code actor} 由 {@link CallerIdCodec} 解析、{@code tenant} 是<b>不透明字符串</b>（与 token 的
+ * {@code tenant} claim 逐字比较）。两者都必须与 {@code CommandController} 用同一套策略，否则 guard 与命令入口会算出
+ * 不同身份、每个写命令都 403。
  *
  * <p><b>原始请求体</b>：{@code args_hash} 按请求体<b>未脱敏原文</b>重算——业务侧的脱敏只影响落库与可读性，不影响
  * 可比性，所以这里不能用任何脱敏后的对象。读到的字节还会交给下游：本过滤器向链上传一个可重放的请求包装，
@@ -89,6 +95,8 @@ public final class AgentGuardFilter extends OncePerRequestFilter {
 
     private final CallerProvider callers;
 
+    private final CallerIdCodec callerIds;
+
     private final String audience;
 
     private final Clock clock;
@@ -98,22 +106,27 @@ public final class AgentGuardFilter extends OncePerRequestFilter {
      *
      * @param verifier token 校验器：十条校验的唯一实现
      * @param callers 当前调用方；由 biz 安全链填充
+     * @param callerIds 调用方标识 → actor 的编解码：必须与 {@code CommandController} 用同一个策略
      * @param audience 本服务名；{@code null} 或空白表示用请求的 server name
      * @param clock 取时入口，用于 token 有效期判定
-     * @throws NullPointerException {@code verifier}/{@code callers}/{@code clock} 为 {@code null}
+     * @throws NullPointerException 除 {@code audience} 外任一参数为 {@code null}
      */
     public AgentGuardFilter(
-            DecisionTokenVerifier verifier, CallerProvider callers, String audience, Clock clock) {
+            DecisionTokenVerifier verifier,
+            CallerProvider callers,
+            CallerIdCodec callerIds,
+            String audience,
+            Clock clock) {
         this.verifier = Objects.requireNonNull(verifier, "verifier");
         this.callers = Objects.requireNonNull(callers, "callers");
+        this.callerIds = Objects.requireNonNull(callerIds, "callerIds");
         this.audience = audience;
         this.clock = Objects.requireNonNull(clock, "clock");
     }
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return !HttpMethod.POST.matches(request.getMethod())
-                || commandTypeInPath(request) == null;
+        return !HttpMethod.POST.matches(request.getMethod()) || commandTypeInPath(request) == null;
     }
 
     @Override
@@ -126,19 +139,19 @@ public final class AgentGuardFilter extends OncePerRequestFilter {
             return;
         }
         UUID actor;
-        UUID tenantId;
         try {
-            // T0 的租户以 UUID 表达（pilot 部署必须给 UUID 租户）；不是 UUID 就没有可比的 token 身份。
-            actor = UUID.fromString(caller.id());
-            tenantId = UUID.fromString(caller.tenantId());
-        } catch (IllegalArgumentException notUuid) {
+            // actor 的取法必须与 CommandController 完全一致：换 codec（uuid / nameUuid）不能只换一边。
+            actor = callerIds.toActor(caller);
+        } catch (ContractException unauthenticated) {
             reject(
                     response,
-                    AiErrorCode.IDENTITY_MISMATCH.wire(),
-                    "caller id and tenant must be UUIDs",
-                    false);
+                    WIRE_UNAUTHENTICATED,
+                    "caller id cannot be resolved to an actor",
+                    true);
             return;
         }
+        // 租户是不透明字符串：token 的 tenant claim 是同一形态（例如 "t_07"），逐字比较，不做 UUID 归一。
+        String tenantId = caller.tenantId();
 
         String token = request.getHeader(DECISION_HEADER);
         if (token == null || token.isBlank()) {
@@ -197,7 +210,8 @@ public final class AgentGuardFilter extends OncePerRequestFilter {
                             expectedVersion,
                             command.idempotencyKey(),
                             audienceOf(request));
-        } catch (IllegalArgumentException invalidRequest) {
+        } catch (RuntimeException invalidRequest) {
+            // GuardContext 的校验（含 List.copyOf 对 null 元素的拒绝）都是坏请求，不能漏成 500。
             reject(response, WIRE_INVALID_PAYLOAD, "invalid command request", false);
             return;
         }
@@ -223,6 +237,9 @@ public final class AgentGuardFilter extends OncePerRequestFilter {
         }
         if (command.idempotencyKey() == null || command.idempotencyKey().isBlank()) {
             return "idempotency_key is required";
+        }
+        if (command.targets() != null && command.targets().contains(null)) {
+            return "targets must not contain null";
         }
         return null;
     }
@@ -271,9 +288,9 @@ public final class AgentGuardFilter extends OncePerRequestFilter {
     /**
      * 读原始请求体；超过 {@link #MAX_BODY_BYTES} 返回空。
      *
-     * <p>用 {@link ContentCachingRequestWrapper} 读：缓存上限与 {@code MAX_BODY_BYTES} 一致，读超上限即停，不会因为
-     * 超大 body 撑爆内存。读到的字节由 {@link CachedBodyRequest} 交给下游重放——缓存包装本身只缓存不重放，读完再把
-     * 原始请求传下去，{@code @RequestBody} 会拿到空 body。
+     * <p>用 {@link ContentCachingRequestWrapper} 读：缓存上限与 {@code MAX_BODY_BYTES} 一致，读超上限即停，不会
+     * 因为超大 body 撑爆内存。读到的字节由 {@link CachedBodyRequest} 交给下游重放——缓存包装本身只缓存不重放，
+     * 读完再把原始请求传下去，{@code @RequestBody} 会拿到空 body。
      */
     private static Optional<byte[]> readBody(HttpServletRequest request) throws IOException {
         ServletInputStream input =
@@ -294,14 +311,15 @@ public final class AgentGuardFilter extends OncePerRequestFilter {
     private static void reject(
             HttpServletResponse response, String code, String detail, boolean challenge)
             throws IOException {
-        response.setStatus(
-                challenge ? HttpServletResponse.SC_UNAUTHORIZED : statusFor(code));
+        response.setStatus(challenge ? HttpServletResponse.SC_UNAUTHORIZED : statusFor(code));
         if (challenge) {
             response.setHeader(HttpHeaders.WWW_AUTHENTICATE, CHALLENGE_SCHEME);
         }
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-        MAPPER.writeValue(response.getOutputStream(), Map.of("code", code, "detail", detail));
+        MAPPER.writeValue(
+                response.getOutputStream(),
+                Map.of("code", code, "detail", Objects.requireNonNullElse(detail, "")));
     }
 
     /** 坏载荷是 400，其余拒绝一律 403（token 校验不过）。 */

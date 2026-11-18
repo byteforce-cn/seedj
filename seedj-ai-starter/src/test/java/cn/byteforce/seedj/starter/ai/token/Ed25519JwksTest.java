@@ -24,7 +24,8 @@ import org.junit.jupiter.api.Test;
 class Ed25519JwksTest {
 
     private static final UUID ACTOR = UUID.fromString("018f2e3a-0000-7000-8000-0000000a9e01");
-    private static final UUID ON_BEHALF_OF = UUID.fromString("018f2e3a-0000-7000-8000-000000000118");
+    private static final UUID ON_BEHALF_OF =
+            UUID.fromString("018f2e3a-0000-7000-8000-000000000118");
     private static final UUID TENANT = UUID.fromString("018f2e3a-0000-7000-8000-0000000b0007");
     private static final UUID DECISION_ID = UUID.fromString("018f2e3a-1234-7000-8000-00000000a001");
     private static final UUID LEDGER_INTENT_ID =

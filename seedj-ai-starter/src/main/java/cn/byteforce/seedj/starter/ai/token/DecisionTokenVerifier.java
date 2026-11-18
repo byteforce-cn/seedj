@@ -145,8 +145,9 @@ public final class DecisionTokenVerifier {
         }
 
         // on_behalf_of 的空值在 core 的 claims 构造器里已被拒绝；这里是对 parse 结果的独立兜底。
+        // tenant 是不透明字符串（例如 "t_07"），与请求侧租户逐字比较，不做 UUID 归一。
         if (!claims.actor().equals(context.actor())
-                || !claims.tenant().equals(context.tenantId().toString())
+                || !claims.tenant().equals(context.tenantId())
                 || claims.onBehalfOf() == null) {
             return reject(AiErrorCode.IDENTITY_MISMATCH, label, "actor/tenant/on_behalf_of mismatch");
         }

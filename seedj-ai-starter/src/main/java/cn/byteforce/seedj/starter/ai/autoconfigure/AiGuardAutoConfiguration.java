@@ -3,6 +3,7 @@ package cn.byteforce.seedj.starter.ai.autoconfigure;
 import cn.byteforce.seedj.ai.AgentToolSpec;
 import cn.byteforce.seedj.ai.spi.ToolRegistry;
 import cn.byteforce.seedj.core.clock.Clock;
+import cn.byteforce.seedj.core.security.CallerIdCodec;
 import cn.byteforce.seedj.core.security.CallerProvider;
 import cn.byteforce.seedj.cqrs.CommandCatalog;
 import cn.byteforce.seedj.starter.ai.AiEnabledMarker;
@@ -30,8 +31,8 @@ import org.springframework.context.annotation.Configuration;
  * 执行侧 guard 装配：工具注册表、DecisionToken 签发/校验与命令入口过滤器。
  *
  * <p>门控是三层的：{@link AiEnabledMarker}（应用写了 {@code @EnableAIServer}）、{@code seedj.ai.guard.enabled}
- * （默认 true——执行侧默认拒绝无 token 的写命令）、servlet web 上下文。没有 web 上下文时命令入口不存在，只装配工具注册表与
- * token 组件。
+ * （默认 true——执行侧默认拒绝无 token 的写命令）、servlet web 上下文。没有 web 上下文时命令入口不存在，只装配工具
+ * 注册表与 token 组件。
  *
  * <p>{@link DecisionTokenIssuer} 在 guard 侧也提供（{@code @ConditionalOnMissingBean}）：T0 里决策面与执行侧同进程，
  * 守卫用同一个 issuer 发布的公钥验签；分角色部署时守卫需要的是公钥，未来换 JWKS 拉取（T0 不做）。
@@ -100,15 +101,20 @@ public class AiGuardAutoConfiguration {
                 properties.decision().audience());
     }
 
-    /** 过滤器与它的注册只对 servlet web 应用有意义：命令入口本身就是 HTTP。 */    @Configuration(proxyBeanMethods = false)
+    /** 过滤器与它的注册只对 servlet web 应用有意义：命令入口本身就是 HTTP。 */
+    @Configuration(proxyBeanMethods = false)
     @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
     static class GuardWebConfiguration {
 
         /**
          * 命令入口守卫。
          *
+         * <p>{@code CallerIdCodec} 与 {@code CommandController} 共用：缺省 {@code CallerIdCodec.uuid()}，
+         * 名称型标识的部署必须让两侧拿到同一个 {@code nameUuid()} 实现。
+         *
          * @param verifier token 校验器
          * @param callers 当前调用方（由 biz 安全链填充）
+         * @param callerIds 调用方标识 → actor 的编解码；缺省按 UUID 解析
          * @param clock 取时入口
          * @param properties AI 配置
          * @return 守卫过滤器
@@ -118,10 +124,12 @@ public class AiGuardAutoConfiguration {
         public AgentGuardFilter agentGuardFilter(
                 DecisionTokenVerifier verifier,
                 CallerProvider callers,
+                ObjectProvider<CallerIdCodec> callerIds,
                 Clock clock,
                 AiProperties properties) {
+            CallerIdCodec codec = callerIds.getIfAvailable(CallerIdCodec::uuid);
             return new AgentGuardFilter(
-                    verifier, callers, properties.decision().audience(), clock);
+                    verifier, callers, codec, properties.decision().audience(), clock);
         }
 
         /**
@@ -129,8 +137,9 @@ public class AiGuardAutoConfiguration {
          *
          * <p>顺序取安全链之后的一档：安全链（{@code springSecurityFilterChain}，order = {@code
          * SecurityFilterProperties.DEFAULT_FILTER_ORDER} = -100）先把 bearer 认成 {@code Caller}，守卫再消费
-         * {@code CallerProvider} 与 {@code x-agent-decision}；servlet filter 一律早于 {@code DispatcherServlet}，
-         * 所以仍在 {@code CommandController} 之前。跑在安全链之前会让调用方恒为空、每个写命令都 401。
+         * {@code CallerProvider} 与 {@code x-agent-decision}；servlet filter 一律早于 {@code
+         * DispatcherServlet}，所以仍在 {@code CommandController} 之前。跑在安全链之前会让调用方恒为空、
+         * 每个写命令都 401。
          *
          * @param filter 守卫过滤器
          * @return 注册项

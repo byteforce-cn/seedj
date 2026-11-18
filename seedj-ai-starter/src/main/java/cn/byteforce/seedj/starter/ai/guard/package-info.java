@@ -8,7 +8,7 @@
  * DecisionTokenVerifier} 给出，本包不重新判定 token 内容，也不做授权决策。
  *
  * <p><b>依赖方向</b>：依赖 {@code core} 的 AI 契约与调用方视图、{@code ai.token} 的签发/校验、{@code
- * seedj-biz-starter} 的命令请求体与命令目录（用于交叉校验，避免手写第二份命令清单）；禁止被宿主的业务包反向依赖，也禁止
- * 依赖具体存储实现。
+ * seedj-biz-starter} 的命令请求体与命令目录（用于交叉校验，避免手写第二份命令清单）；禁止被宿主的业务包反向依赖，
+ * 也禁止依赖具体存储实现。
  */
 package cn.byteforce.seedj.starter.ai.guard;

@@ -17,6 +17,7 @@ import cn.byteforce.seedj.ai.DecisionTokenClaims;
 import cn.byteforce.seedj.ai.PolicyRef;
 import cn.byteforce.seedj.core.clock.Clock;
 import cn.byteforce.seedj.core.security.Caller;
+import cn.byteforce.seedj.core.security.CallerIdCodec;
 import cn.byteforce.seedj.core.security.CallerProvider;
 import cn.byteforce.seedj.cqrs.CommandCatalog;
 import cn.byteforce.seedj.cqrs.CommandPolicy;
@@ -35,8 +36,13 @@ import cn.byteforce.seedj.starter.ai.autoconfigure.AiGuardAutoConfiguration;
 import cn.byteforce.seedj.starter.ai.token.DecisionTokenIssuer;
 import cn.byteforce.seedj.starter.ai.token.DecisionTokenVerifier;
 import cn.byteforce.seedj.starter.cqrs.web.CommandRequest;
+import jakarta.servlet.http.HttpServletRequest;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -45,6 +51,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
@@ -76,19 +83,19 @@ import tools.jackson.databind.json.JsonMapper;
 /**
  * 执行侧 guard 过滤器：没有合法 DecisionToken 就不许提交写命令。
  *
- * <p>用例覆盖三件事：拦的是哪些请求（只拦单段 {@code POST /commands/*}）、拒绝时给出哪个状态码与码字（401 缺凭据 /
- * 403 token 校验结论 / 400 坏载荷）、以及 {@code args_hash} 与版本是按**原始请求体**算的——换成脱敏后的载荷或忽略
- * {@code If-Match} 都会让 token 钉死的版本守卫失效。
+ * <p>用例覆盖三件事：拦的是哪些请求（只拦单段 {@code POST /commands/*}）、拒绝时给出哪个状态码与码字（401 缺凭据 / 403 token 校验结论 / 400
+ * 坏载荷）、以及 {@code args_hash} 与版本是按**原始请求体**算的——换成脱敏后的载荷或忽略 {@code If-Match} 都会让 token 钉死的版本守卫失效。
  *
  * <p>过滤器测试不启 Spring MVC 上下文：{@code MockMvcBuilders.standaloneSetup} 装配真实 {@link AgentGuardFilter}
- * 与真实 {@link DecisionTokenVerifier}，只有「启动期校验」与「装配开关」两个用例用 {@link
- * WebApplicationContextRunner} 验证自动配置。
+ * 与真实 {@link DecisionTokenVerifier}，只有「启动期校验」与「装配开关」两个用例用 {@link WebApplicationContextRunner}
+ * 验证自动配置。
  */
 class AgentGuardFilterTest {
 
     private static final String COMMAND_TYPE = "billing.refund";
     private static final UUID ACTOR = UUID.fromString("018f2e3a-0000-7000-8000-0000000a9e01");
-    private static final UUID ON_BEHALF_OF = UUID.fromString("018f2e3a-0000-7000-8000-000000000118");
+    private static final UUID ON_BEHALF_OF =
+            UUID.fromString("018f2e3a-0000-7000-8000-000000000118");
     private static final UUID TENANT = UUID.fromString("018f2e3a-0000-7000-8000-0000000b0007");
     private static final UUID DECISION_ID = UUID.fromString("018f2e3a-1234-7000-8000-00000000a001");
     private static final UUID OTHER_DECISION_ID =
@@ -99,7 +106,8 @@ class AgentGuardFilterTest {
     private static final UUID TARGET_2 = UUID.fromString("018f2e3a-0000-7000-8000-000000007732");
     private static final List<UUID> TARGETS = List.of(TARGET_1);
     private static final Long EXPECTED_VERSION = 7L;
-    private static final Map<String, Object> PAYLOAD = Map.of("amount", "128.00", "currency", "CNY");
+    private static final Map<String, Object> PAYLOAD =
+            Map.of("amount", "128.00", "currency", "CNY");
 
     private static final String KID = "agent-decision-test";
     private static final String AUDIENCE = "seedj-server-ai";
@@ -110,8 +118,7 @@ class AgentGuardFilterTest {
     private static final JsonMapper MAPPER = JsonMapper.builder().build();
 
     private static final DecisionTokenIssuer ISSUER =
-            new DecisionTokenIssuer(
-                    new AiProperties.Decision(seed(), KID, TTL, AUDIENCE));
+            new DecisionTokenIssuer(new AiProperties.Decision(seed(), KID, TTL, AUDIENCE));
     private static final DecisionTokenVerifier VERIFIER =
             new DecisionTokenVerifier(
                     Map.of(KID, ISSUER.jwks().publicKey()),
@@ -121,6 +128,9 @@ class AgentGuardFilterTest {
 
     private final AtomicBoolean commandSubmitted = new AtomicBoolean();
     private final AtomicBoolean commandQueried = new AtomicBoolean();
+    private final AtomicReference<Map<String, Object>> receivedPayload = new AtomicReference<>();
+    private final AtomicReference<String> receivedReaderBody = new AtomicReference<>();
+    private final AtomicInteger receivedContentLength = new AtomicInteger();
     private final AtomicReference<Caller> currentCaller = new AtomicReference<>(caller());
     private final CallerProvider callers = () -> Optional.ofNullable(currentCaller.get());
 
@@ -130,10 +140,18 @@ class AgentGuardFilterTest {
     void setUp() {
         commandSubmitted.set(false);
         commandQueried.set(false);
+        receivedPayload.set(null);
+        receivedReaderBody.set(null);
+        receivedContentLength.set(-1);
         currentCaller.set(caller());
+        mvc = mvcWith(CallerIdCodec.uuid());
+    }
+
+    /** 用给定 codec 建一个独立的 MVC 实例：actor 的解析策略必须与 {@code CommandController} 一致。 */
+    private MockMvc mvcWith(CallerIdCodec codec) {
         AgentGuardFilter filter =
-                new AgentGuardFilter(VERIFIER, callers, AUDIENCE, (Clock) () -> NOW);
-        mvc = MockMvcBuilders.standaloneSetup(new ProbeController()).addFilter(filter).build();
+                new AgentGuardFilter(VERIFIER, callers, codec, AUDIENCE, (Clock) () -> NOW);
+        return MockMvcBuilders.standaloneSetup(new ProbeController()).addFilter(filter).build();
     }
 
     @Test
@@ -197,6 +215,25 @@ class AgentGuardFilterTest {
                 .andExpect(status().isAccepted());
 
         assertThat(commandSubmitted).isTrue();
+        // 控制器拿到的是原文：脱敏只影响落库，不能影响执行面。
+        assertThat(receivedPayload.get()).isEqualTo(raw);
+    }
+
+    @Test
+    @DisplayName("控制器读到的是原文：请求体对 reader 与 content length 都是可重放的")
+    void request_body_is_replayable_for_the_controller() throws Exception {
+        String body = json(requestBody());
+
+        mvc.perform(
+                        post("/commands/" + COMMAND_TYPE)
+                                .header(AgentGuardFilter.DECISION_HEADER, token(COMMAND, PAYLOAD))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(body))
+                .andExpect(status().isAccepted());
+
+        assertThat(receivedReaderBody.get()).isEqualTo(body);
+        assertThat(receivedContentLength.get())
+                .isEqualTo(body.getBytes(StandardCharsets.UTF_8).length);
     }
 
     @Test
@@ -223,6 +260,72 @@ class AgentGuardFilterTest {
                 .andExpect(jsonPath("$.code").value("unauthenticated"));
 
         assertThat(commandSubmitted).isFalse();
+    }
+
+    @Test
+    @DisplayName("actor 由 CallerIdCodec 解析，而不是硬编码 UUID 解析")
+    void actor_is_resolved_by_caller_id_codec() throws Exception {
+        // 名称型 IdP 的标识不是 UUID：guard 与 CommandController 必须共用同一个 codec 策略。
+        currentCaller.set(caller("agent-runtime-1", TENANT.toString()));
+
+        mvcWith(ignored -> ACTOR)
+                .perform(
+                        post("/commands/" + COMMAND_TYPE)
+                                .header(AgentGuardFilter.DECISION_HEADER, token(COMMAND, PAYLOAD))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(json(requestBody())))
+                .andExpect(status().isAccepted());
+
+        assertThat(commandSubmitted).isTrue();
+
+        // 同一个标识在 uuid() 策略下解析不出来：401，既不 500 也不放行。
+        commandSubmitted.set(false);
+        mvcWith(CallerIdCodec.uuid())
+                .perform(
+                        post("/commands/" + COMMAND_TYPE)
+                                .header(AgentGuardFilter.DECISION_HEADER, token(COMMAND, PAYLOAD))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(json(requestBody())))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("unauthenticated"));
+
+        assertThat(commandSubmitted).isFalse();
+    }
+
+    @Test
+    @DisplayName("非 UUID 租户按不透明字符串比较：t_07 通过")
+    void non_uuid_tenant_is_accepted() throws Exception {
+        currentCaller.set(caller(ACTOR.toString(), "t_07"));
+
+        mvc.perform(
+                        post("/commands/" + COMMAND_TYPE)
+                                .header(
+                                        AgentGuardFilter.DECISION_HEADER,
+                                        token(COMMAND, PAYLOAD, "t_07"))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(json(requestBody())))
+                .andExpect(status().isAccepted());
+
+        assertThat(commandSubmitted).isTrue();
+    }
+
+    @Test
+    @DisplayName("租户不一致时 403 identity_mismatch")
+    void tenant_mismatch_is_rejected() throws Exception {
+        currentCaller.set(caller(ACTOR.toString(), "t_08"));
+
+        assertRejected(token(COMMAND, PAYLOAD, "t_07"), requestBody(), null, "identity_mismatch");
+    }
+
+    @Test
+    @DisplayName("targets 含 null 是 400 invalid_payload，不是 500")
+    void null_target_element_is_bad_request() throws Exception {
+        Map<String, Object> body = requestBody();
+        List<Object> targets = new ArrayList<>();
+        targets.add(null);
+        body.put("targets", targets);
+
+        assertRejected(token(COMMAND, PAYLOAD), body, null, "invalid_payload");
     }
 
     @Test
@@ -328,13 +431,17 @@ class AgentGuardFilterTest {
                             assertThat(registration.getOrder())
                                     .isGreaterThan(SecurityFilterProperties.DEFAULT_FILTER_ORDER)
                                     .isLessThan(0);
-                            assertThat(registration.getUrlPatterns()).containsExactly("/commands/*");
+                            assertThat(registration.getUrlPatterns())
+                                    .containsExactly("/commands/*");
                         });
     }
 
     private static Stream<Arguments> invalidPayloads() {
         return Stream.of(
-                arguments("缺少 type", (Consumer<Map<String, Object>>) body -> body.remove("type"), null),
+                arguments(
+                        "缺少 type",
+                        (Consumer<Map<String, Object>>) body -> body.remove("type"),
+                        null),
                 arguments(
                         "缺少 payload",
                         (Consumer<Map<String, Object>>) body -> body.remove("payload"),
@@ -366,7 +473,9 @@ class AgentGuardFilterTest {
                         ? status().isBadRequest()
                         : status().isForbidden();
 
-        mvc.perform(request).andExpect(expectedStatus).andExpect(jsonPath("$.code").value(expectedCode));
+        mvc.perform(request)
+                .andExpect(expectedStatus)
+                .andExpect(jsonPath("$.code").value(expectedCode));
 
         assertThat(commandSubmitted).isFalse();
     }
@@ -375,6 +484,10 @@ class AgentGuardFilterTest {
             new CommandRef(COMMAND_TYPE, TARGETS, EXPECTED_VERSION);
 
     private static String token(CommandRef command, Map<String, Object> payload) {
+        return token(command, payload, TENANT.toString());
+    }
+
+    private static String token(CommandRef command, Map<String, Object> payload, String tenant) {
         String argsHash =
                 ArgsHash.of(
                         new CommandFingerprint(
@@ -391,7 +504,7 @@ class AgentGuardFilterTest {
                         argsHash,
                         ACTOR,
                         ON_BEHALF_OF,
-                        TENANT.toString(),
+                        tenant,
                         ActionClass.REVERSIBLE,
                         PolicyRef.none(),
                         null,
@@ -416,16 +529,12 @@ class AgentGuardFilterTest {
     }
 
     private static Caller caller() {
+        return caller(ACTOR.toString(), TENANT.toString());
+    }
+
+    private static Caller caller(String id, String tenant) {
         return new Caller(
-                ACTOR.toString(),
-                "agent-runtime",
-                TENANT.toString(),
-                Set.of(),
-                Set.of(),
-                Set.of(),
-                Set.of(),
-                null,
-                null);
+                id, "agent-runtime", tenant, Set.of(), Set.of(), Set.of(), Set.of(), null, null);
     }
 
     private static String seed() {
@@ -491,8 +600,14 @@ class AgentGuardFilterTest {
 
         @PostMapping("/commands/{commandType}")
         ResponseEntity<Map<String, Object>> submit(
-                @PathVariable String commandType, @RequestBody CommandRequest request) {
+                @PathVariable String commandType,
+                @RequestBody CommandRequest request,
+                HttpServletRequest httpRequest)
+                throws IOException {
             commandSubmitted.set(true);
+            receivedPayload.set(request.payload());
+            receivedContentLength.set(httpRequest.getContentLength());
+            receivedReaderBody.set(readAll(httpRequest.getReader()));
             return ResponseEntity.status(202)
                     .body(Map.of("status", "accepted", "type", request.type()));
         }
@@ -502,5 +617,16 @@ class AgentGuardFilterTest {
             commandQueried.set(true);
             return ResponseEntity.ok(Map.of("status", "done", "command_id", id.toString()));
         }
+    }
+
+    private static String readAll(BufferedReader reader) throws IOException {
+        StringBuilder text = new StringBuilder();
+        char[] chunk = new char[1024];
+        int read = reader.read(chunk);
+        while (read != -1) {
+            text.append(chunk, 0, read);
+            read = reader.read(chunk);
+        }
+        return text.toString();
     }
 }

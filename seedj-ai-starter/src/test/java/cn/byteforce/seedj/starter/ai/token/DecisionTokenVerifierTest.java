@@ -482,7 +482,7 @@ class DecisionTokenVerifierTest {
         GuardContext context() {
             return new GuardContext(
                     ctxActor,
-                    TENANT_ID,
+                    TENANT,
                     ctxCommandType,
                     ctxPayload,
                     ctxTargets,
