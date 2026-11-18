@@ -45,17 +45,16 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * <p>四件事都只属于「宿主怎么接」而不是产品能力，所以不放进 {@code seedj-ai-starter}：
  *
  * <ul>
- *   <li><b>调用方</b>由固定 {@link CallerProvider} 给出：guard 用 {@code CallerIdCodec.uuid()} 把 {@code
- *       id} 解析成 token 里的 {@code actor}，用 {@code tenantId} 逐字比对 token 的 {@code tenant}——所以两者
- *       都必须是 UUID 字符串，且与 {@code seedj.ai.plane.tenant}/{@code identity.*} 是同一个值。它还带
- *       {@code agent:decide} 权限，否则决策面自己就会 403（{@code seedj.ai.plane.permission}）。
- *   <li><b>授权判定</b>一律放行：本 pilot 要证明的是决策 token 这道门（guard），seedj 自己的命令/对象权限层若也拦，就
- *       分不清是「决策面没签」还 是「授权没给」。这是夹具的取舍；生产上两层都要在。
- *   <li><b>工单表</b>用 {@code TemporalDdl} 从 {@link Ticket} 的 schema 建表：字段仍只有一个来源，迁移只在本进程启动时
- *       跑一次。
- *   <li><b>审计操作人</b>换成 agent principal：spec §6.3 要求链条目 {@code actor} = agent，而 dev-auth 把整个
- *       {@code Caller} 塞进认证主体，{@code AuditActor} 取到的是 {@code Caller.toString()}。夹具在安全链之后、guard
- *       之前把它换成 agent 的 UUID——链上因此能按 agent 归因。
+ *   <li><b>调用方</b>由固定 {@link CallerProvider} 给出：guard 用 {@code CallerIdCodec.uuid()} 把 {@code id}
+ *       解析成 token 里的 {@code actor}，用 {@code tenantId} 逐字比对 token 的 {@code tenant}——所以两者 都必须是 UUID
+ *       字符串，且与 {@code seedj.ai.plane.tenant}/{@code identity.*} 是同一个值。它还带 {@code agent:decide}
+ *       权限，否则决策面自己就会 403（{@code seedj.ai.plane.permission}）。
+ *   <li><b>授权判定</b>一律放行：本 pilot 要证明的是决策 token 这道门（guard），seedj 自己的命令/对象权限层若也拦，就 分不清是「决策面没签」还
+ *       是「授权没给」。这是夹具的取舍；生产上两层都要在。
+ *   <li><b>工单表</b>用 {@code TemporalDdl} 从 {@link Ticket} 的 schema 建表：字段仍只有一个来源，迁移只在本进程启动时 跑一次。
+ *   <li><b>审计操作人</b>换成 agent principal：spec §6.3 要求链条目 {@code actor} = agent，而 dev-auth 把整个 {@code
+ *       Caller} 塞进认证主体，{@code AuditActor} 取到的是 {@code Caller.toString()}。夹具在安全链之后、guard 之前把它换成
+ *       agent 的 UUID——链上因此能按 agent 归因。
  * </ul>
  *
  * @author ByteForce
@@ -219,9 +218,7 @@ public class PilotTestConfiguration {
                 SecurityContextHolder.getContext()
                         .setAuthentication(
                                 new UsernamePasswordAuthenticationToken(
-                                        AGENT_ID.toString(),
-                                        null,
-                                        current.getAuthorities()));
+                                        AGENT_ID.toString(), null, current.getAuthorities()));
             }
             chain.doFilter(request, response);
         }
@@ -236,8 +233,7 @@ public class PilotTestConfiguration {
         }
 
         @Override
-        public ScopePredicate resolve(
-                String objectType, Caller caller, ScopeContext context) {
+        public ScopePredicate resolve(String objectType, Caller caller, ScopeContext context) {
             return ScopePredicate.all();
         }
     }

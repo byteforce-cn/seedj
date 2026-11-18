@@ -22,18 +22,25 @@ class ArgsHashTest {
     @Test
     @DisplayName("args_hash 覆盖 targets 与 expectedVersion")
     void args_hash_covers_targets_and_expected_version() {
-        var base = new CommandFingerprint("ticket.create", Map.of("title", "t"), List.of(UUID_1), 7L);
+        var base =
+                new CommandFingerprint("ticket.create", Map.of("title", "t"), List.of(UUID_1), 7L);
 
         assertThat(ArgsHash.of(base))
                 .isNotEqualTo(
                         ArgsHash.of(
                                 new CommandFingerprint(
-                                        "ticket.create", Map.of("title", "t"), List.of(UUID_1), 8L)));
+                                        "ticket.create",
+                                        Map.of("title", "t"),
+                                        List.of(UUID_1),
+                                        8L)));
         assertThat(ArgsHash.of(base))
                 .isNotEqualTo(
                         ArgsHash.of(
                                 new CommandFingerprint(
-                                        "ticket.create", Map.of("title", "t"), List.of(UUID_2), 7L)));
+                                        "ticket.create",
+                                        Map.of("title", "t"),
+                                        List.of(UUID_2),
+                                        7L)));
         assertThat(ArgsHash.of(base)).startsWith("sha256:");
     }
 
@@ -42,7 +49,8 @@ class ArgsHashTest {
     void idem_fingerprint_matches_seedj_idempotency_fingerprint() {
         var fp = new CommandFingerprint("ticket.create", Map.of("title", "t"), List.of(UUID_1), 7L);
         var other =
-                new CommandFingerprint("ticket.create", Map.of("title", "t"), List.of(UUID_1), null);
+                new CommandFingerprint(
+                        "ticket.create", Map.of("title", "t"), List.of(UUID_1), null);
 
         assertThat(IdemFingerprint.of(fp)).isEqualTo(IdemFingerprint.of(other));
         assertThat(IdemFingerprint.of(fp))
@@ -55,7 +63,8 @@ class ArgsHashTest {
     @DisplayName("expectedVersion 为 null 与省略不同：args_hash 区分，idem_fingerprint 不区分")
     void expected_version_null_is_hashed_as_null_key() {
         var withoutVersion =
-                new CommandFingerprint("ticket.create", Map.of("title", "t"), List.of(UUID_1), null);
+                new CommandFingerprint(
+                        "ticket.create", Map.of("title", "t"), List.of(UUID_1), null);
         var withVersion =
                 new CommandFingerprint("ticket.create", Map.of("title", "t"), List.of(UUID_1), 7L);
 

@@ -14,24 +14,23 @@ import tools.jackson.databind.PropertyNamingStrategies;
 import tools.jackson.databind.annotation.JsonNaming;
 
 /**
- * 决策面的 HTTP 客户端：{@code POST {decisionBaseUrl}/v1/decisions} 求值，
- * {@code POST {decisionBaseUrl}/v1/decisions/{id}/outcome} 上报执行结局。
+ * 决策面的 HTTP 客户端：{@code POST {decisionBaseUrl}/v1/decisions} 求值， {@code POST
+ * {decisionBaseUrl}/v1/decisions/{id}/outcome} 上报执行结局。
  *
- * <p>线格式与决策面的 {@code DecisionService.DecisionRequest} 同构（snake_case）：
- * {@code task_contract_id} / {@code conversation_id} / {@code step} / {@code kind} /
- * {@code command{type,payload,targets,expected_version}} / {@code rationale} / {@code evidence} /
- * {@code model} / {@code audience}。请求里<b>没有</b> {@code decision_id}、{@code idempotency_key} 与
- * {@code args_hash}——它们由决策面生成或重算；token 只出现在响应里。
+ * <p>线格式与决策面的 {@code DecisionService.DecisionRequest} 同构（snake_case）： {@code task_contract_id} /
+ * {@code conversation_id} / {@code step} / {@code kind} / {@code
+ * command{type,payload,targets,expected_version}} / {@code rationale} / {@code evidence} / {@code
+ * model} / {@code audience}。请求里<b>没有</b> {@code decision_id}、{@code idempotency_key} 与 {@code
+ * args_hash}——它们由决策面生成或重算；token 只出现在响应里。
  *
- * <p><b>model 是部署事实，不是运行时输入</b>：来自 {@code seedj.ai.runtime.model.*}（见
- * {@link AiRuntimeAutoConfiguration}），不由 agent 或请求方自报。换模型或换提示词版本必须改配置。
+ * <p><b>model 是部署事实，不是运行时输入</b>：来自 {@code seedj.ai.runtime.model.*}（见 {@link
+ * AiRuntimeAutoConfiguration}），不由 agent 或请求方自报。换模型或换提示词版本必须改配置。
  *
- * <p><b>失败语义</b>：{@code deny} 是正常返回（{@link DecisionGrant#denyRule()} 有值）；HTTP 非 2xx 或响应缺必要
- * 字段抛 {@link IllegalStateException}。异常消息只带状态码，不含响应体，也不含任何凭据。outcome 上报同样只带状态码。
+ * <p><b>失败语义</b>：{@code deny} 是正常返回（{@link DecisionGrant#denyRule()} 有值）；HTTP 非 2xx 或响应缺必要 字段抛
+ * {@link IllegalStateException}。异常消息只带状态码，不含响应体，也不含任何凭据。outcome 上报同样只带状态码。
  *
- * <p><b>T0 的调用方只会在 {@code EXECUTE_TOOL} 时调用本类</b>：{@link BoundedLoop} 不对只读/收尾提案求值（决策面
- * 的 intent 要求 {@code command} 必填，而 {@code Proposal} 只对执行工具携带命令引用）；只读路径由宿主直接组合本类
- * 时自行保证请求带得上 {@code command}。
+ * <p><b>T0 的调用方只会在 {@code EXECUTE_TOOL} 时调用本类</b>：{@link BoundedLoop} 不对只读/收尾提案求值（决策面 的 intent 要求
+ * {@code command} 必填，而 {@code Proposal} 只对执行工具携带命令引用）；只读路径由宿主直接组合本类 时自行保证请求带得上 {@code command}。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -96,8 +95,7 @@ public final class HttpDecisionClient implements DecisionClient {
                             .retrieve()
                             .body(DecisionResponse.class);
         } catch (RestClientResponseException error) {
-            throw new IllegalStateException(
-                    "决策面返回 HTTP " + error.getStatusCode().value(), error);
+            throw new IllegalStateException("决策面返回 HTTP " + error.getStatusCode().value(), error);
         }
         return grant(response);
     }
@@ -118,12 +116,7 @@ public final class HttpDecisionClient implements DecisionClient {
         Objects.requireNonNull(commandId, "commandId");
         try {
             client.post()
-                    .uri(
-                            baseUrl
-                                    + DECISIONS_PATH
-                                    + "/"
-                                    + decisionId
-                                    + OUTCOME_PATH_SUFFIX)
+                    .uri(baseUrl + DECISIONS_PATH + "/" + decisionId + OUTCOME_PATH_SUFFIX)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(Map.of("command_id", commandId.toString()))
                     .retrieve()

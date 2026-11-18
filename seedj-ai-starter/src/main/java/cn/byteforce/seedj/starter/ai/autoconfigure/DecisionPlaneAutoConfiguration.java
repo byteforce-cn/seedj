@@ -43,26 +43,26 @@ import org.springframework.context.annotation.Configuration;
  * 决策面装配：能力集、决策服务、{@code /v1/decisions} 与 JWKS 端点。
  *
  * <p>门控是四层的：{@link AiEnabledMarker}（应用写了 {@code @EnableAIServer}）、{@code seedj.ai.plane.enabled}
- * （<b>默认 false</b>——执行侧不需要决策面）、servlet web 上下文。登记进 {@code AutoConfiguration.imports} 是安全的：
- * 没有 AI 启用标记的宿主（IAM / IM / HR 等）一个决策面 bean 都拿不到，也不会多出两个 HTTP 端点。
+ * （<b>默认 false</b>——执行侧不需要决策面）、servlet web 上下文。登记进 {@code AutoConfiguration.imports} 是安全的： 没有 AI
+ * 启用标记的宿主（IAM / IM / HR 等）一个决策面 bean 都拿不到，也不会多出两个 HTTP 端点。
  *
  * <p><b>与 guard 的 bean 复用</b>：{@link ToolRegistry} 与 {@link DecisionTokenIssuer} 在两侧都提供，靠
- * {@code @ConditionalOnMissingBean} 保证单例——只开决策面（不开 guard）的进程同样有工具注册表与签发方；两侧同进程时
- * 决策面复用 guard 已经建好的那两个 bean，签发的公钥与守卫验签用的公钥因此必然一致。
+ * {@code @ConditionalOnMissingBean} 保证单例——只开决策面（不开 guard）的进程同样有工具注册表与签发方；两侧同进程时 决策面复用 guard
+ * 已经建好的那两个 bean，签发的公钥与守卫验签用的公钥因此必然一致。
  *
- * <p><b>启动期校验</b>在 {@link DecisionService} 的构造器里：{@code seedj.ai.plane.tenant}、
- * {@code seedj.ai.identity.actor}、{@code seedj.ai.identity.on-behalf-of} 必须存在且是 UUID，任一缺失即启动失败并
- * 点名配置键。租户没有运行时来源（T0 无租户上下文注入），只能由配置钉死；身份同理——决策面不接受请求自称的主体。
- * {@code seedj.ai.decision.audience} 不做启动期强制：请求可以逐条给受众，两者都缺时那条请求 400。
+ * <p><b>启动期校验</b>在 {@link DecisionService} 的构造器里：{@code seedj.ai.plane.tenant}、 {@code
+ * seedj.ai.identity.actor}、{@code seedj.ai.identity.on-behalf-of} 必须存在且是 UUID，任一缺失即启动失败并
+ * 点名配置键。租户没有运行时来源（T0 无租户上下文注入），只能由配置钉死；身份同理——决策面不接受请求自称的主体。 {@code seedj.ai.decision.audience}
+ * 不做启动期强制：请求可以逐条给受众，两者都缺时那条请求 400。
  *
- * <p><b>授权在服务前校验</b>：{@link DecisionController} 只放行带 {@code seedj.ai.plane.permission}（默认
- * {@code agent:decide}）权限的调用方——认证只回答「你是谁」，不回答「你能否让 agent 动这个命令」。权限名为空白时
- * {@code plane.enabled=true} 直接启动失败并点名配置键。
+ * <p><b>授权在服务前校验</b>：{@link DecisionController} 只放行带 {@code seedj.ai.plane.permission}（默认 {@code
+ * agent:decide}）权限的调用方——认证只回答「你是谁」，不回答「你能否让 agent 动这个命令」。权限名为空白时 {@code plane.enabled=true}
+ * 直接启动失败并点名配置键。
  *
  * <p><b>outcome 上报与对账是可选的</b>：{@link OutcomeDeriver} 与 {@link ReconciliationJob} 只在能找到对账数据源时
  * 装配——{@code seedj.ai.plane.reconcile.datasource} 非空就按 bean 名取，空就用主 {@link DataSource}；两者都没有时
- * 一个也不装配（上报端点 503）并 WARN 一次，决策面本身不受影响。定时对账还要再加一道
- * {@code seedj.ai.plane.reconcile.enabled=true}（默认 false），且宿主需自己写 {@code @EnableScheduling}。
+ * 一个也不装配（上报端点 503）并 WARN 一次，决策面本身不受影响。定时对账还要再加一道 {@code seedj.ai.plane.reconcile.enabled=true}（默认
+ * false），且宿主需自己写 {@code @EnableScheduling}。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -140,9 +140,9 @@ public class DecisionPlaneAutoConfiguration {
     /**
      * 决策服务：判定契约能力、先落 intent、再决定签不签 token。
      *
-     * <p>{@code decision_id} 优先用宿主已有的唯一 {@link IdGenerator}{@code <UUID>}（biz 的
-     * {@code commandIdGenerator} 是 UUIDv7，时间有序）；没有时退化为 {@code UUID.randomUUID()}，有多个时也退化为
-     * 随机 UUID 并 WARN（多 id 生成器的宿主很常见，不能因此启动失败）。
+     * <p>{@code decision_id} 优先用宿主已有的唯一 {@link IdGenerator}{@code <UUID>}（biz 的 {@code
+     * commandIdGenerator} 是 UUIDv7，时间有序）；没有时退化为 {@code UUID.randomUUID()}，有多个时也退化为 随机 UUID 并 WARN（多
+     * id 生成器的宿主很常见，不能因此启动失败）。
      *
      * @param capabilities 能力集
      * @param registry 工具注册表
@@ -176,9 +176,8 @@ public class DecisionPlaneAutoConfiguration {
     /**
      * 取 {@code decision_id} 的生成器：只接受唯一候选，否则回退随机 UUID。
      *
-     * <p>{@code getIfUnique()} 在「没有」与「有多个且无 {@code @Primary}」两种情况下都返 {@code null}；后者必须只
-     * WARN 不失败——本仓常见多 id 生成器宿主（{@code commandIdGenerator}、业务自己的生成器），而这种宿主不应该因为
-     * 开了决策面就起不来。
+     * <p>{@code getIfUnique()} 在「没有」与「有多个且无 {@code @Primary}」两种情况下都返 {@code null}；后者必须只 WARN
+     * 不失败——本仓常见多 id 生成器宿主（{@code commandIdGenerator}、业务自己的生成器），而这种宿主不应该因为 开了决策面就起不来。
      */
     private static IdGenerator<UUID> decisionIds(ObjectProvider<IdGenerator<UUID>> idGenerators) {
         IdGenerator<UUID> unique = idGenerators.getIfUnique();
@@ -285,8 +284,7 @@ public class DecisionPlaneAutoConfiguration {
             prefix = "seedj.ai.plane.reconcile",
             name = "enabled",
             havingValue = "true")
-    public ReconciliationJob.Scheduler planeReconcileScheduler(
-            ReconciliationJob job, Clock clock) {
+    public ReconciliationJob.Scheduler planeReconcileScheduler(ReconciliationJob job, Clock clock) {
         return new ReconciliationJob.Scheduler(job, clock);
     }
 
@@ -320,8 +318,8 @@ public class DecisionPlaneAutoConfiguration {
     /**
      * 按配置取对账数据源：{@code seedj.ai.plane.reconcile.datasource} 非空时是 bean 名，空时用主数据源。
      *
-     * <p>不新建连接池配置：对账只借宿主的业务库读事实，第二套数据源配置会让「同一业务库」多一种连接方式。
-     * 宿主有多个数据源又没标 {@code @Primary} 时只能靠具名配置，所以本方法拒绝猜。
+     * <p>不新建连接池配置：对账只借宿主的业务库读事实，第二套数据源配置会让「同一业务库」多一种连接方式。 宿主有多个数据源又没标 {@code @Primary}
+     * 时只能靠具名配置，所以本方法拒绝猜。
      */
     private static DataSource reconcileDataSource(
             AiProperties properties,

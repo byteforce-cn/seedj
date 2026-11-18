@@ -32,17 +32,16 @@ import tools.jackson.databind.json.JsonMapper;
 /**
  * PostgreSQL 决策账本：每个 {@code append*} 单事务，按分区行锁串行推进哈希链。
  *
- * <p>追加顺序：建链头（{@code on conflict do nothing}）→ {@code select ... for update} 锁本分区 → 取
- * {@code sequence = last_sequence + 1} 与 {@code prev_hash = last_hash} → 组装记录体 → 算
- * {@link LedgerHash} → 插记录 → 推进链头。行锁让同分区的追加串行，不同分区互不阻塞。
+ * <p>追加顺序：建链头（{@code on conflict do nothing}）→ {@code select ... for update} 锁本分区 → 取 {@code
+ * sequence = last_sequence + 1} 与 {@code prev_hash = last_hash} → 组装记录体 → 算 {@link LedgerHash} →
+ * 插记录 → 推进链头。行锁让同分区的追加串行，不同分区互不阻塞。
  *
- * <p>幂等：{@code intent} 与 {@code outcome} 每个 decision 至多一条，先查后插；并发下先查后插会撞车， 最终由 partial unique
- * index 兜底——插入冲突时再查一次，返回已存在的那条。{@code approval} 与 {@code reconciled} 不幂等： 前者是每次观测一条审批事实，后者是每次核对一条观察。
+ * <p>幂等：{@code intent} 与 {@code outcome} 每个 decision 至多一条，先查后插；并发下先查后插会撞车， 最终由 partial unique index
+ * 兜底——插入冲突时再查一次，返回已存在的那条。{@code approval} 与 {@code reconciled} 不幂等： 前者是每次观测一条审批事实，后者是每次核对一条观察。
  *
  * <p><b>跨租户 fail-closed</b>：{@code partial unique index} 按 {@code decision_id} 全库唯一，同一 {@code
  * decision_id} 只属于一个租户。别的租户复用同一 {@code decision_id} 时一律拒绝（抛 {@link IllegalArgumentException}），
- * 既不返回已有租户的记录（不泄露存在性），也不写第二条影子记录——{@code find} / {@code byDecision} 是租户作用域
- * 的，返回别人的记录等于越权。
+ * 既不返回已有租户的记录（不泄露存在性），也不写第二条影子记录——{@code find} / {@code byDecision} 是租户作用域 的，返回别人的记录等于越权。
  *
  * <p>记录体（{@code body}）由 {@link DecisionRecordBodies} 组装，本类不自己拼 map：{@code record_hash} 覆盖整个
  * 记录体，两套实现写出的记录体不同，同一份决策在两套账本里的哈希就不同。
@@ -220,9 +219,9 @@ public final class PostgresDecisionLedger implements DecisionLedger {
     /**
      * 校对分区：<b>先读链头，再按链头截断扫记录</b>。
      *
-     * <p>记录与链头在同一个追加事务里提交，所以「读到的链头是第 N 条」意味着记录 1..N 都已提交；之后才提交的
-     * N+1 被 {@code sequence <= N} 排除，不会因为两次读之间有人追加而误报篡改。反过来，记录数少于 N 或者末条
-     * {@code record_hash} 对不上链头，就是尾部被截断或改过——行级触发器挡不住 {@code TRUNCATE}，这一条比对是必需的。
+     * <p>记录与链头在同一个追加事务里提交，所以「读到的链头是第 N 条」意味着记录 1..N 都已提交；之后才提交的 N+1 被 {@code sequence <= N}
+     * 排除，不会因为两次读之间有人追加而误报篡改。反过来，记录数少于 N 或者末条 {@code record_hash} 对不上链头，就是尾部被截断或改过——行级触发器挡不住 {@code
+     * TRUNCATE}，这一条比对是必需的。
      */
     @Override
     public LedgerVerification verify(String partition) {
@@ -307,8 +306,7 @@ public final class PostgresDecisionLedger implements DecisionLedger {
                             }
                             ChainHead head = heads.get(0);
                             long sequence = head.lastSequence() + 1;
-                            Instant recordedAt =
-                                    Instant.now().truncatedTo(ChronoUnit.MICROS);
+                            Instant recordedAt = Instant.now().truncatedTo(ChronoUnit.MICROS);
                             DecisionRecord unsigned =
                                     new DecisionRecord(
                                             UUID.randomUUID(),
@@ -388,8 +386,8 @@ public final class PostgresDecisionLedger implements DecisionLedger {
      * <p>{@code partial unique index} 按 {@code decision_id} 全库唯一，所以跨租户复用必然撞上别人的记录；把它返回给
      * 调用方就是跨租户数据泄露，与 {@code find} / {@code byDecision} 的租户作用域自相矛盾。
      *
-     * <p>追加路径的三个出口——外层预查命中、事务内查到的既有记录（READ COMMITTED 下能看到并发事务刚提交的行）、
-     * {@code unique index} 冲突后的回查——全部经本方法过一道，少一处就会把别人的记录当幂等结果返回。
+     * <p>追加路径的三个出口——外层预查命中、事务内查到的既有记录（READ COMMITTED 下能看到并发事务刚提交的行）、 {@code unique index}
+     * 冲突后的回查——全部经本方法过一道，少一处就会把别人的记录当幂等结果返回。
      */
     private static DecisionRecord existingForTenant(DecisionRecord existing, UUID tenantId) {
         if (!existing.tenantId().equals(tenantId)) {

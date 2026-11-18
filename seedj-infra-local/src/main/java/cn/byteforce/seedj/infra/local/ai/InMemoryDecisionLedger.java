@@ -25,19 +25,18 @@ import java.util.concurrent.locks.ReentrantLock;
 /**
  * 内存决策账本：按租户分区、每分区一把锁串行推进哈希链。
  *
- * <p>与 {@code PostgresDecisionLedger} 同语义：记录体由 {@link DecisionRecordBodies} 组装、哈希由
- * {@link LedgerHash} 计算、分区名按 {@link DecisionRecord#partitionOf(UUID)}——同一份决策在两套账本里写出同一个
- * {@code record_hash}。追加时在分区锁内取 {@code sequence = lastSequence + 1} 与 {@code prevHash = lastHash}，
- * 写记录后推进链头：链推进按分区串行；{@code intent}/{@code outcome} 的全局唯一判定走 {@code uniqueLock}，因此这两类
- * 追加全局串行，{@code approval}/{@code reconciled} 只受分区锁约束。
+ * <p>与 {@code PostgresDecisionLedger} 同语义：记录体由 {@link DecisionRecordBodies} 组装、哈希由 {@link
+ * LedgerHash} 计算、分区名按 {@link DecisionRecord#partitionOf(UUID)}——同一份决策在两套账本里写出同一个 {@code
+ * record_hash}。追加时在分区锁内取 {@code sequence = lastSequence + 1} 与 {@code prevHash = lastHash}，
+ * 写记录后推进链头：链推进按分区串行；{@code intent}/{@code outcome} 的全局唯一判定走 {@code uniqueLock}，因此这两类 追加全局串行，{@code
+ * approval}/{@code reconciled} 只受分区锁约束。
  *
- * <p>幂等：{@code intent} 与 {@code outcome} 每个 decision 至多一条（重复追加返回首次记录）；{@code approval} 与
- * {@code reconciled} 不幂等，每次一条。非 intent 记录的租户由已落账的 intent 反查。
+ * <p>幂等：{@code intent} 与 {@code outcome} 每个 decision 至多一条（重复追加返回首次记录）；{@code approval} 与 {@code
+ * reconciled} 不幂等，每次一条。非 intent 记录的租户由已落账的 intent 反查。
  *
  * <p><b>跨租户 fail-closed</b>：PG 的两个 partial unique index 按 {@code decision_id} 全库唯一，同一 {@code
- * decision_id} 只属于一个租户。内存侧用两张全局索引（{@code decision_id} → 首条 intent / outcome）表达同一约束：
- * 别的租户复用同一 {@code decision_id} 时一律拒绝（抛 {@link IllegalArgumentException}），既不返回已有租户的记录
- * （不泄露存在性），也不写第二条影子记录。
+ * decision_id} 只属于一个租户。内存侧用两张全局索引（{@code decision_id} → 首条 intent / outcome）表达同一约束： 别的租户复用同一 {@code
+ * decision_id} 时一律拒绝（抛 {@link IllegalArgumentException}），既不返回已有租户的记录 （不泄露存在性），也不写第二条影子记录。
  *
  * <p>状态在堆上，进程重启即丢；这是本地开发与测试的参照实现，不用于生产。
  *
@@ -93,7 +92,8 @@ public final class InMemoryDecisionLedger implements DecisionLedger {
     }
 
     @Override
-    public DecisionRecord appendOutcome(UUID decisionId, DecisionEffect effect, OutcomeSource source) {
+    public DecisionRecord appendOutcome(
+            UUID decisionId, DecisionEffect effect, OutcomeSource source) {
         Objects.requireNonNull(decisionId, "decisionId");
         Objects.requireNonNull(effect, "effect");
         Objects.requireNonNull(source, "source");
@@ -176,8 +176,8 @@ public final class InMemoryDecisionLedger implements DecisionLedger {
     /**
      * 校对分区：<b>先取链头快照，再按链头截断扫记录</b>——与 {@code PostgresDecisionLedger#verify} 同一套判定。
      *
-     * <p>{@code sequence <= lastSequence} 之外（快照之后才追加）的记录不参与校对，所以两次读之间有人追加也不会误报；
-     * 记录数少于链头序号或末条 {@code record_hash} 对不上链头的哈希，就是尾部被截断或改过。
+     * <p>{@code sequence <= lastSequence} 之外（快照之后才追加）的记录不参与校对，所以两次读之间有人追加也不会误报； 记录数少于链头序号或末条 {@code
+     * record_hash} 对不上链头的哈希，就是尾部被截断或改过。
      */
     @Override
     public LedgerVerification verify(String partition) {
@@ -206,7 +206,11 @@ public final class InMemoryDecisionLedger implements DecisionLedger {
                 String expectedHash = LedgerHash.of(record);
                 if (!expectedHash.equals(record.recordHash())) {
                     return LedgerVerification.mismatch(
-                            partition, checked, record.recordId(), expectedHash, record.recordHash());
+                            partition,
+                            checked,
+                            record.recordId(),
+                            expectedHash,
+                            record.recordHash());
                 }
                 expectedPrev = record.recordHash();
             }
@@ -235,8 +239,8 @@ public final class InMemoryDecisionLedger implements DecisionLedger {
     /**
      * 同一 {@code decision_id} 只属于一个租户：租户相同则幂等返回首条，不同则 fail-closed 拒绝。
      *
-     * <p>PG 的两个 partial unique index 按 {@code decision_id} 全库唯一；把别的租户的记录返回给调用方就是跨租户数据泄露，
-     * 与 {@code find} / {@code byDecision} 的租户作用域自相矛盾。
+     * <p>PG 的两个 partial unique index 按 {@code decision_id} 全库唯一；把别的租户的记录返回给调用方就是跨租户数据泄露， 与 {@code
+     * find} / {@code byDecision} 的租户作用域自相矛盾。
      */
     private static DecisionRecord existingForTenant(DecisionRecord existing, UUID tenantId) {
         if (!existing.tenantId().equals(tenantId)) {
@@ -269,7 +273,10 @@ public final class InMemoryDecisionLedger implements DecisionLedger {
 
     /** 在分区锁内追加一条记录。 */
     private DecisionRecord append(
-            Partition partition, UUID decisionId, DecisionRecordKind kind, Map<String, Object> body) {
+            Partition partition,
+            UUID decisionId,
+            DecisionRecordKind kind,
+            Map<String, Object> body) {
         partition.lock.lock();
         try {
             return appendLocked(partition, decisionId, kind, body);
@@ -280,7 +287,10 @@ public final class InMemoryDecisionLedger implements DecisionLedger {
 
     /** 追加记录并推进链头；调用方必须已持有 {@code partition.lock}。 */
     private DecisionRecord appendLocked(
-            Partition partition, UUID decisionId, DecisionRecordKind kind, Map<String, Object> body) {
+            Partition partition,
+            UUID decisionId,
+            DecisionRecordKind kind,
+            Map<String, Object> body) {
         long sequence = partition.sequence + 1;
         Instant recordedAt = Instant.now().truncatedTo(ChronoUnit.MICROS);
         DecisionRecord unsigned =

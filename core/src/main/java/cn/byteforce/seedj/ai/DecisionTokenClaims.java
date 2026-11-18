@@ -7,13 +7,13 @@ import java.util.UUID;
 /**
  * 决策 token 的 claim 值：守卫校验所需的最小事实集合。
  *
- * <p>本类型只存值，不存签名或 JWS 对象——{@code core} 不依赖 token 库，签发与验签由 starter 侧完成。 token 只描述“被批准的这一次执行”：
- * {@code command} + {@code argsHash} 固定命令与参数，{@code actor}/{@code onBehalfOf}/{@code tenant}
- * 固定主体，{@code issuedAt}/{@code expiresAt}/{@code audience} 固定有效期与受众。
+ * <p>本类型只存值，不存签名或 JWS 对象——{@code core} 不依赖 token 库，签发与验签由 starter 侧完成。 token 只描述“被批准的这一次执行”： {@code
+ * command} + {@code argsHash} 固定命令与参数，{@code actor}/{@code onBehalfOf}/{@code tenant} 固定主体，{@code
+ * issuedAt}/{@code expiresAt}/{@code audience} 固定有效期与受众。
  *
  * <p>{@link #approval()} 与 {@link ActionClass#requiresApproval()} 的对应关系在这里就强制：需要审批的动作分类 必须带
- * <b>已批准</b>的审批快照，不需要的必须不带。只校验“快照非空”不够：{@code rejected}/{@code pending} 的审批
- * 会签出一张“无法拒绝”的 token，而守卫的错误码表里没有“审批未通过”这一项。
+ * <b>已批准</b>的审批快照，不需要的必须不带。只校验“快照非空”不够：{@code rejected}/{@code pending} 的审批 会签出一张“无法拒绝”的
+ * token，而守卫的错误码表里没有“审批未通过”这一项。
  *
  * @param v claim 版本，固定为 {@value #VERSION}
  * @param decisionId 决策标识
@@ -54,8 +54,8 @@ public record DecisionTokenClaims(
     /**
      * 校验版本、必填项与“动作分类 ↔ 审批快照”的对应关系。
      *
-     * @throws IllegalArgumentException {@code v} 不是 {@value #VERSION}、文本为空白、审批状态不是 {@code approved}，
-     *     或审批快照与动作分类不匹配
+     * @throws IllegalArgumentException {@code v} 不是 {@value #VERSION}、文本为空白、审批状态不是 {@code
+     *     approved}， 或审批快照与动作分类不匹配
      * @throws NullPointerException 必填项为 {@code null}
      */
     public DecisionTokenClaims {

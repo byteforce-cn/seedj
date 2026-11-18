@@ -114,9 +114,7 @@ class DecisionRecordTest {
                                 new DecisionRecord(
                                         "recordId".equals(component) ? null : RECORD,
                                         "decisionId".equals(component) ? null : DECISION,
-                                        "kind".equals(component)
-                                                ? null
-                                                : DecisionRecordKind.INTENT,
+                                        "kind".equals(component) ? null : DecisionRecordKind.INTENT,
                                         DecisionRecord.partitionOf(TENANT),
                                         1L,
                                         ZERO_HASH,

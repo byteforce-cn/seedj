@@ -15,21 +15,18 @@ import org.springframework.web.client.RestClient;
 /**
  * agent 循环装配：LLM 端口 → 决策面客户端 → 工具客户端 → {@link BoundedLoop}。
  *
- * <p>门控是两层的：{@link AiEnabledMarker}（应用写了 {@code @EnableAIServer}）与
- * {@code seedj.ai.runtime.enabled}（<b>默认 false</b>——决策面/执行侧不需要 agent 循环）。
+ * <p>门控是两层的：{@link AiEnabledMarker}（应用写了 {@code @EnableAIServer}）与 {@code
+ * seedj.ai.runtime.enabled}（<b>默认 false</b>——决策面/执行侧不需要 agent 循环）。
  *
  * <p><b>LLM 端口必须由宿主提供</b>：{@link BoundedLoop} 只在上下文里有 {@link LlmGateway} 时装配，本模块不造默认
- * 实现——「哪个模型、什么提示词」是宿主的部署事实，starter 猜不出来。缺端口时决策面与工具客户端照常装配（宿主可以只用
- * 它们），只有循环没有。
+ * 实现——「哪个模型、什么提示词」是宿主的部署事实，starter 猜不出来。缺端口时决策面与工具客户端照常装配（宿主可以只用 它们），只有循环没有。
  *
- * <p><b>model 是部署事实，不是运行时输入</b>：{@code seedj.ai.runtime.model.name} 与
- * {@code seedj.ai.runtime.model.version} 在 {@code runtime.enabled=true} 时必填，缺失即启动失败并点名配置键。它们进
- * 决策请求的 {@code model} 字段，也就是账本里的「哪一版模型/提示词做了这个决定」：换模型或换提示词版本必须改配置，
- * 不能由 agent 或请求方自报。
+ * <p><b>model 是部署事实，不是运行时输入</b>：{@code seedj.ai.runtime.model.name} 与 {@code
+ * seedj.ai.runtime.model.version} 在 {@code runtime.enabled=true} 时必填，缺失即启动失败并点名配置键。它们进 决策请求的 {@code
+ * model} 字段，也就是账本里的「哪一版模型/提示词做了这个决定」：换模型或换提示词版本必须改配置， 不能由 agent 或请求方自报。
  *
- * <p>两个 HTTP 客户端都基于 Boot 提供的 {@link RestClient.Builder}（克隆一份再设超时，不改宿主的构造器），地址与超时
- * 来自 {@code seedj.ai.runtime.decision-base-url} / {@code command-base-url} /
- * {@code request-timeout}。
+ * <p>两个 HTTP 客户端都基于 Boot 提供的 {@link RestClient.Builder}（克隆一份再设超时，不改宿主的构造器），地址与超时 来自 {@code
+ * seedj.ai.runtime.decision-base-url} / {@code command-base-url} / {@code request-timeout}。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -117,8 +114,7 @@ public class AiRuntimeAutoConfiguration {
 
     private static void requireText(String value, String key) {
         if (value == null || value.isBlank()) {
-            throw new IllegalStateException(
-                    key + " 未配置：model 是部署事实（换模型/提示词版本必须改配置），不由 agent 自报");
+            throw new IllegalStateException(key + " 未配置：model 是部署事实（换模型/提示词版本必须改配置），不由 agent 自报");
         }
     }
 }

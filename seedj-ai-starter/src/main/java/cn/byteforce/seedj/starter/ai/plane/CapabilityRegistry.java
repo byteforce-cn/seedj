@@ -12,8 +12,8 @@ import java.util.Optional;
  * 任务契约的能力集：一个任务能调哪些命令，只由 {@code seedj.ai.contracts[]} 声明。
  *
  * <p>它是决策面的授权锚点——账本记的是 {@code task_contract_id}，越权判定也只看这张表。<b>启动期校验</b>：契约标识非空白、
- * 不重复，每条契约至少有一个命令，且每个命令类型都已在 {@link ToolRegistry} 登记。最后一条让「允许但查不到动作分类」
- * 成为不可能：动作分类只在工具注册表里，缺项的契约命令会让 deny 分支无法落账（见 {@link DecisionService}）。
+ * 不重复，每条契约至少有一个命令，且每个命令类型都已在 {@link ToolRegistry} 登记。最后一条让「允许但查不到动作分类」 成为不可能：动作分类只在工具注册表里，缺项的契约命令会让
+ * deny 分支无法落账（见 {@link DecisionService}）。
  *
  * <p>不做「命令 → 契约」反查，也不缓存判定结果：调用方每步拿 {@code (task_contract_id, command.type)} 来问一次。
  *
@@ -50,8 +50,7 @@ public final class CapabilityRegistry {
             }
             for (String commandType : contract.commands()) {
                 if (commandType == null || commandType.isBlank()) {
-                    throw new IllegalStateException(
-                            "seedj.ai.contracts 的 " + id + " 存在缺少命令类型的条目");
+                    throw new IllegalStateException("seedj.ai.contracts 的 " + id + " 存在缺少命令类型的条目");
                 }
                 if (tools.find(commandType).isEmpty()) {
                     throw new IllegalStateException(

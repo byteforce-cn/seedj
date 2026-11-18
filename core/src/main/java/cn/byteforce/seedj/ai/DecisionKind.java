@@ -3,8 +3,8 @@ package cn.byteforce.seedj.ai;
 /**
  * 决策步的类型：agent 每一步只做一件事，类型决定后续校验口径。
  *
- * <p>线格式为小写名（{@code execute_tool} 等），是 token claim、账本记录与决策面共用的稳定字符串；
- * Java 枚举名只用于代码内比较。只有 {@link #EXECUTE_TOOL} 步骤携带命令与动作分类。
+ * <p>线格式为小写名（{@code execute_tool} 等），是 token claim、账本记录与决策面共用的稳定字符串； Java 枚举名只用于代码内比较。只有 {@link
+ * #EXECUTE_TOOL} 步骤携带命令与动作分类。
  *
  * @author ByteForce
  * @since 1.0.0

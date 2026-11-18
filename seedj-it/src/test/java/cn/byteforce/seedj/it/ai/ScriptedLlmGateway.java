@@ -55,8 +55,7 @@ final class ScriptedLlmGateway implements LlmGateway {
     public Proposal next(Prompt prompt) {
         Proposal proposal = script.pollFirst();
         if (proposal == null) {
-            throw new IllegalStateException(
-                    "脚本已耗尽，循环仍要求第 " + prompt.step() + " 步的提案");
+            throw new IllegalStateException("脚本已耗尽，循环仍要求第 " + prompt.step() + " 步的提案");
         }
         return proposal;
     }

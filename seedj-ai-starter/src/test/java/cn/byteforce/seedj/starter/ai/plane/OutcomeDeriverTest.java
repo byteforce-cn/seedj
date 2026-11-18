@@ -55,15 +55,15 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 /**
  * outcome 上报与对账（spec §6.3 链上条目现状、§6.4 两段式效果与对账）。
  *
- * <p>两条断言贯穿全类：<b>上报不是结论</b>——runtime 只能报 {@code command_id}，结局一律由链上事实推导，
- * {@code audit_entry_id} 在上报阶段永远为空；<b>对账才补链校验</b>——{@code reconciled} 记录按
- * {@code audit_entry > command_record} 的关联补 {@code audit_entry_id}，绝不回填原 outcome。
+ * <p>两条断言贯穿全类：<b>上报不是结论</b>——runtime 只能报 {@code command_id}，结局一律由链上事实推导， {@code audit_entry_id}
+ * 在上报阶段永远为空；<b>对账才补链校验</b>——{@code reconciled} 记录按 {@code audit_entry > command_record} 的关联补 {@code
+ * audit_entry_id}，绝不回填原 outcome。
  *
- * <p>对账还要<b>去重</b>：{@code reconciled} 在账本里不幂等（每次一条观察），而 outcome 落账后永远是
- * {@code ok + audit_entry_id=null}，所以同一 decision 只补一次链校验记录，重复运行是 no-op。
+ * <p>对账还要<b>去重</b>：{@code reconciled} 在账本里不幂等（每次一条观察），而 outcome 落账后永远是 {@code ok +
+ * audit_entry_id=null}，所以同一 decision 只补一次链校验记录，重复运行是 no-op。
  *
- * <p>业务库用真 PostgreSQL（{@code command_record} 与 {@code audit_entry} 的约束、jsonb 取值都在测试里落实），
- * 账本用 {@link InMemoryDecisionLedger}：这里验的是派生与对账规则，不是账本实现（那有各自的契约测试）。
+ * <p>业务库用真 PostgreSQL（{@code command_record} 与 {@code audit_entry} 的约束、jsonb 取值都在测试里落实）， 账本用 {@link
+ * InMemoryDecisionLedger}：这里验的是派生与对账规则，不是账本实现（那有各自的契约测试）。
  */
 @Testcontainers
 class OutcomeDeriverTest {
@@ -415,9 +415,7 @@ class OutcomeDeriverTest {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(
-                        jsonPath("$.code")
-                                .value(ContractErrorCode.INVALID_PAYLOAD.getCode()));
+                .andExpect(jsonPath("$.code").value(ContractErrorCode.INVALID_PAYLOAD.getCode()));
     }
 
     /** 账本 fixture：一条 {@code execute_tool} 意图。 */

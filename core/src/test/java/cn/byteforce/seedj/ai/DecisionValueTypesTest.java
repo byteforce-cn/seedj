@@ -14,7 +14,8 @@ import org.junit.jupiter.api.Test;
 /**
  * 契约值类型的校验口径：JSON body 载体容忍可空字段，不可逆动作只接受已批准的审批。
  *
- * <p>这两条都是“签不出坏记录/token”的前置条件：账本体按字段组装，必定出现 null value；不可逆动作若允许 未通过的审批写进 token，守卫的错误码表里没有对应拒绝项，等于放行。
+ * <p>这两条都是“签不出坏记录/token”的前置条件：账本体按字段组装，必定出现 null value；不可逆动作若允许 未通过的审批写进
+ * token，守卫的错误码表里没有对应拒绝项，等于放行。
  */
 class DecisionValueTypesTest {
 
@@ -22,10 +23,12 @@ class DecisionValueTypesTest {
     private static final UUID DECISION = UUID.fromString("22222222-2222-2222-2222-222222222222");
     private static final UUID RECORD = UUID.fromString("33333333-3333-3333-3333-333333333333");
     private static final UUID ACTOR = UUID.fromString("44444444-4444-4444-4444-444444444444");
-    private static final UUID ON_BEHALF_OF = UUID.fromString("55555555-5555-5555-5555-555555555555");
+    private static final UUID ON_BEHALF_OF =
+            UUID.fromString("55555555-5555-5555-5555-555555555555");
     private static final UUID TASK_CONTRACT =
             UUID.fromString("66666666-6666-6666-6666-666666666666");
-    private static final UUID CONVERSATION = UUID.fromString("77777777-7777-7777-7777-777777777777");
+    private static final UUID CONVERSATION =
+            UUID.fromString("77777777-7777-7777-7777-777777777777");
     private static final Instant ISSUED_AT = Instant.parse("2026-11-18T00:00:00Z");
     private static final String ARGS_HASH = "sha256:" + "a".repeat(64);
 
@@ -64,11 +67,7 @@ class DecisionValueTypesTest {
                         ApprovalStatus.UNKNOWN);
 
         for (ApprovalStatus status : notApproved) {
-            assertThatThrownBy(
-                            () ->
-                                    claims(
-                                            ActionClass.IRREVERSIBLE_FINANCIAL,
-                                            approval(status)))
+            assertThatThrownBy(() -> claims(ActionClass.IRREVERSIBLE_FINANCIAL, approval(status)))
                     .as("status %s 不得进入 token", status)
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("approval")
@@ -142,8 +141,7 @@ class DecisionValueTypesTest {
                 3L);
     }
 
-    private static DecisionTokenClaims claims(
-            ActionClass actionClass, ApprovalSnapshot approval) {
+    private static DecisionTokenClaims claims(ActionClass actionClass, ApprovalSnapshot approval) {
         return new DecisionTokenClaims(
                 DecisionTokenClaims.VERSION,
                 DECISION,

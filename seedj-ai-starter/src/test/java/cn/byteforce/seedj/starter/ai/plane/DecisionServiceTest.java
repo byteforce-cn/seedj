@@ -21,11 +21,11 @@ import cn.byteforce.seedj.ai.Evidence;
 import cn.byteforce.seedj.ai.LedgerVerification;
 import cn.byteforce.seedj.ai.OutcomeSource;
 import cn.byteforce.seedj.ai.spi.DecisionLedger;
-import cn.byteforce.seedj.core.security.Caller;
 import cn.byteforce.seedj.ai.spi.ToolRegistry;
 import cn.byteforce.seedj.core.clock.Clock;
 import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;
+import cn.byteforce.seedj.core.security.Caller;
 import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.infra.local.ai.InMemoryDecisionLedger;
 import cn.byteforce.seedj.starter.ai.AiEnabledMarker;
@@ -58,9 +58,9 @@ import tools.jackson.databind.json.JsonMapper;
  * <p>核心断言是<b>顺序</b>：intent 先落账、token 后签发，中间任何一步失败都不能让「无意图的执行」发生。因此用例用
  * 一个记账的账本装饰器与一个可抛异常的签发口记录事件序列，而不是只看最终响应。
  *
- * <p>纯 JUnit：不启动 Spring。只有装配期用例（缺 {@code plane.tenant} 启动失败、JWKS 端点开关、多个
- * {@code IdGenerator<UUID>} 时回退随机 UUID）用 {@link WebApplicationContextRunner}，因为它们是
- * {@code @ConditionalOnProperty}、构造期校验与 bean 解析的行为。
+ * <p>纯 JUnit：不启动 Spring。只有装配期用例（缺 {@code plane.tenant} 启动失败、JWKS 端点开关、多个 {@code IdGenerator<UUID>}
+ * 时回退随机 UUID）用 {@link WebApplicationContextRunner}，因为它们是 {@code @ConditionalOnProperty}、构造期校验与 bean
+ * 解析的行为。
  */
 class DecisionServiceTest {
 
@@ -216,8 +216,7 @@ class DecisionServiceTest {
                         "a".repeat(DecisionService.MAX_RATIONALE_BYTES),
                         AUDIENCE));
         // 341 个汉字 = 1023 字节：字符数远小于 1024，但按字节也没超，必须允许
-        service.decide(
-                executeTool(CONTRACT, CREATE, List.of(TARGET_A), "票".repeat(341), AUDIENCE));
+        service.decide(executeTool(CONTRACT, CREATE, List.of(TARGET_A), "票".repeat(341), AUDIENCE));
         assertThat(events).containsExactly("intent", "sign", "intent", "sign");
 
         assertThatThrownBy(
@@ -227,8 +226,7 @@ class DecisionServiceTest {
                                                 CONTRACT,
                                                 CREATE,
                                                 List.of(TARGET_A),
-                                                "a".repeat(
-                                                        DecisionService.MAX_RATIONALE_BYTES + 1),
+                                                "a".repeat(DecisionService.MAX_RATIONALE_BYTES + 1),
                                                 AUDIENCE)))
                 .isInstanceOfSatisfying(
                         ContractException.class,
@@ -263,7 +261,9 @@ class DecisionServiceTest {
 
         assertThat(result.verdict()).isEqualTo("deny");
         assertThat(result.denyRule()).isEqualTo("CONTRACT_CAPABILITY");
-        assertThat(intents).singleElement().extracting(DecisionIntent::actionClass)
+        assertThat(intents)
+                .singleElement()
+                .extracting(DecisionIntent::actionClass)
                 .isEqualTo(ActionClass.COMPENSABLE);
     }
 
@@ -311,7 +311,9 @@ class DecisionServiceTest {
                                 CREATE, Map.of("amount", "128.00"), List.of(TARGET_A), 7L));
         assertThat(expected).isNotEqualTo("sha256:forged");
         assertThat(result.token()).isNotNull();
-        assertThat(signed).singleElement().extracting(DecisionTokenClaims::argsHash)
+        assertThat(signed)
+                .singleElement()
+                .extracting(DecisionTokenClaims::argsHash)
                 .isEqualTo(expected);
     }
 
@@ -333,14 +335,16 @@ class DecisionServiceTest {
 
         service().decide(JSON.readValue(json, DecisionService.DecisionRequest.class));
 
-        assertThat(signed).singleElement()
+        assertThat(signed)
+                .singleElement()
                 .satisfies(
                         claims -> {
                             assertThat(claims.actor()).isEqualTo(ACTOR);
                             assertThat(claims.onBehalfOf()).isEqualTo(ON_BEHALF_OF);
                             assertThat(claims.tenant()).isEqualTo(TENANT.toString());
                         });
-        assertThat(intents).singleElement()
+        assertThat(intents)
+                .singleElement()
                 .satisfies(
                         intent -> {
                             assertThat(intent.identity().actor()).isEqualTo(ACTOR);
@@ -486,8 +490,7 @@ class DecisionServiceTest {
                 .andExpect(jsonPath("$.records[0].record_id").isNotEmpty())
                 .andExpect(jsonPath("$.records[0].recorded_at").isNotEmpty());
 
-        mvc.perform(get("/v1/decisions/" + UUID.randomUUID()))
-                .andExpect(status().isNotFound());
+        mvc.perform(get("/v1/decisions/" + UUID.randomUUID())).andExpect(status().isNotFound());
     }
 
     @Test
@@ -536,8 +539,7 @@ class DecisionServiceTest {
                             assertThat(context).hasNotFailed();
                             assertThat(context).hasSingleBean(JwksController.class);
                             assertThat(context).hasSingleBean(DecisionService.class);
-                            MockMvcBuilders.standaloneSetup(
-                                            context.getBean(JwksController.class))
+                            MockMvcBuilders.standaloneSetup(context.getBean(JwksController.class))
                                     .build()
                                     .perform(get(JwksController.JWKS_PATH))
                                     .andExpect(status().isOk())

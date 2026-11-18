@@ -11,8 +11,8 @@ import java.util.regex.Pattern;
 /**
  * 一条已落账的决策记录：哈希链上的一节。
  *
- * <p>记录只追加：{@code sequence} 在分区内从 1 递增，{@code prevHash} 是同一分区上一条的 {@code recordHash}，
- * {@code recordHash} 覆盖 {@code body} 与链上前缀。校验一条记录能证明“这条没被改过”，校验整条链能证明“没有记录被删掉”。
+ * <p>记录只追加：{@code sequence} 在分区内从 1 递增，{@code prevHash} 是同一分区上一条的 {@code recordHash}， {@code
+ * recordHash} 覆盖 {@code body} 与链上前缀。校验一条记录能证明“这条没被改过”，校验整条链能证明“没有记录被删掉”。
  *
  * <p>分区粒度是租户（T0 无域段）：链按租户独立，租户之间不共享序列，也不互相暴露记录数。
  *
@@ -65,7 +65,9 @@ public record DecisionRecord(
         recordHash = requiredHash(recordHash, "recordHash");
         Objects.requireNonNull(recordedAt, "recordedAt");
         Objects.requireNonNull(tenantId, "tenantId");
-        body = Collections.unmodifiableMap(new LinkedHashMap<>(Objects.requireNonNull(body, "body")));
+        body =
+                Collections.unmodifiableMap(
+                        new LinkedHashMap<>(Objects.requireNonNull(body, "body")));
     }
 
     /**

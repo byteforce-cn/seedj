@@ -37,10 +37,9 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 /**
  * 上报与对账的装配边界（spec §6.4 两段式与对账；R4 数据源、R5 配置项）。
  *
- * <p>三件事只在装配上成立，用单元测试跑不出来：<b>没有对账数据源就不装配</b>上报与对账（决策面本身照常可用、
- * 上报端点 503）、<b>数据源可以按 bean 名指定</b>、<b>定时对账是显式开启的</b>（默认 false，且宿主还要自己写
- * {@code @EnableScheduling}）。这里用 {@link WebApplicationContextRunner} 只看 bean 面，不连库：数据源只被当作
- * bean 解析，构造期不建连接。
+ * <p>三件事只在装配上成立，用单元测试跑不出来：<b>没有对账数据源就不装配</b>上报与对账（决策面本身照常可用、 上报端点 503）、<b>数据源可以按 bean
+ * 名指定</b>、<b>定时对账是显式开启的</b>（默认 false，且宿主还要自己写 {@code @EnableScheduling}）。这里用 {@link
+ * WebApplicationContextRunner} 只看 bean 面，不连库：数据源只被当作 bean 解析，构造期不建连接。
  */
 class ReconcileWiringTest {
 

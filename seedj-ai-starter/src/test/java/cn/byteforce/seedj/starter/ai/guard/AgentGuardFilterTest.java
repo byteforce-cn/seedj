@@ -150,8 +150,7 @@ class AgentGuardFilterTest {
     /** 用给定 codec 建一个独立的 MVC 实例：actor 的解析策略必须与 {@code CommandController} 一致。 */
     private MockMvc mvcWith(CallerIdCodec codec) {
         AgentGuardFilter filter =
-                new AgentGuardFilter(
-                        VERIFIER, callers, codec, AUDIENCE, (Clock) () -> NOW, MAPPER);
+                new AgentGuardFilter(VERIFIER, callers, codec, AUDIENCE, (Clock) () -> NOW, MAPPER);
         return MockMvcBuilders.standaloneSetup(new ProbeController()).addFilter(filter).build();
     }
 

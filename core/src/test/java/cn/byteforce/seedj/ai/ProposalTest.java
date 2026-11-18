@@ -121,14 +121,7 @@ class ProposalTest {
     @Test
     @DisplayName("evidence 缺省为空列表，rationale 可缺省")
     void evidence_and_rationale_default() {
-        Proposal proposal =
-                new Proposal(
-                        DecisionKind.READ,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null);
+        Proposal proposal = new Proposal(DecisionKind.READ, null, null, null, null, null);
 
         assertThat(proposal.evidence()).isEmpty();
         assertThat(proposal.rationale()).isNull();

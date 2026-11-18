@@ -46,9 +46,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 /**
  * Task 13 的 T0 退出判据：<b>每个写动作都能用「intent + command + audit entry + reconciled」四件套还原</b>。
  *
- * <p>四条用例分别钉四件事：agent 循环真的能驱动一次写（脚本 LLM → 决策面 → guard → seedj 命令）、一次受理的命令在账本/
- * 业务库/审计链/对账里能串成一条链、同一 {@code decision_id} 重复提交只产生一次副作用、{@code writeOnly} 字段既不破坏
- * 守卫（{@code args_hash} 用原文算）也不出现在读回的视图里。
+ * <p>四条用例分别钉四件事：agent 循环真的能驱动一次写（脚本 LLM → 决策面 → guard → seedj 命令）、一次受理的命令在账本/ 业务库/审计链/对账里能串成一条链、同一
+ * {@code decision_id} 重复提交只产生一次副作用、{@code writeOnly} 字段既不破坏 守卫（{@code args_hash} 用原文算）也不出现在读回的视图里。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -62,8 +61,7 @@ class AiPilotIT extends AbstractPilotIT {
 
     private static final Logger LOG = LoggerFactory.getLogger(AiPilotIT.class);
 
-    @Container
-    static final PostgreSQLContainer<?> POSTGRES = newPostgres();
+    @Container static final PostgreSQLContainer<?> POSTGRES = newPostgres();
 
     @DynamicPropertySource
     static void datasource(DynamicPropertyRegistry registry) {
@@ -84,8 +82,7 @@ class AiPilotIT extends AbstractPilotIT {
                         List.of());
         RecordingDecisionClient decisions =
                 new RecordingDecisionClient(
-                        new HttpDecisionClient(
-                                RestClient.builder(), baseUrl(), pilotModel()));
+                        new HttpDecisionClient(RestClient.builder(), baseUrl(), pilotModel()));
         BoundedLoop loop =
                 new BoundedLoop(
                         ScriptedLlmGateway.of(create, ScriptedLlmGateway.finish()),
@@ -117,13 +114,9 @@ class AiPilotIT extends AbstractPilotIT {
                 .as("来源是 runtime 上报，不是决策面自己写的结论")
                 .containsEntry("source", "runtime_reported");
         Map<?, ?> effect = (Map<?, ?>) outcome.body().get("effect");
-        assertThat((Object) effect.get("status"))
-                .as("命令在库里是 accepted")
-                .isEqualTo("ok");
+        assertThat((Object) effect.get("status")).as("命令在库里是 accepted").isEqualTo("ok");
         assertThat(String.valueOf(effect.get("command_id"))).isEqualTo(commandId.toString());
-        assertThat((Object) effect.get("audit_entry_id"))
-                .as("上报阶段不写链目标识：那是 reconcile 的事")
-                .isNull();
+        assertThat((Object) effect.get("audit_entry_id")).as("上报阶段不写链目标识：那是 reconcile 的事").isNull();
     }
 
     @Test
@@ -274,10 +267,7 @@ class AiPilotIT extends AbstractPilotIT {
 
         @Override
         public DecisionGrant ask(
-                TaskContract contract,
-                int step,
-                Proposal proposal,
-                String audience) {
+                TaskContract contract, int step, Proposal proposal, String audience) {
             DecisionGrant grant = delegate.ask(contract, step, proposal, audience);
             decisionId = grant.decisionId();
             return grant;

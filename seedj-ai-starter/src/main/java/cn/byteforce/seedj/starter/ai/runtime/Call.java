@@ -10,8 +10,7 @@ import java.util.UUID;
 /**
  * 要发给命令面的一次调用：命令类型、未脱敏载荷、目标与期望版本。
  *
- * <p>载荷保持原文（允许 {@code null} 值、键序保留）：它参与决策面与守卫的指纹计算，脱敏只影响账本里可读的
- * {@code args}。{@code targets} 顺序敏感。
+ * <p>载荷保持原文（允许 {@code null} 值、键序保留）：它参与决策面与守卫的指纹计算，脱敏只影响账本里可读的 {@code args}。{@code targets} 顺序敏感。
  *
  * @param commandType 命令类型
  * @param payload 未脱敏命令载荷；{@code null} 视为空对象

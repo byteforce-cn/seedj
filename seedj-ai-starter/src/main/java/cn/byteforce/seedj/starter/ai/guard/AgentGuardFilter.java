@@ -40,34 +40,31 @@ import tools.jackson.databind.json.JsonMapper;
  *
  * <p><b>拦截面</b>：只拦单段 {@code POST /commands/{commandType}}。{@code GET /commands/{id}}、{@code
  * /queries/**}、{@code /actuator/**}、{@code /.well-known/**} 一律放行——读路径不产生副作用，给它们要 token
- * 只会逼调用方伪造凭据。判定写在 {@link #shouldNotFilter(HttpServletRequest)} 里，{@code doFilterInternal} 不再
- * 重复判断。
+ * 只会逼调用方伪造凭据。判定写在 {@link #shouldNotFilter(HttpServletRequest)} 里，{@code doFilterInternal} 不再 重复判断。
  *
  * <p><b>装配顺序</b>：安全链（{@code springSecurityFilterChain}，order = -100）先把 bearer 认成 {@link Caller}，
- * 本过滤器（order = -90）再消费 {@link CallerProvider} 与 {@code x-agent-decision}；servlet filter 一律早于
- * {@code DispatcherServlet}，所以仍然在命令入口 {@code CommandController} 之前。顺序反了（跑在安全链之前）会让
- * {@code CallerProvider} 恒为空、每个写命令都 401。
+ * 本过滤器（order = -90）再消费 {@link CallerProvider} 与 {@code x-agent-decision}；servlet filter 一律早于 {@code
+ * DispatcherServlet}，所以仍然在命令入口 {@code CommandController} 之前。顺序反了（跑在安全链之前）会让 {@code CallerProvider}
+ * 恒为空、每个写命令都 401。
  *
  * <p><b>身份口径</b>：{@code actor} 由 {@link CallerIdCodec} 解析、{@code tenant} 是<b>不透明字符串</b>（与 token 的
- * {@code tenant} claim 逐字比较）。两者都必须与 {@code CommandController} 用同一套策略，否则 guard 与命令入口会算出
- * 不同身份、每个写命令都 403。
+ * {@code tenant} claim 逐字比较）。两者都必须与 {@code CommandController} 用同一套策略，否则 guard 与命令入口会算出 不同身份、每个写命令都
+ * 403。
  *
  * <p><b>原始请求体</b>：{@code args_hash} 按请求体<b>未脱敏原文</b>重算——业务侧的脱敏只影响落库与可读性，不影响
- * 可比性，所以这里不能用任何脱敏后的对象。读到的字节还会交给下游：本过滤器向链上传一个可重放的请求包装，
- * {@code @RequestBody} 拿到的仍是完整原文。
+ * 可比性，所以这里不能用任何脱敏后的对象。读到的字节还会交给下游：本过滤器向链上传一个可重放的请求包装， {@code @RequestBody} 拿到的仍是完整原文。
  *
  * <p><b>版本口径</b>：{@code expectedVersion} 必须与 {@code CommandController} 的解析优先级<b>完全一致</b>（{@code
- * If-Match} 优先于 body，两者都给且不等则 400）。否则 token 钉死的版本可被绕过：只带 {@code If-Match} 就能换版本，
- * 或干脆两边都不带让版本守卫失效。
+ * If-Match} 优先于 body，两者都给且不等则 400）。否则 token 钉死的版本可被绕过：只带 {@code If-Match} 就能换版本， 或干脆两边都不带让版本守卫失效。
  *
- * <p><b>受众不从请求头推</b>：{@code aud} 直接取 {@code seedj.ai.decision.audience}（装配期强制非空）。早先的实现
- * 在配置为空时回退到 {@code request.getServerName()}，而 {@code Host} 是攻击者可控的——换个 {@code Host} 就能把
- * 发给 A 服务的 token 重放到 B 服务。受众只是部署事实，不由请求参与决定。
+ * <p><b>受众不从请求头推</b>：{@code aud} 直接取 {@code seedj.ai.decision.audience}（装配期强制非空）。早先的实现 在配置为空时回退到
+ * {@code request.getServerName()}，而 {@code Host} 是攻击者可控的——换个 {@code Host} 就能把 发给 A 服务的 token 重放到 B
+ * 服务。受众只是部署事实，不由请求参与决定。
  *
- * <p><b>错误响应</b>：缺凭据 401（{@code WWW-Authenticate: AgentDecision}），token 校验不过 403，坏载荷 400；body
- * 统一 {@code {"code": ..., "detail": ...}}。这里的 {@code token_missing}、{@code unauthenticated}、{@code
- * invalid_payload} 是<b>过滤器层</b>的 wire 字面量，与 {@link AiErrorCode} 不是同一套——后者只描述 token 校验结论。
- * token 原文不进日志、不进响应，拒绝说明只带 {@code kid} 与 {@code decision_id} 前 8 位（由校验器给出）。
+ * <p><b>错误响应</b>：缺凭据 401（{@code WWW-Authenticate: AgentDecision}），token 校验不过 403，坏载荷 400；body 统一
+ * {@code {"code": ..., "detail": ...}}。这里的 {@code token_missing}、{@code unauthenticated}、{@code
+ * invalid_payload} 是<b>过滤器层</b>的 wire 字面量，与 {@link AiErrorCode} 不是同一套——后者只描述 token 校验结论。 token
+ * 原文不进日志、不进响应，拒绝说明只带 {@code kid} 与 {@code decision_id} 前 8 位（由校验器给出）。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -286,8 +283,8 @@ public final class AgentGuardFilter extends OncePerRequestFilter {
     /**
      * 读原始请求体；超过 {@link #MAX_BODY_BYTES} 返回空。
      *
-     * <p>用 {@link ContentCachingRequestWrapper} 读：缓存上限与 {@code MAX_BODY_BYTES} 一致，读超上限即停，不会
-     * 因为超大 body 撑爆内存。读到的字节由 {@link CachedBodyRequest} 交给下游重放——缓存包装本身只缓存不重放，
+     * <p>用 {@link ContentCachingRequestWrapper} 读：缓存上限与 {@code MAX_BODY_BYTES} 一致，读超上限即停，不会 因为超大
+     * body 撑爆内存。读到的字节由 {@link CachedBodyRequest} 交给下游重放——缓存包装本身只缓存不重放，
      * 读完再把原始请求传下去，{@code @RequestBody} 会拿到空 body。
      */
     private static Optional<byte[]> readBody(HttpServletRequest request) throws IOException {
@@ -306,8 +303,7 @@ public final class AgentGuardFilter extends OncePerRequestFilter {
         return Optional.of(buffer.toByteArray());
     }
 
-    private void reject(
-            HttpServletResponse response, String code, String detail, boolean challenge)
+    private void reject(HttpServletResponse response, String code, String detail, boolean challenge)
             throws IOException {
         response.setStatus(challenge ? HttpServletResponse.SC_UNAUTHORIZED : statusFor(code));
         if (challenge) {

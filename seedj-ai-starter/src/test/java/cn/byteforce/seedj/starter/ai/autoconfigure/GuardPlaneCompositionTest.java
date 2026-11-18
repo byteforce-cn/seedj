@@ -28,9 +28,9 @@ import org.springframework.context.annotation.Configuration;
  * guard 与决策面同进程装配：两侧各自声明 {@link ToolRegistry} 与 {@link DecisionTokenIssuer}，靠
  * {@code @ConditionalOnMissingBean} 收敛成单例。
  *
- * <p>这条约束以前只是「读起来对」：两个自动配置都写了 {@code @ConditionalOnMissingBean}，谁先注册是 Boot 的装配顺序
- * 决定的。同进程部署（T0 的默认形态：一个服务既当决策面又当执行侧）必须确有<b>唯一的</b>工具注册表与签发方，否则
- * 守卫验签用的公钥与决策面签发的公钥可能不是同一把，每个写命令都会 403。用例直接同时装两个配置来钉住它。
+ * <p>这条约束以前只是「读起来对」：两个自动配置都写了 {@code @ConditionalOnMissingBean}，谁先注册是 Boot 的装配顺序 决定的。同进程部署（T0
+ * 的默认形态：一个服务既当决策面又当执行侧）必须确有<b>唯一的</b>工具注册表与签发方，否则 守卫验签用的公钥与决策面签发的公钥可能不是同一把，每个写命令都会
+ * 403。用例直接同时装两个配置来钉住它。
  */
 class GuardPlaneCompositionTest {
 

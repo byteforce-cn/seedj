@@ -33,8 +33,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 /**
  * 直连绕过测试：<b>没有合法 DecisionToken 就写不进数据库</b>（spec §7.3 的 fail-closed 校验）。
  *
- * <p>四条用例对应四种绕过尝试：不带凭据、改参数、换目标、用过期凭据。每条都同时断言两件事——HTTP 层面的状态码与错误码，
- * 以及<b>业务库与审计链没有新增行</b>：只断言 4xx 会漏掉「拒绝了但已经写了一部分」这类事故，计数基线才是真正的证据。
+ * <p>四条用例对应四种绕过尝试：不带凭据、改参数、换目标、用过期凭据。每条都同时断言两件事——HTTP 层面的状态码与错误码， 以及<b>业务库与审计链没有新增行</b>：只断言 4xx
+ * 会漏掉「拒绝了但已经写了一部分」这类事故，计数基线才是真正的证据。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -51,8 +51,7 @@ class AiBypassIT extends AbstractPilotIT {
     private static final UUID OTHER_TARGET =
             UUID.fromString("018f2e3a-0000-7000-8000-000000007732");
 
-    @Container
-    static final PostgreSQLContainer<?> POSTGRES = newPostgres();
+    @Container static final PostgreSQLContainer<?> POSTGRES = newPostgres();
 
     @DynamicPropertySource
     static void datasource(DynamicPropertyRegistry registry) {
@@ -68,13 +67,7 @@ class AiBypassIT extends AbstractPilotIT {
         int audits = auditEntryCount();
 
         ResponseEntity<String> response =
-                submit(
-                        "ticket.create",
-                        payload,
-                        List.of(),
-                        null,
-                        UUID.randomUUID(),
-                        null);
+                submit("ticket.create", payload, List.of(), null, UUID.randomUUID(), null);
 
         assertThat(response.getStatusCode().value()).isEqualTo(401);
         assertThat(challenge(response)).isEqualTo(AgentGuardFilter.CHALLENGE_SCHEME);

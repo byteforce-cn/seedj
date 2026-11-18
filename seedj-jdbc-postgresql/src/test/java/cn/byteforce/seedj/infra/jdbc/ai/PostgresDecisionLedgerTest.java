@@ -37,8 +37,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 /**
  * PostgreSQL 决策账本：公共契约 + 只有数据库才能提供的保证。
  *
- * <p>契约部分继承 {@link DecisionLedgerContractTest}；本类另外验证触发器级只追加、{@code verify} 能发现被直连
- * 篡改/截断的链，以及同一条 intent 并发落地时只留一条记录。
+ * <p>契约部分继承 {@link DecisionLedgerContractTest}；本类另外验证触发器级只追加、{@code verify} 能发现被直连 篡改/截断的链，以及同一条
+ * intent 并发落地时只留一条记录。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -150,12 +150,7 @@ class PostgresDecisionLedgerTest extends DecisionLedgerContractTest {
                         Map.of("schema", "agent.decision.v1"));
         setChainHead(partition, 1L, LedgerHash.of(forged));
         insertRecord(
-                recordId,
-                decisionId,
-                partition,
-                forged.prevHash(),
-                LedgerHash.of(forged),
-                tenant);
+                recordId, decisionId, partition, forged.prevHash(), LedgerHash.of(forged), tenant);
 
         LedgerVerification verification = ledger().verify(partition);
 

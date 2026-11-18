@@ -5,8 +5,8 @@ import java.util.Objects;
 /**
  * 守卫结论：放行（带上已校验的 claim）或拒绝（带上稳定错误码）。
  *
- * <p>放行必须携带 claim：调用方拿到 {@link Admit} 就能立即转发命令，不需要再解一次 token； 拒绝必须携带 {@link
- * AiErrorCode}：HTTP 状态与告警规则按 code 映射，文本里的自由描述只用于排障。
+ * <p>放行必须携带 claim：调用方拿到 {@link Admit} 就能立即转发命令，不需要再解一次 token； 拒绝必须携带 {@link AiErrorCode}：HTTP
+ * 状态与告警规则按 code 映射，文本里的自由描述只用于排障。
  *
  * @author ByteForce
  * @since 1.0.0

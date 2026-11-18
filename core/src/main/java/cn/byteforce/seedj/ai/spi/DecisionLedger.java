@@ -18,13 +18,12 @@ import java.util.UUID;
  * <p>实现侧约定（内存与 PostgreSQL 两套实现共用，由 {@code DecisionLedgerContractTest} 校验）：
  *
  * <ul>
- *   <li>{@link #appendApproval} / {@link #appendOutcome} / {@link #appendReconciled} 的租户由账本按
- *       {@code decisionId} 反查既有意图得出；意图不存在时抛 {@link IllegalArgumentException}。
+ *   <li>{@link #appendApproval} / {@link #appendOutcome} / {@link #appendReconciled} 的租户由账本按 {@code
+ *       decisionId} 反查既有意图得出；意图不存在时抛 {@link IllegalArgumentException}。
  *   <li>同一 {@code decisionId} 的意图重复追加是幂等的：返回首次记录，内容不同也不抛（内容比对由调用方负责）。
  *   <li>同一 {@code decisionId} 的结局重复追加是幂等的：返回首次记录。
- *   <li>一个 {@code decisionId} 只属于一个租户：别的租户复用同一 {@code decisionId} 追加意图/结局时<b>一律拒绝</b>，抛
- *       {@link IllegalArgumentException}（消息包含 {@code another tenant}）——不返回已有租户的记录（不泄露存在性），
- *       也不写第二条影子记录。
+ *   <li>一个 {@code decisionId} 只属于一个租户：别的租户复用同一 {@code decisionId} 追加意图/结局时<b>一律拒绝</b>，抛 {@link
+ *       IllegalArgumentException}（消息包含 {@code another tenant}）——不返回已有租户的记录（不泄露存在性）， 也不写第二条影子记录。
  *   <li>{@code approval} 与 {@code reconciled} <b>不幂等</b>：每个 decision 可多条 approval（每次观察一条审批事实），
  *       reconciled 每次核对一条——它们是观察记录，不是效果副本。
  *   <li>{@link #byDecision} 按 {@code sequence} 升序返回；租户不匹配时返回空列表，不泄露记录是否存在。
@@ -102,12 +101,12 @@ public interface DecisionLedger {
     List<DecisionRecord> byDecision(UUID tenantId, UUID decisionId);
 
     /**
-     * 校对分区内的哈希链：<b>先读链头，再按链头截断扫记录</b>——{@code sequence <= last_sequence} 的记录逐条重算
-     * {@code recordHash} 并校验 {@code prevHash} 接上前一条，最后校验记录数与末条哈希对得上链头。
+     * 校对分区内的哈希链：<b>先读链头，再按链头截断扫记录</b>——{@code sequence <= last_sequence} 的记录逐条重算 {@code recordHash}
+     * 并校验 {@code prevHash} 接上前一条，最后校验记录数与末条哈希对得上链头。
      *
-     * <p>为什么要这个顺序：记录与链头在同一个追加事务里提交，所以「读到的链头是第 N 条」意味着记录 1..N 都已提交；
-     * 之后才提交的 N+1 被 {@code sequence <= N} 排除，两次读之间有人追加也不会误报篡改。反过来，记录数少于 N
-     * 或末条 {@code record_hash} 对不上链头就是尾部被截断——行级触发器挡不住 {@code TRUNCATE}，这一条比对必需。
+     * <p>为什么要这个顺序：记录与链头在同一个追加事务里提交，所以「读到的链头是第 N 条」意味着记录 1..N 都已提交； 之后才提交的 N+1 被 {@code sequence <=
+     * N} 排除，两次读之间有人追加也不会误报篡改。反过来，记录数少于 N 或末条 {@code record_hash} 对不上链头就是尾部被截断——行级触发器挡不住 {@code
+     * TRUNCATE}，这一条比对必需。
      *
      * <p><b>只校对链头快照内的记录</b>：绕过账本直接 {@code INSERT}、且没有推进链头 {@code last_sequence} 的记录
      * 不在快照内，本方法不报它们。要发现这类幽灵记录得比对表行数与链头 {@code last_sequence}（见 T0 明确不做）。

@@ -45,43 +45,39 @@ import tools.jackson.databind.annotation.JsonNaming;
  *   <li>按 {@link CapabilityRegistry} 判契约能力；
  *   <li>{@link DecisionLedger#appendIntent} —— 返回即已提交，执行侧拿到的每个 token 都能追到一条意图；
  *   <li>deny：追加 {@code outcome(rejected)}，不签 token；
- *   <li>allow + {@code execute_tool}：签发 token。<b>成功时不写 outcome</b>——执行结局由 guard 之后的运行时上报；
- *       签发失败则先追加 {@code outcome(not_issued)} 再抛出（请求仍然 500）；
+ *   <li>allow + {@code execute_tool}：签发 token。<b>成功时不写 outcome</b>——执行结局由 guard 之后的运行时上报； 签发失败则先追加
+ *       {@code outcome(not_issued)} 再抛出（请求仍然 500）；
  *   <li>allow + 其它 {@code kind}：同一调用里写 {@code outcome(not_applicable)}，不签 token。
  * </ol>
  *
- * <p>上述三条是<b>决策面自己的结论</b>，账本里记 {@code source = plane_decided}；只有 runtime 上报与对账才写
- * {@code runtime_reported} / {@code reconciled}——来源失真会让「这条结局是谁观测到的」无法回答。
+ * <p>上述三条是<b>决策面自己的结论</b>，账本里记 {@code source = plane_decided}；只有 runtime 上报与对账才写 {@code
+ * runtime_reported} / {@code reconciled}——来源失真会让「这条结局是谁观测到的」无法回答。
  *
- * <p>因此「token 签发失败」不会让意图悬空：intent 已提交，随后追加 {@code outcome(not_issued, signing_failed)}，
- * 请求仍返回 500——不签发就不可能有执行，账本也不会留下「有意图无结局」的洞（spec §6.4(3)）。
+ * <p>因此「token 签发失败」不会让意图悬空：intent 已提交，随后追加 {@code outcome(not_issued, signing_failed)}， 请求仍返回
+ * 500——不签发就不可能有执行，账本也不会留下「有意图无结局」的洞（spec §6.4(3)）。
  *
  * <p><b>三类拒绝的边界</b>（deny 是决策，未登记是坏请求）：
  *
  * <ul>
  *   <li>命令类型不在 {@link ToolRegistry}：400 {@code invalid_payload}，<b>不写账本</b>；
- *   <li>任务契约不存在：deny，账本 intent + outcome(rejected)，
- *       {@code deny_rule} = {@value #RULE_UNKNOWN_CONTRACT}；
- *   <li>契约存在但命令不在其内：deny，账本 intent + outcome(rejected)，
- *       {@code deny_rule} = {@value #RULE_CAPABILITY}。
+ *   <li>任务契约不存在：deny，账本 intent + outcome(rejected)， {@code deny_rule} = {@value
+ *       #RULE_UNKNOWN_CONTRACT}；
+ *   <li>契约存在但命令不在其内：deny，账本 intent + outcome(rejected)， {@code deny_rule} = {@value
+ *       #RULE_CAPABILITY}。
  * </ul>
  *
  * <p>第一条是 400 而不是 deny 的理由：spec §6.2 规定 {@code execute_tool} 的 {@code action_class} 必填，
- * 而动作分类只来自工具注册表；拿不到动作分类的提案无法被合法构造成一条 intent。deny 分支要求命令已登记，
- * 正是「deny 是决策、未登记是坏请求」的分界线。
+ * 而动作分类只来自工具注册表；拿不到动作分类的提案无法被合法构造成一条 intent。deny 分支要求命令已登记， 正是「deny 是决策、未登记是坏请求」的分界线。
  *
- * <p><b>身份与租户只来自配置</b>（{@code seedj.ai.identity.actor}、{@code on-behalf-of}、
- * {@code seedj.ai.plane.tenant}）：请求体里的同名字段一律不读。三者在构造期解析为 UUID，缺失或非 UUID
- * 直接让应用启动失败——决策面不接受「匿名写决策」。T0 没有租户上下文注入，因此租户由
- * {@code seedj.ai.plane.tenant} 钉死。
+ * <p><b>身份与租户只来自配置</b>（{@code seedj.ai.identity.actor}、{@code on-behalf-of}、 {@code
+ * seedj.ai.plane.tenant}）：请求体里的同名字段一律不读。三者在构造期解析为 UUID，缺失或非 UUID 直接让应用启动失败——决策面不接受「匿名写决策」。T0
+ * 没有租户上下文注入，因此租户由 {@code seedj.ai.plane.tenant} 钉死。
  *
  * <p><b>参数的两份形态</b>：{@code args_hash} 按请求原文的 {@code {type,payload,targets,expectedVersion}} 服务端重算，
- * 请求里不接受 {@code args_hash}；账本里的 {@code args} 是<b>可展示参数</b>（T0 就是 payload 本身，原文入库在 T0 不做，
- * 将来落对象存储）。
+ * 请求里不接受 {@code args_hash}；账本里的 {@code args} 是<b>可展示参数</b>（T0 就是 payload 本身，原文入库在 T0 不做， 将来落对象存储）。
  *
  * <p><b>decision_id</b> 由注入的 {@code IdGenerator<UUID>} 生成，同时是命令的幂等键（{@code idempotency_key} 恒等于它，
- * 请求里不接受）。装配侧优先用宿主的 UUIDv7 生成器（时间有序，便于对账扫描与索引局部性），宿主没有时退化为
- * {@code UUID.randomUUID()}。
+ * 请求里不接受）。装配侧优先用宿主的 UUIDv7 生成器（时间有序，便于对账扫描与索引局部性），宿主没有时退化为 {@code UUID.randomUUID()}。
  *
  * <p>非线程安全状态：本类无状态（账本、签发口、时钟都由外部注入），可单例使用。
  *
@@ -142,10 +138,10 @@ public final class DecisionService {
      * @param issuer DecisionToken 签发方
      * @param ids 决策标识生成器；{@code decision_id} 同时是外部幂等键，装配侧优先用宿主的 UUIDv7 生成器
      * @param clock 取时入口（{@code iat}/{@code exp} 与 {@code expires_at}）
-     * @param properties AI 配置：{@code plane.tenant}、{@code identity.*}、
-     *     {@code decision.ttl/audience}
-     * @throws IllegalStateException {@code seedj.ai.plane.tenant} /
-     *     {@code seedj.ai.identity.actor} / {@code seedj.ai.identity.on-behalf-of} 缺失或不是 UUID
+     * @param properties AI 配置：{@code plane.tenant}、{@code identity.*}、 {@code
+     *     decision.ttl/audience}
+     * @throws IllegalStateException {@code seedj.ai.plane.tenant} / {@code seedj.ai.identity.actor}
+     *     / {@code seedj.ai.identity.on-behalf-of} 缺失或不是 UUID
      */
     public DecisionService(
             CapabilityRegistry capabilities,
@@ -195,9 +191,8 @@ public final class DecisionService {
      * @param request 请求体
      * @return 决策结果：deny 只带原因码，allow 的执行工具步骤才带 token
      * @throws NullPointerException {@code request} 为 {@code null}
-     * @throws ContractException {@code invalid_payload}：缺必填字段、未知 {@code kind}、
-     *     {@code rationale} 超过 {@value #MAX_RATIONALE_BYTES} 字节、命令类型未登记、
-     *     {@code execute_tool} 无可用受众
+     * @throws ContractException {@code invalid_payload}：缺必填字段、未知 {@code kind}、 {@code rationale} 超过
+     *     {@value #MAX_RATIONALE_BYTES} 字节、命令类型未登记、 {@code execute_tool} 无可用受众
      */
     public DecisionResult decide(DecisionRequest request) {
         Objects.requireNonNull(request, "request");
@@ -222,8 +217,7 @@ public final class DecisionService {
         Optional<AgentToolSpec> tool = tools.find(commandType);
         if (kind == DecisionKind.EXECUTE_TOOL && tool.isEmpty()) {
             throw new ContractException(
-                    ContractErrorCode.INVALID_PAYLOAD,
-                    "命令类型未在 seedj.ai.tools 登记: " + commandType);
+                    ContractErrorCode.INVALID_PAYLOAD, "命令类型未在 seedj.ai.tools 登记: " + commandType);
         }
         String tokenAudience =
                 kind == DecisionKind.EXECUTE_TOOL ? audienceOf(request.audience()) : null;
@@ -378,23 +372,20 @@ public final class DecisionService {
         try {
             return DecisionKind.fromWire(wire);
         } catch (IllegalArgumentException error) {
-            throw new ContractException(
-                    ContractErrorCode.INVALID_PAYLOAD, "未知的 kind: " + wire);
+            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD, "未知的 kind: " + wire);
         }
     }
 
     private static <T> T required(T value, String field) {
         if (value == null) {
-            throw new ContractException(
-                    ContractErrorCode.INVALID_PAYLOAD, "缺少必填字段 " + field);
+            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD, "缺少必填字段 " + field);
         }
         return value;
     }
 
     private static String text(String value, String field) {
         if (value == null || value.isBlank()) {
-            throw new ContractException(
-                    ContractErrorCode.INVALID_PAYLOAD, "缺少必填字段 " + field);
+            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD, "缺少必填字段 " + field);
         }
         return value;
     }
@@ -406,11 +397,7 @@ public final class DecisionService {
         if (bytes > MAX_RATIONALE_BYTES) {
             throw new ContractException(
                     ContractErrorCode.INVALID_PAYLOAD,
-                    "rationale 超过上限 "
-                            + MAX_RATIONALE_BYTES
-                            + " 字节（实际 "
-                            + bytes
-                            + " 字节）");
+                    "rationale 超过上限 " + MAX_RATIONALE_BYTES + " 字节（实际 " + bytes + " 字节）");
         }
         return rationale;
     }
@@ -419,21 +406,17 @@ public final class DecisionService {
         return value == null || value.isBlank() ? null : value;
     }
 
-    /**
-     * 租户由配置钉死：{@code seedj.ai.plane.tenant} 的 wire 类型就是 UUID，绑定阶段已经拒绝非法值，这里只拒缺失。
-     */
+    /** 租户由配置钉死：{@code seedj.ai.plane.tenant} 的 wire 类型就是 UUID，绑定阶段已经拒绝非法值，这里只拒缺失。 */
     private static UUID requiredTenant(UUID tenant) {
         if (tenant == null) {
-            throw new IllegalStateException(
-                    "seedj.ai.plane.tenant 未配置：决策面的租户由配置钉死，不从请求读取");
+            throw new IllegalStateException("seedj.ai.plane.tenant 未配置：决策面的租户由配置钉死，不从请求读取");
         }
         return tenant;
     }
 
     private static UUID requiredUuid(String value, String key) {
         if (blankToNull(value) == null) {
-            throw new IllegalStateException(
-                    key + " 未配置：决策面的租户与身份由配置钉死，不从请求读取");
+            throw new IllegalStateException(key + " 未配置：决策面的租户与身份由配置钉死，不从请求读取");
         }
         try {
             return UUID.fromString(value.trim());
@@ -463,9 +446,9 @@ public final class DecisionService {
     /**
      * 决策请求体（线格式 snake_case）。
      *
-     * <p><b>不接受</b> {@code decision_id} / {@code idempotency_key}：前者由服务端生成，后者恒等于前者；
-     * 也<b>不接受</b> {@code args_hash}（服务端按 {@code command} 重算）、{@code actor} / {@code on_behalf_of} /
-     * {@code tenant}（只来自配置）。这些字段出现在请求里会被 Jackson 忽略。
+     * <p><b>不接受</b> {@code decision_id} / {@code idempotency_key}：前者由服务端生成，后者恒等于前者； 也<b>不接受</b>
+     * {@code args_hash}（服务端按 {@code command} 重算）、{@code actor} / {@code on_behalf_of} / {@code
+     * tenant}（只来自配置）。这些字段出现在请求里会被 Jackson 忽略。
      *
      * @param taskContractId 任务契约标识
      * @param conversationId 会话标识

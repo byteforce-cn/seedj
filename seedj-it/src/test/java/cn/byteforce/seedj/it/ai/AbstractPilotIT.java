@@ -5,9 +5,9 @@ import cn.byteforce.seedj.ai.spi.DecisionLedger;
 import cn.byteforce.seedj.core.security.CallerProvider;
 import cn.byteforce.seedj.domain.TemporalStore;
 import cn.byteforce.seedj.read.ReadGateway;
+import cn.byteforce.seedj.starter.ai.AiProperties;
 import cn.byteforce.seedj.starter.ai.guard.AgentGuardFilter;
 import cn.byteforce.seedj.starter.ai.plane.ReconciliationJob;
-import cn.byteforce.seedj.starter.ai.AiProperties;
 import cn.byteforce.seedj.starter.ai.token.DecisionTokenIssuer;
 import com.jayway.jsonpath.JsonPath;
 import java.util.LinkedHashMap;
@@ -20,9 +20,9 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.web.client.RestClient;
 import org.testcontainers.containers.PostgreSQLContainer;
-import org.springframework.test.context.DynamicPropertyRegistry;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
@@ -31,8 +31,8 @@ import tools.jackson.databind.json.JsonMapper;
  * <p><b>全部走真实 HTTP 打本进程端口</b>（{@code @LocalServerPort}），不用 MockMvc：guard 是 servlet 过滤器链上的
  * 一环，runtime 也是真的 HTTP 客户端，只有真实请求才能证明「决策面签出的 token 能被执行侧验过」。
  *
- * <p>用例之间不共享状态：共享的只有「同一个 Spring 上下文 + 同一个 PG 容器」，因此每步断言都按本次的资源标识（唯一标题、
- * 本次的 {@code decision_id}）过滤，不依赖执行顺序。
+ * <p>用例之间不共享状态：共享的只有「同一个 Spring 上下文 + 同一个 PG 容器」，因此每步断言都按本次的资源标识（唯一标题、 本次的 {@code
+ * decision_id}）过滤，不依赖执行顺序。
  *
  * @author ByteForce
  * @since 1.0.0

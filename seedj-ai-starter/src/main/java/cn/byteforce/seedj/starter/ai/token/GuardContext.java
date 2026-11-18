@@ -10,13 +10,12 @@ import java.util.UUID;
 /**
  * 执行侧看到的请求侧事实：校验 DecisionToken 时用来与 claim 逐项比对。
  *
- * <p><b>这些是请求侧事实，不是可信输入</b>：{@code actor} 是已认证调用主体、{@code tenantId} 是命令上下文的租户、
- * {@code payload}/{@code targets}/{@code expectedVersion} 是这次调用真正要执行的内容。校验方只用它们与 token 比对，
- * 不做任何授权决策——「这次执行该不该发生」由签发方（决策面）在签 token 前判过，执行侧只回答「凭据与本次请求是否
- * 一致」。
+ * <p><b>这些是请求侧事实，不是可信输入</b>：{@code actor} 是已认证调用主体、{@code tenantId} 是命令上下文的租户、 {@code
+ * payload}/{@code targets}/{@code expectedVersion} 是这次调用真正要执行的内容。校验方只用它们与 token 比对，
+ * 不做任何授权决策——「这次执行该不该发生」由签发方（决策面）在签 token 前判过，执行侧只回答「凭据与本次请求是否 一致」。
  *
- * <p>{@code payload} 是<b>未脱敏原文</b>：{@code args_hash} 按它重算，脱敏只影响账本里可读的 {@code args}。
- * 允许 null 值（与命令载荷的 JSON 语义一致），键序保留但不参与哈希。
+ * <p>{@code payload} 是<b>未脱敏原文</b>：{@code args_hash} 按它重算，脱敏只影响账本里可读的 {@code args}。 允许 null
+ * 值（与命令载荷的 JSON 语义一致），键序保留但不参与哈希。
  *
  * @param actor 已认证调用主体（agent principal）
  * @param tenantId 不透明租户标识，与 token 的 {@code tenant} claim 逐字比较（例如 {@code "t_07"}、{@code "default"}）
@@ -42,8 +41,8 @@ public record GuardContext(
     /**
      * 校验必填项并归一化集合组件。
      *
-     * @throws NullPointerException {@code actor}/{@code tenantId}/{@code payload}/{@code audience} 为 {@code
-     *     null}
+     * @throws NullPointerException {@code actor}/{@code tenantId}/{@code payload}/{@code audience}
+     *     为 {@code null}
      * @throws IllegalArgumentException {@code tenantId}/{@code commandType}/{@code audience} 为空白
      */
     public GuardContext {

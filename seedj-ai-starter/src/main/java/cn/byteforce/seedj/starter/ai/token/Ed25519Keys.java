@@ -19,10 +19,10 @@ import org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters;
 /**
  * Ed25519 密钥材料的唯一处理点：解析配置、推导公钥、JCA 签名与验签。
  *
- * <p>为什么不用 Nimbus 自带的 {@code Ed25519Signer}/{@code Ed25519Verifier}：它们在 Nimbus 10 里依赖 Tink，
- * 而 Tink 是 optional 依赖、未进入本项目依赖树，运行时直接 {@code NoClassDefFoundError}。这里改用 JDK JCA
- * 做 Ed25519 运算，并由 BouncyCastle 从 seed 推导公钥——JDK 只能从 seed 造私钥，没有「私钥 → 公钥」的 API。
- * 协议形态仍由 Nimbus 保证（见 {@link JcaEd25519Signer}），将来换 seedj PKI 或换实现不改 wire 格式。
+ * <p>为什么不用 Nimbus 自带的 {@code Ed25519Signer}/{@code Ed25519Verifier}：它们在 Nimbus 10 里依赖 Tink， 而 Tink
+ * 是 optional 依赖、未进入本项目依赖树，运行时直接 {@code NoClassDefFoundError}。这里改用 JDK JCA 做 Ed25519 运算，并由
+ * BouncyCastle 从 seed 推导公钥——JDK 只能从 seed 造私钥，没有「私钥 → 公钥」的 API。 协议形态仍由 Nimbus 保证（见 {@link
+ * JcaEd25519Signer}），将来换 seedj PKI 或换实现不改 wire 格式。
  *
  * @author ByteForce
  * @since 1.0.0

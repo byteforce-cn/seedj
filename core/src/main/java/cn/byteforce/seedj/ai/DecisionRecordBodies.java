@@ -11,30 +11,31 @@ import java.util.UUID;
 /**
  * 账本记录体（{@code DecisionRecord.body}）的唯一实现：内存账本与 PostgreSQL 账本共用。
  *
- * <p>{@code record_hash} 覆盖整条记录（见 {@link LedgerHash}），所以两套实现必须写出逐字节相同的记录体： 这里集中定义键名、嵌套结构与
- * null 省略规则，任何一方都不再自己拼 map。
+ * <p>{@code record_hash} 覆盖整条记录（见 {@link LedgerHash}），所以两套实现必须写出逐字节相同的记录体： 这里集中定义键名、嵌套结构与 null
+ * 省略规则，任何一方都不再自己拼 map。
  *
  * <p><b>格式</b>（{@code schema = "agent.decision.v1"}；null 字段一律省略；键序确定）：
  *
  * <ul>
  *   <li>共同前缀：{@code schema}、{@code record_kind}（小写线格式名）；
- *   <li>{@code intent}：{@code task_contract_id}、{@code conversation_id}、{@code step}、{@code kind}、 {@code
- *       action_class}（仅 {@code kind == execute_tool}）、{@code command}（{@code
+ *   <li>{@code intent}：{@code task_contract_id}、{@code conversation_id}、{@code step}、{@code kind}、
+ *       {@code action_class}（仅 {@code kind == execute_tool}）、{@code command}（{@code
  *       {type,targets[],expectedVersion}}；{@code targets} 为 UUID 字符串列表）、{@code args_hash}、 {@code
  *       idem_fingerprint}、{@code args}（空则省略）、{@code rationale}、{@code evidence[]}（{@code
- *       {kind,ref,digest}}）、{@code model}（{@code {name,version,prompt_ver,params_digest}}）、 {@code policy}（{@code
- *       {engine,bundle,bundle_version,epoch,verdict,rule_ids[],explain_ref}}）、{@code identity}（{@code
- *       {actor,on_behalf_of,proxy_binding_id,acting_service}}）、{@code approval}（仅需要审批的动作分类）；
+ *       {kind,ref,digest}}）、{@code model}（{@code {name,version,prompt_ver,params_digest}}）、 {@code
+ *       policy}（{@code {engine,bundle,bundle_version,epoch,verdict,rule_ids[],explain_ref}}）、{@code
+ *       identity}（{@code {actor,on_behalf_of,proxy_binding_id,acting_service}}）、{@code
+ *       approval}（仅需要审批的动作分类）；
  *   <li>{@code approval}：{@code approval}（{@code
  *       {instance_id,task_id,status,requested_at,approver,approved_at,args_hash,instance_revision}}）；
- *   <li>{@code outcome}：{@code source}（{@code runtime_reported} / {@code reconciled}）、{@code effect}（{@code
- *       {status,external_ref,audit_entry_id,command_id,error_code,completed_at}}）；
+ *   <li>{@code outcome}：{@code source}（{@code runtime_reported} / {@code reconciled}）、{@code
+ *       effect}（{@code {status,external_ref,audit_entry_id,command_id,error_code,completed_at}}）；
  *   <li>{@code reconciled}：同 {@code outcome}，另加 {@code reason} 与（已有 outcome 时）{@code
  *       supersedes_record_id}。
  * </ul>
  *
- * <p>时间字段序列化为 {@link java.time.Instant#toString()}，标识序列化为 UUID 字符串。返回的 map 只含 {@code
- * String}、{@code Number}、{@code Boolean}、{@code null}、{@code Map} 与 {@code List}， 可直接交给 JSON 序列化。
+ * <p>时间字段序列化为 {@link java.time.Instant#toString()}，标识序列化为 UUID 字符串。返回的 map 只含 {@code String}、{@code
+ * Number}、{@code Boolean}、{@code null}、{@code Map} 与 {@code List}， 可直接交给 JSON 序列化。
  *
  * @author ByteForce
  * @since 1.0.0

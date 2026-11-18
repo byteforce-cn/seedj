@@ -5,8 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.UUID;
 
 /**
- * pilot 命令载荷：创建工单（动作分类 {@code COMPENSABLE}，见 {@code seedj.ai.tools[]} 与
- * {@link TicketModule}）。
+ * pilot 命令载荷：创建工单（动作分类 {@code COMPENSABLE}，见 {@code seedj.ai.tools[]} 与 {@link TicketModule}）。
  *
  * <p>载荷字段与 {@link Ticket} 同名的按 snake_case 映射进对象，{@code internal_note} 是 {@code writeOnly}——守卫仍按
  * <b>未脱敏原文</b>算 {@code args_hash}，所以它出现在载荷里不影响 202，只是读路径永远不返回它。

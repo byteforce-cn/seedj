@@ -6,8 +6,8 @@ import java.util.Objects;
 /**
  * 幂等指纹：同幂等键重复提交时的内容比对依据，与 {@code IdempotencyFingerprint} 同一口径。
  *
- * <p>只覆盖 {@code {type, payload, targets}}，不覆盖 {@code expectedVersion}——重放不因版本不同被当成新请求。
- * 返回 64 位小写十六进制摘要，无算法前缀。
+ * <p>只覆盖 {@code {type, payload, targets}}，不覆盖 {@code expectedVersion}——重放不因版本不同被当成新请求。 返回 64
+ * 位小写十六进制摘要，无算法前缀。
  *
  * @author ByteForce
  * @since 1.0.0

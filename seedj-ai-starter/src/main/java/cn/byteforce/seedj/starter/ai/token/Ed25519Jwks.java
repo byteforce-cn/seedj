@@ -12,12 +12,12 @@ import java.util.Objects;
  * 决策签名公钥的 JWKS 文档：{@code /.well-known/agent-decision-jwks.json} 的内容。
  *
  * <p>只发布公钥参数：{@code {"keys":[{"kty":"OKP","crv":"Ed25519","x":"…","kid":"…",
- * "use":"sig","alg":"EdDSA"}]}}。{@code kid} 是密钥版本标识，守卫按它选公钥；轮换时新旧 {@code kid}
- * 重叠发布，未知 {@code kid} 一律拒绝（fail-closed）。
+ * "use":"sig","alg":"EdDSA"}]}}。{@code kid} 是密钥版本标识，守卫按它选公钥；轮换时新旧 {@code kid} 重叠发布，未知 {@code kid}
+ * 一律拒绝（fail-closed）。
  *
  * <p><b>实现说明</b>：T0 用 JDK JCA 做 Ed25519 运算 + BouncyCastle 从 seed 推导公钥，因为 Nimbus 的 {@code
- * Ed25519Signer} 依赖未引入的 Tink；wire 形态（JWK 参数、base64url 无填充）由本类与 Nimbus 的 {@link Base64URL}
- * 保证，未来换 PKI 或换实现不改协议。
+ * Ed25519Signer} 依赖未引入的 Tink；wire 形态（JWK 参数、base64url 无填充）由本类与 Nimbus 的 {@link Base64URL} 保证，未来换
+ * PKI 或换实现不改协议。
  *
  * @author ByteForce
  * @since 1.0.0

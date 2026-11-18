@@ -71,8 +71,7 @@ class ApprovalSnapshotTest {
             names = {"PENDING", "REJECTED", "EXPIRED", "UNKNOWN"})
     @DisplayName("未通过的审批不需要批准人与批准时间")
     void non_approved_status_allows_missing_approver(ApprovalStatus status) {
-        ApprovalSnapshot snapshot =
-                snapshot("instance-1", "task-1", status, null, null, ARGS_HASH);
+        ApprovalSnapshot snapshot = snapshot("instance-1", "task-1", status, null, null, ARGS_HASH);
 
         assertThat(snapshot.status()).isEqualTo(status);
         assertThat(snapshot.approver()).isNull();

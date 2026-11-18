@@ -15,23 +15,21 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * 命令面的 HTTP 客户端：执行走 {@code POST {commandBaseUrl}/commands/{type}}，只读走
- * {@code GET {commandBaseUrl}/queries/{type}}。
+ * 命令面的 HTTP 客户端：执行走 {@code POST {commandBaseUrl}/commands/{type}}，只读走 {@code GET
+ * {commandBaseUrl}/queries/{type}}。
  *
- * <p><b>token 只走带外</b>：DecisionToken 只放进请求头
- * {@value cn.byteforce.seedj.starter.ai.guard.AgentGuardFilter#DECISION_HEADER}（与守卫读的是同一个常量），
- * <b>绝不进请求体</b>——请求体参与 {@code args_hash} 与审计哈希，token 里含 {@code args_hash}，塞进 body 会形成
- * 自引用（spec §5.1 关键 3）。{@code idempotency_key} 恒等于 {@code decisionId}。token 也不进日志与异常消息：本类
- * 不打日志，异常只在传输层抛出（不含请求体）。
+ * <p><b>token 只走带外</b>：DecisionToken 只放进请求头 {@value
+ * cn.byteforce.seedj.starter.ai.guard.AgentGuardFilter#DECISION_HEADER}（与守卫读的是同一个常量），
+ * <b>绝不进请求体</b>——请求体参与 {@code args_hash} 与审计哈希，token 里含 {@code args_hash}，塞进 body 会形成 自引用（spec §5.1
+ * 关键 3）。{@code idempotency_key} 恒等于 {@code decisionId}。token 也不进日志与异常消息：本类 不打日志，异常只在传输层抛出（不含请求体）。
  *
- * <p><b>结果语义</b>：2xx 为成功，其余（业务拒绝、幂等/版本冲突、准入失败）都是失败，响应体原样带回——业务拒绝是
- * 工具结果，不是传输异常。只读请求不带 token：只读路径不签发 DecisionToken（spec §5.1 只读路径）；{@code payload}
- * 作为 query 参数传给查询端点（T0 的循环不执行查询，{@code read} 供宿主直接驱动）。
+ * <p><b>结果语义</b>：2xx 为成功，其余（业务拒绝、幂等/版本冲突、准入失败）都是失败，响应体原样带回——业务拒绝是 工具结果，不是传输异常。只读请求不带 token：只读路径不签发
+ * DecisionToken（spec §5.1 只读路径）；{@code payload} 作为 query 参数传给查询端点（T0 的循环不执行查询，{@code read}
+ * 供宿主直接驱动）。
  *
- * <p><b>路径里的命令类型来自模型输出</b>：拼进 URL 前按「点分段的标识符」校验——每段是
- * {@code [A-Za-z0-9_-]+}、段间用单个点连接、首尾不允许点。{@code ticket.create} 合法；{@code .}、{@code ..}、
- * {@code ticket.}、{@code a/b} 都不合法。理由是 {@code RestClient} 不做路径归一化，服务端会把 {@code /commands/..}
- * 归一成别的路径，带 token 的 POST 就落到 {@code /commands/{type}} 之外。
+ * <p><b>路径里的命令类型来自模型输出</b>：拼进 URL 前按「点分段的标识符」校验——每段是 {@code [A-Za-z0-9_-]+}、段间用单个点连接、首尾不允许点。{@code
+ * ticket.create} 合法；{@code .}、{@code ..}、 {@code ticket.}、{@code a/b} 都不合法。理由是 {@code RestClient}
+ * 不做路径归一化，服务端会把 {@code /commands/..} 归一成别的路径，带 token 的 POST 就落到 {@code /commands/{type}} 之外。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -153,8 +151,7 @@ public final class HttpToolInvoker implements ToolInvoker {
      * 校验命令类型：它来自模型输出，拼进 URL 前只接受「点分段的标识符」。
      *
      * <p>每段 {@code [A-Za-z0-9_-]+}，段间一个点，不允许空段（{@code .} / {@code ..} / {@code ticket.} 都不行）。
-     * 只禁字符是不够的：{@code ..} 能用旧字符集过关，而 {@code RestClient} 不做路径归一化，服务端会把
-     * {@code /commands/..} 归一成根路径。
+     * 只禁字符是不够的：{@code ..} 能用旧字符集过关，而 {@code RestClient} 不做路径归一化，服务端会把 {@code /commands/..} 归一成根路径。
      *
      * @throws IllegalArgumentException 不符合点分段标识符规则
      */

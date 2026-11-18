@@ -15,8 +15,8 @@ import java.util.UUID;
 /**
  * 工单创建：目标 ID 由 UUIDv7 生成，状态缺省 {@code open}。
  *
- * <p>与 HR 样板同一套写法：字段从命令 record 按 schema 映射（{@code schemaFields}），handler 只补计算字段。这样
- * 「加字段只改 {@link Ticket} 与命令 record」，不会出现第二份字段清单。
+ * <p>与 HR 样板同一套写法：字段从命令 record 按 schema 映射（{@code schemaFields}），handler 只补计算字段。这样 「加字段只改 {@link
+ * Ticket} 与命令 record」，不会出现第二份字段清单。
  *
  * @author ByteForce
  * @since 1.0.0

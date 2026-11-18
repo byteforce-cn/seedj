@@ -17,8 +17,8 @@ import org.springframework.jdbc.core.RowMapper;
 /**
  * 对账读取业务库的唯一入口：{@code db/ai/reconcile.sql} 里的两条命名查询。
  *
- * <p>查询文本在资源文件里，不在 Java 里：它们是运维与排障时唯一要照着看的东西，改关联方式（U9 直链
- * {@code decision_id}）也只该改那一处。命名语句由 {@code -- name:} 切分，语句内用 {@code ?} 作位置参数。
+ * <p>查询文本在资源文件里，不在 Java 里：它们是运维与排障时唯一要照着看的东西，改关联方式（U9 直链 {@code decision_id}）也只该改那一处。命名语句由 {@code
+ * -- name:} 切分，语句内用 {@code ?} 作位置参数。
  *
  * <p><b>只读</b>：本类没有任何写入方法——业务库的写入属于命令事务，对账只读事实、回写账本。
  *
@@ -72,8 +72,8 @@ final class ReconcileQueries {
     Optional<CommandRow> commandByIdempotency(UUID issuer, String idempotencyKey) {
         Objects.requireNonNull(issuer, "issuer");
         Objects.requireNonNull(idempotencyKey, "idempotencyKey");
-        return jdbc.query(
-                        statement(COMMAND_BY_IDEMPOTENCY), COMMAND_ROW, issuer, idempotencyKey)
+        return jdbc
+                .query(statement(COMMAND_BY_IDEMPOTENCY), COMMAND_ROW, issuer, idempotencyKey)
                 .stream()
                 .findFirst();
     }
@@ -86,7 +86,8 @@ final class ReconcileQueries {
      */
     Optional<String> auditEntryIdOf(UUID commandId) {
         Objects.requireNonNull(commandId, "commandId");
-        return jdbc.query(statement(AUDIT_BY_COMMAND), AUDIT_ENTRY_ID, commandId.toString())
+        return jdbc
+                .query(statement(AUDIT_BY_COMMAND), AUDIT_ENTRY_ID, commandId.toString())
                 .stream()
                 .findFirst();
     }

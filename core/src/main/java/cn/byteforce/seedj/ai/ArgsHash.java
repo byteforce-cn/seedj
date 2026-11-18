@@ -11,9 +11,9 @@ import tools.jackson.databind.node.ObjectNode;
 /**
  * 参数指纹：命令“具体做什么”的摘要，审批与影响面比对用。
  *
- * <p>哈希前像为 {@code {type, payload, targets, expectedVersion}} 的审计规范化文本（键字典序、无空白）；
- * {@code expectedVersion} 键始终存在，未声明版本时为 {@code null} 字面量——因此“显式 null”与“某个版本”
- * 一定是两个不同的指纹。前缀 {@code sha256:} 标明算法，摘要为 64 位小写十六进制。
+ * <p>哈希前像为 {@code {type, payload, targets, expectedVersion}} 的审计规范化文本（键字典序、无空白）； {@code
+ * expectedVersion} 键始终存在，未声明版本时为 {@code null} 字面量——因此“显式 null”与“某个版本” 一定是两个不同的指纹。前缀 {@code sha256:}
+ * 标明算法，摘要为 64 位小写十六进制。
  *
  * <p>与 {@link IdemFingerprint} 的口径差异是刻意的：版本变化意味着影响面变化，必须换指纹； 而同一幂等键的重放不因版本不同变成新请求。
  *
@@ -39,8 +39,7 @@ public final class ArgsHash {
     public static String of(CommandFingerprint fingerprint) {
         Objects.requireNonNull(fingerprint, "fingerprint");
         return PREFIX
-                + HashesHelper.sha256Hex(
-                        CanonicalJsonHelper.canonicalize(preimage(fingerprint)));
+                + HashesHelper.sha256Hex(CanonicalJsonHelper.canonicalize(preimage(fingerprint)));
     }
 
     private static ObjectNode preimage(CommandFingerprint fingerprint) {

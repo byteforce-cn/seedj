@@ -7,9 +7,8 @@ import java.util.UUID;
 /**
  * 决策的执行结局：命令到底有没有发生、结果是什么。
  *
- * <p>{@link #status} 是唯一必填项：没有结局状态就无法判断外部副作用是否存在。{@code externalRef} 指向外部系统的
- * 回执，{@code auditEntryId} 指向审计链条目，{@code commandId} 指向命令记录——三者都存在时，一次执行可以同时从业务、
- * 审计、账本三条线复核。
+ * <p>{@link #status} 是唯一必填项：没有结局状态就无法判断外部副作用是否存在。{@code externalRef} 指向外部系统的 回执，{@code
+ * auditEntryId} 指向审计链条目，{@code commandId} 指向命令记录——三者都存在时，一次执行可以同时从业务、 审计、账本三条线复核。
  *
  * <p>工厂方法不填 {@code completedAt}：值类型不读时钟，落账时间以 {@link DecisionRecord#recordedAt()} 为准；
  * 调用方确有外部完成时间时用规范构造器传入。

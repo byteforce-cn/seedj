@@ -57,18 +57,18 @@ import org.junit.jupiter.params.provider.MethodSource;
 /**
  * DecisionToken 的签发、JWKS 与执行侧校验矩阵（spec §7.1–§7.3）。
  *
- * <p>拒绝用例逐个断言 <b>具体</b> 错误码：校验顺序是契约的一部分，先身份再命令再哈希——顺序错了会返回错误的码，
- * 运维与调用方按码做处置。断言里不打印 token 全文（日志与排障只允许 {@code kid} 与 {@code decision_id} 前 8 位）。
+ * <p>拒绝用例逐个断言 <b>具体</b> 错误码：校验顺序是契约的一部分，先身份再命令再哈希——顺序错了会返回错误的码， 运维与调用方按码做处置。断言里不打印 token
+ * 全文（日志与排障只允许 {@code kid} 与 {@code decision_id} 前 8 位）。
  *
- * <p>密钥来源只有一条：测试内固定的 32 字节 seed。用例通过 {@link DecisionTokenPayload}（同包）与一个测试侧的
- * {@link JWSSigner} 构造「签名有效但违反协议」的 token（例如 TTL 超 900s、未知 kid），这是 issuer 刻意拒绝签发的
- * 形态，只能绕过 issuer 造。
+ * <p>密钥来源只有一条：测试内固定的 32 字节 seed。用例通过 {@link DecisionTokenPayload}（同包）与一个测试侧的 {@link JWSSigner}
+ * 构造「签名有效但违反协议」的 token（例如 TTL 超 900s、未知 kid），这是 issuer 刻意拒绝签发的 形态，只能绕过 issuer 造。
  */
 class DecisionTokenVerifierTest {
 
     private static final UUID ACTOR = UUID.fromString("018f2e3a-0000-7000-8000-0000000a9e01");
     private static final UUID OTHER_ACTOR = UUID.fromString("018f2e3a-0000-7000-8000-0000000a9e02");
-    private static final UUID ON_BEHALF_OF = UUID.fromString("018f2e3a-0000-7000-8000-000000000118");
+    private static final UUID ON_BEHALF_OF =
+            UUID.fromString("018f2e3a-0000-7000-8000-000000000118");
     private static final UUID TENANT_ID = UUID.fromString("018f2e3a-0000-7000-8000-0000000b0007");
     private static final UUID OTHER_TENANT_ID =
             UUID.fromString("018f2e3a-0000-7000-8000-0000000b0008");
@@ -81,8 +81,10 @@ class DecisionTokenVerifierTest {
     private static final String COMMAND_TYPE = "billing.refund";
     private static final Long EXPECTED_VERSION = 7L;
     private static final List<UUID> TARGETS = List.of(TARGET_1, TARGET_2);
-    private static final Map<String, Object> PAYLOAD = Map.of("amount", "128.00", "currency", "CNY");
-    private static final CommandRef COMMAND = new CommandRef(COMMAND_TYPE, TARGETS, EXPECTED_VERSION);
+    private static final Map<String, Object> PAYLOAD =
+            Map.of("amount", "128.00", "currency", "CNY");
+    private static final CommandRef COMMAND =
+            new CommandRef(COMMAND_TYPE, TARGETS, EXPECTED_VERSION);
     private static final String DEFAULT_ARGS_HASH =
             ArgsHash.of(new CommandFingerprint(COMMAND_TYPE, PAYLOAD, TARGETS, EXPECTED_VERSION));
 
@@ -110,8 +112,7 @@ class DecisionTokenVerifierTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource("rejections")
     @DisplayName("拒绝分支逐条返回具体错误码")
-    void rejects_with_specific_code(
-            String name, Consumer<Fixture> tweak, String expectedWireCode) {
+    void rejects_with_specific_code(String name, Consumer<Fixture> tweak, String expectedWireCode) {
         Fixture fixture = new Fixture();
         tweak.accept(fixture);
         String token = fixture.jws();
@@ -134,44 +135,109 @@ class DecisionTokenVerifierTest {
         return Stream.of(
                 // 1. 凭据：签名被篡改、kid 未发布
                 reject("token_invalid", fixture -> fixture.tamperSignature = true, "token_invalid"),
-                reject("token_unknown_kid", fixture -> fixture.rawKid = "agent-decision-rotated", "token_invalid"),
+                reject(
+                        "token_unknown_kid",
+                        fixture -> fixture.rawKid = "agent-decision-rotated",
+                        "token_invalid"),
                 // 2. 有效期
-                reject("token_expired", fixture -> {
-                    fixture.issuedAt = NOW.minusSeconds(301);
-                    fixture.expiresAt = NOW.minusSeconds(1);
-                }, "token_expired"),
-                reject("iat_in_future", fixture -> {
-                    fixture.issuedAt = NOW.plusSeconds(61);
-                    fixture.expiresAt = fixture.issuedAt.plusSeconds(60);
-                }, "token_expired"),
-                reject("ttl_too_long", fixture -> {
-                    // issuer 拒签 901s，只能绕过 issuer 造一个签名有效的 901s token
-                    fixture.rawKid = KID;
-                    fixture.expiresAt = fixture.issuedAt.plusSeconds(901);
-                }, "token_expired"),
+                reject(
+                        "token_expired",
+                        fixture -> {
+                            fixture.issuedAt = NOW.minusSeconds(301);
+                            fixture.expiresAt = NOW.minusSeconds(1);
+                        },
+                        "token_expired"),
+                reject(
+                        "iat_in_future",
+                        fixture -> {
+                            fixture.issuedAt = NOW.plusSeconds(61);
+                            fixture.expiresAt = fixture.issuedAt.plusSeconds(60);
+                        },
+                        "token_expired"),
+                reject(
+                        "ttl_too_long",
+                        fixture -> {
+                            // issuer 拒签 901s，只能绕过 issuer 造一个签名有效的 901s token
+                            fixture.rawKid = KID;
+                            fixture.expiresAt = fixture.issuedAt.plusSeconds(901);
+                        },
+                        "token_expired"),
                 // 3. 身份
-                reject("identity_mismatch", fixture -> fixture.ctxActor = OTHER_ACTOR, "identity_mismatch"),
-                reject("tenant_mismatch", fixture -> fixture.tenant = OTHER_TENANT_ID.toString(), "identity_mismatch"),
+                reject(
+                        "identity_mismatch",
+                        fixture -> fixture.ctxActor = OTHER_ACTOR,
+                        "identity_mismatch"),
+                reject(
+                        "tenant_mismatch",
+                        fixture -> fixture.tenant = OTHER_TENANT_ID.toString(),
+                        "identity_mismatch"),
                 // 4–8. 命令、哈希、动作分类与审批
-                reject("command_not_registered", fixture -> fixture.registry = type -> Optional.empty(), "command_not_registered"),
-                reject("command_mismatch", fixture -> fixture.command = new CommandRef("billing.refund.other", TARGETS, EXPECTED_VERSION), "command_mismatch"),
-                reject("targets_mismatch", fixture -> fixture.command = new CommandRef(COMMAND_TYPE, List.of(TARGET_2, TARGET_1), EXPECTED_VERSION), "targets_mismatch"),
-                reject("version_mismatch", fixture -> fixture.command = new CommandRef(COMMAND_TYPE, TARGETS, 8L), "version_mismatch"),
-                reject("args_hash_mismatch", fixture -> fixture.ctxPayload = Map.of("amount", "128.00", "currency", "CNY", "note", "extra"), "args_hash_mismatch"),
-                reject("action_class_mismatch", fixture -> {
-                    fixture.actionClass = ActionClass.IRREVERSIBLE_FINANCIAL;
-                    fixture.approval = approved(DEFAULT_ARGS_HASH);
-                }, "action_class_mismatch"),
-                reject("approval_missing", fixture -> {
-                    // core 已禁止「不可逆但无审批快照」的 claim，所以这里走审批绑定错参数这条
-                    fixture.actionClass = ActionClass.IRREVERSIBLE_FINANCIAL;
-                    fixture.approval = approved("sha256:" + "0".repeat(64));
-                    fixture.registry =
-                            type -> Optional.of(new AgentToolSpec(type, ActionClass.IRREVERSIBLE_FINANCIAL));
-                }, "approval_missing"),
+                reject(
+                        "command_not_registered",
+                        fixture -> fixture.registry = type -> Optional.empty(),
+                        "command_not_registered"),
+                reject(
+                        "command_mismatch",
+                        fixture ->
+                                fixture.command =
+                                        new CommandRef(
+                                                "billing.refund.other", TARGETS, EXPECTED_VERSION),
+                        "command_mismatch"),
+                reject(
+                        "targets_mismatch",
+                        fixture ->
+                                fixture.command =
+                                        new CommandRef(
+                                                COMMAND_TYPE,
+                                                List.of(TARGET_2, TARGET_1),
+                                                EXPECTED_VERSION),
+                        "targets_mismatch"),
+                reject(
+                        "version_mismatch",
+                        fixture -> fixture.command = new CommandRef(COMMAND_TYPE, TARGETS, 8L),
+                        "version_mismatch"),
+                reject(
+                        "args_hash_mismatch",
+                        fixture ->
+                                fixture.ctxPayload =
+                                        Map.of(
+                                                "amount",
+                                                "128.00",
+                                                "currency",
+                                                "CNY",
+                                                "note",
+                                                "extra"),
+                        "args_hash_mismatch"),
+                reject(
+                        "action_class_mismatch",
+                        fixture -> {
+                            fixture.actionClass = ActionClass.IRREVERSIBLE_FINANCIAL;
+                            fixture.approval = approved(DEFAULT_ARGS_HASH);
+                        },
+                        "action_class_mismatch"),
+                reject(
+                        "approval_missing",
+                        fixture -> {
+                            // core 已禁止「不可逆但无审批快照」的 claim，所以这里走审批绑定错参数这条
+                            fixture.actionClass = ActionClass.IRREVERSIBLE_FINANCIAL;
+                            fixture.approval = approved("sha256:" + "0".repeat(64));
+                            fixture.registry =
+                                    type ->
+                                            Optional.of(
+                                                    new AgentToolSpec(
+                                                            type,
+                                                            ActionClass.IRREVERSIBLE_FINANCIAL));
+                        },
+                        "approval_missing"),
                 // 9–10. 受众与幂等键
-                reject("aud_mismatch", fixture -> fixture.audience = "other-service", "aud_mismatch"),
-                reject("idempotency_key_mismatch", fixture -> fixture.ctxIdempotencyKey = OTHER_ACTOR.toString(), "idempotency_key_mismatch"));
+                reject(
+                        "aud_mismatch",
+                        fixture -> fixture.audience = "other-service",
+                        "aud_mismatch"),
+                reject(
+                        "idempotency_key_mismatch",
+                        fixture -> fixture.ctxIdempotencyKey = OTHER_ACTOR.toString(),
+                        "idempotency_key_mismatch"));
     }
 
     private static Arguments reject(String name, Consumer<Fixture> tweak, String expectedWireCode) {
@@ -207,8 +273,7 @@ class DecisionTokenVerifierTest {
                         });
 
         String payloadJson =
-                new String(
-                        JWSObject.parse(token).getPayload().toBytes(), StandardCharsets.UTF_8);
+                new String(JWSObject.parse(token).getPayload().toBytes(), StandardCharsets.UTF_8);
         assertThat(payloadJson)
                 .contains("\"expectedVersion\":7")
                 .contains("\"targets\":[\"" + TARGET_1 + "\",\"" + TARGET_2 + "\"]")
@@ -272,9 +337,7 @@ class DecisionTokenVerifierTest {
         fixture.actionClass = ActionClass.IRREVERSIBLE_FINANCIAL;
         fixture.approval = approved(DEFAULT_ARGS_HASH);
         fixture.registry =
-                type ->
-                        Optional.of(
-                                new AgentToolSpec(type, ActionClass.IRREVERSIBLE_FINANCIAL));
+                type -> Optional.of(new AgentToolSpec(type, ActionClass.IRREVERSIBLE_FINANCIAL));
         String token = fixture.jws();
 
         GuardVerdict verdict =
@@ -284,9 +347,7 @@ class DecisionTokenVerifierTest {
         assertThat(verdict)
                 .isInstanceOfSatisfying(
                         GuardVerdict.Admit.class,
-                        admit ->
-                                assertThat(admit.claims().approval())
-                                        .isEqualTo(fixture.approval));
+                        admit -> assertThat(admit.claims().approval()).isEqualTo(fixture.approval));
     }
 
     @Test
@@ -462,7 +523,8 @@ class DecisionTokenVerifierTest {
     void expected_version_null_is_carried_on_the_wire() throws ParseException {
         Fixture fixture = new Fixture();
         fixture.command = new CommandRef(COMMAND_TYPE, TARGETS, null);
-        fixture.argsHash = ArgsHash.of(new CommandFingerprint(COMMAND_TYPE, PAYLOAD, TARGETS, null));
+        fixture.argsHash =
+                ArgsHash.of(new CommandFingerprint(COMMAND_TYPE, PAYLOAD, TARGETS, null));
         fixture.ctxExpectedVersion = null;
         String token = fixture.jws();
 
@@ -472,7 +534,10 @@ class DecisionTokenVerifierTest {
                 .isInstanceOfSatisfying(
                         GuardVerdict.Admit.class,
                         admit -> assertThat(admit.claims().command().expectedVersion()).isNull());
-        assertThat(new String(JWSObject.parse(token).getPayload().toBytes(), StandardCharsets.UTF_8))
+        assertThat(
+                        new String(
+                                JWSObject.parse(token).getPayload().toBytes(),
+                                StandardCharsets.UTF_8))
                 .contains("\"expectedVersion\":null");
     }
 
@@ -505,6 +570,7 @@ class DecisionTokenVerifierTest {
         Instant issuedAt = IAT;
         Instant expiresAt = IAT.plusSeconds(300);
         String audience = AUDIENCE;
+
         /** 非空表示用测试侧签名器签发（模拟 issuer 拒绝签发的恶意形态）。 */
         String rawKid;
 

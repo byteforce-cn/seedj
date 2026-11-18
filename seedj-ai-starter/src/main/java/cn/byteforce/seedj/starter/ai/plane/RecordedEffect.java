@@ -9,9 +9,9 @@ import java.util.UUID;
 /**
  * 从已落账记录体里读回的执行结局。
  *
- * <p>上报幂等复用的那条记录、对账要不要补链校验，判断依据都只能是账本里写着的东西，不能是调用方这一轮说的话：
- * 于是两处都先读回记录体的 {@code effect} 再决定。只取三样——{@code status}（还能不能补链校验）、
- * {@code audit_entry_id}（是否已经链校验过）、{@code command_id}（拿哪条命令去查链条目）。
+ * <p>上报幂等复用的那条记录、对账要不要补链校验，判断依据都只能是账本里写着的东西，不能是调用方这一轮说的话： 于是两处都先读回记录体的 {@code effect}
+ * 再决定。只取三样——{@code status}（还能不能补链校验）、 {@code audit_entry_id}（是否已经链校验过）、{@code
+ * command_id}（拿哪条命令去查链条目）。
  *
  * <p>记录体格式由 {@link cn.byteforce.seedj.ai.DecisionRecordBodies} 唯一定义：{@code effect} 是嵌套对象， null
  * 字段省略。

@@ -9,8 +9,8 @@ import java.util.Objects;
 /**
  * agent 提议的下一步：执行工具前交给守卫/审批链的候选动作。
  *
- * <p>与 {@link DecisionIntent} 的区别是“还没有落账”：提议可以只读、可以追问、可以被拒绝，因此不要求
- * {@code decisionId} 与指纹。执行工具的提议必须带齐动作分类、命令与载荷——守卫无法在缺字段的提议上做判断。
+ * <p>与 {@link DecisionIntent} 的区别是“还没有落账”：提议可以只读、可以追问、可以被拒绝，因此不要求 {@code decisionId}
+ * 与指纹。执行工具的提议必须带齐动作分类、命令与载荷——守卫无法在缺字段的提议上做判断。
  *
  * @param kind 步骤类型
  * @param actionClass 动作分类；{@code kind == EXECUTE_TOOL} 时必填

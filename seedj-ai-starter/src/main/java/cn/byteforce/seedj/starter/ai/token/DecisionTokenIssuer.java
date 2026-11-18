@@ -21,17 +21,16 @@ import org.slf4j.LoggerFactory;
 /**
  * DecisionToken 签发方：把 claim 签成标准 JWS compact 串。
  *
- * <p>header 固定 {@code alg=EdDSA}、{@code typ=agent-decision+jws}、{@code kid}；payload 是 claim 的
- * 审计规范化 JSON（见 {@link DecisionTokenPayload}）。签名输入由 Nimbus 的 {@link JWSObject} 组装，本类不拼
- * {@code BASE64URL(header) + "." + BASE64URL(payload)}。
+ * <p>header 固定 {@code alg=EdDSA}、{@code typ=agent-decision+jws}、{@code kid}；payload 是 claim 的 审计规范化
+ * JSON（见 {@link DecisionTokenPayload}）。签名输入由 Nimbus 的 {@link JWSObject} 组装，本类不拼 {@code
+ * BASE64URL(header) + "." + BASE64URL(payload)}。
  *
- * <p><b>密钥</b>：{@code seedj.ai.decision.signing-key} 接受两种编码——base64url 的 32 字节 Ed25519 seed
- * （推荐），或 base64/base64url 的 PKCS#8 DER。未配置时在构造期生成临时密钥并打 {@code WARN}：这只让本地开发与
- * 测试开箱可跑，生产必须配置固定密钥，否则重启后旧 token 全部无法验证。轮换时新旧 {@code kid} 在 JWKS 里重叠发布。
+ * <p><b>密钥</b>：{@code seedj.ai.decision.signing-key} 接受两种编码——base64url 的 32 字节 Ed25519 seed （推荐），或
+ * base64/base64url 的 PKCS#8 DER。未配置时在构造期生成临时密钥并打 {@code WARN}：这只让本地开发与 测试开箱可跑，生产必须配置固定密钥，否则重启后旧
+ * token 全部无法验证。轮换时新旧 {@code kid} 在 JWKS 里重叠发布。
  *
  * <p><b>实现说明</b>：T0 用 JDK JCA 做 Ed25519 运算 + BouncyCastle 从 seed 推导公钥，因为 Nimbus 的 {@code
- * Ed25519Signer} 依赖未引入的 Tink；wire 形态（header、签名输入、compact 序列化）仍由 Nimbus 保证，未来换 seedj
- * PKI 或换实现不改协议。
+ * Ed25519Signer} 依赖未引入的 Tink；wire 形态（header、签名输入、compact 序列化）仍由 Nimbus 保证，未来换 seedj PKI 或换实现不改协议。
  *
  * @author ByteForce
  * @since 1.0.0

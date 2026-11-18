@@ -3,8 +3,8 @@ package cn.byteforce.seedj.ai;
 /**
  * 决策步的结局：账本与决策面用它区分“做完了”和“根本没做”。
  *
- * <p>{@link #UNKNOWN} 与 {@link #FAILED} 不能合并：前者表示结果未观测到（需要核对），后者表示已观测到失败。 {@link
- * #NOT_ISSUED} 表示命令因检查未通过而从未签发，因此没有外部副作用。
+ * <p>{@link #UNKNOWN} 与 {@link #FAILED} 不能合并：前者表示结果未观测到（需要核对），后者表示已观测到失败。 {@link #NOT_ISSUED}
+ * 表示命令因检查未通过而从未签发，因此没有外部副作用。
  *
  * @author ByteForce
  * @since 1.0.0

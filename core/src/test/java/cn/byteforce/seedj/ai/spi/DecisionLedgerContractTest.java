@@ -51,10 +51,12 @@ public abstract class DecisionLedgerContractTest {
             UUID.fromString("22222222-2222-2222-2222-222222222222");
 
     private static final UUID ACTOR = UUID.fromString("33333333-3333-3333-3333-333333333333");
-    private static final UUID ON_BEHALF_OF = UUID.fromString("44444444-4444-4444-4444-444444444444");
+    private static final UUID ON_BEHALF_OF =
+            UUID.fromString("44444444-4444-4444-4444-444444444444");
     private static final UUID TASK_CONTRACT =
             UUID.fromString("55555555-5555-5555-5555-555555555555");
-    private static final UUID CONVERSATION = UUID.fromString("66666666-6666-6666-6666-666666666666");
+    private static final UUID CONVERSATION =
+            UUID.fromString("66666666-6666-6666-6666-666666666666");
     private static final Instant RECORDED_AT = Instant.parse("2026-11-18T00:00:00Z");
 
     /** 被测账本：由子类在 {@link #ledger()} 返回同一个实例（不要在方法里新建）。 */
@@ -89,8 +91,7 @@ public abstract class DecisionLedgerContractTest {
         DecisionEffect effect = DecisionEffect.ok("audit-1", UUID.randomUUID());
 
         DecisionRecord first =
-                ledger().appendOutcome(
-                        intent.decisionId(), effect, OutcomeSource.RUNTIME_REPORTED);
+                ledger().appendOutcome(intent.decisionId(), effect, OutcomeSource.RUNTIME_REPORTED);
         DecisionRecord second =
                 ledger().appendOutcome(intent.decisionId(), effect, OutcomeSource.RECONCILED);
 
@@ -199,7 +200,9 @@ public abstract class DecisionLedgerContractTest {
         ledger().appendApproval(intent.decisionId(), approvalSnapshot());
         ledger().appendApproval(intent.decisionId(), approvalSnapshot());
         ledger().appendOutcome(
-                intent.decisionId(), DecisionEffect.unknown(), OutcomeSource.RUNTIME_REPORTED);
+                        intent.decisionId(),
+                        DecisionEffect.unknown(),
+                        OutcomeSource.RUNTIME_REPORTED);
         ledger().appendReconciled(intent.decisionId(), DecisionEffect.unknown(), "第一次核对");
         ledger().appendReconciled(intent.decisionId(), DecisionEffect.unknown(), "第二次核对");
 
@@ -222,8 +225,8 @@ public abstract class DecisionLedgerContractTest {
     /**
      * 跨租户并发复用同一 {@code decision_id}：恰好一个成功、另一个被拒，且成功方拿到的永远是自己租户的记录。
      *
-     * <p>这条用例是<b>概率性回归护栏</b>：修复前 PG 的「事务内查到的既有记录」出口没过租户校验，两个并发事务在 READ
-     * COMMITTED 下能互相看到对方刚提交的行，于是两边都拿到同一条记录。单轮命中率取决于线程交错，所以重复多轮。
+     * <p>这条用例是<b>概率性回归护栏</b>：修复前 PG 的「事务内查到的既有记录」出口没过租户校验，两个并发事务在 READ COMMITTED
+     * 下能互相看到对方刚提交的行，于是两边都拿到同一条记录。单轮命中率取决于线程交错，所以重复多轮。
      */
     @Test
     @DisplayName("跨租户并发复用同一 decision_id：恰好一个成功，另一个被拒，绝不返回别人的记录")
@@ -235,8 +238,7 @@ public abstract class DecisionLedgerContractTest {
                 CountDownLatch start = new CountDownLatch(1);
                 List<Future<Attempt>> futures =
                         List.of(
-                                executor.submit(
-                                        () -> attempt(start, intent(TENANT, decisionId))),
+                                executor.submit(() -> attempt(start, intent(TENANT, decisionId))),
                                 executor.submit(
                                         () -> attempt(start, intent(OTHER_TENANT, decisionId))));
                 start.countDown();
@@ -267,7 +269,8 @@ public abstract class DecisionLedgerContractTest {
     }
 
     /** 一次并发尝试：成功拿到记录，或按契约被拒绝，二者恰有其一。 */
-    private record Attempt(UUID tenantId, DecisionRecord record, IllegalArgumentException rejection) {
+    private record Attempt(
+            UUID tenantId, DecisionRecord record, IllegalArgumentException rejection) {
 
         private static Attempt accepted(UUID tenantId, DecisionRecord record) {
             return new Attempt(tenantId, record, null);
@@ -287,7 +290,8 @@ public abstract class DecisionLedgerContractTest {
     }
 
     /** 等到同时放行后在同一 {@code decision_id} 上用自己的租户追加 intent。 */
-    private Attempt attempt(CountDownLatch start, DecisionIntent intent) throws InterruptedException {
+    private Attempt attempt(CountDownLatch start, DecisionIntent intent)
+            throws InterruptedException {
         start.await();
         try {
             return Attempt.accepted(intent.tenantId(), ledger().appendIntent(intent));

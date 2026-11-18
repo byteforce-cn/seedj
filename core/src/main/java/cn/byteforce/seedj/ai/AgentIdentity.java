@@ -16,7 +16,8 @@ import java.util.UUID;
  * @author ByteForce
  * @since 1.0.0
  */
-public record AgentIdentity(UUID actor, UUID onBehalfOf, UUID proxyBindingId, String actingService) {
+public record AgentIdentity(
+        UUID actor, UUID onBehalfOf, UUID proxyBindingId, String actingService) {
 
     /**
      * 校验执行主体。

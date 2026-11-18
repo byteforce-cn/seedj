@@ -46,7 +46,8 @@ class CommandFingerprintTest {
     @Test
     @DisplayName("targets 缺省为空列表")
     void targets_default_to_empty_list() {
-        CommandFingerprint fingerprint = new CommandFingerprint("ticket.create", Map.of(), null, 7L);
+        CommandFingerprint fingerprint =
+                new CommandFingerprint("ticket.create", Map.of(), null, 7L);
 
         assertThat(fingerprint.targets()).isEmpty();
         assertThat(fingerprint.expectedVersion()).isEqualTo(7L);

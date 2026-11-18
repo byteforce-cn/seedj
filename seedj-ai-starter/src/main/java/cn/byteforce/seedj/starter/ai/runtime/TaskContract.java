@@ -6,9 +6,9 @@ import java.util.UUID;
 /**
  * 任务契约：一次 agent 循环的输入，也是决策面判越权的锚点。
  *
- * <p>{@code id} 是 {@code seedj.ai.contracts[].id} 的字符串形态；决策面按 UUID 解析它，因此它必须是 UUID
- * 字符串。{@code maxSteps} 是这次任务自己的上限，与 {@code seedj.ai.runtime.max-steps} 的部署上限取小（见
- * {@link BoundedLoop}）：任务可以更保守，不能更宽松。
+ * <p>{@code id} 是 {@code seedj.ai.contracts[].id} 的字符串形态；决策面按 UUID 解析它，因此它必须是 UUID 字符串。{@code
+ * maxSteps} 是这次任务自己的上限，与 {@code seedj.ai.runtime.max-steps} 的部署上限取小（见 {@link
+ * BoundedLoop}）：任务可以更保守，不能更宽松。
  *
  * @param id 契约标识（UUID 字符串）
  * @param conversationId 会话标识
@@ -22,8 +22,8 @@ public record TaskContract(String id, UUID conversationId, String instructions, 
     /**
      * 校验必填项与步数上限。
      *
-     * @throws NullPointerException {@code id}、{@code conversationId} 或 {@code instructions}
-     *     为 {@code null}
+     * @throws NullPointerException {@code id}、{@code conversationId} 或 {@code instructions} 为
+     *     {@code null}
      * @throws IllegalArgumentException {@code id} 为空白，或 {@code maxSteps} 小于 1
      */
     public TaskContract {

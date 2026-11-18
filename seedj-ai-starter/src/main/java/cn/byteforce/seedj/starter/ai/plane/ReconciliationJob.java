@@ -23,31 +23,26 @@ import org.springframework.scheduling.annotation.Scheduled;
  * 在链上留下了副作用，只能另外查。核对规则只有两条，都按账本里已写的 outcome 判断：
  *
  * <ul>
- *   <li>outcome 是 {@code ok} 且 {@code audit_entry_id} 为空 → 按 {@code command_id} 查链条目：查到就追加
- *       {@code reconciled(ok(audit_entry_id, command_id), "chain_verified")}；查不到就追加
- *       {@code reconciled(unknown(), "audit_entry_missing")}——自称成功却没有链条目是数据不一致，降为未知，「不得把
- *       unknown 当成成功」。
+ *   <li>outcome 是 {@code ok} 且 {@code audit_entry_id} 为空 → 按 {@code command_id} 查链条目：查到就追加 {@code
+ *       reconciled(ok(audit_entry_id, command_id), "chain_verified")}；查不到就追加 {@code
+ *       reconciled(unknown(), "audit_entry_missing")}——自称成功却没有链条目是数据不一致，降为未知，「不得把 unknown 当成成功」。
  *   <li>其它情况（已链校验过、非 ok、没有 outcome）不动。
- *   <li><b>按 reason 去重</b>：账本的 {@code reconciled} <b>不幂等</b>（每次核对一条观察），而 outcome 落账后永远还是
- *       {@code ok + audit_entry_id=null}；不去重的话一个 60 秒一次的调度会为同一个 decision 无限追加同样的记录。
- *       规则是<b>同一 reason 只记一次</b>：<code>audit_entry_missing</code> 已经记过且本次仍查不到链条目 → 不追加；
- *       已经有一条带 {@code audit_entry_id} 的 {@code chain_verified} → 不追加。
- *       但「缺失 → 核对成功」是一次<b>状态跃迁</b>，允许再记一条 {@code chain_verified}（即使之前已记过
- *       {@code audit_entry_missing}）——链条目补写后必须能升级。因此每个 decision 最多留下
- *       {@code 1 × audit_entry_missing + 1 × chain_verified}，既有上界又能升级。旧 outcome、旧记录都不改写（账本没有
- *       更新入口）。
+ *   <li><b>按 reason 去重</b>：账本的 {@code reconciled} <b>不幂等</b>（每次核对一条观察），而 outcome 落账后永远还是 {@code ok
+ *       + audit_entry_id=null}；不去重的话一个 60 秒一次的调度会为同一个 decision 无限追加同样的记录。 规则是<b>同一 reason 只记一次</b>：
+ *       <code>audit_entry_missing</code> 已经记过且本次仍查不到链条目 → 不追加； 已经有一条带 {@code audit_entry_id} 的
+ *       {@code chain_verified} → 不追加。 但「缺失 → 核对成功」是一次<b>状态跃迁</b>，允许再记一条 {@code
+ *       chain_verified}（即使之前已记过 {@code audit_entry_missing}）——链条目补写后必须能升级。因此每个 decision 最多留下 {@code
+ *       1 × audit_entry_missing + 1 × chain_verified}，既有上界又能升级。旧 outcome、旧记录都不改写（账本没有 更新入口）。
  * </ul>
  *
- * <p><b>T0 的范围收窄（有意为之）</b>：{@link DecisionLedger} 只有「租户 + decision_id」作用域的读接口，没有跨租户
- * 按时间扫描的入口，所以 T0 <b>不实现</b>「有 intent、无 outcome、且超过 TTL」的全量发现——这类决策本类也只会
- * no-op（没有 outcome 就没有可核对的链事实），所以它不在 {@link PlaneReconciliationSource} 的契约里。待核对清单来自
- * {@link PlaneReconciliationSource}，它列的是「已有 outcome、{@code status=ok}、但 {@code audit_entry_id} 仍为
- * null」的决策；生产默认实现 {@link ConfiguredReconciliationSource} 返回空列表并在启动时 WARN，真正的驱动来自 Task 13
- * 的夹具、运维脚本或宿主自定义 bean。定时包装即使打开也扫不到东西——这不是全量对账，别把它当全量对账。
+ * <p><b>T0 的范围收窄（有意为之）</b>：{@link DecisionLedger} 只有「租户 + decision_id」作用域的读接口，没有跨租户 按时间扫描的入口，所以 T0
+ * <b>不实现</b>「有 intent、无 outcome、且超过 TTL」的全量发现——这类决策本类也只会 no-op（没有 outcome 就没有可核对的链事实），所以它不在 {@link
+ * PlaneReconciliationSource} 的契约里。待核对清单来自 {@link PlaneReconciliationSource}，它列的是「已有 outcome、{@code
+ * status=ok}、但 {@code audit_entry_id} 仍为 null」的决策；生产默认实现 {@link ConfiguredReconciliationSource}
+ * 返回空列表并在启动时 WARN，真正的驱动来自 Task 13 的夹具、运维脚本或宿主自定义 bean。定时包装即使打开也扫不到东西——这不是全量对账，别把它当全量对账。
  *
  * <p><b>定时</b>：只有 {@code seedj.ai.plane.reconcile.enabled=true} 时才装配 {@link Scheduler}，且宿主必须自己写
- * {@code @EnableScheduling}（starter 不改宿主的调度配置）。测试与运维直接调 {@link #reconcileOnce(Instant)}，不依赖
- * 调度。
+ * {@code @EnableScheduling}（starter 不改宿主的调度配置）。测试与运维直接调 {@link #reconcileOnce(Instant)}，不依赖 调度。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -103,8 +98,7 @@ public final class ReconciliationJob {
      * 跃迁，允许再记一条。
      *
      * @param decisionId 决策标识
-     * @return 追加的 {@code reconciled} 记录；不需要核对（没有 outcome、非 ok、已链校验过、同一 reason 已记过）
-     *     时为空
+     * @return 追加的 {@code reconciled} 记录；不需要核对（没有 outcome、非 ok、已链校验过、同一 reason 已记过） 时为空
      * @throws NullPointerException {@code decisionId} 为 {@code null}
      */
     public Optional<DecisionRecord> reconcile(UUID decisionId) {
@@ -146,8 +140,7 @@ public final class ReconciliationJob {
     /**
      * 已经补过链校验记录：存在一条带 {@code audit_entry_id} 的 {@code reconciled}。
      *
-     * <p>用 {@code audit_entry_id} 而不是 reason 字符串判定：这是「链上确实有那条条目」的硬事实，没有它就不算
-     * 校验过。
+     * <p>用 {@code audit_entry_id} 而不是 reason 字符串判定：这是「链上确实有那条条目」的硬事实，没有它就不算 校验过。
      */
     private static boolean chainVerified(List<DecisionRecord> records) {
         return records.stream()

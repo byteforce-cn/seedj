@@ -32,15 +32,14 @@ import tools.jackson.databind.json.JsonMapper;
  * 执行侧 guard 装配：工具注册表、DecisionToken 签发/校验与命令入口过滤器。
  *
  * <p>门控是三层的：{@link AiEnabledMarker}（应用写了 {@code @EnableAIServer}）、{@code seedj.ai.guard.enabled}
- * （默认 true——执行侧默认拒绝无 token 的写命令）、servlet web 上下文。没有 web 上下文时命令入口不存在，只装配工具
- * 注册表与 token 组件。
+ * （默认 true——执行侧默认拒绝无 token 的写命令）、servlet web 上下文。没有 web 上下文时命令入口不存在，只装配工具 注册表与 token 组件。
  *
  * <p>{@link DecisionTokenIssuer} 在 guard 侧也提供（{@code @ConditionalOnMissingBean}）：T0 里决策面与执行侧同进程，
  * 守卫用同一个 issuer 发布的公钥验签；分角色部署时守卫需要的是公钥，未来换 JWKS 拉取（T0 不做）。
  *
  * <p><b>{@code decision.audience} 在 guard 侧是启动期必填</b>：它是本服务名的唯一来源，决定 token 的 {@code aud}
- * 比什么。没有它就只能拿请求头（{@code Host} / server name）猜，而请求头是攻击者可控的——换个 {@code Host} 就能把
- * 发给 A 服务的 token 重放到 B 服务。所以 {@code guard.enabled=true} 且受众为空白时本配置直接让启动失败。
+ * 比什么。没有它就只能拿请求头（{@code Host} / server name）猜，而请求头是攻击者可控的——换个 {@code Host} 就能把 发给 A 服务的 token 重放到 B
+ * 服务。所以 {@code guard.enabled=true} 且受众为空白时本配置直接让启动失败。
  *
  * <p>登记进 {@code AutoConfiguration.imports} 是安全的：没有 AI 启用标记的宿主（IAM / IM / HR 等）不会拿到任何 guard
  * bean，命令端点也不会被误拦。
@@ -135,9 +134,8 @@ public class AiGuardAutoConfiguration {
          * <p>{@code CallerIdCodec} 与 {@code CommandController} 共用：缺省 {@code CallerIdCodec.uuid()}，
          * 名称型标识的部署必须让两侧拿到同一个 {@code nameUuid()} 实现。
          *
-         * <p>{@link JsonMapper} 同样由宿主注入（缺省用默认构造）：宿主自定义了数字映射（例如把 JSON 数字读成
-         * {@code BigDecimal}）时，guard 解析命令体与决策面算 {@code args_hash} 必须是同一套 mapper，否则每次写命令都
-         * 403。
+         * <p>{@link JsonMapper} 同样由宿主注入（缺省用默认构造）：宿主自定义了数字映射（例如把 JSON 数字读成 {@code
+         * BigDecimal}）时，guard 解析命令体与决策面算 {@code args_hash} 必须是同一套 mapper，否则每次写命令都 403。
          *
          * @param verifier token 校验器
          * @param callers 当前调用方（由 biz 安全链填充）
@@ -168,8 +166,7 @@ public class AiGuardAutoConfiguration {
          * <p>顺序取安全链之后的一档：安全链（{@code springSecurityFilterChain}，order = {@code
          * SecurityFilterProperties.DEFAULT_FILTER_ORDER} = -100）先把 bearer 认成 {@code Caller}，守卫再消费
          * {@code CallerProvider} 与 {@code x-agent-decision}；servlet filter 一律早于 {@code
-         * DispatcherServlet}，所以仍在 {@code CommandController} 之前。跑在安全链之前会让调用方恒为空、
-         * 每个写命令都 401。
+         * DispatcherServlet}，所以仍在 {@code CommandController} 之前。跑在安全链之前会让调用方恒为空、 每个写命令都 401。
          *
          * @param filter 守卫过滤器
          * @return 注册项

@@ -53,7 +53,8 @@ class ArchitectureTest {
                 "biz-does-not-depend-on-ai",
                 ModuleClassPath.classesOf("seedj-biz-starter"),
                 clazz -> clazz.getPackageName().startsWith("cn.byteforce.seedj.starter"),
-                dependency -> dependency.getPackageName().startsWith("cn.byteforce.seedj.starter.ai"));
+                dependency ->
+                        dependency.getPackageName().startsWith("cn.byteforce.seedj.starter.ai"));
     }
 
     @Test
@@ -146,9 +147,7 @@ class ArchitectureTest {
             }
         }
 
-        assertThat(matched)
-                .as("规则 %s 的 origin 谓词未命中任何类（规则空跑，不能算通过）", rule)
-                .isPositive();
+        assertThat(matched).as("规则 %s 的 origin 谓词未命中任何类（规则空跑，不能算通过）", rule).isPositive();
         assertThat(violations)
                 .as(
                         "规则 %s 存在未登记违规；修掉依赖，或在 %s 记录 " + "`%s|<origin> -> <target>`",

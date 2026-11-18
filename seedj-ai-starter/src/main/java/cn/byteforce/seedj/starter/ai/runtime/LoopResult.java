@@ -6,9 +6,9 @@ import java.util.Objects;
 /**
  * 一次有界循环的结局。
  *
- * <p>{@code detail} 只在两种结局里有值：拒绝时是 {@code denyRule}，工具失败时是工具返回体（截断到
- * {@value #MAX_DETAIL_CHARS} 字符）。本类不主动写入 token：{@code detail} 原样保留工具返回体（外部文本），
- * {@code observations} 由 {@code BoundedLoop} 生成且只含 step / kind / type / ok / commandId。
+ * <p>{@code detail} 只在两种结局里有值：拒绝时是 {@code denyRule}，工具失败时是工具返回体（截断到 {@value #MAX_DETAIL_CHARS}
+ * 字符）。本类不主动写入 token：{@code detail} 原样保留工具返回体（外部文本）， {@code observations} 由 {@code BoundedLoop}
+ * 生成且只含 step / kind / type / ok / commandId。
  *
  * @param outcome 结局类型
  * @param steps 实际走完的步数

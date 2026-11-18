@@ -112,7 +112,8 @@ class LedgerHashTest {
                 .hasMessageContaining("unsigned");
     }
 
-    private static DecisionRecord record(long sequence, Instant recordedAt, Map<String, Object> body) {
+    private static DecisionRecord record(
+            long sequence, Instant recordedAt, Map<String, Object> body) {
         return new DecisionRecord(
                 RECORD_ID,
                 DECISION_ID,

@@ -6,10 +6,9 @@ import cn.byteforce.seedj.module.ObjectModules;
 /**
  * pilot 工单对象的唯一读侧声明：schema、读权限与两个命令类型。
  *
- * <p>字段只在 {@link Ticket} 声明一次；这里只声明「谁能读、哪些命令能写」。两条命令分别对应 T0 要求覆盖的两档
- * 动作分类（{@code ticket.create} = {@code COMPENSABLE}、{@code ticket.comment} = {@code
- * REVERSIBLE}），动作分类本身不在这里写死：它是 {@code seedj.ai.tools[]} 的配置事实，决策面与守卫都从同一份
- * 配置取。
+ * <p>字段只在 {@link Ticket} 声明一次；这里只声明「谁能读、哪些命令能写」。两条命令分别对应 T0 要求覆盖的两档 动作分类（{@code ticket.create} =
+ * {@code COMPENSABLE}、{@code ticket.comment} = {@code REVERSIBLE}），动作分类本身不在这里写死：它是 {@code
+ * seedj.ai.tools[]} 的配置事实，决策面与守卫都从同一份 配置取。
  *
  * @author ByteForce
  * @since 1.0.0

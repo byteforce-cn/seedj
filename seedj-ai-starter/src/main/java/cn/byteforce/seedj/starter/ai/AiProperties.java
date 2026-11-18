@@ -10,12 +10,11 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
 /**
  * AI 能力配置（{@code seedj.ai.*}）。
  *
- * <p>开关分四层：{@code enabled} 是总闸，{@code plane}/{@code guard}/{@code runtime} 是三个角色开关——生产上决策面与
- * 执行侧用同一份 starter、不同开关分角色。标量默认值用 {@link DefaultValue} 声明（构造器绑定下「未配置」与「显式
+ * <p>开关分四层：{@code enabled} 是总闸，{@code plane}/{@code guard}/{@code runtime} 是三个角色开关——生产上决策面与 执行侧用同一份
+ * starter、不同开关分角色。标量默认值用 {@link DefaultValue} 声明（构造器绑定下「未配置」与「显式
  * false/0」必须区分），整组未配置时由紧凑构造器补默认实例，空绑定即可启动。
  *
- * <p>本类只做绑定；{@code tools[].commandType} / {@code tools[].actionClass} 的必填与存在性校验由使用方（工具注册表）
- * 在启动期完成。
+ * <p>本类只做绑定；{@code tools[].commandType} / {@code tools[].actionClass} 的必填与存在性校验由使用方（工具注册表） 在启动期完成。
  *
  * @param enabled 总开关，默认 true；false 时连启用标记都不产
  * @param plane 决策面配置
@@ -87,12 +86,11 @@ public record AiProperties(
     /**
      * 决策面配置：intent 先行、只读不签 token。
      *
-     * <p>{@code tenant} 是决策面唯一的租户来源：T0 没有租户上下文注入，而账本按租户分区、读记录也按租户过滤，
-     * 所以它必须在配置里钉死（缺 UUID 即启动失败）。它也是 {@code identity} 只来自配置的同一条思路——
-     * 决策面不接受请求自称的租户与主体。
+     * <p>{@code tenant} 是决策面唯一的租户来源：T0 没有租户上下文注入，而账本按租户分区、读记录也按租户过滤， 所以它必须在配置里钉死（缺 UUID 即启动失败）。它也是
+     * {@code identity} 只来自配置的同一条思路—— 决策面不接受请求自称的租户与主体。
      *
-     * <p>{@code permission} 是决策面的<b>授权</b>门槛：{@code /v1/decisions} 只做认证是不够的——任何已认证的 IAM 用户
-     * 都能以配置的 agent 身份拿 token。调用方必须带这个权限名，否则 403。
+     * <p>{@code permission} 是决策面的<b>授权</b>门槛：{@code /v1/decisions} 只做认证是不够的——任何已认证的 IAM 用户 都能以配置的
+     * agent 身份拿 token。调用方必须带这个权限名，否则 403。
      *
      * @param enabled 是否装配决策面，默认 false（执行侧不需要它）
      * @param tenant 决策面所属租户（必填 UUID）；账本分区 {@code t_<tenant>} 与 token 的 {@code tenant} claim 都用它
@@ -120,8 +118,7 @@ public record AiProperties(
      * @param datasource 对账用的数据源 bean 名称；空表示用主数据源
      * @param enabled 是否装配定时对账，默认 false（宿主还需自己写 {@code @EnableScheduling}）
      */
-    public record Reconcile(
-            String datasource, @DefaultValue("false") boolean enabled) {}
+    public record Reconcile(String datasource, @DefaultValue("false") boolean enabled) {}
 
     /**
      * 执行侧 guard 配置。
@@ -133,8 +130,8 @@ public record AiProperties(
     /**
      * 有界 agent 循环配置。
      *
-     * <p>地址与超时是 runtime 作为客户端的部署事实：决策面与命令面可能是同进程，也可能是两个别的服务。
-     * {@code model} 同样是部署事实（见 {@link Model}），不是运行时输入。
+     * <p>地址与超时是 runtime 作为客户端的部署事实：决策面与命令面可能是同进程，也可能是两个别的服务。 {@code model} 同样是部署事实（见 {@link
+     * Model}），不是运行时输入。
      *
      * @param enabled 是否装配 agent 循环，默认 false
      * @param maxSteps 单次任务的工具调用步数上限，默认 6；与任务契约的 {@code maxSteps} 取小
@@ -162,9 +159,8 @@ public record AiProperties(
         /**
          * 模型引用：「这个决定是哪一版模型、哪一版提示词做的」。
          *
-         * <p><b>model 是部署事实，不是运行时输入</b>：它只来自配置，不由 agent 或请求方自报；换模型或换
-         * 提示词版本必须改配置。{@code runtime.enabled=true} 时 {@code name} 与 {@code version}
-         * 必填，缺失即启动失败。
+         * <p><b>model 是部署事实，不是运行时输入</b>：它只来自配置，不由 agent 或请求方自报；换模型或换 提示词版本必须改配置。{@code
+         * runtime.enabled=true} 时 {@code name} 与 {@code version} 必填，缺失即启动失败。
          *
          * @param name 模型名（必填）
          * @param version 模型版本（必填）
@@ -177,9 +173,9 @@ public record AiProperties(
     /**
      * 决策身份配置：身份只来自配置，不取请求头。
      *
-     * <p>缺省语义按角色不同：guard/verifier 侧 {@code actor} 空表示把调用方当作匿名 agent、{@code onBehalfOf}
-     * 空表示 agent 自主决策；{@code seedj.ai.plane.enabled=true} 时两者都是<b>必填 UUID</b>——决策面不接受
-     * 「匿名写决策」，缺失或非 UUID 直接启动失败。
+     * <p>缺省语义按角色不同：guard/verifier 侧 {@code actor} 空表示把调用方当作匿名 agent、{@code onBehalfOf} 空表示 agent
+     * 自主决策；{@code seedj.ai.plane.enabled=true} 时两者都是<b>必填 UUID</b>——决策面不接受 「匿名写决策」，缺失或非 UUID
+     * 直接启动失败。
      *
      * @param actor agent 自身身份（{@code seedj.ai.identity.actor}）；决策面必填
      * @param onBehalfOf 代办的自然人身份（{@code seedj.ai.identity.on-behalf-of}）；决策面必填
@@ -189,13 +185,13 @@ public record AiProperties(
     /**
      * DecisionToken 配置。
      *
-     * @param signingKey Ed25519 私钥：base64url 的 32 字节 seed（推荐）或 base64/base64url 的 PKCS#8 DER；空表示生成本地
-     *     临时密钥（仅供本地/测试，生产必须配置）
+     * @param signingKey Ed25519 私钥：base64url 的 32 字节 seed（推荐）或 base64/base64url 的 PKCS#8
+     *     DER；空表示生成本地 临时密钥（仅供本地/测试，生产必须配置）
      * @param kid 密钥标识，默认 {@link #DEFAULT_KID}
      * @param ttl 令牌有效期，默认 300s
-     * @param audience 本服务的受众名：guard 侧<b>必填</b>（{@code guard.enabled=true} 时空白即启动失败——
-     *     它只能来自配置，不能从 {@code Host} 之类攻击者可控的请求头推），决策面侧可空：空表示要求每条请求自带
-     *     audience，两者都缺时那条 {@code execute_tool} 请求 400（{@code seedj.ai.decision.audience}）
+     * @param audience 本服务的受众名：guard 侧<b>必填</b>（{@code guard.enabled=true} 时空白即启动失败—— 它只能来自配置，不能从
+     *     {@code Host} 之类攻击者可控的请求头推），决策面侧可空：空表示要求每条请求自带 audience，两者都缺时那条 {@code execute_tool} 请求
+     *     400（{@code seedj.ai.decision.audience}）
      */
     public record Decision(
             String signingKey,

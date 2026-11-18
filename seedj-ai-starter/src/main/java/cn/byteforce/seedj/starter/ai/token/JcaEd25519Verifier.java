@@ -14,8 +14,8 @@ import java.util.Set;
 /**
  * Nimbus {@link JWSVerifier} 的 JCA 适配器：只做 Ed25519 验签，签名输入由 Nimbus 组装。
  *
- * <p>与 {@link JcaEd25519Signer} 成对：验签输入是 Nimbus 从 compact 序列化还原的 {@code
- * BASE64URL(header) + "." + BASE64URL(payload)}，因此不存在「自己拼字符串」与协议漂移的风险。
+ * <p>与 {@link JcaEd25519Signer} 成对：验签输入是 Nimbus 从 compact 序列化还原的 {@code BASE64URL(header) + "." +
+ * BASE64URL(payload)}，因此不存在「自己拼字符串」与协议漂移的风险。
  *
  * @author ByteForce
  * @since 1.0.0

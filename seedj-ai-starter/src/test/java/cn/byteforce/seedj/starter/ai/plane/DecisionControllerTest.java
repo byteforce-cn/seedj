@@ -23,11 +23,11 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * 决策面的授权：{@code POST /v1/decisions} 与 {@code GET /v1/decisions/{id}} 只放行带
- * {@code seedj.ai.plane.permission} 权限的调用方。
+ * 决策面的授权：{@code POST /v1/decisions} 与 {@code GET /v1/decisions/{id}} 只放行带 {@code
+ * seedj.ai.plane.permission} 权限的调用方。
  *
- * <p>只认证不授权是真实漏洞：任何已认证的 IAM 用户都能以配置的 agent 身份拿一枚可执行写的 token。这里用真的
- * {@link DecisionService}（内存账本）与三个调用方视图钉住「无权限 403、无认证 401、有权限正常」，不启 web 上下文。
+ * <p>只认证不授权是真实漏洞：任何已认证的 IAM 用户都能以配置的 agent 身份拿一枚可执行写的 token。这里用真的 {@link
+ * DecisionService}（内存账本）与三个调用方视图钉住「无权限 403、无认证 401、有权限正常」，不启 web 上下文。
  */
 class DecisionControllerTest {
 

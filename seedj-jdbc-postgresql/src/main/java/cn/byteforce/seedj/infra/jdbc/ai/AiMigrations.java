@@ -6,11 +6,11 @@ import java.util.List;
 /**
  * 决策账本的版本化迁移：链头表 + 只追加的记录表 + 拒绝改写的触发器。
  *
- * <p>记录表的写权限只有 INSERT/SELECT：{@code before update or delete} 触发器在数据库层拒绝改写， 与「账本只能追加」的
- * SPI 语义互为双保险（触发器是最后一道，应用层不该依赖它来发现 bug）。
+ * <p>记录表的写权限只有 INSERT/SELECT：{@code before update or delete} 触发器在数据库层拒绝改写， 与「账本只能追加」的 SPI
+ * 语义互为双保险（触发器是最后一道，应用层不该依赖它来发现 bug）。
  *
- * <p>触发器函数用单引号字符串作为函数体（而不是 {@code $$} 美元引用）：{@code JdbcMigrationRunner} 用 Spring
- * 的脚本执行器按 {@code ;} 切分语句，它不识别美元引用，会把函数体从中间的 {@code ;} 切开。
+ * <p>触发器函数用单引号字符串作为函数体（而不是 {@code $$} 美元引用）：{@code JdbcMigrationRunner} 用 Spring 的脚本执行器按 {@code ;}
+ * 切分语句，它不识别美元引用，会把函数体从中间的 {@code ;} 切开。
  */
 final class AiMigrations {
 

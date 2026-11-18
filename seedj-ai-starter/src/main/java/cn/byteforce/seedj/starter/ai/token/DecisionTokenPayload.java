@@ -19,12 +19,12 @@ import tools.jackson.databind.json.JsonMapper;
 /**
  * token payload 的编解码：spec §7.1 的键名、null 省略规则与类型转换的唯一实现。
  *
- * <p>编码产出审计规范化文本（键字典序、无空白、UTF-8 不转义），直接作为 JWS payload 的字节；{@code
- * expectedVersion} 键恒在（{@code null} 写成 JSON {@code null}），{@code targets} 是字符串数组且顺序保留，
- * {@code policy}/{@code approval} 为 {@code null} 时整个键省略。
+ * <p>编码产出审计规范化文本（键字典序、无空白、UTF-8 不转义），直接作为 JWS payload 的字节；{@code expectedVersion} 键恒在（{@code null}
+ * 写成 JSON {@code null}），{@code targets} 是字符串数组且顺序保留， {@code policy}/{@code approval} 为 {@code null}
+ * 时整个键省略。
  *
- * <p>解码是严格的：缺键、类型不符、UUID 或时间无法解析都抛 {@link IllegalArgumentException}，由校验方统一映射成
- * {@code token_invalid}——半解析的 claim 不许继续参与比对。
+ * <p>解码是严格的：缺键、类型不符、UUID 或时间无法解析都抛 {@link IllegalArgumentException}，由校验方统一映射成 {@code
+ * token_invalid}——半解析的 claim 不许继续参与比对。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -151,7 +151,8 @@ final class DecisionTokenPayload {
             }
             parsed.add(uuid(target.stringValue(), "command.targets[]"));
         }
-        return new CommandRef(textClaim(node, "type"), parsed, optionalLong(node, "expectedVersion"));
+        return new CommandRef(
+                textClaim(node, "type"), parsed, optionalLong(node, "expectedVersion"));
     }
 
     private static PolicyRef policy(JsonNode node) {

@@ -18,14 +18,13 @@ import javax.sql.DataSource;
  * 把一次 runtime 上报变成一条 {@code outcome} 记录（spec §6.4 的两段式效果：intent 先行、outcome 后补）。
  *
  * <p><b>上报不是结论</b>：请求只带 {@code command_id}，没有 status / audit_entry_id / error_code——runtime 说
- * 什么都不算数。结局全部由链上事实推导：按 {@code (issuer = intent.identity.actor, idempotency_key =
- * decision_id)} 查 {@code command_record}（「幂等键 = decision_id」是 guard 保证的），命令记录才是唯一事实来源。
- * 上报的那个 {@code command_id} 只表达「runtime 认为这是哪条命令」，不参与判定：库里是 ACCEPTED 就按<b>库里</b>那条
- * 记录的 id 落账——说谎的上报因此被链上事实覆盖，而不是被采信。
+ * 什么都不算数。结局全部由链上事实推导：按 {@code (issuer = intent.identity.actor, idempotency_key = decision_id)} 查
+ * {@code command_record}（「幂等键 = decision_id」是 guard 保证的），命令记录才是唯一事实来源。 上报的那个 {@code command_id}
+ * 只表达「runtime 认为这是哪条命令」，不参与判定：库里是 ACCEPTED 就按<b>库里</b>那条 记录的 id 落账——说谎的上报因此被链上事实覆盖，而不是被采信。
  *
- * <p><b>上报阶段永远不写 {@code audit_entry_id}</b>：链条目由命令事务写出，上报本身不是链校验。所以这里写出的
- * outcome 是 {@code source = runtime_reported} 的「已上报、未链校验」，补齐链条目标是
- * {@link ReconciliationJob} 的事。一条自称 OK 却没有链条目的 outcome 会在对账里被降为 {@code unknown}，不是成功。
+ * <p><b>上报阶段永远不写 {@code audit_entry_id}</b>：链条目由命令事务写出，上报本身不是链校验。所以这里写出的 outcome 是 {@code source =
+ * runtime_reported} 的「已上报、未链校验」，补齐链条目标是 {@link ReconciliationJob} 的事。一条自称 OK 却没有链条目的 outcome
+ * 会在对账里被降为 {@code unknown}，不是成功。
  *
  * <p><b>判定顺序</b>（每一步只看库里的那一行）：
  *
@@ -33,12 +32,11 @@ import javax.sql.DataSource;
  *   <li>按幂等键查不到命令记录 → {@code failed(command_not_found)}——决策发出去过，但命令从未落库；
  *   <li>{@code payload_fingerprint} 与 intent 的幂等指纹不一致 → {@code failed(fingerprint_mismatch)}：那条命令
  *       不是这次决策，它的结果不能算到这条意图上；
- *   <li>{@code accepted} → {@code ok(null, 库里的 command_id)}；{@code rejected} →
- *       {@code failed(rejection_code)}；{@code pending}（含租约未过期）→ {@code unknown()}。
+ *   <li>{@code accepted} → {@code ok(null, 库里的 command_id)}；{@code rejected} → {@code
+ *       failed(rejection_code)}；{@code pending}（含租约未过期）→ {@code unknown()}。
  * </ol>
  *
- * <p><b>幂等</b>：同一 decision 上报两次只留一条 outcome（账本对 outcome 幂等），第二次返回首条记录的 id 与状态，
- * 不会把已落账的结局改写一遍。
+ * <p><b>幂等</b>：同一 decision 上报两次只留一条 outcome（账本对 outcome 幂等），第二次返回首条记录的 id 与状态， 不会把已落账的结局改写一遍。
  *
  * <p><b>数据源</b>：只读业务库，用来查 {@code command_record} 与（对账时）{@code audit_entry}；本类不写业务库。
  *
@@ -114,10 +112,10 @@ public final class OutcomeDeriver {
             return DecisionEffect.failed(ERROR_FINGERPRINT_MISMATCH);
         }
         return switch (command.status()) {
-            // 上报不是链校验：audit_entry_id 恒为 null，命令标识取库里那条
+                // 上报不是链校验：audit_entry_id 恒为 null，命令标识取库里那条
             case "accepted" -> DecisionEffect.ok(null, command.id());
             case "rejected" -> DecisionEffect.failed(command.rejectionCode());
-            // pending（含租约未过期）：执行还没定论，不得当成成功
+                // pending（含租约未过期）：执行还没定论，不得当成成功
             default -> DecisionEffect.unknown();
         };
     }

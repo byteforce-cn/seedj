@@ -10,7 +10,8 @@ import org.junit.jupiter.api.Test;
 /**
  * 执行结局的工厂契约：每个工厂只填自己那一档的字段，其余留空。
  *
- * <p>{@code ok(auditEntryId, commandId)} 的参数顺序是外部调用方最容易接反的一处：审计链条目标识在前、 命令记录标识在后，接反后“从审计链反查命令”整条路走不通。
+ * <p>{@code ok(auditEntryId, commandId)} 的参数顺序是外部调用方最容易接反的一处：审计链条目标识在前、
+ * 命令记录标识在后，接反后“从审计链反查命令”整条路走不通。
  */
 class DecisionEffectTest {
 

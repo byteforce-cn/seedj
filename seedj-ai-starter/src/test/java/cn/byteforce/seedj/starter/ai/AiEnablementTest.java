@@ -13,16 +13,16 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.context.annotation.ImportCandidates;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.util.ClassUtils;
 
 /**
  * {@code @EnableAIServer} 开关语义与 {@code seedj.ai.*} 绑定。
  *
- * <p>本模块被 {@code seedj-it} 依赖，任何自动配置都会在 IAM/IM/HR 的测试上下文里被加载：所有 AI 能力 bean
- * 都必须由 {@link AiEnabledMarker} 门控，而标记只在应用写了 {@code @EnableAIServer} 时存在。
+ * <p>本模块被 {@code seedj-it} 依赖，任何自动配置都会在 IAM/IM/HR 的测试上下文里被加载：所有 AI 能力 bean 都必须由 {@link
+ * AiEnabledMarker} 门控，而标记只在应用写了 {@code @EnableAIServer} 时存在。
  */
 class AiEnablementTest {
 

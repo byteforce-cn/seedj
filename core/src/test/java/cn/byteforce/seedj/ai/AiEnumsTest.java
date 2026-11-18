@@ -64,7 +64,8 @@ class AiEnumsTest {
     @DisplayName("EffectStatus 的 wire 名是冻结的小写名")
     void effect_status_wire_names_are_frozen() {
         assertThat(Arrays.stream(EffectStatus.values()).map(EffectStatus::wire))
-                .containsExactly("ok", "failed", "unknown", "not_applicable", "not_issued", "rejected");
+                .containsExactly(
+                        "ok", "failed", "unknown", "not_applicable", "not_issued", "rejected");
     }
 
     @ParameterizedTest

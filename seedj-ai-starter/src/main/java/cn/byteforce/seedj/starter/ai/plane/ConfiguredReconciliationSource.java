@@ -10,9 +10,9 @@ import org.slf4j.LoggerFactory;
 /**
  * T0 的默认对账来源：一个也不返回。
  *
- * <p>存在意义是把「T0 没有跨租户扫描入口」变成显式事实而不是静默空转：构造时 WARN 一次，点名对账要由 Task 13 的
- * 夹具、运维脚本或宿主自定义 {@link PlaneReconciliationSource} bean 按已知 {@code decision_id} 驱动。等账本具备
- * 「按租户/时间扫描」的只读入口后再实现真正的发现——那是 U9 之后的事，现在不要假装已经做了。
+ * <p>存在意义是把「T0 没有跨租户扫描入口」变成显式事实而不是静默空转：构造时 WARN 一次，点名对账要由 Task 13 的 夹具、运维脚本或宿主自定义 {@link
+ * PlaneReconciliationSource} bean 按已知 {@code decision_id} 驱动。等账本具备 「按租户/时间扫描」的只读入口后再实现真正的发现——那是 U9
+ * 之后的事，现在不要假装已经做了。
  *
  * @author ByteForce
  * @since 1.0.0

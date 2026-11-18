@@ -15,12 +15,12 @@ import tools.jackson.databind.node.ObjectNode;
  * 账本记录的哈希算法：{@code record_hash} 的唯一实现。
  *
  * <p>哈希前像是本条记录的规范 JSON（键排序、无空白），字段为 {@code record_id}、{@code decision_id}、 {@code record_kind}、
- * {@code partition}、{@code sequence}、{@code prev_hash}、{@code recorded_at}、{@code tenant_id}、 {@code body}——覆盖除
- * {@code record_hash} 自身以外的全部记录内容。覆盖率的意义：改序号、改时间、改记录体都会换掉哈希， 序列号被篡改无法躲过
- * {@code verify}。
+ * {@code partition}、{@code sequence}、{@code prev_hash}、{@code recorded_at}、{@code tenant_id}、
+ * {@code body}——覆盖除 {@code record_hash} 自身以外的全部记录内容。覆盖率的意义：改序号、改时间、改记录体都会换掉哈希， 序列号被篡改无法躲过 {@code
+ * verify}。
  *
- * <p>{@code recorded_at} 序列化为 {@link java.time.Instant#toString()}（UTC，保留调用方写入的值）， {@code record_kind}
- * 用小写线格式名，{@code body} 是嵌套对象。内存实现与 PostgreSQL 实现共用本类， 保证两套账本对同一记录给出同一个哈希。
+ * <p>{@code recorded_at} 序列化为 {@link java.time.Instant#toString()}（UTC，保留调用方写入的值）， {@code
+ * record_kind} 用小写线格式名，{@code body} 是嵌套对象。内存实现与 PostgreSQL 实现共用本类， 保证两套账本对同一记录给出同一个哈希。
  *
  * @author ByteForce
  * @since 1.0.0

@@ -19,11 +19,15 @@ import org.junit.jupiter.api.Test;
 class DecisionRecordBodiesTest {
 
     private static final UUID TENANT = UUID.fromString("11111111-1111-1111-1111-111111111111");
-    private static final UUID TASK_CONTRACT = UUID.fromString("55555555-5555-5555-5555-555555555555");
-    private static final UUID CONVERSATION = UUID.fromString("66666666-6666-6666-6666-666666666666");
+    private static final UUID TASK_CONTRACT =
+            UUID.fromString("55555555-5555-5555-5555-555555555555");
+    private static final UUID CONVERSATION =
+            UUID.fromString("66666666-6666-6666-6666-666666666666");
     private static final UUID ACTOR = UUID.fromString("33333333-3333-3333-3333-333333333333");
-    private static final UUID ON_BEHALF_OF = UUID.fromString("44444444-4444-4444-4444-444444444444");
-    private static final UUID PROXY_BINDING = UUID.fromString("77777777-7777-7777-7777-777777777777");
+    private static final UUID ON_BEHALF_OF =
+            UUID.fromString("44444444-4444-4444-4444-444444444444");
+    private static final UUID PROXY_BINDING =
+            UUID.fromString("77777777-7777-7777-7777-777777777777");
     private static final UUID TARGET = UUID.fromString("99999999-9999-9999-9999-999999999999");
     private static final UUID COMMAND = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     private static final Instant AT = Instant.parse("2026-11-18T00:00:00Z");
@@ -49,7 +53,13 @@ class DecisionRecordBodiesTest {
                         List.of(new Evidence("message", "im://conversation/6666", "c".repeat(64))),
                         new ModelRef("seedj-agent", "2026-11", "prompt-v1", "d".repeat(64)),
                         new PolicyRef(
-                                "opa", "ai/v1", 9L, 12L, "allow", List.of("r-1", "r-2"), "opa://e/1"),
+                                "opa",
+                                "ai/v1",
+                                9L,
+                                12L,
+                                "allow",
+                                List.of("r-1", "r-2"),
+                                "opa://e/1"),
                         new AgentIdentity(ACTOR, ON_BEHALF_OF, PROXY_BINDING, "seedj-ai-starter"),
                         approved());
 
@@ -63,8 +73,13 @@ class DecisionRecordBodiesTest {
         expected.put("action_class", "irreversible_financial");
         expected.put(
                 "command",
-                Map.of("type", "payment.refund", "targets", List.of(TARGET.toString()),
-                        "expectedVersion", 7L));
+                Map.of(
+                        "type",
+                        "payment.refund",
+                        "targets",
+                        List.of(TARGET.toString()),
+                        "expectedVersion",
+                        7L));
         expected.put("args_hash", ARGS_HASH);
         expected.put("idem_fingerprint", "b".repeat(64));
         expected.put("args", Map.of("title", "退款", "attempt", 1));
@@ -267,9 +282,7 @@ class DecisionRecordBodiesTest {
         expected.put("effect", Map.of("status", "unknown"));
         expected.put("reason", "执行中崩溃，待核对");
 
-        assertThat(
-                        DecisionRecordBodies.reconciled(
-                                DecisionEffect.unknown(), "执行中崩溃，待核对", null))
+        assertThat(DecisionRecordBodies.reconciled(DecisionEffect.unknown(), "执行中崩溃，待核对", null))
                 .isEqualTo(expected);
     }
 
@@ -289,9 +302,7 @@ class DecisionRecordBodiesTest {
                 .isInstanceOf(NullPointerException.class)
                 .hasMessageContaining("source");
         assertThatThrownBy(
-                        () ->
-                                DecisionRecordBodies.reconciled(
-                                        DecisionEffect.unknown(), null, null))
+                        () -> DecisionRecordBodies.reconciled(DecisionEffect.unknown(), null, null))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessageContaining("reason");
     }

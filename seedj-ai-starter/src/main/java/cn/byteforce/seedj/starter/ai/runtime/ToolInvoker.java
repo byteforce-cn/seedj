@@ -5,9 +5,8 @@ import java.util.UUID;
 /**
  * 工具端口：只读查询与命令执行。
  *
- * <p><b>token 只走带外</b>：{@link #execute(Call, String, UUID)} 的 token 由实现放进传输层元数据（HTTP 头
- * {@code x-agent-decision}），绝不进请求体、日志或异常消息（spec §5.1 关键 3、§7.2）。{@code decisionId} 恒等于
- * 命令的幂等键。
+ * <p><b>token 只走带外</b>：{@link #execute(Call, String, UUID)} 的 token 由实现放进传输层元数据（HTTP 头 {@code
+ * x-agent-decision}），绝不进请求体、日志或异常消息（spec §5.1 关键 3、§7.2）。{@code decisionId} 恒等于 命令的幂等键。
  *
  * <p>{@link #read(Call)} 没有 token：只读路径不签发 DecisionToken（spec §5.1 只读路径）。
  *

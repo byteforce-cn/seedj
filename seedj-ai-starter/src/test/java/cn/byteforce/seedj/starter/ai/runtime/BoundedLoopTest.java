@@ -38,12 +38,11 @@ import org.springframework.web.client.RestClient;
 /**
  * 有界 agent 循环与两个 HTTP 端口（spec §5.1 两条路径、§7.2 token 只走 {@code x-agent-decision}）。
  *
- * <p>循环的每个用例都钉三件事：<b>只有写动作才问决策面</b>（{@code finish}/只读提案一次 {@code ask} 都不该有）、
- * <b>决策一次走一步</b>（多调一次 {@code ask} 或工具调用次数多一次都是错），以及<b>停止条件之后绝不再调工具</b>——
- * {@code stops_at_max_steps} 用工具调用次数证明上限真的是上限。
+ * <p>循环的每个用例都钉三件事：<b>只有写动作才问决策面</b>（{@code finish}/只读提案一次 {@code ask} 都不该有）、 <b>决策一次走一步</b>（多调一次
+ * {@code ask} 或工具调用次数多一次都是错），以及<b>停止条件之后绝不再调工具</b>—— {@code stops_at_max_steps} 用工具调用次数证明上限真的是上限。
  *
- * <p>两个 HTTP 端口用 {@link MockRestServiceServer} 断言线格式：token 只出现在请求头，从不进 body；决策请求是
- * snake_case，且不接受 {@code decision_id}/{@code idempotency_key}。
+ * <p>两个 HTTP 端口用 {@link MockRestServiceServer} 断言线格式：token 只出现在请求头，从不进 body；决策请求是 snake_case，且不接受
+ * {@code decision_id}/{@code idempotency_key}。
  */
 class BoundedLoopTest {
 
@@ -184,8 +183,7 @@ class BoundedLoopTest {
     @Test
     @DisplayName("上报失败只 WARN：命令已经执行成功，循环仍然 FINISHED")
     void report_failure_does_not_fail_the_loop() {
-        ScriptedGateway gateway =
-                new ScriptedGateway(executeProposal(), finishProposal());
+        ScriptedGateway gateway = new ScriptedGateway(executeProposal(), finishProposal());
         ScriptedDecisionClient decisions = new ScriptedDecisionClient(allowGrant());
         decisions.reportFailure = new IllegalStateException("决策面 outcome 上报返回 HTTP 503");
         RecordingToolInvoker tools =
@@ -451,9 +449,7 @@ class BoundedLoopTest {
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         HttpDecisionClient client = new HttpDecisionClient(builder, DECISION_BASE, model());
 
-        server.expect(
-                        requestTo(
-                                DECISION_BASE + "/v1/decisions/" + DECISION_ID + "/outcome"))
+        server.expect(requestTo(DECISION_BASE + "/v1/decisions/" + DECISION_ID + "/outcome"))
                 .andExpect(method(HttpMethod.POST))
                 .andExpect(jsonPath("$.command_id").value(COMMAND_ID.toString()))
                 .andExpect(jsonPath("$.status").doesNotExist())
@@ -473,9 +469,7 @@ class BoundedLoopTest {
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         HttpDecisionClient client = new HttpDecisionClient(builder, DECISION_BASE, model());
 
-        server.expect(
-                        requestTo(
-                                DECISION_BASE + "/v1/decisions/" + DECISION_ID + "/outcome"))
+        server.expect(requestTo(DECISION_BASE + "/v1/decisions/" + DECISION_ID + "/outcome"))
                 .andExpect(method(HttpMethod.POST))
                 .andRespond(
                         withStatus(HttpStatus.SERVICE_UNAVAILABLE)

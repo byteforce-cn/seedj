@@ -7,9 +7,8 @@ import java.util.UUID;
 /**
  * 命令引用：账本与 token 里“要执行什么”的最小描述，不含载荷。
  *
- * <p>载荷只以 {@code argsHash} 的形式出现在账本与 token 里：账本存原文会把敏感数据搬进审计存储，token
- * 里塞载荷会让 token 变长且难以轮换。{@code targets} 与 {@code expectedVersion} 参与指纹比对，守卫据此拒绝“换了对象”或
- * “换了版本”的重放。
+ * <p>载荷只以 {@code argsHash} 的形式出现在账本与 token 里：账本存原文会把敏感数据搬进审计存储，token 里塞载荷会让 token 变长且难以轮换。{@code
+ * targets} 与 {@code expectedVersion} 参与指纹比对，守卫据此拒绝“换了对象”或 “换了版本”的重放。
  *
  * @param type 命令类型（与 {@code CommandCatalog} 的注册类型一致）
  * @param targets 目标对象标识；{@code null} 视为空列表

@@ -17,27 +17,27 @@ import org.slf4j.LoggerFactory;
  * <ol>
  *   <li>{@link LlmGateway#next(Prompt)} —— 一步一个提案；
  *   <li>{@code FINISH} 收尾，不调决策面、不调工具；
- *   <li>{@code EXECUTE_TOOL} 才 {@link DecisionClient#ask}：拒绝即停，放行才用发放的 token 调工具；
- *       工具确认执行后再 {@link DecisionClient#report} 上报 outcome；
+ *   <li>{@code EXECUTE_TOOL} 才 {@link DecisionClient#ask}：拒绝即停，放行才用发放的 token 调工具； 工具确认执行后再 {@link
+ *       DecisionClient#report} 上报 outcome；
  *   <li>{@code READ} / {@code ASK_USER} / {@code ESCALATE} 是<b>循环内转换</b>（记一行观测，下一步由模型接着决定），
  *       不调决策面、不落账。
  * </ol>
  *
- * <p><b>为什么只读/终结步骤不问决策面</b>：决策面的 intent 要求 {@code command} 必填，而 {@link Proposal} 只在
- * {@code EXECUTE_TOOL} 时携带 {@link CommandRef}——拿只读/终结提案去问决策面，只会拿到 400（或一条能力集 deny），
- * 账本上留下的也不是一条可解释的决策。等价的只读事实由运行时的观测承载；决策面的只读路径仍可由宿主直接调用
- * {@link HttpDecisionClient}（组合根自己带 {@code command} 时）。这条取舍是 T0 的范围收窄，不是「只读不需要决策」。
+ * <p><b>为什么只读/终结步骤不问决策面</b>：决策面的 intent 要求 {@code command} 必填，而 {@link Proposal} 只在 {@code
+ * EXECUTE_TOOL} 时携带 {@link CommandRef}——拿只读/终结提案去问决策面，只会拿到 400（或一条能力集 deny），
+ * 账本上留下的也不是一条可解释的决策。等价的只读事实由运行时的观测承载；决策面的只读路径仍可由宿主直接调用 {@link HttpDecisionClient}（组合根自己带 {@code
+ * command} 时）。这条取舍是 T0 的范围收窄，不是「只读不需要决策」。
  *
- * <p><b>停止条件之后不再有动作</b>：拒绝、{@code finish}、工具失败、走满上限都立刻返回，不再问决策面、也不再调
- * 工具。上限取 {@code min(contract.maxSteps, 部署上限)}——任务可以比部署更保守，不能更宽松。
+ * <p><b>停止条件之后不再有动作</b>：拒绝、{@code finish}、工具失败、走满上限都立刻返回，不再问决策面、也不再调 工具。上限取 {@code
+ * min(contract.maxSteps, 部署上限)}——任务可以比部署更保守，不能更宽松。
  *
- * <p><b>outcome 上报是尽力而为</b>：工具已返回 {@code ok}，副作用已经发生，上报失败不能让循环失败（那会抹掉
- * 一次成功执行的观察）。失败只打一条 WARN（带 {@code decision_id}，不带 token），循环照常往下走。后果是那个决策在账本
- * 上停在「有 intent 无 outcome」：T0 的对账入口（{@code PlaneReconciliationSource} 默认返回空）无法自动修补。
+ * <p><b>outcome 上报是尽力而为</b>：工具已返回 {@code ok}，副作用已经发生，上报失败不能让循环失败（那会抹掉 一次成功执行的观察）。失败只打一条 WARN（带
+ * {@code decision_id}，不带 token），循环照常往下走。后果是那个决策在账本 上停在「有 intent 无 outcome」：T0 的对账入口（{@code
+ * PlaneReconciliationSource} 默认返回空）无法自动修补。
  *
- * <p><b>不做授权判定</b>：能不能执行由决策面按契约能力集判，本类只消费 {@link DecisionGrant}。本类不写入 token：
- * 它只把 token 从判定传给工具端口；{@link LoopResult#detail()} 是工具返回体原文（外部文本，截断到
- * {@value LoopResult#MAX_DETAIL_CHARS} 字符），观测里只有步骤描述。
+ * <p><b>不做授权判定</b>：能不能执行由决策面按契约能力集判，本类只消费 {@link DecisionGrant}。本类不写入 token： 它只把 token
+ * 从判定传给工具端口；{@link LoopResult#detail()} 是工具返回体原文（外部文本，截断到 {@value LoopResult#MAX_DETAIL_CHARS}
+ * 字符），观测里只有步骤描述。
  *
  * <p>无状态（网关、决策口、工具口与上限都由外部注入），可单例使用。
  *
@@ -162,8 +162,7 @@ public final class BoundedLoop {
      */
     private static void requireRationale(Proposal proposal) {
         if (proposal.rationale() == null || proposal.rationale().isBlank()) {
-            throw new IllegalArgumentException(
-                    "EXECUTE_TOOL 提议必须带 rationale：决策面要求 rationale");
+            throw new IllegalArgumentException("EXECUTE_TOOL 提议必须带 rationale：决策面要求 rationale");
         }
     }
 

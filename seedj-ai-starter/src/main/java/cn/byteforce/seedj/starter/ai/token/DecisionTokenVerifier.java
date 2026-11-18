@@ -24,25 +24,23 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * 执行侧守卫：把「DecisionToken + 请求侧事实」判成放行或拒绝（实现 spec §7.3 的第 1–8、10 条，外加一条受众校验；
- * 全部 fail-closed）。
+ * 执行侧守卫：把「DecisionToken + 请求侧事实」判成放行或拒绝（实现 spec §7.3 的第 1–8、10 条，外加一条受众校验； 全部 fail-closed）。
  *
  * <p>校验顺序是契约的一部分：先凭据（§7.3-1）、再有效期（§7.3-2）、再身份（§7.3-3）、再命令与哈希（§7.3-4–8），
- * 最后是受众（本实现追加）与幂等键（§7.3-10）。顺序错了会返回错误的错误码，而调用方与告警按码处置。任何一步失败都返回
- * {@link GuardVerdict.Reject}，本类不抛异常——守卫的失败方式必须是「拒绝」，不是「崩溃后由框架决定」。
+ * 最后是受众（本实现追加）与幂等键（§7.3-10）。顺序错了会返回错误的错误码，而调用方与告警按码处置。任何一步失败都返回 {@link
+ * GuardVerdict.Reject}，本类不抛异常——守卫的失败方式必须是「拒绝」，不是「崩溃后由框架决定」。
  *
  * <p><b>未实现的范围</b>：spec §7.3 第 9 条（{@code policy_stale}：不可逆动作要求 {@code policy.bundle_version}/
  * {@code epoch} 等于策略 head）在 T0 <b>不可求值</b>——{@link GuardContext} 不携带策略 head，T0 不做 {@code
- * Evaluate}（计划 R7），所以本类从不比对 {@link DecisionTokenClaims#policy()}，{@code
- * AiErrorCode.POLICY_STALE} 也恒不被返回。等 U8（{@code Evaluate} 返回求值版本）落地后在 T1 补。
+ * Evaluate}（计划 R7），所以本类从不比对 {@link DecisionTokenClaims#policy()}，{@code AiErrorCode.POLICY_STALE}
+ * 也恒不被返回。等 U8（{@code Evaluate} 返回求值版本）落地后在 T1 补。
  *
  * <p><b>追加校验</b>（都不是 §7.3 的条目，是本实现补的）：
  *
  * <ul>
  *   <li>{@code aud}：防止「token 跨服务复用」，受众口径见下；
  *   <li>{@code typ}：必须是 {@value #TOKEN_TYPE}，否则拒绝——不把别的 JOSE 对象当决策凭据；
- *   <li>长度：单条 token 超过 {@value #TOKEN_MAX_LENGTH} 字节直接拒绝（§7.2 的上限），<b>不截断</b>——截断等于把
- *       一个坏凭据改成另一个坏凭据。
+ *   <li>长度：单条 token 超过 {@value #TOKEN_MAX_LENGTH} 字节直接拒绝（§7.2 的上限），<b>不截断</b>——截断等于把 一个坏凭据改成另一个坏凭据。
  * </ul>
  *
  * <p>拒绝说明只带 {@code kid} 与 {@code decision_id} 前 8 位：token 原文不进日志、不进错误响应。
@@ -92,8 +90,8 @@ public final class DecisionTokenVerifier {
     /**
      * 校验一条决策 token。
      *
-     * <p>按 spec §7.3 的第 1–8、10 条判定，并在第 8 条之后追加一条受众校验（{@code aud} 不是 §7.3 的条目）；
-     * 第 9 条 {@code policy_stale} 在 T0 不可求值，见类说明。
+     * <p>按 spec §7.3 的第 1–8、10 条判定，并在第 8 条之后追加一条受众校验（{@code aud} 不是 §7.3 的条目）； 第 9 条 {@code
+     * policy_stale} 在 T0 不可求值，见类说明。
      *
      * @param jws JWS compact 串（{@code x-agent-decision} 的值）
      * @param context 请求侧事实
@@ -183,10 +181,14 @@ public final class DecisionTokenVerifier {
             return reject(
                     AiErrorCode.IDENTITY_MISMATCH,
                     label,
-                    "actor/tenant mismatch: expected actor " + claims.actor()
-                            + " tenant " + claims.tenant()
-                            + ", got actor " + context.actor()
-                            + " tenant " + context.tenantId());
+                    "actor/tenant mismatch: expected actor "
+                            + claims.actor()
+                            + " tenant "
+                            + claims.tenant()
+                            + ", got actor "
+                            + context.actor()
+                            + " tenant "
+                            + context.tenantId());
         }
 
         Optional<AgentToolSpec> tool;
@@ -227,8 +229,7 @@ public final class DecisionTokenVerifier {
                                     context.targets(),
                                     context.expectedVersion()));
         } catch (RuntimeException e) {
-            return reject(
-                    AiErrorCode.ARGS_HASH_MISMATCH, label, "request payload is not hashable");
+            return reject(AiErrorCode.ARGS_HASH_MISMATCH, label, "request payload is not hashable");
         }
         if (!claims.argsHash().equals(argsHash)) {
             return reject(AiErrorCode.ARGS_HASH_MISMATCH, label, "args_hash differ");
