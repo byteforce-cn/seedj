@@ -65,13 +65,25 @@ public record AiProperties(
      * 决策面配置：intent 先行、只读不签 token。
      *
      * @param enabled 是否装配决策面，默认 false（执行侧不需要它）
-     * @param reconcileDatasource 校对用的数据源 bean 名称；空表示用主数据源
+     * @param reconcile 校对数据源配置；未配置时给空实例
      * @param reconcileTtl intent 校对的时间窗，默认 10m
      */
     public record Plane(
             @DefaultValue("false") boolean enabled,
-            String reconcileDatasource,
-            @DefaultValue("10m") Duration reconcileTtl) {}
+            Reconcile reconcile,
+            @DefaultValue("10m") Duration reconcileTtl) {
+
+        public Plane {
+            reconcile = reconcile == null ? new Reconcile(null) : reconcile;
+        }
+    }
+
+    /**
+     * 校对数据源配置：键路径是 {@code seedj.ai.plane.reconcile.datasource}。
+     *
+     * @param datasource 校对用的数据源 bean 名称；空表示用主数据源
+     */
+    public record Reconcile(String datasource) {}
 
     /**
      * 执行侧 guard 配置。

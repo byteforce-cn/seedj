@@ -31,6 +31,7 @@ class AiEnablementTest {
                     "cn.byteforce.seedj.starter.ai.guard",
                     "cn.byteforce.seedj.starter.ai.plane",
                     "cn.byteforce.seedj.starter.ai.runtime",
+                    "cn.byteforce.seedj.starter.ai.token",
                     "cn.byteforce.seedj.starter.ai.autoconfigure");
 
     /** 自动配置清单里的 AI 配置类；清单为空也合法（能力配置由后续任务逐个登记）。 */
@@ -73,7 +74,7 @@ class AiEnablementTest {
 
                             assertThat(properties.enabled()).isTrue();
                             assertThat(properties.plane().enabled()).isFalse();
-                            assertThat(properties.plane().reconcileDatasource()).isNull();
+                            assertThat(properties.plane().reconcile().datasource()).isNull();
                             assertThat(properties.plane().reconcileTtl())
                                     .isEqualTo(Duration.ofMinutes(10));
                             assertThat(properties.guard().enabled()).isTrue();
@@ -89,6 +90,47 @@ class AiEnablementTest {
                             assertThat(properties.decision().audience()).isNull();
                             assertThat(properties.tools()).isEmpty();
                             assertThat(properties.contracts()).isEmpty();
+                        });
+    }
+
+    @Test
+    @DisplayName("只配置分组内的单个开关时，同组其余字段走注解默认值")
+    void partial_groups_use_annotation_defaults() {
+        new ApplicationContextRunner()
+                .withUserConfiguration(PropertiesConfig.class)
+                .withPropertyValues("seedj.ai.plane.enabled=true", "seedj.ai.runtime.enabled=true")
+                .run(
+                        context -> {
+                            AiProperties properties = context.getBean(AiProperties.class);
+
+                            assertThat(properties.enabled()).isTrue();
+                            assertThat(properties.plane().enabled()).isTrue();
+                            assertThat(properties.plane().reconcile().datasource()).isNull();
+                            assertThat(properties.plane().reconcileTtl())
+                                    .isEqualTo(Duration.ofMinutes(10));
+                            assertThat(properties.guard().enabled()).isTrue();
+                            assertThat(properties.runtime().enabled()).isTrue();
+                            assertThat(properties.runtime().maxSteps()).isEqualTo(6);
+                            assertThat(properties.decision().kid())
+                                    .isEqualTo("agent-decision-2026-11");
+                            assertThat(properties.decision().ttl())
+                                    .isEqualTo(Duration.ofMinutes(5));
+                        });
+    }
+
+    @Test
+    @DisplayName("校对数据源绑定在 plane.reconcile.datasource 这个嵌套键上")
+    void reconcile_datasource_binds_under_nested_key() {
+        new ApplicationContextRunner()
+                .withUserConfiguration(PropertiesConfig.class)
+                .withPropertyValues("seedj.ai.plane.reconcile.datasource=decisions")
+                .run(
+                        context -> {
+                            AiProperties properties = context.getBean(AiProperties.class);
+
+                            assertThat(properties.plane().reconcile().datasource())
+                                    .isEqualTo("decisions");
+                            assertThat(properties.plane().enabled()).isFalse();
                         });
     }
 
