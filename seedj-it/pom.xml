@@ -105,6 +105,15 @@
             <artifactId>seedj-jdbc-postgresql</artifactId>
             <scope>test</scope>
         </dependency>
+        <!--
+            AI pilot 夹具的 {@code @SeedjObject} record 在生产同一条路上生成 schema：只作编译期处理器，
+            运行时不进 classpath。provided 只为让 reactor 把 seedj-codegen 纳入 -am 构建图。
+        -->
+        <dependency>
+            <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>seedj-codegen</artifactId>
+            <scope>provided</scope>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -185,6 +194,21 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <!-- JDK 23+ 默认关闭隐式注解处理；显式声明生成器与处理轮次（test-compile 也用这一组）。 -->
+                    <proc>full</proc>
+                    <annotationProcessorPaths combine.children="append">
+                        <path>
+                            <groupId>cn.byteforce.seedj</groupId>
+                            <artifactId>seedj-codegen</artifactId>
+                            <version>${revision}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
             </plugin>
         </plugins>
     </build>
