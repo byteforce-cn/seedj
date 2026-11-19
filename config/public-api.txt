@@ -1,5 +1,6 @@
 core|cn.byteforce.seedj.ai.spi|DecisionAdmissionStore
 core|cn.byteforce.seedj.ai.spi|DecisionLedger
+core|cn.byteforce.seedj.ai.spi|ExternalEffectStore
 core|cn.byteforce.seedj.ai.spi|ToolRegistry
 core|cn.byteforce.seedj.ai|ActionClass
 core|cn.byteforce.seedj.ai|AgentIdentity
@@ -20,6 +21,8 @@ core|cn.byteforce.seedj.ai|DecisionRecordKind
 core|cn.byteforce.seedj.ai|DecisionTokenClaims
 core|cn.byteforce.seedj.ai|EffectStatus
 core|cn.byteforce.seedj.ai|Evidence
+core|cn.byteforce.seedj.ai|ExternalEffect
+core|cn.byteforce.seedj.ai|ExternalEffectState
 core|cn.byteforce.seedj.ai|GuardVerdict
 core|cn.byteforce.seedj.ai|IdemFingerprint
 core|cn.byteforce.seedj.ai|LedgerAudit
@@ -418,6 +421,11 @@ seedj-ai-starter|cn.byteforce.seedj.starter.ai.autoconfigure|AdmissionProperties
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.autoconfigure|AiGuardAutoConfiguration
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.autoconfigure|ApprovalAutoConfiguration
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.autoconfigure|DecisionPlaneAutoConfiguration
+seedj-ai-starter|cn.byteforce.seedj.starter.ai.autoconfigure|ExternalEffectAutoConfiguration
+seedj-ai-starter|cn.byteforce.seedj.starter.ai.effect|ExternalEffectCall
+seedj-ai-starter|cn.byteforce.seedj.starter.ai.effect|ExternalEffectInvoker
+seedj-ai-starter|cn.byteforce.seedj.starter.ai.effect|ExternalEffectResult
+seedj-ai-starter|cn.byteforce.seedj.starter.ai.effect|ExternalEffectService
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.guard|AdmissionSweeper
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.guard|AgentDecisionGuc
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.guard|AgentDecisionTransactionRunner
@@ -649,6 +657,7 @@ seedj-infra-coord|cn.byteforce.seedj.infra.coord|CoordProperties
 seedj-infra-coord|cn.byteforce.seedj.infra.coord|CoordProviderGuardAutoConfiguration
 seedj-infra-local|cn.byteforce.seedj.infra.local.ai|InMemoryDecisionAdmissionStore
 seedj-infra-local|cn.byteforce.seedj.infra.local.ai|InMemoryDecisionLedger
+seedj-infra-local|cn.byteforce.seedj.infra.local.ai|InMemoryExternalEffectStore
 seedj-infra-local|cn.byteforce.seedj.infra.local.audit|InMemoryAuditAutoConfiguration
 seedj-infra-local|cn.byteforce.seedj.infra.local.audit|InMemoryAuditStore
 seedj-infra-local|cn.byteforce.seedj.infra.local.cqrs|InMemoryCommandStore
@@ -694,6 +703,7 @@ seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.ai|AiSchemaCapability
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.ai|PostgresAiAutoConfiguration
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.ai|PostgresDecisionAdmissionStore
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.ai|PostgresDecisionLedger
+seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.ai|PostgresExternalEffectStore
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.audit|AuditSchemaCapability
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.audit|JdbcAuditStore
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.audit|PostgresAuditAutoConfiguration

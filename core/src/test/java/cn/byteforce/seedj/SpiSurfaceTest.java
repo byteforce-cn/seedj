@@ -142,6 +142,8 @@ class SpiSurfaceTest {
                             "DecisionTokenClaims",
                             "EffectStatus",
                             "Evidence",
+                            "ExternalEffect",
+                            "ExternalEffectState",
                             "GuardVerdict",
                             "IdemFingerprint",
                             "LedgerAudit",
@@ -152,7 +154,11 @@ class SpiSurfaceTest {
                             "PolicyRef",
                             "Proposal"),
                     "cn.byteforce.seedj.ai.spi",
-                    List.of("DecisionAdmissionStore", "DecisionLedger", "ToolRegistry"));
+                    List.of(
+                            "DecisionAdmissionStore",
+                            "DecisionLedger",
+                            "ExternalEffectStore",
+                            "ToolRegistry"));
 
     private static final Map<String, List<String>> ALLOWED =
             Map.of(
