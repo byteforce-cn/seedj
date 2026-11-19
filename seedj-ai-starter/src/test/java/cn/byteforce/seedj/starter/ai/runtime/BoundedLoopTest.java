@@ -18,11 +18,7 @@ import cn.byteforce.seedj.ai.DecisionKind;
 import cn.byteforce.seedj.ai.Proposal;
 import cn.byteforce.seedj.starter.ai.AiEnabledMarker;
 import cn.byteforce.seedj.starter.ai.AiProperties;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -34,6 +30,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
+
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 /**
  * 有界 agent 循环与两个 HTTP 端口（spec §5.1 两条路径、§7.2 token 只走 {@code x-agent-decision}）。
@@ -405,10 +407,7 @@ class BoundedLoopTest {
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         HttpDecisionClient client = new HttpDecisionClient(builder, DECISION_BASE, model());
 
-        String body =
-                "{\"decision_id\":\""
-                        + DECISION_ID
-                        + "\",\"verdict\":\"pending_approval\"}";
+        String body = "{\"decision_id\":\"" + DECISION_ID + "\",\"verdict\":\"pending_approval\"}";
         server.expect(requestTo(DECISION_BASE + "/v1/decisions"))
                 .andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
         server.expect(requestTo(DECISION_BASE + "/v1/decisions"))
@@ -435,7 +434,8 @@ class BoundedLoopTest {
 
         server.expect(requestTo(DECISION_BASE + "/v1/decisions/" + DECISION_ID + "/grant"))
                 .andExpect(method(HttpMethod.POST))
-                .andRespond(withSuccess("{\"token\":\"" + TOKEN + "\"}", MediaType.APPLICATION_JSON));
+                .andRespond(
+                        withSuccess("{\"token\":\"" + TOKEN + "\"}", MediaType.APPLICATION_JSON));
 
         assertThat(client.grant(DECISION_ID)).isEqualTo(TOKEN);
         server.verify();

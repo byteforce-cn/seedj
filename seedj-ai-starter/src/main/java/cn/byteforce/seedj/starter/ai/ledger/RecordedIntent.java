@@ -4,6 +4,7 @@ import cn.byteforce.seedj.ai.ActionClass;
 import cn.byteforce.seedj.ai.CommandRef;
 import cn.byteforce.seedj.ai.DecisionRecord;
 import cn.byteforce.seedj.ai.PolicyRef;
+
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -13,8 +14,8 @@ import java.util.UUID;
 /**
  * 从已落账的 {@code intent} 记录体里读回构建 token 与派生 outcome 需要的事实。
  *
- * <p>上报、对账与审批签发都不重新解释请求：主体取 intent 里写下的 {@code identity.actor}，指纹取 {@code
- * args_hash} / {@code idem_fingerprint}，命令与策略取记录体里的同一份值。这样即使配置后来变了，「这条意图对应哪条命令」 的答案仍然不变。
+ * <p>上报、对账与审批签发都不重新解释请求：主体取 intent 里写下的 {@code identity.actor}，指纹取 {@code args_hash} / {@code
+ * idem_fingerprint}，命令与策略取记录体里的同一份值。这样即使配置后来变了，「这条意图对应哪条命令」 的答案仍然不变。
  *
  * @param decisionId 决策标识
  * @param tenantId 租户
@@ -106,23 +107,20 @@ public record RecordedIntent(
             return ActionClass.valueOf(wire.toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException error) {
             throw new IllegalStateException(
-                    "intent 记录含未知 action_class: " + wire + " (" + record.recordId() + ")",
-                    error);
+                    "intent 记录含未知 action_class: " + wire + " (" + record.recordId() + ")", error);
         }
     }
 
     private static Map<?, ?> map(Object value, String field, DecisionRecord record) {
         if (!(value instanceof Map<?, ?> map)) {
-            throw new IllegalStateException(
-                    "intent 记录缺少 " + field + ": " + record.recordId());
+            throw new IllegalStateException("intent 记录缺少 " + field + ": " + record.recordId());
         }
         return map;
     }
 
     private static String text(Object value, String field, DecisionRecord record) {
         if (!(value instanceof String text) || text.isBlank()) {
-            throw new IllegalStateException(
-                    "intent 记录缺少 " + field + ": " + record.recordId());
+            throw new IllegalStateException("intent 记录缺少 " + field + ": " + record.recordId());
         }
         return text;
     }
@@ -135,8 +133,7 @@ public record RecordedIntent(
         try {
             return value == null ? null : UUID.fromString(value.toString());
         } catch (IllegalArgumentException error) {
-            throw new IllegalStateException(
-                    "intent 记录含非法 " + field + ": " + value, error);
+            throw new IllegalStateException("intent 记录含非法 " + field + ": " + value, error);
         }
     }
 
@@ -151,7 +148,9 @@ public record RecordedIntent(
         if (value == null) {
             return null;
         }
-        return value instanceof Number number ? number.longValue() : Long.parseLong(value.toString());
+        return value instanceof Number number
+                ? number.longValue()
+                : Long.parseLong(value.toString());
     }
 
     private static Long number(Object value) {

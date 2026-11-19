@@ -2,18 +2,19 @@ package cn.byteforce.seedj.starter.ai.approval;
 
 import cn.byteforce.seedj.workflow.spi.WorkflowDefinitionId;
 import cn.byteforce.seedj.workflow.spi.WorkflowDefinitionVersion;
+
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.DefaultValue;
+
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.boot.context.properties.bind.DefaultValue;
 
 /**
  * 审批配置（{@code seedj.ai.approval.*}）：不可逆动作在决策面先走人工审批。
  *
- * <p>默认关闭：关闭时决策面对 {@code IRREVERSIBLE_*} 动作直接 deny，绝不签出无审批的 token。开启后
- * {@code approvers} 至少一个，且必须能找到 {@code WorkflowProvider}——审批引擎是端口，本地实现是
- * {@code seedj-workflow-local}，生产可换 coord 适配器。
+ * <p>默认关闭：关闭时决策面对 {@code IRREVERSIBLE_*} 动作直接 deny，绝不签出无审批的 token。开启后 {@code approvers} 至少一个，且必须能找到
+ * {@code WorkflowProvider}——审批引擎是端口，本地实现是 {@code seedj-workflow-local}，生产可换 coord 适配器。
  *
  * @param enabled 是否装配审批，默认 false
  * @param namespace 工作流定义的 namespace，默认 {@code seedj-ai}
@@ -105,8 +106,7 @@ public record ApprovalProperties(
         try {
             return UUID.fromString(value == null ? "" : value.trim());
         } catch (IllegalArgumentException error) {
-            throw new IllegalStateException(
-                    "seedj.ai.approval.approvers 含非 UUID: " + value, error);
+            throw new IllegalStateException("seedj.ai.approval.approvers 含非 UUID: " + value, error);
         }
     }
 

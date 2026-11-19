@@ -29,9 +29,7 @@ public final class TicketModule implements ObjectModuleConfigurer {
      * @param refund 退款处理器
      */
     public TicketModule(
-            CreateTicketHandler create,
-            CommentTicketHandler comment,
-            RefundTicketHandler refund) {
+            CreateTicketHandler create, CommentTicketHandler comment, RefundTicketHandler refund) {
         this.create = create;
         this.comment = comment;
         this.refund = refund;

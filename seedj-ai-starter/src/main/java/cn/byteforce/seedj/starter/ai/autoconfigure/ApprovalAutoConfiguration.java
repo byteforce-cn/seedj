@@ -11,6 +11,7 @@ import cn.byteforce.seedj.starter.ai.approval.ApprovalService;
 import cn.byteforce.seedj.starter.ai.approval.LoggingApprovalNotifier;
 import cn.byteforce.seedj.starter.ai.token.DecisionTokenIssuer;
 import cn.byteforce.seedj.workflow.spi.WorkflowProvider;
+
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -23,8 +24,7 @@ import org.springframework.context.annotation.Bean;
 /**
  * 审批装配：只有 {@code seedj.ai.approval.enabled=true} 时才要求 {@link WorkflowProvider}。
  *
- * <p>没有工作流端口时启动失败并点名键，而不是让不可逆动作在运行期才发现「审批不可用」。审批人列表在构造期解析，
- * 非法 UUID 或空列表同样启动失败。
+ * <p>没有工作流端口时启动失败并点名键，而不是让不可逆动作在运行期才发现「审批不可用」。审批人列表在构造期解析， 非法 UUID 或空列表同样启动失败。
  *
  * @author ByteForce
  * @since 1.0.0

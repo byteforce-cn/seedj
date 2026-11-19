@@ -108,8 +108,7 @@ public record LoopResult(Outcome outcome, int steps, String detail, List<String>
     public static LoopResult pendingApproval(
             int steps, java.util.UUID decisionId, List<String> observations) {
         java.util.Objects.requireNonNull(decisionId, "decisionId");
-        return new LoopResult(
-                Outcome.PENDING_APPROVAL, steps, decisionId.toString(), observations);
+        return new LoopResult(Outcome.PENDING_APPROVAL, steps, decisionId.toString(), observations);
     }
 
     private static String truncate(String body) {

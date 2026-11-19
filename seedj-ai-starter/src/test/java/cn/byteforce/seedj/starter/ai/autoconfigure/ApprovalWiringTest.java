@@ -13,8 +13,7 @@ import cn.byteforce.seedj.starter.ai.approval.ApprovalNotifier;
 import cn.byteforce.seedj.starter.ai.approval.ApprovalService;
 import cn.byteforce.seedj.starter.ai.token.DecisionTokenIssuer;
 import cn.byteforce.seedj.workflow.spi.WorkflowProvider;
-import java.time.Instant;
-import java.util.UUID;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -22,6 +21,9 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.time.Instant;
+import java.util.UUID;
 
 /** 审批自动配置：开关、审批人与工作流端口缺一不可。 */
 class ApprovalWiringTest {
@@ -50,15 +52,14 @@ class ApprovalWiringTest {
     @DisplayName("启用但没有 WorkflowProvider：启动失败并点名 bean")
     void enabledWithoutWorkflowProviderFailsNamingKey() {
         RUNNER.run(
-                context ->
-                        {
-                            assertThat(context).hasFailed();
-                            assertThat(context.getStartupFailure())
-                                    .hasRootCauseMessage(
-                                            "seedj.ai.approval.enabled=true 需要 WorkflowProvider bean；"
-                                                    + "本地请加入 seedj-workflow-local 并设置"
-                                                    + " seedj.workflow.provider=memory");
-                        });
+                context -> {
+                    assertThat(context).hasFailed();
+                    assertThat(context.getStartupFailure())
+                            .hasRootCauseMessage(
+                                    "seedj.ai.approval.enabled=true 需要 WorkflowProvider bean；"
+                                            + "本地请加入 seedj-workflow-local 并设置"
+                                            + " seedj.workflow.provider=memory");
+                });
     }
 
     @Test

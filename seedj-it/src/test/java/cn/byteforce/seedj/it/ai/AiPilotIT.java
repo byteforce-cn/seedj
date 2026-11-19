@@ -5,6 +5,7 @@ import static cn.byteforce.seedj.it.ai.PilotTestConfiguration.AUDIENCE;
 import static cn.byteforce.seedj.it.ai.PilotTestConfiguration.CONTRACT_ID;
 import static cn.byteforce.seedj.it.ai.PilotTestConfiguration.TENANT;
 import static cn.byteforce.seedj.it.ai.PilotTestConfiguration.USER_ID;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 import cn.byteforce.seedj.ai.ActionClass;
@@ -23,12 +24,9 @@ import cn.byteforce.seedj.starter.ai.runtime.HttpDecisionClient;
 import cn.byteforce.seedj.starter.ai.runtime.HttpToolInvoker;
 import cn.byteforce.seedj.starter.ai.runtime.LoopResult;
 import cn.byteforce.seedj.starter.ai.runtime.TaskContract;
+
 import com.jayway.jsonpath.JsonPath;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -42,6 +40,12 @@ import org.springframework.web.client.RestClient;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Task 13 的 T0 退出判据：<b>每个写动作都能用「intent + command + audit entry + reconciled」四件套还原</b>。
@@ -302,10 +306,10 @@ class AiPilotIT extends AbstractPilotIT {
         ResponseEntity<String> pending =
                 postJson(
                         "/v1/decisions",
-                        json(decisionRequest("ticket.refund", refundPayload, List.of(ticketId), null)));
-        assertThat(pending.getStatusCode().value())
-                .as("body=%s", pending.getBody())
-                .isEqualTo(200);
+                        json(
+                                decisionRequest(
+                                        "ticket.refund", refundPayload, List.of(ticketId), null)));
+        assertThat(pending.getStatusCode().value()).as("body=%s", pending.getBody()).isEqualTo(200);
         assertThat((String) JsonPath.read(pending.getBody(), "$.verdict"))
                 .isEqualTo("pending_approval");
         assertThat((Object) JsonPath.read(pending.getBody(), "$.token")).isNull();
@@ -331,7 +335,9 @@ class AiPilotIT extends AbstractPilotIT {
 
         ResponseEntity<String> submitted =
                 submit("ticket.refund", refundPayload, List.of(ticketId), null, decisionId, token);
-        assertThat(submitted.getStatusCode().value()).as("body=%s", submitted.getBody()).isEqualTo(202);
+        assertThat(submitted.getStatusCode().value())
+                .as("body=%s", submitted.getBody())
+                .isEqualTo(202);
 
         assertThat(ledgerRecords(decisionId))
                 .extracting(DecisionRecord::kind)

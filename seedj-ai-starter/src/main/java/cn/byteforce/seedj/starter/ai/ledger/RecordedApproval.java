@@ -3,6 +3,7 @@ package cn.byteforce.seedj.starter.ai.ledger;
 import cn.byteforce.seedj.ai.ApprovalSnapshot;
 import cn.byteforce.seedj.ai.ApprovalStatus;
 import cn.byteforce.seedj.ai.DecisionRecord;
+
 import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;
@@ -11,8 +12,7 @@ import java.util.UUID;
 /**
  * 从已落账的 {@code approval} 记录体里读回审批快照。
  *
- * <p>审批状态只认账本：工作流实例可能被删除、可能不可用，但账本里的 {@code APPROVAL} 记录一旦写入就不会改。grant
- * 与守卫都按这条记录判断「是否已批准、绑定的是哪组参数」。
+ * <p>审批状态只认账本：工作流实例可能被删除、可能不可用，但账本里的 {@code APPROVAL} 记录一旦写入就不会改。grant 与守卫都按这条记录判断「是否已批准、绑定的是哪组参数」。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -55,15 +55,13 @@ public final class RecordedApproval {
             return ApprovalStatus.fromWire(String.valueOf(value));
         } catch (IllegalArgumentException error) {
             throw new IllegalStateException(
-                    "approval 记录含未知 status: " + value + " (" + record.recordId() + ")",
-                    error);
+                    "approval 记录含未知 status: " + value + " (" + record.recordId() + ")", error);
         }
     }
 
     private static String text(Object value, String field, DecisionRecord record) {
         if (!(value instanceof String text) || text.isBlank()) {
-            throw new IllegalStateException(
-                    "approval 记录缺少 " + field + ": " + record.recordId());
+            throw new IllegalStateException("approval 记录缺少 " + field + ": " + record.recordId());
         }
         return text;
     }
@@ -80,6 +78,8 @@ public final class RecordedApproval {
         if (value == null) {
             return null;
         }
-        return value instanceof Number number ? number.longValue() : Long.parseLong(value.toString());
+        return value instanceof Number number
+                ? number.longValue()
+                : Long.parseLong(value.toString());
     }
 }

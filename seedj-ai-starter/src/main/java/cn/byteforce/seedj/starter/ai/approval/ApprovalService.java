@@ -26,6 +26,12 @@ import cn.byteforce.seedj.workflow.spi.WorkflowDefinition;
 import cn.byteforce.seedj.workflow.spi.WorkflowInstance;
 import cn.byteforce.seedj.workflow.spi.WorkflowInstanceId;
 import cn.byteforce.seedj.workflow.spi.WorkflowProvider;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import tools.jackson.databind.json.JsonMapper;
+
 import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -35,16 +41,13 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import tools.jackson.databind.json.JsonMapper;
 
 /**
  * 审批服务：把不可逆动作的意图变成一条可执行的前置条件。
  *
  * <p><b>顺序是契约</b>：intent 先落账（由 {@code DecisionService} 保证），再启动工作流并追加 {@code
- * APPROVAL(PENDING)}；批准/驳回/过期都只追加新记录，绝不改写旧记录。grant 每次重新读 intent 与最新 approval，
- * 只有「approved + argsHash 一致 + 未过期」才签 token。
+ * APPROVAL(PENDING)}；批准/驳回/过期都只追加新记录，绝不改写旧记录。grant 每次重新读 intent 与最新 approval， 只有「approved +
+ * argsHash 一致 + 未过期」才签 token。
  *
  * <p>工作流只是审批状态的来源之一：账本里的 {@code APPROVAL} 记录才是事实。工作流实例被删、Provider 不可用时， grant
  * 只看账本；过期扫描尽力取消工作流，取消失败只 WARN。
@@ -245,8 +248,7 @@ public final class ApprovalService {
         }
         if (current.status() != ApprovalStatus.PENDING) {
             throw new ContractException(
-                    ContractErrorCode.VERSION_CONFLICT,
-                    "审批已终结: " + current.status().wire());
+                    ContractErrorCode.VERSION_CONFLICT, "审批已终结: " + current.status().wire());
         }
         if (!properties.approverIds().contains(approver)) {
             throw new ContractException(
@@ -254,7 +256,8 @@ public final class ApprovalService {
         }
         if (!properties.allowSelfApprove() && approver.equals(onBehalfOf)) {
             throw new ContractException(
-                    ContractErrorCode.FORBIDDEN, "不允许发起人自审批（seedj.ai.approval.allow-self-approve=false）");
+                    ContractErrorCode.FORBIDDEN,
+                    "不允许发起人自审批（seedj.ai.approval.allow-self-approve=false）");
         }
         Instant now = clock.now();
         String actionId = "approval:" + decisionId + ":" + approver + ":" + action.wire();
@@ -317,8 +320,7 @@ public final class ApprovalService {
         ApprovalSnapshot approval = latest(decisionId);
         if (approval.status() != ApprovalStatus.APPROVED) {
             throw new ContractException(
-                    ContractErrorCode.VERSION_CONFLICT,
-                    "审批未通过: " + approval.status().wire());
+                    ContractErrorCode.VERSION_CONFLICT, "审批未通过: " + approval.status().wire());
         }
         Instant now = clock.now();
         Instant deadline = deadlineOf(approval);
@@ -327,8 +329,7 @@ public final class ApprovalService {
             throw new ContractException(ContractErrorCode.VERSION_CONFLICT, "审批已过期");
         }
         if (!approval.argsHash().equals(intent.argsHash())) {
-            throw new IllegalStateException(
-                    "approval args_hash 与 intent 不一致: " + decisionId);
+            throw new IllegalStateException("approval args_hash 与 intent 不一致: " + decisionId);
         }
         Duration ttl = ai.decision().ttl();
         Duration remaining = Duration.between(now, deadline);
@@ -350,8 +351,7 @@ public final class ApprovalService {
      */
     public int expireOne(UUID decisionId, Instant now) {
         ApprovalSnapshot current = latest(decisionId);
-        if (current.status() != ApprovalStatus.PENDING
-                || now.isBefore(deadlineOf(current))) {
+        if (current.status() != ApprovalStatus.PENDING || now.isBefore(deadlineOf(current))) {
             return 0;
         }
         ApprovalSnapshot expired =
@@ -439,7 +439,8 @@ public final class ApprovalService {
                 fromWorkflow == null || fromWorkflow.isBlank() ? configured : fromWorkflow;
         if (resolved == null || resolved.isBlank()) {
             throw new ContractException(
-                    ContractErrorCode.UNAVAILABLE, "缺少 audience：审批实例未记录且 seedj.ai.decision.audience 未配置");
+                    ContractErrorCode.UNAVAILABLE,
+                    "缺少 audience：审批实例未记录且 seedj.ai.decision.audience 未配置");
         }
         return resolved;
     }
@@ -468,8 +469,7 @@ public final class ApprovalService {
         return variables;
     }
 
-    private void notifyPending(
-            DecisionIntent intent, ApprovalSnapshot snapshot, Instant deadline) {
+    private void notifyPending(DecisionIntent intent, ApprovalSnapshot snapshot, Instant deadline) {
         try {
             notifier.pending(
                     new ApprovalNotification(
@@ -487,8 +487,7 @@ public final class ApprovalService {
         }
     }
 
-    private void notifyResolved(
-            UUID decisionId, ApprovalSnapshot before, ApprovalSnapshot after) {
+    private void notifyResolved(UUID decisionId, ApprovalSnapshot before, ApprovalSnapshot after) {
         try {
             notifier.resolved(
                     new ApprovalNotification(
@@ -516,8 +515,7 @@ public final class ApprovalService {
 
     private static UUID requiredTenant(UUID tenant) {
         if (tenant == null) {
-            throw new IllegalStateException(
-                    "seedj.ai.plane.tenant 未配置：审批的租户由配置钉死，不从请求读取");
+            throw new IllegalStateException("seedj.ai.plane.tenant 未配置：审批的租户由配置钉死，不从请求读取");
         }
         return tenant;
     }

@@ -7,10 +7,12 @@ import cn.byteforce.seedj.ai.ApprovalStatus;
 import cn.byteforce.seedj.ai.DecisionRecord;
 import cn.byteforce.seedj.ai.DecisionRecordBodies;
 import cn.byteforce.seedj.ai.DecisionRecordKind;
-import java.time.Instant;
-import java.util.UUID;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+
+import java.time.Instant;
+import java.util.UUID;
 
 /** approval 记录体的读回：字段名与 {@link DecisionRecordBodies} 完全对齐。 */
 class RecordedApprovalTest {

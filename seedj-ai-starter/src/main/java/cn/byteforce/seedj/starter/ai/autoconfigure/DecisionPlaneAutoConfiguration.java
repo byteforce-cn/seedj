@@ -23,11 +23,7 @@ import cn.byteforce.seedj.starter.ai.policy.ConfiguredPolicyEvaluator;
 import cn.byteforce.seedj.starter.ai.policy.PolicyEvaluator;
 import cn.byteforce.seedj.starter.ai.policy.PolicyProperties;
 import cn.byteforce.seedj.starter.ai.token.DecisionTokenIssuer;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
-import javax.sql.DataSource;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -42,6 +38,13 @@ import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+import javax.sql.DataSource;
 
 /**
  * 决策面装配：能力集、决策服务、{@code /v1/decisions} 与 JWKS 端点。

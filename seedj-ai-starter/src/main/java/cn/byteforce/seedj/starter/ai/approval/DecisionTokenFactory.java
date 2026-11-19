@@ -5,13 +5,14 @@ import cn.byteforce.seedj.ai.DecisionIntent;
 import cn.byteforce.seedj.ai.DecisionTokenClaims;
 import cn.byteforce.seedj.starter.ai.ledger.RecordedIntent;
 import cn.byteforce.seedj.starter.ai.token.DecisionTokenIssuer;
+
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
 
 /**
- * DecisionToken claims 的唯一拼装点：同步签发（{@code DecisionService}）与审批后签发（{@code
- * ApprovalService}）共用，避免两处对 {@code approval} / {@code policy} / {@code audience} 的语义漂移。
+ * DecisionToken claims 的唯一拼装点：同步签发（{@code DecisionService}）与审批后签发（{@code ApprovalService}）共用，避免两处对
+ * {@code approval} / {@code policy} / {@code audience} 的语义漂移。
  *
  * @author ByteForce
  * @since 1.0.0

@@ -29,23 +29,16 @@ import cn.byteforce.seedj.core.exception.ContractException;
 import cn.byteforce.seedj.core.security.Caller;
 import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.infra.local.ai.InMemoryDecisionLedger;
+import cn.byteforce.seedj.infra.local.workflow.InMemoryWorkflowProvider;
 import cn.byteforce.seedj.starter.ai.AiEnabledMarker;
 import cn.byteforce.seedj.starter.ai.AiProperties;
-import cn.byteforce.seedj.infra.local.workflow.InMemoryWorkflowProvider;
 import cn.byteforce.seedj.starter.ai.approval.ApprovalProperties;
 import cn.byteforce.seedj.starter.ai.approval.ApprovalService;
 import cn.byteforce.seedj.starter.ai.autoconfigure.DecisionPlaneAutoConfiguration;
 import cn.byteforce.seedj.starter.ai.guard.ConfiguredToolRegistry;
 import cn.byteforce.seedj.starter.ai.policy.PolicyEvaluator;
 import cn.byteforce.seedj.starter.web.ContractErrorHandler;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -55,7 +48,17 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+
 import tools.jackson.databind.json.JsonMapper;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 
 /**
  * 决策面的顺序与边界（spec §5.1 只读路径、§6.2 账本记录、§7.1 claim）。

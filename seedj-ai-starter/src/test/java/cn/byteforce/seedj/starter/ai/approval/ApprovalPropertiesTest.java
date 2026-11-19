@@ -5,11 +5,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import cn.byteforce.seedj.workflow.spi.WorkflowDefinitionId;
 import cn.byteforce.seedj.workflow.spi.WorkflowDefinitionVersion;
+
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
 
 /** 审批配置的默认值、解析与启动期校验。 */
 class ApprovalPropertiesTest {
@@ -51,15 +53,7 @@ class ApprovalPropertiesTest {
         String second = "018f2e3a-0000-7000-8000-000000000119";
         ApprovalProperties props =
                 new ApprovalProperties(
-                        true,
-                        null,
-                        null,
-                        null,
-                        List.of(APPROVER, second),
-                        null,
-                        false,
-                        null,
-                        null);
+                        true, null, null, null, List.of(APPROVER, second), null, false, null, null);
 
         assertThat(props.approverIds())
                 .containsExactly(UUID.fromString(APPROVER), UUID.fromString(second));
@@ -70,15 +64,7 @@ class ApprovalPropertiesTest {
     void definitionParsesVersion() {
         ApprovalProperties props =
                 new ApprovalProperties(
-                        true,
-                        "ns",
-                        "appr",
-                        "2.3",
-                        List.of(APPROVER),
-                        null,
-                        false,
-                        null,
-                        null);
+                        true, "ns", "appr", "2.3", List.of(APPROVER), null, false, null, null);
 
         assertThat(props.definitionId()).isEqualTo(new WorkflowDefinitionId("ns", "appr"));
         assertThat(props.definitionVersion()).isEqualTo(new WorkflowDefinitionVersion(2, 3));

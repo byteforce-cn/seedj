@@ -2,16 +2,19 @@ package cn.byteforce.seedj.starter.ai.runtime;
 
 import cn.byteforce.seedj.ai.Proposal;
 import cn.byteforce.seedj.starter.ai.AiProperties;
+
+import org.springframework.http.MediaType;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
+
+import tools.jackson.databind.PropertyNamingStrategies;
+import tools.jackson.databind.annotation.JsonNaming;
+
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import org.springframework.http.MediaType;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientResponseException;
-import tools.jackson.databind.PropertyNamingStrategies;
-import tools.jackson.databind.annotation.JsonNaming;
 
 /**
  * 决策面的 HTTP 客户端：{@code POST {decisionBaseUrl}/v1/decisions} 求值， {@code POST
@@ -90,8 +93,7 @@ public final class HttpDecisionClient implements DecisionClient {
     public DecisionGrant ask(TaskContract contract, int step, Proposal proposal, String audience) {
         DecisionOutcome outcome = askOutcome(contract, step, proposal, audience);
         if (outcome instanceof DecisionOutcome.Pending pending) {
-            throw new IllegalStateException(
-                    "决策等待审批，需先 grant: " + pending.pending().decisionId());
+            throw new IllegalStateException("决策等待审批，需先 grant: " + pending.pending().decisionId());
         }
         if (outcome instanceof DecisionOutcome.Denied denied) {
             return denied.grant();
@@ -114,8 +116,7 @@ public final class HttpDecisionClient implements DecisionClient {
                             .retrieve()
                             .body(DecisionResponse.class);
         } catch (RestClientResponseException error) {
-            throw new IllegalStateException(
-                    "决策面返回 HTTP " + error.getStatusCode().value(), error);
+            throw new IllegalStateException("决策面返回 HTTP " + error.getStatusCode().value(), error);
         }
         if (response == null || response.decisionId() == null) {
             throw new IllegalStateException("决策面响应缺少 decision_id");

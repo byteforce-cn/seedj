@@ -5,10 +5,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import cn.byteforce.seedj.workflow.spi.AnyApprove;
 import cn.byteforce.seedj.workflow.spi.StepKind;
 import cn.byteforce.seedj.workflow.spi.WorkflowDefinition;
-import java.util.List;
-import java.util.UUID;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
+import java.util.UUID;
 
 /** 审批工作流定义的形状：一个 HUMAN_TASK + 一个终态 ACTIVITY。 */
 class ApprovalWorkflowDefinitionTest {
@@ -20,15 +22,7 @@ class ApprovalWorkflowDefinitionTest {
     void definitionHasOneHumanTaskAndCloseStep() {
         ApprovalProperties props =
                 new ApprovalProperties(
-                        true,
-                        "ns",
-                        "appr",
-                        "1.0",
-                        List.of(APPROVER),
-                        null,
-                        false,
-                        null,
-                        null);
+                        true, "ns", "appr", "1.0", List.of(APPROVER), null, false, null, null);
 
         WorkflowDefinition definition =
                 ApprovalWorkflowDefinition.definition(props, props.approverIds());
@@ -40,8 +34,7 @@ class ApprovalWorkflowDefinitionTest {
         assertThat(definition.steps().get(0).kind()).isEqualTo(StepKind.HUMAN_TASK);
         assertThat(definition.steps().get(0).humanTask().signCompletion())
                 .isInstanceOf(AnyApprove.class);
-        assertThat(definition.steps().get(0).humanTask().rejectTargets())
-                .containsExactly("close");
+        assertThat(definition.steps().get(0).humanTask().rejectTargets()).containsExactly("close");
         assertThat(definition.steps().get(0).humanTask().assignees())
                 .singleElement()
                 .satisfies(

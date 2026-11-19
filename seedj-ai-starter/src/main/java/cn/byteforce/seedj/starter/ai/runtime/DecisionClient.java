@@ -1,6 +1,7 @@
 package cn.byteforce.seedj.starter.ai.runtime;
 
 import cn.byteforce.seedj.ai.Proposal;
+
 import java.util.UUID;
 
 /**

@@ -8,17 +8,20 @@ import cn.byteforce.seedj.core.security.CallerProvider;
 import cn.byteforce.seedj.starter.ai.approval.ApprovalAction;
 import cn.byteforce.seedj.starter.ai.approval.ApprovalService;
 import cn.byteforce.seedj.starter.ai.approval.ApprovalView;
-import java.time.Instant;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
+
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+
 import tools.jackson.databind.PropertyNamingStrategies;
 import tools.jackson.databind.annotation.JsonNaming;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Objects;
+import java.util.UUID;
 
 /**
  * 决策面的 HTTP 面：求值一条决策、读一个决策的账本记录、上报一次执行结局。
@@ -200,8 +203,7 @@ public final class DecisionController {
      * @throws ContractException {@code forbidden}：非审批人/自审批；{@code version_conflict}：已终结
      */
     @PostMapping(DECISION_APPROVAL_PATH)
-    public ApprovalView act(
-            @PathVariable UUID id, @RequestBody ApprovalActionRequest request) {
+    public ApprovalView act(@PathVariable UUID id, @RequestBody ApprovalActionRequest request) {
         Caller caller = requirePermission();
         if (request == null || request.action() == null || request.action().isBlank()) {
             throw new ContractException(ContractErrorCode.INVALID_PAYLOAD, "缺少必填字段 action");

@@ -8,6 +8,7 @@ import cn.byteforce.seedj.domain.AppendRequest;
 import cn.byteforce.seedj.domain.AppendResult;
 import cn.byteforce.seedj.domain.TemporalRow;
 import cn.byteforce.seedj.domain.event.CommandEvent;
+
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,8 +17,8 @@ import java.util.UUID;
 /**
  * 工单退款：把金额写进 {@code last_comment} 并把 {@code comment_count} 加一。
  *
- * <p>与评论同一条更正追加路径，区别只在动作分类（配置里是 {@code IRREVERSIBLE_FINANCIAL}）与事件类型。目标对象不存在时
- * {@code requireCurrent} 直接 404。
+ * <p>与评论同一条更正追加路径，区别只在动作分类（配置里是 {@code IRREVERSIBLE_FINANCIAL}）与事件类型。目标对象不存在时 {@code
+ * requireCurrent} 直接 404。
  *
  * @author ByteForce
  * @since 1.0.0

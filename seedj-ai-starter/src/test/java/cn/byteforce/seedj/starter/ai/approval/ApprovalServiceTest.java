@@ -21,7 +21,13 @@ import cn.byteforce.seedj.infra.local.ai.InMemoryDecisionLedger;
 import cn.byteforce.seedj.infra.local.workflow.InMemoryWorkflowProvider;
 import cn.byteforce.seedj.starter.ai.AiProperties;
 import cn.byteforce.seedj.starter.ai.token.DecisionTokenIssuer;
+
 import com.nimbusds.jose.JWSObject;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
@@ -29,9 +35,6 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
 
 /** 审批状态机：start / act / grant / expire 的账本事实。 */
 class ApprovalServiceTest {
@@ -86,8 +89,7 @@ class ApprovalServiceTest {
         ledger.appendIntent(intent(decisionId, ARGS_HASH));
         service.start(intent(decisionId, ARGS_HASH), AUDIENCE);
 
-        ApprovalSnapshot approved =
-                service.act(decisionId, ApprovalAction.APPROVE, APPROVER, "ok");
+        ApprovalSnapshot approved = service.act(decisionId, ApprovalAction.APPROVE, APPROVER, "ok");
         assertThat(approved.status()).isEqualTo(ApprovalStatus.APPROVED);
 
         String token = service.grant(decisionId);
@@ -109,7 +111,9 @@ class ApprovalServiceTest {
         assertThatThrownBy(() -> service.grant(decisionId))
                 .isInstanceOfSatisfying(
                         ContractException.class,
-                        error -> assertThat(error.code()).isEqualTo(ContractErrorCode.VERSION_CONFLICT));
+                        error ->
+                                assertThat(error.code())
+                                        .isEqualTo(ContractErrorCode.VERSION_CONFLICT));
         assertThat(ledger.byDecision(TENANT, decisionId))
                 .filteredOn(record -> record.kind() == DecisionRecordKind.OUTCOME)
                 .singleElement()
@@ -126,8 +130,7 @@ class ApprovalServiceTest {
         ledger.appendIntent(intent(decisionId, ARGS_HASH));
         service.start(intent(decisionId, ARGS_HASH), AUDIENCE);
 
-        assertThatThrownBy(
-                        () -> service.act(decisionId, ApprovalAction.APPROVE, OTHER, "no"))
+        assertThatThrownBy(() -> service.act(decisionId, ApprovalAction.APPROVE, OTHER, "no"))
                 .isInstanceOfSatisfying(
                         ContractException.class,
                         error -> assertThat(error.code()).isEqualTo(ContractErrorCode.FORBIDDEN));
@@ -197,8 +200,7 @@ class ApprovalServiceTest {
         cn.byteforce.seedj.workflow.spi.WorkflowProvider failing =
                 org.mockito.Mockito.mock(cn.byteforce.seedj.workflow.spi.WorkflowProvider.class);
         org.mockito.Mockito.when(failing.start(org.mockito.ArgumentMatchers.any()))
-                .thenThrow(
-                        new cn.byteforce.seedj.workflow.spi.WorkflowProviderException("down"));
+                .thenThrow(new cn.byteforce.seedj.workflow.spi.WorkflowProviderException("down"));
         ApprovalService failingService =
                 new ApprovalService(
                         failing,
@@ -239,7 +241,9 @@ class ApprovalServiceTest {
         assertThatThrownBy(() -> service.grant(decisionId))
                 .isInstanceOfSatisfying(
                         ContractException.class,
-                        error -> assertThat(error.code()).isEqualTo(ContractErrorCode.VERSION_CONFLICT));
+                        error ->
+                                assertThat(error.code())
+                                        .isEqualTo(ContractErrorCode.VERSION_CONFLICT));
     }
 
     private ApprovalService service(List<UUID> approvers) {
@@ -269,8 +273,7 @@ class ApprovalServiceTest {
     private static AiProperties ai() {
         return new AiProperties(
                 true,
-                new AiProperties.Plane(
-                        true, TENANT, "agent:decide", null, Duration.ofMinutes(10)),
+                new AiProperties.Plane(true, TENANT, "agent:decide", null, Duration.ofMinutes(10)),
                 new AiProperties.Guard(false),
                 null,
                 new AiProperties.Identity(ACTOR.toString(), ON_BEHALF.toString()),
