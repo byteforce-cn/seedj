@@ -30,6 +30,9 @@ public final class Cmd {
     public static final byte TYPING_NOTIFY = 0x19;
     public static final byte PRESENCE_REQ = 0x1A;
     public static final byte PRESENCE_RESP = 0x1B;
+    public static final byte CARD_ACTION_REQ = 0x1C;
+    public static final byte CARD_ACTION_RESP = 0x1D;
+    public static final byte CARD_ACTION_NOTIFY = 0x1E;
     public static final byte ERROR = 0x7F;
 
     private Cmd() {}

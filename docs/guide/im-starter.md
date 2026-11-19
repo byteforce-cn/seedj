@@ -217,6 +217,37 @@ PRESENCE_REQ {subject_ids[]}                → PRESENCE_RESP {entries[{subject_
   `seedj.eventbus.transport=coord`（以及消费端所需的数据源/账本）；`store=memory` 时跨节点
   回读不到正文，启动会打 WARN，只适合本地联调。`local` 是默认值，不依赖 EventBus。
 
+## 卡片与动作回传（D6/D7）
+
+`CARD` 是结构化消息：body 必须带 `schema` / `title` / `fallback_text` 与非空 `actions[]`，每个 action 有唯一
+`id` 与 `label`。老客户端按 `fallback_text` 渲染，不会因为不认识卡片而丢消息。
+
+发送系统卡片用 `ImSystemNotifier`（系统单聊直接走存储，不受业务会话策略拦截）：
+
+```java
+CardMessage card = new CardMessage(
+    "agent.approval.card.v1", "待审批", "退款 128 元", "请审批退款", "card-1",
+    Map.of("decision_id", decisionId.toString()),
+    List.of(new CardMessage.CardAction("approve", "批准"),
+            new CardMessage.CardAction("reject", "驳回")));
+notifier.sendCard(tenantId, approverId, card);
+```
+
+动作回传是新命令字（`0x1C/0x1D/0x1E`）：
+
+| cmd | 方向 | body |
+|---|---|---|
+| `CARD_ACTION_REQ` | 客户端 → 服务端 | `{message_id, action_id}` |
+| `CARD_ACTION_RESP` | 服务端 → 客户端 | `{message_id, action_id, result}` |
+| `CARD_ACTION_NOTIFY` | 服务端广播 | `{message_id, action_id, actor_id, result}` |
+
+- **幂等键**是 `message_id + action_id`：`ImCardActionStore` 用 `pending/done` 抢占；重复回传返回首次结果，
+  并发第二个请求 409，处理器失败会 `abandon` 允许重试。
+- **鉴权**：IM 层校验调用方是会话成员、action 在卡片 actions 内；具体业务授权由 `ImCardActionHandler`
+  负责（AI 审批走 `ApprovalService.act` 的同一条路径）。
+- **系统发送者**：`seedj.im.system.subject`，默认 `system`；同一收件人复用同一个系统单聊。
+- **降级**：卡片体不合法时 `ImSystemNotifier` 改发 `TEXT`（`fallback_text`），发送失败只 WARN。
+
 ## 命令扩展
 
 宿主注册一个 `ImCommandHandler` bean 就能新增命令字，不用改 starter，也不用 fork 分发逻辑：

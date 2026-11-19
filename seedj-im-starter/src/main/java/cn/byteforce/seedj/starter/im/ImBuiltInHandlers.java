@@ -8,6 +8,8 @@ import cn.byteforce.seedj.im.ImConversation;
 import cn.byteforce.seedj.im.ImMessage;
 import cn.byteforce.seedj.starter.im.protocol.Cmd;
 import cn.byteforce.seedj.starter.im.protocol.body.AckReq;
+import cn.byteforce.seedj.starter.im.protocol.body.CardActionReq;
+import cn.byteforce.seedj.starter.im.protocol.body.CardActionResp;
 import cn.byteforce.seedj.starter.im.protocol.body.ChatSendReq;
 import cn.byteforce.seedj.starter.im.protocol.body.ChatSendResp;
 import cn.byteforce.seedj.starter.im.protocol.body.ConversationListReq;
@@ -23,6 +25,7 @@ import cn.byteforce.seedj.starter.im.protocol.body.SessionSyncReq;
 import cn.byteforce.seedj.starter.im.protocol.body.SessionSyncResp;
 import cn.byteforce.seedj.starter.im.protocol.body.TypingReq;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -404,6 +407,34 @@ final class ImBuiltInHandlers {
         @Override
         public ImReply handle(ImCallContext context, PresenceReq body) {
             return ImReply.of(Cmd.PRESENCE_RESP, presence.snapshot(context.caller(), body));
+        }
+    }
+
+    /** 卡片动作回传。 */
+    static final class CardAction implements ImCommandHandler<CardActionReq> {
+
+        private final ImMessagingService messaging;
+
+        CardAction(ImMessagingService messaging) {
+            this.messaging = messaging;
+        }
+
+        @Override
+        public byte cmd() {
+            return Cmd.CARD_ACTION_REQ;
+        }
+
+        @Override
+        public Class<CardActionReq> bodyType() {
+            return CardActionReq.class;
+        }
+
+        @Override
+        public ImReply handle(ImCallContext context, CardActionReq body) {
+            Map<String, Object> result = messaging.actOnCard(context.caller(), body);
+            return ImReply.of(
+                    Cmd.CARD_ACTION_RESP,
+                    new CardActionResp(body.messageId(), body.actionId(), result));
         }
     }
 }

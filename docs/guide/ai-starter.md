@@ -506,7 +506,9 @@ seedj:
 - **运行时**：`BoundedLoop` 遇到 pending 返回 `LoopResult.Outcome.PENDING_APPROVAL`（`detail` 是
   `decision_id`），不调工具、不阻塞等人类；人在审批端点批准后，宿主用 `DecisionClient.grant(id)` 取
   token 再提交命令。`DecisionGrant.allowed()` 不会把 pending 当放行。
-- **通知**：默认只记日志；有 IM 依赖时由卡片适配器覆盖（见 IM 指南）。
+- **通知**：默认只记日志；有 IM 依赖时由 `ApprovalCardNotifier` 给每个审批人发 `agent.approval.card.v1`
+  卡片，卡片动作（`CARD_ACTION_REQ`）由 `ApprovalCardActionHandler` 调同一条 `ApprovalService.act` 路径。
+  没有 IM 时审批仍走 HTTP，启动不失败。
 - **coord 适配**：本版审批事实来自 `WorkflowProvider`，coord 的 `Evaluate` 版本（U8）与
   workflow COMMITTED 之后只需换 Provider/端口实现，token、账本、guard 不改。
 

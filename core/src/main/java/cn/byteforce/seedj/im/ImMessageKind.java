@@ -20,5 +20,8 @@ public enum ImMessageKind {
     FILE,
 
     /** 系统消息：入群、退群、改群名等，发送者是系统。 */
-    SYSTEM
+    SYSTEM,
+
+    /** 结构化卡片：审批、通知等；正文必须带 {@code fallback_text}，老客户端按纯文本渲染。 */
+    CARD
 }
