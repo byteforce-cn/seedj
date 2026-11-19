@@ -18,11 +18,6 @@ import cn.byteforce.seedj.starter.ai.approval.ApprovalService;
 import cn.byteforce.seedj.starter.ai.approval.LoggingApprovalNotifier;
 import cn.byteforce.seedj.starter.ai.guard.ConfiguredToolRegistry;
 import cn.byteforce.seedj.starter.ai.token.DecisionTokenIssuer;
-
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -31,6 +26,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
 /** 审批与 grant 端点：授权、状态机与 token 签发。 */
 class ApprovalControllerTest {
