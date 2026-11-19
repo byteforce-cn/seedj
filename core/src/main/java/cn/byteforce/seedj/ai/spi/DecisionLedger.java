@@ -4,8 +4,10 @@ import cn.byteforce.seedj.ai.ApprovalSnapshot;
 import cn.byteforce.seedj.ai.DecisionEffect;
 import cn.byteforce.seedj.ai.DecisionIntent;
 import cn.byteforce.seedj.ai.DecisionRecord;
+import cn.byteforce.seedj.ai.LedgerAudit;
 import cn.byteforce.seedj.ai.LedgerVerification;
 import cn.byteforce.seedj.ai.OutcomeSource;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -99,6 +101,54 @@ public interface DecisionLedger {
      * @return 记录列表；不存在或不属于该租户时为空列表
      */
     List<DecisionRecord> byDecision(UUID tenantId, UUID decisionId);
+
+    /**
+     * 扫描「有 intent、无 outcome」的决策。
+     *
+     * @param tenantId 租户
+     * @param before 截止时间（不含）：intent 的落账时间早于它
+     * @param limit 最大条数
+     * @return 决策标识；默认实现不扫描
+     */
+    default List<UUID> pendingOutcomes(UUID tenantId, Instant before, int limit) {
+        return List.of();
+    }
+
+    /**
+     * 扫描「outcome=ok 但 audit_entry_id 为空」的决策。
+     *
+     * @param tenantId 租户
+     * @param before 截止时间（不含）
+     * @param limit 最大条数
+     * @return 决策标识；默认实现不扫描
+     */
+    default List<UUID> pendingAudit(UUID tenantId, Instant before, int limit) {
+        return List.of();
+    }
+
+    /**
+     * 扫描「最新 approval 仍是 pending」的决策。
+     *
+     * @param tenantId 租户
+     * @param before 截止时间（不含）：pending 记录的落账时间早于它
+     * @param limit 最大条数
+     * @return 决策标识；默认实现不扫描
+     */
+    default List<UUID> pendingApprovals(UUID tenantId, Instant before, int limit) {
+        return List.of();
+    }
+
+    /**
+     * 分区体检：链快照校对 + 表行数与链头比对。
+     *
+     * @param partition 分区
+     * @return 体检结果；默认实现把 {@link #verify} 的记录数当作行数（实现应覆盖以发现幽灵记录）
+     */
+    default LedgerAudit audit(String partition) {
+        LedgerVerification verification = verify(partition);
+        return new LedgerAudit(
+                partition, verification.checkedRecords(), verification.checkedRecords(), verification);
+    }
 
     /**
      * 校对分区内的哈希链：<b>先读链头，再按链头截断扫记录</b>——{@code sequence <= last_sequence} 的记录逐条重算 {@code recordHash}
