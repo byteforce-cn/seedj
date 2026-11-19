@@ -8,3 +8,5 @@ seedj-iam-starter/src/main/java/cn/byteforce/seedj/starter/iam/config/IamServerA
 seedj-infra-local/src/main/java/cn/byteforce/seedj/infra/local/eventbus/FileEventBusTransport.java
 seedj-infra-local/src/main/java/cn/byteforce/seedj/infra/local/transit/BcTransitProvider.java
 seedj-workflow-local/src/main/java/cn/byteforce/seedj/infra/local/workflow/InMemoryWorkflowActions.java
+# T2-local 审批分支后 689 行；下一轮把 DecisionRequest/DecisionResult 等嵌套 DTO 拆出后移出名单。
+seedj-ai-starter/src/main/java/cn/byteforce/seedj/starter/ai/plane/DecisionService.java
