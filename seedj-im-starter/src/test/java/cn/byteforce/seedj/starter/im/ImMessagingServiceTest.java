@@ -102,6 +102,84 @@ class ImMessagingServiceTest {
     }
 
     @Test
+    @DisplayName("CARD 合法：落库为 CARD，老客户端有 fallback_text")
+    void cardAcceptsValidBody() {
+        ImMessage message =
+                messaging.send(
+                        alice,
+                        new ChatSendReq(
+                                "c-card",
+                                null,
+                                "u-2",
+                                "CARD",
+                                Map.of(
+                                        "schema", "agent.approval.card.v1",
+                                        "title", "退款审批",
+                                        "fallback_text", "请审批退款",
+                                        "actions",
+                                                List.of(Map.of("id", "approve", "label", "批准")))));
+
+        assertThat(message.kind()).isEqualTo(ImMessageKind.CARD);
+        assertThat(message.body()).containsEntry("fallback_text", "请审批退款");
+    }
+
+    @Test
+    @DisplayName("CARD 缺 fallback_text / actions / 重复 action id：拒绝")
+    void cardRejectsInvalidBody() {
+        assertThatThrownBy(
+                        () ->
+                                messaging.send(
+                                        alice,
+                                        new ChatSendReq(
+                                                "c-card-1",
+                                                null,
+                                                "u-2",
+                                                "CARD",
+                                                Map.of("schema", "s", "title", "t"))))
+                .isInstanceOf(ContractException.class)
+                .hasMessageContaining("fallback_text");
+        assertThatThrownBy(
+                        () ->
+                                messaging.send(
+                                        alice,
+                                        new ChatSendReq(
+                                                "c-card-2",
+                                                null,
+                                                "u-2",
+                                                "CARD",
+                                                Map.of(
+                                                        "schema", "s",
+                                                        "title", "t",
+                                                        "fallback_text", "f",
+                                                        "actions", List.of()))))
+                .isInstanceOf(ContractException.class)
+                .hasMessageContaining("actions");
+        assertThatThrownBy(
+                        () ->
+                                messaging.send(
+                                        alice,
+                                        new ChatSendReq(
+                                                "c-card-3",
+                                                null,
+                                                "u-2",
+                                                "CARD",
+                                                Map.of(
+                                                        "schema", "s",
+                                                        "title", "t",
+                                                        "fallback_text", "f",
+                                                        "actions",
+                                                                List.of(
+                                                                        Map.of(
+                                                                                "id", "a",
+                                                                                "label", "A"),
+                                                                        Map.of(
+                                                                                "id", "a",
+                                                                                "label", "B"))))))
+                .isInstanceOf(ContractException.class)
+                .hasMessageContaining("重复");
+    }
+
+    @Test
     @DisplayName("非成员与会话租户不一致都被拒绝")
     void membershipAndTenantAreEnforced() {
         ImMessage message =

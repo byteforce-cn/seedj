@@ -4,6 +4,7 @@
 # 数据库账本由 seedj-jdbc-postgresql 按 seedj.ai.provider 装配，内存账本由宿主自备。
 cn.byteforce.seedj.starter.ai.autoconfigure.AiGuardAutoConfiguration
 cn.byteforce.seedj.starter.ai.autoconfigure.ApprovalAutoConfiguration
+cn.byteforce.seedj.starter.ai.autoconfigure.ApprovalImAutoConfiguration
 cn.byteforce.seedj.starter.ai.autoconfigure.DecisionPlaneAutoConfiguration
 cn.byteforce.seedj.starter.ai.autoconfigure.ExternalEffectAutoConfiguration
 cn.byteforce.seedj.starter.ai.runtime.AiRuntimeAutoConfiguration

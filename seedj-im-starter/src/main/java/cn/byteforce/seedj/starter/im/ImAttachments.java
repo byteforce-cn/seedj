@@ -4,7 +4,10 @@ import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;
 import cn.byteforce.seedj.im.ImMessageKind;
 import java.math.BigDecimal;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
@@ -28,6 +31,10 @@ final class ImAttachments {
             throw new ContractException(
                     ContractErrorCode.INVALID_PAYLOAD, "消息体超过上限: " + size + " > " + maxBodyBytes);
         }
+        if (kind == ImMessageKind.CARD) {
+            validateCard(body);
+            return;
+        }
         if (kind != ImMessageKind.IMAGE && kind != ImMessageKind.FILE) {
             return;
         }
@@ -45,6 +52,43 @@ final class ImAttachments {
                     ContractErrorCode.INVALID_PAYLOAD,
                     "附件超过上限: " + bytes + " > " + maxAttachmentBytes);
         }
+    }
+
+    private static void validateCard(Map<String, Object> body) {
+        if (body == null) {
+            throw invalidCard("CARD 消息体不能为空");
+        }
+        for (String field : List.of("schema", "title", "fallback_text")) {
+            Object value = body.get(field);
+            if (value == null || String.valueOf(value).isBlank()) {
+                throw invalidCard("CARD 消息缺少 " + field);
+            }
+        }
+        Object actions = body.get("actions");
+        if (!(actions instanceof List<?> list) || list.isEmpty()) {
+            throw invalidCard("CARD 消息必须带非空 actions");
+        }
+        Set<String> ids = new HashSet<>();
+        for (Object action : list) {
+            if (!(action instanceof Map<?, ?> map)) {
+                throw invalidCard("CARD action 必须是对象");
+            }
+            Object id = map.get("id");
+            Object label = map.get("label");
+            if (id == null || String.valueOf(id).isBlank()) {
+                throw invalidCard("CARD action 缺少 id");
+            }
+            if (label == null || String.valueOf(label).isBlank()) {
+                throw invalidCard("CARD action 缺少 label");
+            }
+            if (!ids.add(String.valueOf(id))) {
+                throw invalidCard("CARD action id 重复: " + id);
+            }
+        }
+    }
+
+    private static ContractException invalidCard(String message) {
+        return new ContractException(ContractErrorCode.INVALID_PAYLOAD, message);
     }
 
     private static long bytes(Object declaredSize) {

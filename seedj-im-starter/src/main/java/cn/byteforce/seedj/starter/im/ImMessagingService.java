@@ -4,12 +4,14 @@ import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;
 import cn.byteforce.seedj.core.security.Caller;
 import cn.byteforce.seedj.cqrs.spi.TransactionRunner;
+import cn.byteforce.seedj.im.ImCardAction;
 import cn.byteforce.seedj.im.ImConversation;
 import cn.byteforce.seedj.im.ImConversationKind;
 import cn.byteforce.seedj.im.ImMember;
 import cn.byteforce.seedj.im.ImMessage;
 import cn.byteforce.seedj.im.ImMessageDraft;
 import cn.byteforce.seedj.im.ImMessageKind;
+import cn.byteforce.seedj.im.spi.ImCardActionStore;
 import cn.byteforce.seedj.im.spi.ImConversationStore;
 import cn.byteforce.seedj.im.spi.ImCursorStore;
 import cn.byteforce.seedj.im.spi.ImMessageStore;
@@ -18,6 +20,8 @@ import cn.byteforce.seedj.outbox.OutboxRecord;
 import cn.byteforce.seedj.outbox.OutboxWriter;
 import cn.byteforce.seedj.starter.im.protocol.Cmd;
 import cn.byteforce.seedj.starter.im.protocol.body.AckReq;
+import cn.byteforce.seedj.starter.im.protocol.body.CardActionNotify;
+import cn.byteforce.seedj.starter.im.protocol.body.CardActionReq;
 import cn.byteforce.seedj.starter.im.protocol.body.ChatDeliver;
 import cn.byteforce.seedj.starter.im.protocol.body.ChatSendReq;
 import cn.byteforce.seedj.starter.im.protocol.body.EditNotify;
@@ -34,6 +38,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -77,6 +82,10 @@ public final class ImMessagingService {
 
     private final ImProperties properties;
 
+    private final ImCardActionStore cardActions;
+
+    private final ImCardActionRegistry cardHandlers;
+
     /**
      * 构造服务。
      *
@@ -102,6 +111,50 @@ public final class ImMessagingService {
             TransactionRunner transaction,
             OutboxWriter outbox,
             ImProperties properties) {
+        this(
+                conversationService,
+                conversations,
+                messages,
+                cursors,
+                numbers,
+                push,
+                policy,
+                transaction,
+                outbox,
+                properties,
+                new cn.byteforce.seedj.infra.local.im.InMemoryImCardActionStore(),
+                new ImCardActionRegistry(List.of()));
+    }
+
+    /**
+     * 带卡片动作存储的构造器。
+     *
+     * @param conversationService 会话服务
+     * @param conversations 会话存储
+     * @param messages 消息存储
+     * @param cursors 游标存储
+     * @param numbers 序号分配器
+     * @param push 投递端口
+     * @param policy 会话治理策略
+     * @param transaction 事务边界
+     * @param outbox outbox 写入端口
+     * @param properties IM 配置
+     * @param cardActions 卡片动作存储
+     * @param cardHandlers 卡片动作处理器
+     */
+    public ImMessagingService(
+            ImConversationService conversationService,
+            ImConversationStore conversations,
+            ImMessageStore messages,
+            ImCursorStore cursors,
+            ImSequenceAllocator numbers,
+            ImPushProvider push,
+            ImConversationPolicy policy,
+            TransactionRunner transaction,
+            OutboxWriter outbox,
+            ImProperties properties,
+            ImCardActionStore cardActions,
+            ImCardActionRegistry cardHandlers) {
         this.conversationService =
                 Objects.requireNonNull(conversationService, "conversationService");
         this.conversations = Objects.requireNonNull(conversations, "conversations");
@@ -113,6 +166,8 @@ public final class ImMessagingService {
         this.transaction = Objects.requireNonNull(transaction, "transaction");
         this.outbox = Objects.requireNonNull(outbox, "outbox");
         this.properties = Objects.requireNonNull(properties, "properties");
+        this.cardActions = Objects.requireNonNull(cardActions, "cardActions");
+        this.cardHandlers = Objects.requireNonNull(cardHandlers, "cardHandlers");
     }
 
     /**
@@ -290,6 +345,88 @@ public final class ImMessagingService {
         throw lastConflict == null
                 ? new ContractException(ContractErrorCode.VERSION_CONFLICT, "序号冲突")
                 : lastConflict;
+    }
+
+    /**
+     * 执行一次卡片动作回传；{@code message_id + action_id} 幂等。
+     *
+     * @param caller 调用方
+     * @param request 动作请求
+     * @return 处理结果
+     */
+    public Map<String, Object> actOnCard(Caller caller, CardActionReq request) {
+        Objects.requireNonNull(caller, "caller");
+        if (request == null || request.messageId() == null || request.actionId() == null) {
+            throw new ContractException(
+                    ContractErrorCode.INVALID_PAYLOAD, "缺少 message_id 或 action_id");
+        }
+        ImMessage message =
+                messages.find(ImProtocolIds.message(request.messageId()))
+                        .orElseThrow(
+                                () ->
+                                        new ContractException(
+                                                ContractErrorCode.OBJECT_NOT_FOUND,
+                                                "消息不存在: " + request.messageId()));
+        if (message.kind() != ImMessageKind.CARD) {
+            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD, "该消息不是卡片");
+        }
+        if (message.recalledAt() != null) {
+            throw new ContractException(ContractErrorCode.VERSION_CONFLICT, "卡片已撤回");
+        }
+        ImConversation conversation =
+                conversationService.requireMemberConversation(caller, message.conversationId());
+        Map<String, Object> card = message.body();
+        Object actions = card.get("actions");
+        if (!(actions instanceof List<?> list)) {
+            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD, "卡片缺少 actions");
+        }
+        Map<?, ?> action =
+                list.stream()
+                        .filter(Map.class::isInstance)
+                        .map(Map.class::cast)
+                        .filter(item -> request.actionId().equals(item.get("id")))
+                        .findFirst()
+                        .orElseThrow(
+                                () ->
+                                        new ContractException(
+                                                ContractErrorCode.INVALID_PAYLOAD,
+                                                "未知卡片动作: " + request.actionId()));
+        ImCardAction cardAction =
+                new ImCardAction(
+                        message.id(),
+                        request.actionId(),
+                        caller.tenantId(),
+                        message.conversationId(),
+                        caller.id());
+        Optional<Map<String, Object>> existing = cardActions.begin(cardAction);
+        if (existing.isPresent()) {
+            return existing.get();
+        }
+        Object schema = card.get("schema");
+        ImCardActionHandler handler =
+                cardHandlers
+                        .find(schema == null ? "" : String.valueOf(schema))
+                        .orElseThrow(
+                                () ->
+                                        new ContractException(
+                                                ContractErrorCode.OBJECT_NOT_FOUND,
+                                                "没有卡片处理器: " + schema));
+        Map<String, Object> actionMap = new LinkedHashMap<>();
+        action.forEach((key, value) -> actionMap.put(String.valueOf(key), value));
+        Map<String, Object> result;
+        try {
+            result = handler.handle(new ImCardActionContext(message, card, actionMap, caller));
+        } catch (RuntimeException error) {
+            cardActions.abandon(cardAction);
+            throw error;
+        }
+        cardActions.complete(cardAction, result);
+        broadcast(
+                conversation,
+                Cmd.CARD_ACTION_NOTIFY,
+                new CardActionNotify(
+                        message.id().toString(), request.actionId(), caller.id(), result));
+        return result;
     }
 
     /**

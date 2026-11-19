@@ -25,7 +25,8 @@ public final class ImMigrations {
                 new Migration(1, "im conversations and membership", V1, ROLLBACK_V1),
                 new Migration(2, "im messages", V2, ROLLBACK_V2),
                 new Migration(3, "im cursors", V3, ROLLBACK_V3),
-                new Migration(4, "im message retention index", V4, ROLLBACK_V4));
+                new Migration(4, "im message retention index", V4, ROLLBACK_V4),
+                new Migration(5, "im card actions", V5, ROLLBACK_V5));
     }
 
     private static final String V1 =
@@ -133,6 +134,27 @@ public final class ImMigrations {
             CREATE INDEX IF NOT EXISTS idx_im_message_created
                 ON im_message (created_at);
             """;
+
+    private static final String V5 =
+            """
+            CREATE TABLE IF NOT EXISTS im_card_action (
+                message_id UUID NOT NULL,
+                action_id TEXT NOT NULL,
+                tenant_id VARCHAR(64) NOT NULL,
+                conversation_id UUID NOT NULL,
+                actor_id VARCHAR(64) NOT NULL,
+                state TEXT NOT NULL CHECK (state IN ('pending','done')),
+                result JSONB,
+                created_at TIMESTAMPTZ NOT NULL,
+                completed_at TIMESTAMPTZ,
+                PRIMARY KEY (message_id, action_id)
+            );
+
+            CREATE INDEX IF NOT EXISTS im_card_action_actor
+                ON im_card_action (tenant_id, actor_id, created_at);
+            """;
+
+    private static final String ROLLBACK_V5 = "DROP TABLE IF EXISTS im_card_action";
 
     private static final String ROLLBACK_V1 =
             """

@@ -1,16 +1,19 @@
 package cn.byteforce.seedj.starter.im;
 
+import cn.byteforce.seedj.im.spi.ImCardActionStore;
 import cn.byteforce.seedj.im.spi.ImConversationStore;
 import cn.byteforce.seedj.im.spi.ImCursorStore;
 import cn.byteforce.seedj.im.spi.ImMessageStore;
 import cn.byteforce.seedj.im.spi.ImSequenceAllocator;
 import cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner;
 import cn.byteforce.seedj.infra.jdbc.im.ImSchemaCapability;
+import cn.byteforce.seedj.infra.jdbc.im.JdbcImCardActionStore;
 import cn.byteforce.seedj.infra.jdbc.im.JdbcImConversationStore;
 import cn.byteforce.seedj.infra.jdbc.im.JdbcImCursorStore;
 import cn.byteforce.seedj.infra.jdbc.im.JdbcImMessageStore;
 import cn.byteforce.seedj.infra.jdbc.im.JdbcImSequenceAllocator;
 import cn.byteforce.seedj.infra.local.im.AtomicLongSequenceAllocator;
+import cn.byteforce.seedj.infra.local.im.InMemoryImCardActionStore;
 import cn.byteforce.seedj.infra.local.im.InMemoryImConversationStore;
 import cn.byteforce.seedj.infra.local.im.InMemoryImCursorStore;
 import cn.byteforce.seedj.infra.local.im.InMemoryImMessageStore;
@@ -90,6 +93,12 @@ public class ImStoreAutoConfiguration {
         ImCursorStore imCursorStore() {
             return new InMemoryImCursorStore();
         }
+
+        @Bean
+        @ConditionalOnMissingBean
+        ImCardActionStore imCardActionStore() {
+            return new InMemoryImCardActionStore();
+        }
     }
 
     /**
@@ -155,6 +164,12 @@ public class ImStoreAutoConfiguration {
         @ConditionalOnMissingBean
         ImCursorStore imCursorStore(JdbcTemplate jdbc, Clock clock) {
             return new JdbcImCursorStore(jdbc, clock);
+        }
+
+        @Bean
+        @ConditionalOnMissingBean
+        ImCardActionStore imCardActionStore(JdbcTemplate jdbc) {
+            return new JdbcImCardActionStore(jdbc);
         }
     }
 }

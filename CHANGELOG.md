@@ -48,6 +48,11 @@
   `seedj.im.push.node-id` 区分（空则进程随机，生产建议显式配置）。
 - `seedj-it` 的 coord 端到端：`CoordIT` 在真 coord v2 集群（server + agent 容器）上验证 ID、编号、
   全局序列、分布式锁、EventBus 发布/消费与「重试 → 死信」，并核对 coord 侧 topic 与消息。
+- `seedj-im-starter`（D6/D7）：`CARD` 消息一等类型（`schema`/`fallback_text`/`actions` 校验），系统发送入口
+  `ImSystemNotifier`；新增 `CARD_ACTION_REQ/RESP/NOTIFY` 命令字与 `ImCardActionStore`（`message_id + action_id`
+  幂等，pending/done + abandon 重试）；内存与 PostgreSQL 两套实现（IM 迁移 V5）。
+- `seedj-ai-starter`（IM 审批卡片适配器）：可选 `seedj-im-starter` 依赖；`ApprovalCardNotifier` 给每个审批人发
+  审批卡片，`ApprovalCardActionHandler` 调 `ApprovalService.act`；没有 IM 时回退日志通知。
 - `seedj-ai-starter`（外部副作用两段协议）：`ExternalEffectService` 先固化 `prepared` 再调用外部系统，
   `decision_id` 作为外部幂等键，`confirmed`/`failed` 只追加；已确认重试不重调，U7 审计条目带
   `decision_id`，审计失败不回滚效果。

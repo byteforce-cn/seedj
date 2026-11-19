@@ -2,6 +2,7 @@ package cn.byteforce.seedj.starter.im;
 
 import cn.byteforce.seedj.core.security.Caller;
 import cn.byteforce.seedj.cqrs.spi.TransactionRunner;
+import cn.byteforce.seedj.im.spi.ImCardActionStore;
 import cn.byteforce.seedj.im.spi.ImConversationStore;
 import cn.byteforce.seedj.im.spi.ImCursorStore;
 import cn.byteforce.seedj.im.spi.ImMessageStore;
@@ -45,7 +46,7 @@ import org.springframework.context.annotation.Bean;
         name = "enabled",
         havingValue = "true",
         matchIfMissing = true)
-@EnableConfigurationProperties(ImProperties.class)
+@EnableConfigurationProperties({ImProperties.class, ImSystemProperties.class})
 public class ImCommandAutoConfiguration {
 
     @Bean
@@ -83,6 +84,8 @@ public class ImCommandAutoConfiguration {
             ImConversationPolicy policy,
             ObjectProvider<TransactionRunner> transactions,
             ObjectProvider<OutboxWriter> outbox,
+            ImCardActionStore cardActions,
+            ImCardActionRegistry cardHandlers,
             ImProperties properties) {
         return new ImMessagingService(
                 conversationService,
@@ -94,7 +97,15 @@ public class ImCommandAutoConfiguration {
                 policy,
                 transactions.getIfAvailable(TransactionRunner::direct),
                 outbox.getIfAvailable(OutboxWriter::discard),
-                properties);
+                properties,
+                cardActions,
+                cardHandlers);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    ImCardActionRegistry imCardActionRegistry(ObjectProvider<ImCardActionHandler> handlers) {
+        return new ImCardActionRegistry(handlers.orderedStream().toList());
     }
 
     @Bean

@@ -10,3 +10,5 @@ seedj-infra-local/src/main/java/cn/byteforce/seedj/infra/local/transit/BcTransit
 seedj-workflow-local/src/main/java/cn/byteforce/seedj/infra/local/workflow/InMemoryWorkflowActions.java
 # T2-local 审批分支后 689 行；下一轮把 DecisionRequest/DecisionResult 等嵌套 DTO 拆出后移出名单。
 seedj-ai-starter/src/main/java/cn/byteforce/seedj/starter/ai/plane/DecisionService.java
+# D7 卡片动作后越过 600 行；下一次把卡片相关方法拆到 ImCardMessaging 后再移出。
+seedj-im-starter/src/main/java/cn/byteforce/seedj/starter/im/ImMessagingService.java

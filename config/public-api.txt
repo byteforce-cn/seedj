@@ -254,10 +254,12 @@ core|cn.byteforce.seedj.iam|ScimFilter
 core|cn.byteforce.seedj.id|IdErrorCode
 core|cn.byteforce.seedj.id|IdException
 core|cn.byteforce.seedj.id|IdGenerator
+core|cn.byteforce.seedj.im.spi|ImCardActionStore
 core|cn.byteforce.seedj.im.spi|ImConversationStore
 core|cn.byteforce.seedj.im.spi|ImCursorStore
 core|cn.byteforce.seedj.im.spi|ImMessageStore
 core|cn.byteforce.seedj.im.spi|ImSequenceAllocator
+core|cn.byteforce.seedj.im|ImCardAction
 core|cn.byteforce.seedj.im|ImConversation
 core|cn.byteforce.seedj.im|ImConversationKind
 core|cn.byteforce.seedj.im|ImMember
@@ -408,6 +410,8 @@ core|cn.byteforce.seedj.workflow.spi|WorkflowStatus
 core|cn.byteforce.seedj.workflow.spi|WorkflowTimeoutException
 core|cn.byteforce.seedj.workflow.spi|WorkflowVersionConflictException
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.annotation|EnableAIServer
+seedj-ai-starter|cn.byteforce.seedj.starter.ai.approval.im|ApprovalCardActionHandler
+seedj-ai-starter|cn.byteforce.seedj.starter.ai.approval.im|ApprovalCardNotifier
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.approval|ApprovalAction
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.approval|ApprovalExpiryJob
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.approval|ApprovalNotification
@@ -420,6 +424,7 @@ seedj-ai-starter|cn.byteforce.seedj.starter.ai.approval|LoggingApprovalNotifier
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.autoconfigure|AdmissionProperties
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.autoconfigure|AiGuardAutoConfiguration
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.autoconfigure|ApprovalAutoConfiguration
+seedj-ai-starter|cn.byteforce.seedj.starter.ai.autoconfigure|ApprovalImAutoConfiguration
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.autoconfigure|DecisionPlaneAutoConfiguration
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.autoconfigure|ExternalEffectAutoConfiguration
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.effect|ExternalEffectCall
@@ -606,6 +611,9 @@ seedj-iam-starter|cn.byteforce.seedj.starter.iam.web|IdTokenIntrospectionGuard
 seedj-iam-starter|cn.byteforce.seedj.starter.iam.web|ReauthAwareAuthenticationSuccessHandler
 seedj-iam-starter|cn.byteforce.seedj.starter.iam|IamProperties
 seedj-im-starter|cn.byteforce.seedj.starter.im.protocol.body|AckReq
+seedj-im-starter|cn.byteforce.seedj.starter.im.protocol.body|CardActionNotify
+seedj-im-starter|cn.byteforce.seedj.starter.im.protocol.body|CardActionReq
+seedj-im-starter|cn.byteforce.seedj.starter.im.protocol.body|CardActionResp
 seedj-im-starter|cn.byteforce.seedj.starter.im.protocol.body|ChatDeliver
 seedj-im-starter|cn.byteforce.seedj.starter.im.protocol.body|ChatSendReq
 seedj-im-starter|cn.byteforce.seedj.starter.im.protocol.body|ChatSendResp
@@ -636,9 +644,13 @@ seedj-im-starter|cn.byteforce.seedj.starter.im.web|AddMemberRequest
 seedj-im-starter|cn.byteforce.seedj.starter.im.web|CreateConversationRequest
 seedj-im-starter|cn.byteforce.seedj.starter.im.web|ImAdminController
 seedj-im-starter|cn.byteforce.seedj.starter.im.web|ImWebAutoConfiguration
+seedj-im-starter|cn.byteforce.seedj.starter.im|CardMessage
 seedj-im-starter|cn.byteforce.seedj.starter.im|EnableImServer
 seedj-im-starter|cn.byteforce.seedj.starter.im|ImAuthorizationGate
 seedj-im-starter|cn.byteforce.seedj.starter.im|ImCallContext
+seedj-im-starter|cn.byteforce.seedj.starter.im|ImCardActionContext
+seedj-im-starter|cn.byteforce.seedj.starter.im|ImCardActionHandler
+seedj-im-starter|cn.byteforce.seedj.starter.im|ImCardActionRegistry
 seedj-im-starter|cn.byteforce.seedj.starter.im|ImCommandAutoConfiguration
 seedj-im-starter|cn.byteforce.seedj.starter.im|ImCommandHandler
 seedj-im-starter|cn.byteforce.seedj.starter.im|ImCommandRegistry
@@ -652,6 +664,8 @@ seedj-im-starter|cn.byteforce.seedj.starter.im|ImPushProvider
 seedj-im-starter|cn.byteforce.seedj.starter.im|ImReply
 seedj-im-starter|cn.byteforce.seedj.starter.im|ImServerAutoConfiguration
 seedj-im-starter|cn.byteforce.seedj.starter.im|ImStoreAutoConfiguration
+seedj-im-starter|cn.byteforce.seedj.starter.im|ImSystemNotifier
+seedj-im-starter|cn.byteforce.seedj.starter.im|ImSystemProperties
 seedj-infra-coord|cn.byteforce.seedj.infra.coord|CoordAutoConfiguration
 seedj-infra-coord|cn.byteforce.seedj.infra.coord|CoordProperties
 seedj-infra-coord|cn.byteforce.seedj.infra.coord|CoordProviderGuardAutoConfiguration
@@ -686,6 +700,7 @@ seedj-infra-local|cn.byteforce.seedj.infra.local.id|SnowflakeIdGenerator
 seedj-infra-local|cn.byteforce.seedj.infra.local.id|StringIdGenerator
 seedj-infra-local|cn.byteforce.seedj.infra.local.id|Uuid7IdGenerator
 seedj-infra-local|cn.byteforce.seedj.infra.local.im|AtomicLongSequenceAllocator
+seedj-infra-local|cn.byteforce.seedj.infra.local.im|InMemoryImCardActionStore
 seedj-infra-local|cn.byteforce.seedj.infra.local.im|InMemoryImConversationStore
 seedj-infra-local|cn.byteforce.seedj.infra.local.im|InMemoryImCursorStore
 seedj-infra-local|cn.byteforce.seedj.infra.local.im|InMemoryImMessageStore
@@ -737,6 +752,7 @@ seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.iam|OAuth2SchemaCapability
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.iam|PolicyConditionCodec
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.im|ImMigrations
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.im|ImSchemaCapability
+seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.im|JdbcImCardActionStore
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.im|JdbcImConversationStore
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.im|JdbcImCursorStore
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.im|JdbcImMessageStore
