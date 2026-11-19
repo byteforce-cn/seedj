@@ -2,8 +2,8 @@ package cn.byteforce.seedj.starter.ai.guard;
 
 import cn.byteforce.seedj.ai.AiErrorCode;
 import cn.byteforce.seedj.ai.DecisionAdmission;
-import cn.byteforce.seedj.ai.spi.DecisionAdmissionStore;
 import cn.byteforce.seedj.ai.GuardVerdict;
+import cn.byteforce.seedj.ai.spi.DecisionAdmissionStore;
 import cn.byteforce.seedj.core.clock.Clock;
 import cn.byteforce.seedj.core.exception.ContractException;
 import cn.byteforce.seedj.core.security.Caller;
@@ -129,15 +129,7 @@ public final class AgentGuardFilter extends OncePerRequestFilter {
             String audience,
             Clock clock,
             JsonMapper mapper) {
-        this(
-                verifier,
-                callers,
-                callerIds,
-                audience,
-                clock,
-                mapper,
-                null,
-                Duration.ofMinutes(5));
+        this(verifier, callers, callerIds, audience, clock, mapper, null, Duration.ofMinutes(5));
     }
 
     /**
@@ -168,10 +160,7 @@ public final class AgentGuardFilter extends OncePerRequestFilter {
         this.clock = Objects.requireNonNull(clock, "clock");
         this.mapper = Objects.requireNonNull(mapper, "mapper");
         this.admissions = admissions;
-        this.admissionTtl =
-                admissionTtl == null
-                        ? Duration.ofMinutes(5)
-                        : admissionTtl;
+        this.admissionTtl = admissionTtl == null ? Duration.ofMinutes(5) : admissionTtl;
     }
 
     @Override

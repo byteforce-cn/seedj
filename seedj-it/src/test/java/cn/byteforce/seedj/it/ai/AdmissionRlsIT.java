@@ -26,8 +26,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 /**
  * RLS 兜底：没有合法 admission + GUC 的直连写入必须被数据库拒绝。
  *
- * <p>角色是测试内建的：{@code app_rw} 业务读写（受 RLS 约束），{@code guard_rw} 只写 admission。表 owner 是容器主用户，
- * {@code app_rw} 不是 owner，{@code FORCE ROW LEVEL SECURITY} 才能对 owner 之外的普通角色生效。
+ * <p>角色是测试内建的：{@code app_rw} 业务读写（受 RLS 约束），{@code guard_rw} 只写 admission。表 owner 是容器主用户， {@code
+ * app_rw} 不是 owner，{@code FORCE ROW LEVEL SECURITY} 才能对 owner 之外的普通角色生效。
  */
 @Testcontainers
 class AdmissionRlsIT {

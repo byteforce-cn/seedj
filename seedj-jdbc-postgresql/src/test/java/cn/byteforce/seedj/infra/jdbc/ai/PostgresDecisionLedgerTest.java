@@ -3,6 +3,8 @@ package cn.byteforce.seedj.infra.jdbc.ai;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import cn.byteforce.seedj.ai.ApprovalSnapshot;
+import cn.byteforce.seedj.ai.ApprovalStatus;
 import cn.byteforce.seedj.ai.DecisionIntent;
 import cn.byteforce.seedj.ai.DecisionRecord;
 import cn.byteforce.seedj.ai.DecisionRecordKind;
@@ -274,5 +276,91 @@ class PostgresDecisionLedgerTest extends DecisionLedgerContractTest {
                 tenant,
                 "agent.decision.v1",
                 "{\"schema\":\"agent.decision.v1\",\"record_kind\":\"intent\"}");
+    }
+
+    @Test
+    @DisplayName("pendingOutcomes 只列有 intent 无 outcome 的决策")
+    void pendingOutcomesFindsIntentWithoutOutcome() {
+        UUID pending = decision(201);
+        UUID done = decision(202);
+        ledger().appendIntent(intent(TENANT, pending));
+        ledger().appendIntent(intent(TENANT, done));
+        ledger().appendOutcome(
+                        done,
+                        cn.byteforce.seedj.ai.DecisionEffect.ok(null, null),
+                        cn.byteforce.seedj.ai.OutcomeSource.RUNTIME_REPORTED);
+
+        assertThat(ledger().pendingOutcomes(TENANT, Instant.now().plusSeconds(1), 10))
+                .containsExactly(pending);
+    }
+
+    @Test
+    @DisplayName("pendingAudit 只列 outcome=ok 且未链校验的决策")
+    void pendingAuditFindsOkWithoutAuditEntry() {
+        UUID decision = decision(203);
+        ledger().appendIntent(intent(TENANT, decision));
+        ledger().appendOutcome(
+                        decision,
+                        cn.byteforce.seedj.ai.DecisionEffect.ok(null, null),
+                        cn.byteforce.seedj.ai.OutcomeSource.RUNTIME_REPORTED);
+
+        assertThat(ledger().pendingAudit(TENANT, Instant.now().plusSeconds(1), 10))
+                .containsExactly(decision);
+    }
+
+    @Test
+    @DisplayName("pendingApprovals 只看最新一条 approval 且仍为 pending")
+    void pendingApprovalsOnlyReturnsLatestPending() {
+        UUID pending = decision(204);
+        UUID approved = decision(205);
+        ledger().appendIntent(intent(TENANT, pending));
+        ledger().appendIntent(intent(TENANT, approved));
+        ledger().appendApproval(pending, approval(cn.byteforce.seedj.ai.ApprovalStatus.PENDING));
+        ledger().appendApproval(approved, approval(cn.byteforce.seedj.ai.ApprovalStatus.PENDING));
+        ledger().appendApproval(
+                        approved,
+                        new cn.byteforce.seedj.ai.ApprovalSnapshot(
+                                "i-2",
+                                "t-2",
+                                cn.byteforce.seedj.ai.ApprovalStatus.APPROVED,
+                                Instant.now().minusSeconds(10),
+                                UUID.randomUUID(),
+                                Instant.now(),
+                                "sha256:a",
+                                null));
+
+        assertThat(ledger().pendingApprovals(TENANT, Instant.now().plusSeconds(1), 10))
+                .containsExactly(pending);
+    }
+
+    @Test
+    @DisplayName("audit 发现绕过账本直插的幽灵记录")
+    void auditDetectsGhostRecord() {
+        DecisionRecord record = ledger().appendIntent(intent(TENANT, decision(206)));
+        String partition = record.partition();
+        jdbc.update(
+                """
+                INSERT INTO agent_decision_record
+                  (record_id, decision_id, record_kind, partition, sequence, prev_hash,
+                   record_hash, recorded_at, tenant_id, schema_version, body)
+                VALUES (?, ?, 'intent', ?, ?, ?, ?, now(), ?, 'agent.decision.v1',
+                        '{"schema":"agent.decision.v1","record_kind":"intent"}'::jsonb)
+                """,
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                partition,
+                99L,
+                "0".repeat(64),
+                "1".repeat(64),
+                TENANT);
+
+        assertThat(ledger().audit(partition).ok()).isFalse();
+        assertThat(ledger().audit(partition).rowCount())
+                .isGreaterThan(ledger().audit(partition).headSequence());
+    }
+
+    private static ApprovalSnapshot approval(ApprovalStatus status) {
+        return new ApprovalSnapshot(
+                "i-1", "t-1", status, Instant.now().minusSeconds(10), null, null, "sha256:a", null);
     }
 }

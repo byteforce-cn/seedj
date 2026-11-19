@@ -4,6 +4,7 @@ import cn.byteforce.seedj.audit.AuditAppendRequest;
 import cn.byteforce.seedj.audit.AuditAppender;
 import cn.byteforce.seedj.audit.AuditEvent;
 import cn.byteforce.seedj.cqrs.CommandRecord;
+import cn.byteforce.seedj.cqrs.DecisionContext;
 import cn.byteforce.seedj.cqrs.TemporalCommandAudit;
 import cn.byteforce.seedj.domain.event.CommandEvent;
 import java.util.ArrayList;
@@ -53,6 +54,12 @@ public final class TemporalCommandAuditAdapter implements TemporalCommandAudit {
             projections.add(
                     new AuditEvent(event.id(), event.type(), JSON.valueToTree(event.payload())));
         }
+        DecisionContext.current()
+                .ifPresent(
+                        context -> {
+                            payload.put("decision_id", context.decisionId().toString());
+                            payload.put("ledger_intent_id", context.ledgerIntentId().toString());
+                        });
         String resourceId = record.locator() == null ? null : record.locator().toString();
         appender.append(
                 new AuditAppendRequest<>(

@@ -34,7 +34,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tools.jackson.databind.json.JsonMapper;
@@ -87,8 +86,6 @@ public final class ApprovalService {
     private final UUID tenantId;
 
     private final UUID onBehalfOf;
-
-    private final AtomicBoolean expiryWarned = new AtomicBoolean();
 
     /**
      * 绑定审批依赖。
@@ -377,12 +374,12 @@ public final class ApprovalService {
      */
     public int expirePending(Instant now) {
         Objects.requireNonNull(now, "now");
-        if (expiryWarned.compareAndSet(false, true)) {
-            LOG.warn(
-                    "approval expiry sweep is a no-op until ledger pendingApprovals is wired"
-                            + " (T3 Task B6); expiring on read/grant still works");
+        int expired = 0;
+        for (UUID decisionId :
+                ledger.pendingApprovals(tenantId, now.minus(properties.deadline()), 1000)) {
+            expired += expireOne(decisionId, now);
         }
-        return 0;
+        return expired;
     }
 
     /**

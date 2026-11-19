@@ -7,9 +7,10 @@ import cn.byteforce.seedj.core.clock.Clock;
 import cn.byteforce.seedj.core.security.CallerIdCodec;
 import cn.byteforce.seedj.core.security.CallerProvider;
 import cn.byteforce.seedj.cqrs.CommandCatalog;
+import cn.byteforce.seedj.cqrs.spi.TransactionRunner;
+import cn.byteforce.seedj.infra.local.ai.InMemoryDecisionAdmissionStore;
 import cn.byteforce.seedj.starter.ai.AiEnabledMarker;
 import cn.byteforce.seedj.starter.ai.AiProperties;
-import cn.byteforce.seedj.infra.local.ai.InMemoryDecisionAdmissionStore;
 import cn.byteforce.seedj.starter.ai.guard.AdmissionSweeper;
 import cn.byteforce.seedj.starter.ai.guard.AgentDecisionGuc;
 import cn.byteforce.seedj.starter.ai.guard.AgentDecisionTransactionRunner;
@@ -20,25 +21,24 @@ import cn.byteforce.seedj.starter.ai.policy.PolicyHeadSource;
 import cn.byteforce.seedj.starter.ai.policy.PolicyProperties;
 import cn.byteforce.seedj.starter.ai.token.DecisionTokenIssuer;
 import cn.byteforce.seedj.starter.ai.token.DecisionTokenVerifier;
-import cn.byteforce.seedj.cqrs.spi.TransactionRunner;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.time.Duration;
 import java.util.Map;
 import javax.sql.DataSource;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
-import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
 import org.springframework.boot.security.autoconfigure.web.servlet.SecurityFilterProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -68,7 +68,11 @@ import tools.jackson.databind.json.JsonMapper;
         name = "enabled",
         havingValue = "true",
         matchIfMissing = true)
-@EnableConfigurationProperties({AiProperties.class, PolicyProperties.class, AdmissionProperties.class})
+@EnableConfigurationProperties({
+    AiProperties.class,
+    PolicyProperties.class,
+    AdmissionProperties.class
+})
 public class AiGuardAutoConfiguration {
 
     /**

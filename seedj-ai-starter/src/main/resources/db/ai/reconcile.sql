@@ -21,5 +21,8 @@ select id, status, rejection_code, payload_fingerprint
   from command_record
  where issuer = ? and idempotency_key = ?
 
+-- name: audit_by_decision
+select id from audit_entry where payload->>'decision_id' = ? order by sequence limit 1
+
 -- name: audit_by_command
 select id from audit_entry where payload->>'command_id' = ? order by sequence limit 1

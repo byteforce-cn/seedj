@@ -10,6 +10,7 @@ import cn.byteforce.seedj.starter.ai.AiProperties;
 import cn.byteforce.seedj.starter.ai.ledger.RecordedEffect;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -55,6 +56,9 @@ public final class ReconciliationJob {
 
     /** 核对依据：outcome 自称 ok，但链上找不到该命令的条目——结局降为 unknown。 */
     public static final String REASON_AUDIT_ENTRY_MISSING = "audit_entry_missing";
+
+    /** 核对依据：有 intent、超过 TTL 仍无 outcome。 */
+    public static final String REASON_OUTCOME_MISSING = "outcome_missing";
 
     /** 定时对账的固定延迟：T0 只有一把调度，间隔不做配置项。 */
     private static final long SCHEDULE_DELAY_MS = 60_000L;
@@ -117,9 +121,10 @@ public final class ReconciliationJob {
             return Optional.empty();
         }
         Optional<String> auditEntryId =
-                effect.commandId() == null
-                        ? Optional.empty()
-                        : queries.auditEntryIdOf(effect.commandId());
+                queries.auditEntryIdOfDecision(outcome.get().decisionId().toString());
+        if (auditEntryId.isEmpty() && effect.commandId() != null) {
+            auditEntryId = queries.auditEntryIdOf(effect.commandId());
+        }
         if (auditEntryId.isPresent()) {
             if (chainVerified(records)) {
                 return Optional.empty();
@@ -169,7 +174,17 @@ public final class ReconciliationJob {
         for (UUID decisionId : pending) {
             reconcile(decisionId);
         }
-        return pending.size();
+        List<UUID> missingOutcome = ledger.pendingOutcomes(tenantId, now.minus(ttl), 1000);
+        for (UUID decisionId : missingOutcome) {
+            if (!reconciledWithReason(
+                    ledger.byDecision(tenantId, decisionId), REASON_OUTCOME_MISSING)) {
+                ledger.appendReconciled(
+                        decisionId, DecisionEffect.unknown(), REASON_OUTCOME_MISSING);
+            }
+        }
+        LinkedHashSet<UUID> handled = new LinkedHashSet<>(pending);
+        handled.addAll(missingOutcome);
+        return handled.size();
     }
 
     /**

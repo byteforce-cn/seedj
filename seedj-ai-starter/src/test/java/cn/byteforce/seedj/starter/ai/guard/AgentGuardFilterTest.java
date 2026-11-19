@@ -14,9 +14,9 @@ import cn.byteforce.seedj.ai.ArgsHash;
 import cn.byteforce.seedj.ai.CommandFingerprint;
 import cn.byteforce.seedj.ai.CommandRef;
 import cn.byteforce.seedj.ai.DecisionAdmission;
-import cn.byteforce.seedj.ai.spi.DecisionAdmissionStore;
 import cn.byteforce.seedj.ai.DecisionTokenClaims;
 import cn.byteforce.seedj.ai.PolicyRef;
+import cn.byteforce.seedj.ai.spi.DecisionAdmissionStore;
 import cn.byteforce.seedj.core.clock.Clock;
 import cn.byteforce.seedj.core.security.Caller;
 import cn.byteforce.seedj.core.security.CallerIdCodec;
@@ -184,11 +184,19 @@ class AgentGuardFilterTest {
                                 .content(json(requestBody())))
                 .andExpect(status().isAccepted());
 
-        assertThat(store.find(DECISION_ID)).hasValueSatisfying(admission -> {
-            assertThat(admission.commandType()).isEqualTo(COMMAND_TYPE);
-            assertThat(admission.argsHash()).isEqualTo(ArgsHash.of(
-                    new CommandFingerprint(COMMAND_TYPE, PAYLOAD, TARGETS, EXPECTED_VERSION)));
-        });
+        assertThat(store.find(DECISION_ID))
+                .hasValueSatisfying(
+                        admission -> {
+                            assertThat(admission.commandType()).isEqualTo(COMMAND_TYPE);
+                            assertThat(admission.argsHash())
+                                    .isEqualTo(
+                                            ArgsHash.of(
+                                                    new CommandFingerprint(
+                                                            COMMAND_TYPE,
+                                                            PAYLOAD,
+                                                            TARGETS,
+                                                            EXPECTED_VERSION)));
+                        });
         assertThat(commandSubmitted).isTrue();
     }
 
@@ -196,9 +204,16 @@ class AgentGuardFilterTest {
     @DisplayName("同决策不同参数的 admission：403 admission_conflict，命令不执行")
     void conflicting_admission_is_rejected() throws Exception {
         InMemoryDecisionAdmissionStore store = new InMemoryDecisionAdmissionStore();
-        store.admit(new DecisionAdmission(
-                DECISION_ID, TENANT, "ticket.other", List.of(), "sha256:other", ACTOR,
-                NOW.plusSeconds(60), NOW));
+        store.admit(
+                new DecisionAdmission(
+                        DECISION_ID,
+                        TENANT,
+                        "ticket.other",
+                        List.of(),
+                        "sha256:other",
+                        ACTOR,
+                        NOW.plusSeconds(60),
+                        NOW));
 
         mvcWith(store)
                 .perform(
@@ -215,22 +230,23 @@ class AgentGuardFilterTest {
     @Test
     @DisplayName("admission 写入失败：403 admission_failed，命令不执行")
     void admission_failure_is_rejected() throws Exception {
-        DecisionAdmissionStore failing = new DecisionAdmissionStore() {
-            @Override
-            public void admit(DecisionAdmission admission) {
-                throw new IllegalStateException("store down");
-            }
+        DecisionAdmissionStore failing =
+                new DecisionAdmissionStore() {
+                    @Override
+                    public void admit(DecisionAdmission admission) {
+                        throw new IllegalStateException("store down");
+                    }
 
-            @Override
-            public Optional<DecisionAdmission> find(UUID decisionId) {
-                return Optional.empty();
-            }
+                    @Override
+                    public Optional<DecisionAdmission> find(UUID decisionId) {
+                        return Optional.empty();
+                    }
 
-            @Override
-            public int deleteExpired(Instant before) {
-                return 0;
-            }
-        };
+                    @Override
+                    public int deleteExpired(Instant before) {
+                        return 0;
+                    }
+                };
 
         mvcWith(failing)
                 .perform(

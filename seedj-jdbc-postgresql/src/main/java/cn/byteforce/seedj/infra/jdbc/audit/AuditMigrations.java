@@ -77,6 +77,13 @@ final class AuditMigrations {
                         DROP RULE IF EXISTS audit_no_delete ON audit_entry;
                         CREATE RULE audit_no_update AS ON UPDATE TO audit_entry DO INSTEAD NOTHING;
                         CREATE RULE audit_no_delete AS ON DELETE TO audit_entry DO INSTEAD NOTHING;
+                        """),
+                new Migration(
+                        3,
+                        "audit decision link index",
+                        """
+                        CREATE INDEX IF NOT EXISTS idx_audit_decision
+                            ON audit_entry ((payload->>'decision_id'));
                         """));
     }
 }

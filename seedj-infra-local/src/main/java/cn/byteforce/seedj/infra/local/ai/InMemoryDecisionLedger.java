@@ -7,13 +7,16 @@ import cn.byteforce.seedj.ai.DecisionRecord;
 import cn.byteforce.seedj.ai.DecisionRecordBodies;
 import cn.byteforce.seedj.ai.DecisionRecordKind;
 import cn.byteforce.seedj.ai.LedgerHash;
+import cn.byteforce.seedj.ai.LedgerAudit;
 import cn.byteforce.seedj.ai.LedgerVerification;
 import cn.byteforce.seedj.ai.OutcomeSource;
 import cn.byteforce.seedj.ai.spi.DecisionLedger;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -227,6 +230,130 @@ public final class InMemoryDecisionLedger implements DecisionLedger {
         } finally {
             state.lock.unlock();
         }
+    }
+
+    @Override
+    public List<UUID> pendingOutcomes(UUID tenantId, Instant before, int limit) {
+        Objects.requireNonNull(tenantId, "tenantId");
+        Objects.requireNonNull(before, "before");
+        if (limit < 1) {
+            return List.of();
+        }
+        return intents.values().stream()
+                .filter(record -> record.tenantId().equals(tenantId))
+                .filter(record -> record.recordedAt().isBefore(before))
+                .filter(record -> !outcomes.containsKey(record.decisionId()))
+                .sorted(Comparator.comparing(DecisionRecord::recordedAt))
+                .limit(limit)
+                .map(DecisionRecord::decisionId)
+                .toList();
+    }
+
+    @Override
+    public List<UUID> pendingAudit(UUID tenantId, Instant before, int limit) {
+        Objects.requireNonNull(tenantId, "tenantId");
+        Objects.requireNonNull(before, "before");
+        if (limit < 1) {
+            return List.of();
+        }
+        Partition partition = partitions.get(DecisionRecord.partitionOf(tenantId));
+        if (partition == null) {
+            return List.of();
+        }
+        partition.lock.lock();
+        try {
+            List<UUID> pending = new ArrayList<>();
+            for (DecisionRecord record : partition.records) {
+                if (pending.size() >= limit) {
+                    break;
+                }
+                if (record.kind() != DecisionRecordKind.OUTCOME
+                        || !record.recordedAt().isBefore(before)
+                        || !"ok".equals(effect(record).get("status"))
+                        || effect(record).get("audit_entry_id") != null
+                        || chainVerified(partition, record.decisionId())) {
+                    continue;
+                }
+                pending.add(record.decisionId());
+            }
+            return List.copyOf(pending);
+        } finally {
+            partition.lock.unlock();
+        }
+    }
+
+    @Override
+    public List<UUID> pendingApprovals(UUID tenantId, Instant before, int limit) {
+        Objects.requireNonNull(tenantId, "tenantId");
+        Objects.requireNonNull(before, "before");
+        if (limit < 1) {
+            return List.of();
+        }
+        Partition partition = partitions.get(DecisionRecord.partitionOf(tenantId));
+        if (partition == null) {
+            return List.of();
+        }
+        partition.lock.lock();
+        try {
+            Map<UUID, DecisionRecord> latest = new LinkedHashMap<>();
+            for (DecisionRecord record : partition.records) {
+                if (record.kind() == DecisionRecordKind.APPROVAL) {
+                    latest.put(record.decisionId(), record);
+                }
+            }
+            LinkedHashSet<UUID> pending = new LinkedHashSet<>();
+            for (DecisionRecord record : latest.values()) {
+                if (pending.size() >= limit) {
+                    break;
+                }
+                Map<?, ?> approval = map(record.body().get("approval"));
+                if ("pending".equals(approval.get("status"))
+                        && record.recordedAt().isBefore(before)) {
+                    pending.add(record.decisionId());
+                }
+            }
+            return List.copyOf(pending);
+        } finally {
+            partition.lock.unlock();
+        }
+    }
+
+    @Override
+    public LedgerAudit audit(String partitionName) {
+        Objects.requireNonNull(partitionName, "partition");
+        Partition state = partitions.get(partitionName);
+        if (state == null) {
+            return new LedgerAudit(partitionName, 0, 0, LedgerVerification.ok(partitionName, 0));
+        }
+        state.lock.lock();
+        try {
+            return new LedgerAudit(
+                    partitionName,
+                    state.records.size(),
+                    state.sequence,
+                    verify(partitionName));
+        } finally {
+            state.lock.unlock();
+        }
+    }
+
+    private static boolean chainVerified(Partition partition, UUID decisionId) {
+        for (DecisionRecord record : partition.records) {
+            if (record.decisionId().equals(decisionId)
+                    && record.kind() == DecisionRecordKind.RECONCILED
+                    && effect(record).get("audit_entry_id") != null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static Map<?, ?> effect(DecisionRecord record) {
+        return map(record.body().get("effect"));
+    }
+
+    private static Map<?, ?> map(Object value) {
+        return value instanceof Map<?, ?> map ? map : Map.of();
     }
 
     /** 清空全部分区与全局索引（测试用）。 */

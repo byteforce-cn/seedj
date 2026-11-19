@@ -7,9 +7,11 @@ import cn.byteforce.seedj.ai.DecisionRecord;
 import cn.byteforce.seedj.ai.DecisionRecordBodies;
 import cn.byteforce.seedj.ai.DecisionRecordKind;
 import cn.byteforce.seedj.ai.LedgerHash;
+import cn.byteforce.seedj.ai.LedgerAudit;
 import cn.byteforce.seedj.ai.LedgerVerification;
 import cn.byteforce.seedj.ai.OutcomeSource;
 import cn.byteforce.seedj.ai.spi.DecisionLedger;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -83,6 +85,44 @@ public final class PostgresDecisionLedger implements DecisionLedger {
     private static final TypeReference<Map<String, Object>> BODY = new TypeReference<>() {};
 
     private static final JsonMapper JSON = JsonMapper.builder().build();
+
+    private static final RowMapper<UUID> UUID_ROW = (rs, rowNum) -> rs.getObject(1, UUID.class);
+
+    private static final String PENDING_OUTCOMES =
+            """
+            select i.decision_id from agent_decision_record i
+             where i.tenant_id = ? and i.record_kind = 'intent' and i.recorded_at < ?
+               and not exists (
+                 select 1 from agent_decision_record o
+                  where o.decision_id = i.decision_id and o.record_kind = 'outcome')
+             order by i.recorded_at limit ?
+            """;
+
+    private static final String PENDING_AUDIT =
+            """
+            select o.decision_id from agent_decision_record o
+             where o.tenant_id = ? and o.record_kind = 'outcome' and o.recorded_at < ?
+               and o.body->'effect'->>'status' = 'ok'
+               and o.body->'effect'->>'audit_entry_id' is null
+               and not exists (
+                 select 1 from agent_decision_record r
+                  where r.decision_id = o.decision_id and r.record_kind = 'reconciled'
+                    and r.body->'effect'->>'audit_entry_id' is not null)
+             order by o.recorded_at limit ?
+            """;
+
+    private static final String PENDING_APPROVALS =
+            """
+            select a.decision_id from agent_decision_record a
+             where a.tenant_id = ? and a.record_kind = 'approval'
+               and a.body->'approval'->>'status' = 'pending'
+               and a.recorded_at < ?
+               and not exists (
+                 select 1 from agent_decision_record b
+                  where b.decision_id = a.decision_id and b.record_kind = 'approval'
+                    and b.sequence > a.sequence)
+             order by a.recorded_at limit ?
+            """;
 
     private static final RowMapper<DecisionRecord> RECORD_MAPPER =
             (rs, rowNum) ->
@@ -214,6 +254,56 @@ public final class PostgresDecisionLedger implements DecisionLedger {
                 RECORD_MAPPER,
                 decisionId,
                 tenantId);
+    }
+
+    @Override
+    public List<UUID> pendingOutcomes(UUID tenantId, Instant before, int limit) {
+        Objects.requireNonNull(tenantId, "tenantId");
+        Objects.requireNonNull(before, "before");
+        if (limit < 1) {
+            return List.of();
+        }
+        return jdbc.query(PENDING_OUTCOMES, UUID_ROW, tenantId, Timestamp.from(before), limit);
+    }
+
+    @Override
+    public List<UUID> pendingAudit(UUID tenantId, Instant before, int limit) {
+        Objects.requireNonNull(tenantId, "tenantId");
+        Objects.requireNonNull(before, "before");
+        if (limit < 1) {
+            return List.of();
+        }
+        return jdbc.query(PENDING_AUDIT, UUID_ROW, tenantId, Timestamp.from(before), limit);
+    }
+
+    @Override
+    public List<UUID> pendingApprovals(UUID tenantId, Instant before, int limit) {
+        Objects.requireNonNull(tenantId, "tenantId");
+        Objects.requireNonNull(before, "before");
+        if (limit < 1) {
+            return List.of();
+        }
+        return jdbc.query(PENDING_APPROVALS, UUID_ROW, tenantId, Timestamp.from(before), limit);
+    }
+
+    @Override
+    public LedgerAudit audit(String partition) {
+        Objects.requireNonNull(partition, "partition");
+        Long rowCount =
+                jdbc.queryForObject(
+                        "select count(*) from agent_decision_record where partition = ?",
+                        Long.class,
+                        partition);
+        Long headSequence =
+                jdbc.queryForObject(
+                        "select last_sequence from agent_decision_chain where partition = ?",
+                        Long.class,
+                        partition);
+        return new LedgerAudit(
+                partition,
+                rowCount == null ? 0 : rowCount,
+                headSequence == null ? 0 : headSequence,
+                verify(partition));
     }
 
     /**

@@ -69,6 +69,8 @@ docker compose up -d
 | `seedj.ai.approval.approvers` | UUID 列表 | 审批人；`enabled=true` 时至少一个 |
 | `seedj.ai.approval.deadline` / `allow-self-approve` | 时长 / 布尔 | 审批时限（默认 4h）与是否允许发起人自批（默认 `false`） |
 | `seedj.ai.approval.namespace` / `name` / `version` | 字符串 | 审批工作流定义，默认 `seedj-ai` / `agent-approval` / `1.0` |
+| `seedj.ai.guard.admission.enabled` / `ttl` | 布尔 / 时长 | 守卫写 `decision_admission`（有 DataSource 时默认开，ttl 默认 5m） |
+| `seedj.ai.guard.admission.sweep` | 时长 | 过期 admission 清理间隔，默认 60s |
 | `seedj.ai.provider` | `postgres`（`matchIfMissing=true`）/ 其它 | 账本实现的**开关**，不是 `AiProperties` 的绑定项：由 `seedj-jdbc-postgresql` 的 `PostgresAiAutoConfiguration` 读取，等于 `postgres` 时装配数据库账本，其它值让它整体退出；starter 不提供内存账本 bean，非 `postgres` 场景宿主必须自备 `DecisionLedger` |
 
 ## coord 基础设施

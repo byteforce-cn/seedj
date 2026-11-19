@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import cn.byteforce.seedj.audit.AuditAppendRequest;
 import cn.byteforce.seedj.cqrs.CommandRecord;
+import cn.byteforce.seedj.cqrs.DecisionContext;
 import cn.byteforce.seedj.domain.event.CommandEvent;
 import java.time.Instant;
 import java.util.List;
@@ -49,5 +50,39 @@ class TemporalCommandAuditAdapterTest {
         assertThat(captured.get().getResourceType()).isEqualTo("employee");
         assertThat(captured.get().getAction()).isEqualTo("hr.employee.create");
         assertThat(captured.get().getEvents()).hasSize(1);
+    }
+
+    @Test
+    void payloadCarriesDecisionContext() {
+        UUID id = UUID.randomUUID();
+        UUID issuer = UUID.randomUUID();
+        UUID decisionId = UUID.randomUUID();
+        UUID intentId = UUID.randomUUID();
+        Instant now = Instant.parse("2026-11-06T09:00:00Z");
+        CommandRecord record =
+                CommandRecord.pending(
+                                id,
+                                "hr.employee.create",
+                                now,
+                                issuer,
+                                Map.of(),
+                                "k-1",
+                                "a".repeat(64),
+                                now)
+                        .accepted(UUID.randomUUID(), 1L, List.of());
+        AtomicReference<AuditAppendRequest<String>> captured = new AtomicReference<>();
+
+        try (var ignored =
+                DecisionContext.open(
+                        new DecisionContext(
+                                decisionId, intentId, "hr.employee.create", "sha256:a"))) {
+            new TemporalCommandAuditAdapter(captured::set, () -> "tester")
+                    .accepted(record, "employee", List.of());
+        }
+
+        assertThat(captured.get().getPayload().get("decision_id").asString())
+                .isEqualTo(decisionId.toString());
+        assertThat(captured.get().getPayload().get("ledger_intent_id").asString())
+                .isEqualTo(intentId.toString());
     }
 }

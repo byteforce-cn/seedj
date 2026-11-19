@@ -131,7 +131,9 @@ class AiEnumsTest {
                         "idempotency_key_mismatch",
                         "policy_stale",
                         "ledger_unavailable",
-                        "policy_unavailable");
+                        "policy_unavailable",
+                        "admission_failed",
+                        "admission_conflict");
     }
 
     @ParameterizedTest

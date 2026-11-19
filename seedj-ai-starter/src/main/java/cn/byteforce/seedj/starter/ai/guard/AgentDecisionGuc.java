@@ -5,10 +5,10 @@ import java.util.Objects;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
- * 在命令事务内设置 RLS 需要的 GUC：{@code agent.decision_id} / {@code agent.command_type} / {@code agent.args_hash}。
+ * 在命令事务内设置 RLS 需要的 GUC：{@code agent.decision_id} / {@code agent.command_type} / {@code
+ * agent.args_hash}。
  *
- * <p>{@code set_config(..., true)} 是事务级设置，事务结束自动清除；没有 {@link DecisionContext} 时 no-op，
- * 不影响非 AI 事务。
+ * <p>{@code set_config(..., true)} 是事务级设置，事务结束自动清除；没有 {@link DecisionContext} 时 no-op， 不影响非 AI 事务。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -35,9 +35,6 @@ public final class AgentDecisionGuc {
             return;
         }
         jdbc.queryForList(
-                SET,
-                context.decisionId().toString(),
-                context.commandType(),
-                context.argsHash());
+                SET, context.decisionId().toString(), context.commandType(), context.argsHash());
     }
 }
