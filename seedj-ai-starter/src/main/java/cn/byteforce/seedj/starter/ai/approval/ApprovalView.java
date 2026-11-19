@@ -5,6 +5,8 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import tools.jackson.databind.PropertyNamingStrategies;
+import tools.jackson.databind.annotation.JsonNaming;
 
 /**
  * 审批视图：只读投影，不回传工作流内部状态。
@@ -22,6 +24,7 @@ import java.util.UUID;
  * @author ByteForce
  * @since 1.0.0
  */
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public record ApprovalView(
         UUID decisionId,
         ApprovalStatus status,
