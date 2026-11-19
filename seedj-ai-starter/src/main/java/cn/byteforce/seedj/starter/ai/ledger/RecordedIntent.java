@@ -36,6 +36,7 @@ public record RecordedIntent(
         UUID onBehalfOf,
         String argsHash,
         String idemFingerprint,
+        String rationale,
         CommandRef command,
         ActionClass actionClass,
         PolicyRef policy) {
@@ -56,6 +57,7 @@ public record RecordedIntent(
         UUID onBehalfOf = uuid(identity.get("on_behalf_of"), "identity.on_behalf_of", record);
         String argsHash = text(body.get("args_hash"), "args_hash", record);
         String idemFingerprint = text(body.get("idem_fingerprint"), "idem_fingerprint", record);
+        String rationale = text(body.get("rationale"), "rationale", record);
         Map<?, ?> command = map(body.get("command"), "command", record);
         CommandRef commandRef =
                 new CommandRef(
@@ -74,6 +76,7 @@ public record RecordedIntent(
                 onBehalfOf,
                 argsHash,
                 idemFingerprint,
+                rationale,
                 commandRef,
                 actionClass,
                 policy);
