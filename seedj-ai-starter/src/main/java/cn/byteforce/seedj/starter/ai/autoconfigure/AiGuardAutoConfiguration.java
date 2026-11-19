@@ -10,6 +10,9 @@ import cn.byteforce.seedj.starter.ai.AiEnabledMarker;
 import cn.byteforce.seedj.starter.ai.AiProperties;
 import cn.byteforce.seedj.starter.ai.guard.AgentGuardFilter;
 import cn.byteforce.seedj.starter.ai.guard.ConfiguredToolRegistry;
+import cn.byteforce.seedj.starter.ai.policy.ConfiguredPolicyHeadSource;
+import cn.byteforce.seedj.starter.ai.policy.PolicyHeadSource;
+import cn.byteforce.seedj.starter.ai.policy.PolicyProperties;
 import cn.byteforce.seedj.starter.ai.token.DecisionTokenIssuer;
 import cn.byteforce.seedj.starter.ai.token.DecisionTokenVerifier;
 import java.util.ArrayList;
@@ -54,7 +57,7 @@ import tools.jackson.databind.json.JsonMapper;
         name = "enabled",
         havingValue = "true",
         matchIfMissing = true)
-@EnableConfigurationProperties(AiProperties.class)
+@EnableConfigurationProperties({AiProperties.class, PolicyProperties.class})
 public class AiGuardAutoConfiguration {
 
     /**
@@ -110,17 +113,41 @@ public class AiGuardAutoConfiguration {
      *
      * @param issuer 签发方（公钥来源）
      * @param registry 工具注册表
+     * @param heads 策略 head 源；未启用策略时为空，校验器退回 {@link PolicyHeadSource#none()}
      * @param properties AI 配置；{@code decision.audience} 已由构造器保证非空
      * @return 校验器
      */
     @Bean
     @ConditionalOnMissingBean
     public DecisionTokenVerifier decisionTokenVerifier(
-            DecisionTokenIssuer issuer, ToolRegistry registry, AiProperties properties) {
+            DecisionTokenIssuer issuer,
+            ToolRegistry registry,
+            ObjectProvider<PolicyHeadSource> heads,
+            AiProperties properties) {
         return new DecisionTokenVerifier(
                 Map.of(issuer.kid(), issuer.jwks().publicKey()),
                 registry,
-                properties.decision().audience());
+                properties.decision().audience(),
+                heads.getIfAvailable(PolicyHeadSource::none));
+    }
+
+    /**
+     * 策略 head 源：{@code seedj.ai.policy.enabled=true} 且 {@code verify=irreversible} 时读配置。
+     *
+     * <p>{@code verify=none} 返回 {@link PolicyHeadSource#none()}——bean 存在但不参与校验，这样「只钉版本、
+     * 先不强制」不需要宿主自己造 bean；宿主的 {@link PolicyHeadSource} 仍然优先（{@code @ConditionalOnMissingBean}）。
+     *
+     * @param properties 策略配置
+     * @return head 源
+     * @throws IllegalStateException 启用时缺 {@code bundle} 或 {@code version}
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "seedj.ai.policy", name = "enabled", havingValue = "true")
+    public PolicyHeadSource policyHeadSource(PolicyProperties properties) {
+        return properties.verify() == PolicyProperties.Verify.NONE
+                ? PolicyHeadSource.none()
+                : new ConfiguredPolicyHeadSource(properties);
     }
 
     /** 过滤器与它的注册只对 servlet web 应用有意义：命令入口本身就是 HTTP。 */

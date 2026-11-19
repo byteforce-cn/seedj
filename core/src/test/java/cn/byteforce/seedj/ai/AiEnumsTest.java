@@ -130,7 +130,8 @@ class AiEnumsTest {
                         "aud_mismatch",
                         "idempotency_key_mismatch",
                         "policy_stale",
-                        "ledger_unavailable");
+                        "ledger_unavailable",
+                        "policy_unavailable");
     }
 
     @ParameterizedTest

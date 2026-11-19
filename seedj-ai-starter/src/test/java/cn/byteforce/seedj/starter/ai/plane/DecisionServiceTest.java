@@ -20,6 +20,7 @@ import cn.byteforce.seedj.ai.DecisionTokenClaims;
 import cn.byteforce.seedj.ai.Evidence;
 import cn.byteforce.seedj.ai.LedgerVerification;
 import cn.byteforce.seedj.ai.OutcomeSource;
+import cn.byteforce.seedj.ai.PolicyRef;
 import cn.byteforce.seedj.ai.spi.DecisionLedger;
 import cn.byteforce.seedj.ai.spi.ToolRegistry;
 import cn.byteforce.seedj.core.clock.Clock;
@@ -32,6 +33,7 @@ import cn.byteforce.seedj.starter.ai.AiEnabledMarker;
 import cn.byteforce.seedj.starter.ai.AiProperties;
 import cn.byteforce.seedj.starter.ai.autoconfigure.DecisionPlaneAutoConfiguration;
 import cn.byteforce.seedj.starter.ai.guard.ConfiguredToolRegistry;
+import cn.byteforce.seedj.starter.ai.policy.PolicyEvaluator;
 import cn.byteforce.seedj.starter.web.ContractErrorHandler;
 import java.time.Duration;
 import java.time.Instant;
@@ -571,6 +573,74 @@ class DecisionServiceTest {
                         });
     }
 
+
+    @Test
+    @DisplayName("策略引用同时进 intent 与 token：账本与凭据钉的是同一个版本")
+    void policy_ref_is_in_intent_and_token() {
+        PolicyRef pinned = new PolicyRef("local", "ticket-policy", 3L, 41L, "allow", List.of(), null);
+        DecisionService service = serviceWithPolicy(request -> pinned);
+
+        DecisionService.DecisionResult result = service.decide(executeTool(CREATE));
+
+        assertThat(result.verdict()).isEqualTo(DecisionService.VERDICT_ALLOW);
+        assertThat(result.token()).isNotNull();
+        assertThat(intents).singleElement().extracting(DecisionIntent::policy).isEqualTo(pinned);
+        assertThat(signed).singleElement().extracting(DecisionTokenClaims::policy).isEqualTo(pinned);
+    }
+
+    @Test
+    @DisplayName("策略结论不是 allow：先落 intent，再 outcome(rejected)，不签 token")
+    void policy_deny_writes_intent_and_rejects() {
+        PolicyRef denied =
+                new PolicyRef("local", "ticket-policy", 3L, 41L, "deny", List.of("r-7"), null);
+        DecisionService service = serviceWithPolicy(request -> denied);
+
+        DecisionService.DecisionResult result = service.decide(executeTool(CREATE));
+
+        assertThat(result.verdict()).isEqualTo(DecisionService.VERDICT_DENY);
+        assertThat(result.denyRule()).isEqualTo(DecisionService.RULE_POLICY);
+        assertThat(result.token()).isNull();
+        assertThat(events).containsExactly("intent", "outcome");
+        List<DecisionRecord> records = ledger.byDecision(TENANT, result.decisionId());
+        assertThat(records)
+                .extracting(DecisionRecord::kind)
+                .containsExactly(DecisionRecordKind.INTENT, DecisionRecordKind.OUTCOME);
+        assertThat(effectOf(records.get(1)))
+                .containsEntry("status", "rejected")
+                .containsEntry("error_code", DecisionService.RULE_POLICY);
+        assertThat(signed).isEmpty();
+    }
+
+    @Test
+    @DisplayName("策略求值失败：不落账、不签发——求值失败不是决策")
+    void policy_failure_leaves_no_trace() {
+        DecisionService service =
+                serviceWithPolicy(
+                        request -> {
+                            throw new IllegalStateException("policy engine down");
+                        });
+
+        assertThatThrownBy(() -> service.decide(executeTool(CREATE)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("policy engine down");
+
+        assertThat(events).isEmpty();
+        assertThat(intents).isEmpty();
+        assertThat(signed).isEmpty();
+    }
+
+    @Test
+    @DisplayName("未启用策略：引用仍是 none()，与 T0 逐字一致")
+    void disabled_policy_keeps_t0_none_ref() {
+        DecisionService service = service();
+
+        DecisionService.DecisionResult result = service.decide(executeTool(CREATE));
+
+        assertThat(intents).singleElement().extracting(DecisionIntent::policy).isEqualTo(PolicyRef.none());
+        assertThat(signed).singleElement().extracting(DecisionTokenClaims::policy).isEqualTo(PolicyRef.none());
+        assertThat(result.token()).isNotNull();
+    }
+
     /** 带决策面权限的调用方：`/v1/decisions` 现在既认证也授权。 */
     private static Caller permittedCaller() {
         return new Caller(
@@ -603,6 +673,18 @@ class DecisionServiceTest {
                 ids,
                 () -> NOW,
                 properties(audience));
+    }
+
+    private DecisionService serviceWithPolicy(PolicyEvaluator policy) {
+        return new DecisionService(
+                capabilities,
+                tools,
+                recordingLedger(),
+                recordingSigner(),
+                UUID::randomUUID,
+                () -> NOW,
+                properties(AUDIENCE),
+                policy);
     }
 
     private DecisionService.Signer recordingSigner() {

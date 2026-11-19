@@ -10,6 +10,9 @@ import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.starter.ai.AiEnabledMarker;
 import cn.byteforce.seedj.starter.ai.AiProperties;
 import cn.byteforce.seedj.starter.ai.guard.ConfiguredToolRegistry;
+import cn.byteforce.seedj.starter.ai.policy.ConfiguredPolicyEvaluator;
+import cn.byteforce.seedj.starter.ai.policy.PolicyEvaluator;
+import cn.byteforce.seedj.starter.ai.policy.PolicyProperties;
 import cn.byteforce.seedj.starter.ai.plane.CapabilityRegistry;
 import cn.byteforce.seedj.starter.ai.plane.ConfiguredReconciliationSource;
 import cn.byteforce.seedj.starter.ai.plane.DecisionController;
@@ -71,7 +74,7 @@ import org.springframework.context.annotation.Configuration;
 @ConditionalOnBean(AiEnabledMarker.class)
 @ConditionalOnProperty(prefix = "seedj.ai.plane", name = "enabled", havingValue = "true")
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
-@EnableConfigurationProperties(AiProperties.class)
+@EnableConfigurationProperties({AiProperties.class, PolicyProperties.class})
 public class DecisionPlaneAutoConfiguration {
 
     private static final Logger log = LoggerFactory.getLogger(DecisionPlaneAutoConfiguration.class);
@@ -161,6 +164,7 @@ public class DecisionPlaneAutoConfiguration {
             DecisionLedger ledger,
             DecisionTokenIssuer issuer,
             ObjectProvider<IdGenerator<UUID>> idGenerators,
+            ObjectProvider<PolicyEvaluator> policies,
             Clock clock,
             AiProperties properties) {
         return new DecisionService(
@@ -170,7 +174,25 @@ public class DecisionPlaneAutoConfiguration {
                 issuer,
                 decisionIds(idGenerators),
                 clock,
-                properties);
+                properties,
+                policies.getIfAvailable(PolicyEvaluator::none));
+    }
+
+    /**
+     * 策略求值端口：{@code seedj.ai.policy.enabled=true} 时用配置钉版本，否则不装配（服务退回 {@code
+     * PolicyEvaluator.none()}）。
+     *
+     * <p>宿主提供自己的 {@link PolicyEvaluator} bean 时本 bean 让位——coord 适配器就是这条路径接进来的。
+     *
+     * @param properties 策略配置
+     * @return 策略求值端口
+     * @throws IllegalStateException 启用时缺 {@code bundle} 或 {@code version}
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "seedj.ai.policy", name = "enabled", havingValue = "true")
+    public PolicyEvaluator policyEvaluator(PolicyProperties properties) {
+        return new ConfiguredPolicyEvaluator(properties);
     }
 
     /**
