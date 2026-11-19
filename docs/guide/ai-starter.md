@@ -369,7 +369,7 @@ LoopResult result = loop.run(new TaskContract(contractId, conversationId, "记�
 intent 无 outcome」——四件套只在手工调 `/outcome` 的用例里成立。所以工具返回 `ok` 之后循环会主动上报；
 上报失败**不让循环失败**（命令已经执行成功，把循环判失败会抹掉一次真实发生的副作用），只打一条带
 `decision_id` 的 WARN 然后继续。代价很明确：**那一次决策就进入「有决策无效果」，T0 的对账无法自动修复
-它**——`PlaneReconciliationSource` 默认实现返回空列表（见[第 5 条](#t0-明确不做)），没有「按租户/时间扫描
+它**——`PlaneReconciliationSource` 默认实现返回空列表（见[第 5 条](#明确不做的范围)），没有「按租户/时间扫描
 缺 outcome 的 intent」的入口。要收敛得靠 T1 的扫描接口，或运维按告警手工补。
 
 ## 安全与运维
