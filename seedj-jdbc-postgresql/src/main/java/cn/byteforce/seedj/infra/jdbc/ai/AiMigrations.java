@@ -51,6 +51,7 @@ final class AiMigrations {
                           on agent_decision_record
                           for each row execute function agent_decision_immutable();
                         """),
-                new Migration(2, "admission and reconciliation indexes", AiAdmissionMigrations.V2));
+                new Migration(2, "admission and reconciliation indexes", AiAdmissionMigrations.V2),
+                new Migration(3, "external effects", AiExternalEffectMigrations.V3));
     }
 }

@@ -48,6 +48,9 @@
   `seedj.im.push.node-id` 区分（空则进程随机，生产建议显式配置）。
 - `seedj-it` 的 coord 端到端：`CoordIT` 在真 coord v2 集群（server + agent 容器）上验证 ID、编号、
   全局序列、分布式锁、EventBus 发布/消费与「重试 → 死信」，并核对 coord 侧 topic 与消息。
+- `seedj-ai-starter`（外部副作用两段协议）：`ExternalEffectService` 先固化 `prepared` 再调用外部系统，
+  `decision_id` 作为外部幂等键，`confirmed`/`failed` 只追加；已确认重试不重调，U7 审计条目带
+  `decision_id`，审计失败不回滚效果。
 - `seedj-ai-starter`（T3-local 准入）：守卫把已校验的决策写成 `agent_decision_admission`，命令事务设置
   `agent.decision_id` 等 GUC；PostgreSQL RLS 函数 `agent_admission_ok` 对不可逆表兜底，直连无 admission
   的写入被拒。审计 payload 追加 `decision_id` / `ledger_intent_id`，对账优先按 decision 直取；账本新增

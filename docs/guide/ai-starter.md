@@ -539,6 +539,26 @@ seedj:
   `rowCount != headSequence` 即绕过账本直插的幽灵行。`verify` 保持只校对链头快照的语义。
 - **没有 DataSource**：内存宿主不装配 admission，启动 WARN；`agent.decision_id` 也不会设置，RLS 不适用。
 
+## 外部副作用两段协议
+
+需要调用外部系统的动作（支付、发信、推送第三方）用 `ExternalEffectService`，不要直接 `RestClient`：
+
+```java
+ExternalEffectResult result = effects.execute(
+    new ExternalEffectCall(decisionId, tenantId, actor, "billing.refund", argsHash, payload),
+    call -> billingClient.refund(call.decisionId(), call.payload()));
+```
+
+1. `prepare`：先写 `agent_external_effect` 的 `prepared` 行；`decision_id` 是外部系统必须使用的幂等键；
+2. `invoke`：真正调用外部系统；
+3. `confirm` / `fail`：写 `confirmed` / `failed`，并尽力追加一条 U7 审计
+   （`action=agent.external_effect`，payload 带 `decision_id`）。
+
+- **已确认后重试**：直接返回既有 `externalRef`，不再调用外部；**`prepared`/`failed` 后重试**：用同一
+  `decision_id` 重调，外部系统负责去重。
+- **审计失败不回滚效果**：效果已经发生，审计只 WARN；效果表与账本/审计的关联键都是 `decision_id`。
+- 外部系统不支持幂等时，starter 无法替它去重——这是接入方的责任，文档与契约都写死这一点。
+
 ## 明确不做的范围
 
 以下每条都是**已知缺口**，不是「做了但没写文档」。做评测或对外承诺时按这条清单扣分。

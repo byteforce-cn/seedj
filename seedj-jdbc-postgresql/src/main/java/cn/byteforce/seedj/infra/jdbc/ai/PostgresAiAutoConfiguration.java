@@ -2,6 +2,7 @@ package cn.byteforce.seedj.infra.jdbc.ai;
 
 import cn.byteforce.seedj.ai.spi.DecisionAdmissionStore;
 import cn.byteforce.seedj.ai.spi.DecisionLedger;
+import cn.byteforce.seedj.ai.spi.ExternalEffectStore;
 import cn.byteforce.seedj.core.InfrastructureCapability;
 import cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner;
 import javax.sql.DataSource;
@@ -46,6 +47,12 @@ public class PostgresAiAutoConfiguration {
     @ConditionalOnMissingBean
     public DecisionAdmissionStore decisionAdmissionStore(DataSource dataSource) {
         return new PostgresDecisionAdmissionStore(dataSource);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ExternalEffectStore externalEffectStore(DataSource dataSource) {
+        return new PostgresExternalEffectStore(dataSource);
     }
 
     @Bean
