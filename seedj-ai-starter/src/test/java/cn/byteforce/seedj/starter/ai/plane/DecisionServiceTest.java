@@ -31,6 +31,9 @@ import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.infra.local.ai.InMemoryDecisionLedger;
 import cn.byteforce.seedj.starter.ai.AiEnabledMarker;
 import cn.byteforce.seedj.starter.ai.AiProperties;
+import cn.byteforce.seedj.infra.local.workflow.InMemoryWorkflowProvider;
+import cn.byteforce.seedj.starter.ai.approval.ApprovalProperties;
+import cn.byteforce.seedj.starter.ai.approval.ApprovalService;
 import cn.byteforce.seedj.starter.ai.autoconfigure.DecisionPlaneAutoConfiguration;
 import cn.byteforce.seedj.starter.ai.guard.ConfiguredToolRegistry;
 import cn.byteforce.seedj.starter.ai.policy.PolicyEvaluator;
@@ -89,6 +92,9 @@ class DecisionServiceTest {
     /** 契约允许、注册表登记为只读的命令。 */
     private static final String GET = "ticket.get";
 
+    /** 契约允许、注册表登记为不可逆的命令：审批分支。 */
+    private static final String REFUND = "ticket.refund";
+
     /** 注册表里完全没有的命令：坏请求而不是 deny。 */
     private static final String UNREGISTERED = "ticket.purge";
 
@@ -117,6 +123,34 @@ class DecisionServiceTest {
     private final ToolRegistry tools = registry();
 
     private final CapabilityRegistry capabilities = capabilities();
+
+    @Test
+    @DisplayName("不可逆动作没有审批：deny + APPROVAL_UNAVAILABLE，不签 token")
+    void irreversibleWithoutApprovalIsDeniedAndNotSigned() {
+        DecisionService service = service();
+
+        DecisionService.DecisionResult result = service.decide(executeTool(REFUND));
+
+        assertThat(result.verdict()).isEqualTo(DecisionService.VERDICT_DENY);
+        assertThat(result.denyRule()).isEqualTo(DecisionService.RULE_APPROVAL_UNAVAILABLE);
+        assertThat(result.token()).isNull();
+        assertThat(events).containsExactly("intent", "outcome");
+    }
+
+    @Test
+    @DisplayName("不可逆动作有审批：返回 pending_approval，intent + APPROVAL，不签 token")
+    void irreversibleWithApprovalReturnsPendingAndNoToken() {
+        DecisionService service = serviceWithApproval();
+
+        DecisionService.DecisionResult result = service.decide(executeTool(REFUND));
+
+        assertThat(result.verdict()).isEqualTo("pending_approval");
+        assertThat(result.token()).isNull();
+        assertThat(events).containsExactly("intent");
+        assertThat(ledger.byDecision(TENANT, result.decisionId()))
+                .extracting(DecisionRecord::kind)
+                .containsExactly(DecisionRecordKind.INTENT, DecisionRecordKind.APPROVAL);
+    }
 
     @Test
     @DisplayName("签发失败：intent 已落账，再写 outcome(not_issued)，异常仍向上抛")
@@ -684,6 +718,45 @@ class DecisionServiceTest {
                 properties(audience));
     }
 
+    private DecisionService serviceWithApproval() {
+        AiProperties ai = properties(AUDIENCE);
+        ApprovalProperties approvalProperties =
+                new ApprovalProperties(
+                        true,
+                        "seedj-ai",
+                        "agent-approval",
+                        "1.0",
+                        List.of(OTHER_USER.toString()),
+                        Duration.ofHours(4),
+                        false,
+                        null,
+                        null);
+        InMemoryWorkflowProvider workflows =
+                new InMemoryWorkflowProvider(
+                        java.time.Clock.fixed(NOW, java.time.ZoneOffset.UTC),
+                        () -> UUID.randomUUID().toString());
+        ApprovalService approval =
+                new ApprovalService(
+                        workflows,
+                        ledger,
+                        new cn.byteforce.seedj.starter.ai.token.DecisionTokenIssuer(ai.decision()),
+                        () -> NOW,
+                        approvalProperties,
+                        ai,
+                        new cn.byteforce.seedj.starter.ai.approval.LoggingApprovalNotifier());
+        approval.registerDefinition();
+        return new DecisionService(
+                capabilities,
+                tools,
+                recordingLedger(),
+                recordingSigner(),
+                UUID::randomUUID,
+                () -> NOW,
+                ai,
+                PolicyEvaluator.none(),
+                approval);
+    }
+
     private DecisionService serviceWithPolicy(PolicyEvaluator policy) {
         return new DecisionService(
                 capabilities,
@@ -754,12 +827,15 @@ class DecisionServiceTest {
                 List.of(
                         new AgentToolSpec(CREATE, ActionClass.REVERSIBLE),
                         new AgentToolSpec(DELETE, ActionClass.COMPENSABLE),
-                        new AgentToolSpec(GET, ActionClass.READ_ONLY)));
+                        new AgentToolSpec(GET, ActionClass.READ_ONLY),
+                        new AgentToolSpec(REFUND, ActionClass.IRREVERSIBLE_FINANCIAL)));
     }
 
     private CapabilityRegistry capabilities() {
         return new CapabilityRegistry(
-                List.of(new AiProperties.Contract(CONTRACT.toString(), List.of(CREATE, GET))),
+                List.of(
+                        new AiProperties.Contract(
+                                CONTRACT.toString(), List.of(CREATE, GET, REFUND))),
                 tools);
     }
 
