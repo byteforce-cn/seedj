@@ -5,3 +5,4 @@
 cn.byteforce.seedj.starter.ai.autoconfigure.AiGuardAutoConfiguration
 cn.byteforce.seedj.starter.ai.autoconfigure.DecisionPlaneAutoConfiguration
 cn.byteforce.seedj.starter.ai.runtime.AiRuntimeAutoConfiguration
+cn.byteforce.seedj.starter.ai.runtime.llm.LlmAutoConfiguration

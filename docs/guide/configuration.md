@@ -62,6 +62,9 @@ docker compose up -d
 | `seedj.ai.policy.enabled` | `true` / `false` | 策略版本钉死；默认 `false`，开启后 `engine` / `bundle` / `version` 构成受管策略包 |
 | `seedj.ai.policy.bundle` / `version` / `epoch` | 字符串 / 长整型 | 受管策略包与当前 head；`enabled=true` 时前两项必填，`epoch` 可空 |
 | `seedj.ai.policy.verify` | `irreversible` / `none` | 守卫对不可逆动作校验 head；`none` 只钉版本不校验 |
+| `seedj.ai.llm.enabled` | `true` / `false` | LLM 客户端；默认 `false`，开启后 `base-url` / `model` 必填 |
+| `seedj.ai.llm.base-url` / `model` / `api-key` | 字符串 | OpenAI 兼容端点、模型名与可选密钥（密钥不进日志） |
+| `seedj.ai.llm.timeout` / `max-attempts` / `tool-choice` | 时长 / 整数 / 枚举 | 超时（默认 30s）、重试次数（默认 2）、工具选择（`required` / `auto`） |
 | `seedj.ai.provider` | `postgres`（`matchIfMissing=true`）/ 其它 | 账本实现的**开关**，不是 `AiProperties` 的绑定项：由 `seedj-jdbc-postgresql` 的 `PostgresAiAutoConfiguration` 读取，等于 `postgres` 时装配数据库账本，其它值让它整体退出；starter 不提供内存账本 bean，非 `postgres` 场景宿主必须自备 `DecisionLedger` |
 
 ## coord 基础设施
