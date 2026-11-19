@@ -3,6 +3,7 @@
 # 能力自动配置（guard / plane / runtime）逐个登记；本模块没有账本自动配置——
 # 数据库账本由 seedj-jdbc-postgresql 按 seedj.ai.provider 装配，内存账本由宿主自备。
 cn.byteforce.seedj.starter.ai.autoconfigure.AiGuardAutoConfiguration
+cn.byteforce.seedj.starter.ai.autoconfigure.ApprovalAutoConfiguration
 cn.byteforce.seedj.starter.ai.autoconfigure.DecisionPlaneAutoConfiguration
 cn.byteforce.seedj.starter.ai.runtime.AiRuntimeAutoConfiguration
 cn.byteforce.seedj.starter.ai.runtime.llm.LlmAutoConfiguration

@@ -9,6 +9,7 @@ import cn.byteforce.seedj.cqrs.CommandCatalog;
 import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.starter.ai.AiEnabledMarker;
 import cn.byteforce.seedj.starter.ai.AiProperties;
+import cn.byteforce.seedj.starter.ai.approval.ApprovalService;
 import cn.byteforce.seedj.starter.ai.guard.ConfiguredToolRegistry;
 import cn.byteforce.seedj.starter.ai.plane.CapabilityRegistry;
 import cn.byteforce.seedj.starter.ai.plane.ConfiguredReconciliationSource;
@@ -165,6 +166,7 @@ public class DecisionPlaneAutoConfiguration {
             DecisionTokenIssuer issuer,
             ObjectProvider<IdGenerator<UUID>> idGenerators,
             ObjectProvider<PolicyEvaluator> policies,
+            ObjectProvider<ApprovalService> approvals,
             Clock clock,
             AiProperties properties) {
         return new DecisionService(
@@ -175,7 +177,8 @@ public class DecisionPlaneAutoConfiguration {
                 decisionIds(idGenerators),
                 clock,
                 properties,
-                policies.getIfAvailable(PolicyEvaluator::none));
+                policies.getIfAvailable(PolicyEvaluator::none),
+                approvals.getIfAvailable());
     }
 
     /**
@@ -229,12 +232,14 @@ public class DecisionPlaneAutoConfiguration {
             DecisionService decisions,
             ObjectProvider<OutcomeDeriver> outcomes,
             ObjectProvider<CallerProvider> callers,
+            ObjectProvider<ApprovalService> approvals,
             AiProperties properties) {
         return new DecisionController(
                 decisions,
                 outcomes.getIfAvailable(),
                 callers.getIfAvailable(() -> Optional::empty),
-                properties.plane().permission());
+                properties.plane().permission(),
+                approvals.getIfAvailable());
     }
 
     /**
