@@ -34,6 +34,37 @@ public interface DecisionClient {
     DecisionGrant ask(TaskContract contract, int step, Proposal proposal, String audience);
 
     /**
+     * 求值一步，保留 pending。
+     *
+     * <p>默认实现把 {@link #ask} 的返回值包成放行/拒绝；支持审批的实现应覆盖本方法，把 pending 作为第三种结论返回。
+     *
+     * @param contract 任务契约
+     * @param step 会话内步序
+     * @param proposal 模型提议
+     * @param audience 受众
+     * @return 放行、拒绝或待审批
+     */
+    default DecisionOutcome askOutcome(
+            TaskContract contract, int step, Proposal proposal, String audience) {
+        DecisionGrant grant = ask(contract, step, proposal, audience);
+        return grant.allowed()
+                ? new DecisionOutcome.Granted(grant)
+                : new DecisionOutcome.Denied(grant);
+    }
+
+    /**
+     * 审批通过后取 token。
+     *
+     * <p>默认不支持：同步决策面不需要它；HTTP 实现调 {@code POST /v1/decisions/{id}/grant}。
+     *
+     * @param decisionId 决策标识
+     * @return JWS compact 串
+     */
+    default String grant(UUID decisionId) {
+        throw new UnsupportedOperationException("this decision client does not support grant");
+    }
+
+    /**
      * 上报一次执行结局：{@code POST /v1/decisions/{decisionId}/outcome}。
      *
      * <p>工具确认执行成功之后调用（{@link ToolResult#ok()} 为 {@code true}）。上报的成功与否不影响已经发生的 副作用，所以 {@link
