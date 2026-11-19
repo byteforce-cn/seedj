@@ -3,7 +3,7 @@
 T0 不是「设计落地」，而是「把能落地的那一半落地，并把卡住的部分写清楚」。这份清单是给上游的
 需求单，也是给我们自己验收的口径：每条都写明**不做的代价**与**T0 现在怎么绕**，不写「以后再说」。
 
-依赖关系（决定排期）：**U8 是 T1 的前置**；**U9 是「账本 ↔ 审计链双向互链」的前置**（T0 只做到
+依赖关系（决定排期）：**U8 是 T1 的 coord 侧前置**；**U9 是「账本 ↔ 审计链双向互链」的前置**（T0 只做到
 单向，T3 的对账要靠它收尾）；U2、D7 是 T2 的前置；U10 是身份模型的前置。
 
 ## 摘要
@@ -12,7 +12,7 @@ T0 不是「设计落地」，而是「把能落地的那一半落地，并把�
 |---|---|---|---|---|
 | U2 | seedj / coord | 审批读面稳定：`GetStatus.input` 可读不可变 | T2 | 不调审批，只落账本 |
 | U3 | coord | 删除与保留的关系写进文档，快照先落账 | T2 | 审批快照一节，T0 无审批 |
-| U8 | coord | `Evaluate` 返回 bundle 版本与 epoch | **T1** | 不比对策略版本 |
+| U8 | coord | `Evaluate` 返回 bundle 版本与 epoch | T1 的 coord 侧 | T1-local 已用配置 head 落地，coord 求值仍不比对 |
 | U9 | seedj | 审计条目自定义 payload，支持结果条目 | **T0 互链 / T3** | 按 `command_id` 关联 |
 | U10 | seedj IAM | `effectiveProxies` 稳定契约 | 身份模型 | 身份由配置钉死 |
 | U11 | seedj | `CommandAdmission` SPI 与命令读面补字段 | 进程内直调 | 守卫停在 HTTP 层 |
@@ -48,6 +48,10 @@ T0 不是「设计落地」，而是「把能落地的那一半落地，并把�
 - **T0 怎么绕**：不比对策略。决策面签出的 token 里 `policy` 恒为 `PolicyRef.none()`，守卫实现的是
   第 1–8、10 条校验加一条受众校验；`AiErrorCode.POLICY_STALE` 恒不被返回。这不是「策略不重要」，
   是「没有版本可钉」。
+- **现状（T1-local）**：`seedj.ai.policy.*` 提供受管 bundle 的 head，决策面把 `PolicyRef` 写进 intent
+  与 token，守卫对不可逆动作比对版本并返回 `policy_stale` / `policy_unavailable`。这解决「版本载体」，
+  但 head 来自配置而非 coord 的求值结果——U8 的诉求（返回**实际使用**的 bundle 版本与 epoch）仍然
+  成立：coord 适配器落地前，`policy_stale` 保证的是「与配置 head 一致」。
 
 ## U9（seedj）：自定义审计条目与结果条目
 
@@ -116,4 +120,4 @@ T0 不是「设计落地」，而是「把能落地的那一半落地，并把�
 
 以上没有一条在 T0 被「绕过成不存在」：能绕的都在代码里有对应的收窄点（`reconcile.sql` 的关联方式、
 `PolicyRef.none()`、`PlaneReconciliationSource` 的默认空实现、guard 的 HTTP 层拦截），跑不动的都在
-[AI 装配 §T0 明确不做](ai-starter.md#t0-明确不做)里逐条列出。写对外承诺时以那两处为准。
+[AI 装配 §明确不做的范围](ai-starter.md#明确不做的范围)里逐条列出。写对外承诺时以那两处为准。

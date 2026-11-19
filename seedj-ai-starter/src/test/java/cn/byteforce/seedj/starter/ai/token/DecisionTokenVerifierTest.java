@@ -6,6 +6,7 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import cn.byteforce.seedj.ai.ActionClass;
 import cn.byteforce.seedj.ai.AgentToolSpec;
+import cn.byteforce.seedj.ai.AiErrorCode;
 import cn.byteforce.seedj.ai.ApprovalSnapshot;
 import cn.byteforce.seedj.ai.ApprovalStatus;
 import cn.byteforce.seedj.ai.ArgsHash;
@@ -16,6 +17,8 @@ import cn.byteforce.seedj.ai.GuardVerdict;
 import cn.byteforce.seedj.ai.PolicyRef;
 import cn.byteforce.seedj.ai.spi.ToolRegistry;
 import cn.byteforce.seedj.starter.ai.AiProperties;
+import cn.byteforce.seedj.starter.ai.policy.PolicyHead;
+import cn.byteforce.seedj.starter.ai.policy.PolicyHeadSource;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JOSEObjectType;
 import com.nimbusds.jose.JWSAlgorithm;
@@ -108,6 +111,44 @@ class DecisionTokenVerifierTest {
     private static final Map<String, PublicKey> KEYS = keysOf(ISSUER.jwks());
     private static final DecisionTokenVerifier VERIFIER =
             new DecisionTokenVerifier(KEYS, REGISTRY, AUDIENCE);
+
+    private static final String POLICY_BUNDLE = "ticket-policy";
+
+    private static final PolicyRef POLICY_PINNED =
+            new PolicyRef("local", POLICY_BUNDLE, 3L, 41L, "allow", List.of(), null);
+
+    private static final ToolRegistry IRREVERSIBLE_REGISTRY =
+            type ->
+                    COMMAND_TYPE.equals(type)
+                            ? Optional.of(
+                                    new AgentToolSpec(
+                                            COMMAND_TYPE, ActionClass.IRREVERSIBLE_FINANCIAL))
+                            : Optional.empty();
+
+    private static Fixture irreversible(PolicyRef policy) {
+        Fixture fixture = new Fixture();
+        fixture.registry = IRREVERSIBLE_REGISTRY;
+        fixture.actionClass = ActionClass.IRREVERSIBLE_FINANCIAL;
+        fixture.approval = approved(DEFAULT_ARGS_HASH);
+        fixture.policy = policy;
+        return fixture;
+    }
+
+    private static PolicyHeadSource headOf(long version, Long epoch) {
+        return new PolicyHeadSource() {
+
+            @Override
+            public Optional<PolicyHead> head(String engine, String bundle) {
+                return "local".equals(engine) && POLICY_BUNDLE.equals(bundle)
+                        ? Optional.of(new PolicyHead("local", POLICY_BUNDLE, version, epoch))
+                        : Optional.empty();
+            }
+        };
+    }
+
+    private static PolicyHeadSource unknownHeads() {
+        return (engine, bundle) -> Optional.empty();
+    }
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("rejections")
@@ -557,6 +598,133 @@ class DecisionTokenVerifierTest {
                         reject -> assertThat(reject.code().wire()).isEqualTo("aud_mismatch"));
     }
 
+    @Test
+    @DisplayName("不可逆动作：策略引用与 head 一致即放行")
+    void irreversible_action_with_matching_head_is_admitted() {
+        Fixture fixture = irreversible(POLICY_PINNED);
+
+        GuardVerdict verdict =
+                new DecisionTokenVerifier(KEYS, fixture.registry, AUDIENCE, headOf(3L, 41L))
+                        .verify(fixture.jws(), fixture.context(), NOW);
+
+        assertThat(verdict).isInstanceOf(GuardVerdict.Admit.class);
+    }
+
+    @Test
+    @DisplayName("不可逆动作：版本低于 head → policy_stale")
+    void irreversible_action_with_stale_version_is_rejected() {
+        Fixture fixture = irreversible(POLICY_PINNED);
+
+        GuardVerdict verdict =
+                new DecisionTokenVerifier(KEYS, fixture.registry, AUDIENCE, headOf(4L, 41L))
+                        .verify(fixture.jws(), fixture.context(), NOW);
+
+        assertThat(verdict)
+                .isInstanceOfSatisfying(
+                        GuardVerdict.Reject.class,
+                        reject -> assertThat(reject.code()).isEqualTo(AiErrorCode.POLICY_STALE));
+    }
+
+    @Test
+    @DisplayName("不可逆动作：epoch 与 head 不一致 → policy_stale")
+    void irreversible_action_with_stale_epoch_is_rejected() {
+        Fixture fixture = irreversible(POLICY_PINNED);
+
+        GuardVerdict verdict =
+                new DecisionTokenVerifier(KEYS, fixture.registry, AUDIENCE, headOf(3L, 42L))
+                        .verify(fixture.jws(), fixture.context(), NOW);
+
+        assertThat(verdict)
+                .isInstanceOfSatisfying(
+                        GuardVerdict.Reject.class,
+                        reject -> assertThat(reject.code()).isEqualTo(AiErrorCode.POLICY_STALE));
+    }
+
+    @Test
+    @DisplayName("不可逆动作：token 没有策略引用 → policy_unavailable")
+    void irreversible_action_without_policy_is_rejected() {
+        Fixture fixture = irreversible(PolicyRef.none());
+
+        GuardVerdict verdict =
+                new DecisionTokenVerifier(KEYS, fixture.registry, AUDIENCE, headOf(3L, 41L))
+                        .verify(fixture.jws(), fixture.context(), NOW);
+
+        assertThat(verdict)
+                .isInstanceOfSatisfying(
+                        GuardVerdict.Reject.class,
+                        reject ->
+                                assertThat(reject.code())
+                                        .isEqualTo(AiErrorCode.POLICY_UNAVAILABLE));
+    }
+
+    @Test
+    @DisplayName("不可逆动作：本部署没有该 bundle 的 head → policy_unavailable")
+    void irreversible_action_without_head_is_rejected() {
+        Fixture fixture = irreversible(POLICY_PINNED);
+
+        GuardVerdict verdict =
+                new DecisionTokenVerifier(KEYS, fixture.registry, AUDIENCE, unknownHeads())
+                        .verify(fixture.jws(), fixture.context(), NOW);
+
+        assertThat(verdict)
+                .isInstanceOfSatisfying(
+                        GuardVerdict.Reject.class,
+                        reject ->
+                                assertThat(reject.code())
+                                        .isEqualTo(AiErrorCode.POLICY_UNAVAILABLE));
+    }
+
+    @Test
+    @DisplayName("head 给了 epoch 而 token 没有：无法确认新鲜度 → policy_unavailable")
+    void irreversible_action_without_epoch_is_rejected() {
+        PolicyRef noEpoch =
+                new PolicyRef("local", POLICY_BUNDLE, 3L, null, "allow", List.of(), null);
+        Fixture fixture = irreversible(noEpoch);
+
+        GuardVerdict verdict =
+                new DecisionTokenVerifier(KEYS, fixture.registry, AUDIENCE, headOf(3L, 41L))
+                        .verify(fixture.jws(), fixture.context(), NOW);
+
+        assertThat(verdict)
+                .isInstanceOfSatisfying(
+                        GuardVerdict.Reject.class,
+                        reject ->
+                                assertThat(reject.code())
+                                        .isEqualTo(AiErrorCode.POLICY_UNAVAILABLE));
+    }
+
+    @Test
+    @DisplayName("可补偿动作不比对策略 head：第 9 条只约束不可逆档位")
+    void compensable_action_ignores_policy_head() {
+        Fixture fixture = new Fixture();
+        fixture.registry =
+                type ->
+                        COMMAND_TYPE.equals(type)
+                                ? Optional.of(
+                                        new AgentToolSpec(COMMAND_TYPE, ActionClass.COMPENSABLE))
+                                : Optional.empty();
+        fixture.actionClass = ActionClass.COMPENSABLE;
+        fixture.policy = POLICY_PINNED;
+
+        GuardVerdict verdict =
+                new DecisionTokenVerifier(KEYS, fixture.registry, AUDIENCE, headOf(4L, 42L))
+                        .verify(fixture.jws(), fixture.context(), NOW);
+
+        assertThat(verdict).isInstanceOf(GuardVerdict.Admit.class);
+    }
+
+    @Test
+    @DisplayName("verify=none：head 源不参与校验，不可逆动作照常放行")
+    void unenforced_head_source_skips_policy_check() {
+        Fixture fixture = irreversible(POLICY_PINNED);
+
+        GuardVerdict verdict =
+                new DecisionTokenVerifier(KEYS, fixture.registry, AUDIENCE, PolicyHeadSource.none())
+                        .verify(fixture.jws(), fixture.context(), NOW);
+
+        assertThat(verdict).isInstanceOf(GuardVerdict.Admit.class);
+    }
+
     /** 构造一条合法 token 与匹配的请求上下文；每个用例只改一处。 */
     private static final class Fixture {
 
@@ -566,6 +734,7 @@ class DecisionTokenVerifierTest {
         CommandRef command = COMMAND;
         String argsHash = DEFAULT_ARGS_HASH;
         ActionClass actionClass = ActionClass.REVERSIBLE;
+        PolicyRef policy = PolicyRef.none();
         ApprovalSnapshot approval;
         Instant issuedAt = IAT;
         Instant expiresAt = IAT.plusSeconds(300);
@@ -596,7 +765,7 @@ class DecisionTokenVerifierTest {
                     onBehalfOf,
                     tenant,
                     actionClass,
-                    PolicyRef.none(),
+                    policy,
                     approval,
                     issuedAt,
                     expiresAt,

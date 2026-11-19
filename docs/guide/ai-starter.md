@@ -4,11 +4,10 @@
 DecisionToken，执行侧 guard 用 `x-agent-decision` 头逐字核对请求，命令落库后由对账按链上事实补
 `reconciled`。宿主只留一个 `@EnableAIServer` 与几行配置。
 
-> 当前阶段（T0）：决策账本（内存 / PostgreSQL 两套实现）、DecisionToken 签发与校验、执行侧
-> guard、决策面 HTTP（`POST /v1/decisions`、`GET /v1/decisions/{id}`、
-> `POST /v1/decisions/{id}/outcome`、JWKS）、有界 agent 循环（`BoundedLoop`）。**不含**策略求值、
-> 人工审批、不可逆动作的行级门禁、外部副作用两段协议与 IM 回传，逐条见
-> [T0 明确不做](#t0-明确不做)。
+> 当前阶段：T0 的全部能力（决策账本、DecisionToken、执行侧 guard、决策面 HTTP、有界 agent 循环）
+> 加 T1-local 的**策略版本钉死**——决策面把 `PolicyRef` 写进 intent 与 token，守卫对不可逆动作校验
+> 策略 head 新鲜度。**不含** coord 的实际策略求值（上游 U8 未落地）、人工审批、不可逆动作的行级门禁、
+> 外部副作用两段协议与 IM 回传，逐条见 [明确不做的范围](#明确不做的范围)。
 
 ## 依赖与模块分层
 
@@ -111,6 +110,12 @@ cn.byteforce.seedj.starter.ai.runtime.AiRuntimeAutoConfiguration
 | `seedj.ai.identity.actor` | `plane` 开，**启动期 UUID** | agent 自身身份；缺失即启动失败 |
 | `seedj.ai.identity.on-behalf-of` | `plane` 开，**启动期 UUID** | 被代办的自然人；同上 |
 | `seedj.ai.decision.audience` | **guard 开时必填**（启动期） | 本服务名，token 的 `aud` 比什么；**只能来自配置**，不从 `Host` 等请求头推。`plane` 侧可空：空则要求每条请求自带 `audience`，两者都缺那条 `execute_tool` 400 |
+| `seedj.ai.policy.enabled` | 默认 `false` | 策略版本钉死：开则决策面写 `PolicyRef`、守卫校验不可逆动作；关则逐字保持 T0 |
+| `seedj.ai.policy.engine` | 默认 `local` | `PolicyRef.engine`；与 `bundle`、`version` 一起构成受管策略包 |
+| `seedj.ai.policy.bundle` | `policy.enabled=true` 时**必填** | 受管策略包名（T1 单包） |
+| `seedj.ai.policy.version` | `policy.enabled=true` 时**必填** | 当前 head 版本 |
+| `seedj.ai.policy.epoch` | 可空 | 当前纪元；给了就必须与 token 里的 `epoch` 相等 |
+| `seedj.ai.policy.verify` | `irreversible` | `none` 只钉版本、不校验；`irreversible` 只对两个不可逆档位强制 |
 | `seedj.ai.decision.kid` | 有默认值 | 密钥标识；未知 `kid` 的 token 一律拒绝 |
 | `seedj.ai.decision.signing-key` | 生产必填 | Ed25519 私钥；空则临时密钥并 WARN |
 | `seedj.ai.runtime.model.name` / `.version` | `runtime` 开，**启动期** | 决策请求与账本的 `model` 唯一来源 |
@@ -192,6 +197,55 @@ token」。审批流程本身还没交付（见 T0 明确不做）。
 **没有 `forbidden` 这一档**：不进 `seedj.ai.tools[]` 就是禁止——白名单之外没有「允许但不推荐」的
 中间态。`ActionClass.requiresApproval()` 只对两个 `IRREVERSIBLE_*` 返回 `true`，`COMPENSABLE` 按
 业务策略审批，不在 T0 的强制路径上。
+
+## 策略版本钉死（T1-local）
+
+T0 的 token 里 `policy` 恒为 `PolicyRef.none()`。开启策略后，决策面在落 intent 之前求值一次，把
+`engine / bundle / bundle_version / epoch / verdict` 写进 **intent 与 token**（同一个值），守卫对
+`IRREVERSIBLE_*` 动作比对当前 head——账本因此能回答「这一步是哪一版策略判的」，而不只是「哪一版模型判的」。
+
+```yaml
+seedj:
+  ai:
+    policy:
+      enabled: true
+      engine: local                 # 默认值
+      bundle: ticket-policy
+      version: 3
+      epoch: 41                     # 可空；引擎不提供纪元时省略
+      verify: irreversible          # none | irreversible
+```
+
+**求值顺序**（顺序是契约）：
+
+1. 校验请求与契约能力；契约拒绝不调用求值器，intent 里写 `none()`——确定的拒绝不该被一次可能失败的
+   求值改写成 500；
+2. 调 `PolicyEvaluator.evaluate`，得到 `PolicyRef`；
+3. 写 intent（`policy` 进哈希链）；
+4. `verdict` 不是 `allow` → 写 `outcome(rejected, POLICY_DENY)`，不签 token；
+5. `allow` 且 `execute_tool` → 同一个 `PolicyRef` 进 token 后签发。
+
+`not_evaluated`（`PolicyRef.none()` 的结论）表示「策略层未参与」，按 T0 放行；其它任何非 `allow` 结论
+——包括引擎返回的未知值——一律 `POLICY_DENY`。求值器抛异常时请求失败且**不落 intent**：求值失败不是
+决策，不能伪造一条意图。
+
+**守卫判定**（只对 `ActionClass.requiresApproval()` 为 true 的两档）：
+
+| 条件 | 结果 |
+|---|---|
+| `seedj.ai.policy.verify=none`，或动作是 `READ_ONLY` / `REVERSIBLE` / `COMPENSABLE` | 跳过比对 |
+| token 无 `policy`、`bundle` 或 `bundle_version` 缺失 | `policy_unavailable` |
+| 本部署没有该 `engine` + `bundle` 的 head | `policy_unavailable` |
+| head 提供 `epoch` 而 token 没有 | `policy_unavailable`（无法确认新鲜度） |
+| `bundle_version` 与 head 不等，或双方 `epoch` 不等 | `policy_stale` |
+| 全部相等 | 放行 |
+
+**端口**：`PolicyEvaluator` 与 `PolicyHeadSource` 都在 `cn.byteforce.seedj.starter.ai.policy`，默认实现
+读配置，宿主 bean 优先（`@ConditionalOnMissingBean`）。coord 的 `Evaluate` 返回实际求值版本（上游 U8）
+之后，适配器只需实现这两个端口，token、账本、守卫都不改。
+
+**这一版不保证什么**：head 来自配置，所以 `policy_stale` 保证的是「token 与配置声称的当前版一致」，
+不是「与 coord 当时判定用的那一版一致」。后者要等 U8。
 
 ## 完整示例：一次写动作的完整链路
 
@@ -315,14 +369,14 @@ LoopResult result = loop.run(new TaskContract(contractId, conversationId, "记�
 intent 无 outcome」——四件套只在手工调 `/outcome` 的用例里成立。所以工具返回 `ok` 之后循环会主动上报；
 上报失败**不让循环失败**（命令已经执行成功，把循环判失败会抹掉一次真实发生的副作用），只打一条带
 `decision_id` 的 WARN 然后继续。代价很明确：**那一次决策就进入「有决策无效果」，T0 的对账无法自动修复
-它**——`PlaneReconciliationSource` 默认实现返回空列表（见[第 5 条](#t0-明确不做)），没有「按租户/时间扫描
+它**——`PlaneReconciliationSource` 默认实现返回空列表（见[第 5 条](#明确不做的范围)），没有「按租户/时间扫描
 缺 outcome 的 intent」的入口。要收敛得靠 T1 的扫描接口，或运维按告警手工补。
 
 ## 安全与运维
 
 - **token 不落库、不落日志。** 它只在两个地方出现：`POST /v1/decisions` 的响应体一次，与
   `x-agent-decision` 请求头。账本存 `args_hash` / `idem_fingerprint`（哈希）与可展示参数 `args`
-  （T0 恒为空映射，见[第 9 条](#t0-明确不做)），但从不存 token；**单条 token 超过 4096 字节直接拒绝**
+  （T0 恒为空映射，见[第 9 条](#明确不做的范围)），但从不存 token；**单条 token 超过 4096 字节直接拒绝**
   （不截断——截断只会把一个坏凭据变成另一个坏凭据），`header.typ` 也必须是 `agent-decision+jws`；
   守卫的拒绝说明只带 `kid` 与 `decision_id` 前 8 位；循环观测（`LoopResult.observations`）只有
   `step / kind / type / ok / commandId`。
@@ -359,13 +413,13 @@ intent 无 outcome」——四件套只在手工调 `/outcome` 的用例里成�
   `SecurityFilterProperties.DEFAULT_FILTER_ORDER + 10`，即安全链之后、命令入口之前。放到安全链之前
   会让 `CallerProvider` 恒空、每个写命令都 `401`（`AgentGuardFilterTest` 有专门用例）。
 
-## T0 明确不做
+## 明确不做的范围
 
 以下每条都是**已知缺口**，不是「做了但没写文档」。做评测或对外承诺时按这条清单扣分。
 
-1. **策略求值（`Evaluate`）与 `policy_stale`。** T0 不做 coord 的策略求值，`GuardContext` 不携带策略
-   head，因此守卫实现的是第 1–8、10 条加一条受众校验；`AiErrorCode.POLICY_STALE` 恒不被返回。等
-   上游 `Evaluate` 返回实际使用的 bundle 版本（U8）后由 T1 补。
+1. **coord 的实际策略求值（`Evaluate`）。** T1-local 已交付：决策面钉版本、守卫校验 head、`policy_stale`
+   与 `policy_unavailable` 都可用；但求值结果来自配置而不是 coord——`PolicyClient.evaluate` 仍只返回
+   不透明 `byte[]`，没有「本次判定实际使用的那一版」（U8）。等 U8 落地后替换两个端口即可。
 2. **审批（`Start` / `Approve`）、`decision_admission` 与不可逆动作的行级门禁。** token 能携带
    `APPROVED` 状态，但 T0 没有审批流程，也没有在数据库层按 `action_class` 拦不可逆动作；归 T2/T3。
 3. **外部副作用的两段协议与 IM 回传。** 「先固化外部可见内容、执行后只做事实记录」没有实现；审批

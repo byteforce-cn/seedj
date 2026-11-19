@@ -23,6 +23,8 @@ import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;
 import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.starter.ai.AiProperties;
+import cn.byteforce.seedj.starter.ai.policy.PolicyEvaluator;
+import cn.byteforce.seedj.starter.ai.policy.PolicyRequest;
 import cn.byteforce.seedj.starter.ai.token.DecisionTokenIssuer;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -98,6 +100,9 @@ public final class DecisionService {
     /** {@code deny_rule}：契约存在，但命令不在它的 {@code commands} 内。 */
     public static final String RULE_CAPABILITY = "CONTRACT_CAPABILITY";
 
+    /** {@code deny_rule}：策略求值的结论不是 {@code allow}。 */
+    public static final String RULE_POLICY = "POLICY_DENY";
+
     /** 账本 {@code identity.acting_service}：写死为决策面自身，避免被请求影响。 */
     private static final String ACTING_SERVICE = "seedj-ai-plane";
 
@@ -106,6 +111,12 @@ public final class DecisionService {
 
     /** 签发失败写进 outcome 的 {@code error_code}：没有 token 就不可能有执行。 */
     static final String SIGNING_FAILED = "signing_failed";
+
+    /** 策略放行的唯一取值。 */
+    private static final String POLICY_ALLOW = "allow";
+
+    /** {@link PolicyRef#none()} 的结论：策略层未参与，决策面按 T0 放行。 */
+    private static final String POLICY_NOT_EVALUATED = "not_evaluated";
 
     private final CapabilityRegistry capabilities;
 
@@ -129,6 +140,8 @@ public final class DecisionService {
 
     private final Duration ttl;
 
+    private final PolicyEvaluator policy;
+
     /**
      * 用配置解析出的身份与 token 签发方构造。
      *
@@ -151,6 +164,31 @@ public final class DecisionService {
             IdGenerator<UUID> ids,
             Clock clock,
             AiProperties properties) {
+        this(capabilities, tools, ledger, issuer, ids, clock, properties, PolicyEvaluator.none());
+    }
+
+    /**
+     * 带策略求值端口的构造器。
+     *
+     * @param capabilities 任务契约能力集
+     * @param tools 工具注册表
+     * @param ledger 决策账本
+     * @param issuer DecisionToken 签发方
+     * @param ids 决策标识生成器
+     * @param clock 取时入口
+     * @param properties AI 配置
+     * @param policy 策略求值端口；禁用策略时传 {@link PolicyEvaluator#none()}
+     * @throws IllegalStateException 租户或身份配置缺失/非法
+     */
+    public DecisionService(
+            CapabilityRegistry capabilities,
+            ToolRegistry tools,
+            DecisionLedger ledger,
+            DecisionTokenIssuer issuer,
+            IdGenerator<UUID> ids,
+            Clock clock,
+            AiProperties properties,
+            PolicyEvaluator policy) {
         this(
                 capabilities,
                 tools,
@@ -158,7 +196,8 @@ public final class DecisionService {
                 Objects.requireNonNull(issuer, "issuer")::sign,
                 ids,
                 clock,
-                properties);
+                properties,
+                policy);
     }
 
     /** 签发口：把 {@link DecisionTokenIssuer} 的 final 实现挡在构造器之外，便于钉死「先落 intent」的顺序。 */
@@ -170,6 +209,19 @@ public final class DecisionService {
             IdGenerator<UUID> ids,
             Clock clock,
             AiProperties properties) {
+        this(capabilities, tools, ledger, signer, ids, clock, properties, PolicyEvaluator.none());
+    }
+
+    /** 签发口 + 策略端口的内部构造器（测试用短路径）。 */
+    DecisionService(
+            CapabilityRegistry capabilities,
+            ToolRegistry tools,
+            DecisionLedger ledger,
+            Signer signer,
+            IdGenerator<UUID> ids,
+            Clock clock,
+            AiProperties properties,
+            PolicyEvaluator policy) {
         this.capabilities = Objects.requireNonNull(capabilities, "capabilities");
         this.tools = Objects.requireNonNull(tools, "tools");
         this.ledger = Objects.requireNonNull(ledger, "ledger");
@@ -183,6 +235,7 @@ public final class DecisionService {
                 requiredUuid(config.identity().onBehalfOf(), "seedj.ai.identity.on-behalf-of");
         this.audience = blankToNull(config.decision().audience());
         this.ttl = Objects.requireNonNull(config.decision().ttl(), "seedj.ai.decision.ttl");
+        this.policy = Objects.requireNonNull(policy, "policy");
     }
 
     /**
@@ -193,6 +246,7 @@ public final class DecisionService {
      * @throws NullPointerException {@code request} 为 {@code null}
      * @throws ContractException {@code invalid_payload}：缺必填字段、未知 {@code kind}、 {@code rationale} 超过
      *     {@value #MAX_RATIONALE_BYTES} 字节、命令类型未登记、 {@code execute_tool} 无可用受众
+     * @throws RuntimeException 策略求值失败：此时<b>不落 intent</b>——求值失败不是决策，不能伪造一条意图
      */
     public DecisionResult decide(DecisionRequest request) {
         Objects.requireNonNull(request, "request");
@@ -221,7 +275,6 @@ public final class DecisionService {
         }
         String tokenAudience =
                 kind == DecisionKind.EXECUTE_TOOL ? audienceOf(request.audience()) : null;
-        String denyRule = denyRule(taskContractId, commandType);
         ActionClass actionClass =
                 kind == DecisionKind.EXECUTE_TOOL ? tool.get().actionClass() : null;
 
@@ -230,6 +283,31 @@ public final class DecisionService {
         CommandRef commandRef = new CommandRef(commandType, targets, command.expectedVersion());
         String argsHash = ArgsHash.of(fingerprint);
         UUID decisionId = Objects.requireNonNull(ids.id(), "decision id");
+        // 契约拒绝不需要策略裁决：那一步根本不在能力集内，问策略只会把一次确定的拒绝
+        // 变成一次可能失败的求值；此时 intent 里显式写 none()。
+        String denyRule = denyRule(taskContractId, commandType);
+        PolicyRef policyRef =
+                denyRule == null
+                        ? policy.evaluate(
+                                new PolicyRequest(
+                                        tenantId,
+                                        decisionId,
+                                        taskContractId,
+                                        conversationId,
+                                        step,
+                                        kind,
+                                        actionClass,
+                                        commandType,
+                                        argsHash,
+                                        modelRef.name()))
+                        : PolicyRef.none();
+        // not_evaluated 是「这一层没有意见」（PolicyRef.none() 的语义），不等于放行结论：
+        // 求值器一旦返回任何其它结论，只有 allow 能通过，未知取值同样落进 POLICY_DENY。
+        if (denyRule == null
+                && policyEvaluated(policyRef)
+                && !POLICY_ALLOW.equals(policyRef.verdict())) {
+            denyRule = RULE_POLICY;
+        }
         DecisionIntent intent =
                 newIntent(
                         decisionId,
@@ -247,7 +325,8 @@ public final class DecisionService {
                         Map.of(),
                         rationale,
                         evidence,
-                        modelRef);
+                        modelRef,
+                        policyRef);
         DecisionRecord intentRecord = ledger.appendIntent(intent);
         if (denyRule != null) {
             ledger.appendOutcome(
@@ -274,7 +353,7 @@ public final class DecisionService {
                         onBehalfOf,
                         tenantId.toString(),
                         actionClass,
-                        PolicyRef.none(),
+                        policyRef,
                         null,
                         issuedAt,
                         expiresAt,
@@ -317,7 +396,8 @@ public final class DecisionService {
             Map<String, Object> args,
             String rationale,
             List<Evidence> evidence,
-            ModelRef model) {
+            ModelRef model,
+            PolicyRef policyRef) {
         try {
             return new DecisionIntent(
                     decisionId,
@@ -334,7 +414,7 @@ public final class DecisionService {
                     rationale,
                     evidence,
                     model,
-                    PolicyRef.none(),
+                    policyRef,
                     new AgentIdentity(actor, onBehalfOf, null, ACTING_SERVICE),
                     null);
         } catch (IllegalArgumentException error) {
@@ -345,6 +425,10 @@ public final class DecisionService {
                     ContractErrorCode.INVALID_PAYLOAD,
                     reason == null ? "invalid decision request" : reason);
         }
+    }
+
+    private static boolean policyEvaluated(PolicyRef policyRef) {
+        return !POLICY_NOT_EVALUATED.equals(policyRef.verdict());
     }
 
     private String denyRule(UUID taskContractId, String commandType) {

@@ -413,6 +413,13 @@ seedj-ai-starter|cn.byteforce.seedj.starter.ai.plane|JwksController
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.plane|OutcomeDeriver
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.plane|PlaneReconciliationSource
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.plane|ReconciliationJob
+seedj-ai-starter|cn.byteforce.seedj.starter.ai.policy|ConfiguredPolicyEvaluator
+seedj-ai-starter|cn.byteforce.seedj.starter.ai.policy|ConfiguredPolicyHeadSource
+seedj-ai-starter|cn.byteforce.seedj.starter.ai.policy|PolicyEvaluator
+seedj-ai-starter|cn.byteforce.seedj.starter.ai.policy|PolicyHead
+seedj-ai-starter|cn.byteforce.seedj.starter.ai.policy|PolicyHeadSource
+seedj-ai-starter|cn.byteforce.seedj.starter.ai.policy|PolicyProperties
+seedj-ai-starter|cn.byteforce.seedj.starter.ai.policy|PolicyRequest
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.runtime|AiRuntimeAutoConfiguration
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.runtime|BoundedLoop
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.runtime|Call

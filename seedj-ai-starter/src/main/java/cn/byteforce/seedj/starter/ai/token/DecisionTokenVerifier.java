@@ -1,12 +1,16 @@
 package cn.byteforce.seedj.starter.ai.token;
 
+import cn.byteforce.seedj.ai.ActionClass;
 import cn.byteforce.seedj.ai.AgentToolSpec;
 import cn.byteforce.seedj.ai.AiErrorCode;
 import cn.byteforce.seedj.ai.ArgsHash;
 import cn.byteforce.seedj.ai.CommandFingerprint;
 import cn.byteforce.seedj.ai.DecisionTokenClaims;
 import cn.byteforce.seedj.ai.GuardVerdict;
+import cn.byteforce.seedj.ai.PolicyRef;
 import cn.byteforce.seedj.ai.spi.ToolRegistry;
+import cn.byteforce.seedj.starter.ai.policy.PolicyHead;
+import cn.byteforce.seedj.starter.ai.policy.PolicyHeadSource;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSObject;
@@ -30,10 +34,11 @@ import org.slf4j.LoggerFactory;
  * 最后是受众（本实现追加）与幂等键（§7.3-10）。顺序错了会返回错误的错误码，而调用方与告警按码处置。任何一步失败都返回 {@link
  * GuardVerdict.Reject}，本类不抛异常——守卫的失败方式必须是「拒绝」，不是「崩溃后由框架决定」。
  *
- * <p><b>未实现的范围</b>：spec §7.3 第 9 条（{@code policy_stale}：不可逆动作要求 {@code policy.bundle_version}/
- * {@code epoch} 等于策略 head）在 T0 <b>不可求值</b>——{@link GuardContext} 不携带策略 head，T0 不做 {@code
- * Evaluate}（计划 R7），所以本类从不比对 {@link DecisionTokenClaims#policy()}，{@code AiErrorCode.POLICY_STALE}
- * 也恒不被返回。等 U8（{@code Evaluate} 返回求值版本）落地后在 T1 补。
+ * <p><b>策略新鲜度（spec §7.3 第 9 条，T1-local）</b>：不可逆动作（{@code ActionClass.requiresApproval()}）要求 token
+ * 里的 {@code engine/bundle/bundleVersion/epoch} 与 {@link PolicyHeadSource} 给出的 head 一致；版本不一致或 epoch
+ * 不一致返回 {@code policy_stale}，引用缺失、head 缺失、head 有 epoch 而 token 没有返回 {@code
+ * policy_unavailable}。{@link PolicyHeadSource#none()}（{@code seedj.ai.policy.verify=none}）表示本部署不参与
+ * 校验，本类跳过这一步。可逆与可补偿动作不比对——第 9 条只约束不可逆档位。
  *
  * <p><b>追加校验</b>（都不是 §7.3 的条目，是本实现补的）：
  *
@@ -71,8 +76,10 @@ public final class DecisionTokenVerifier {
 
     private final String audience;
 
+    private final PolicyHeadSource policyHeads;
+
     /**
-     * 用「{@code kid} → 公钥」映射构造守卫。
+     * 用「{@code kid} → 公钥」映射构造守卫（不校验策略新鲜度）。
      *
      * @param publicKeys 已发布公钥，键为 {@code kid}；空映射表示任何 token 都无法验签
      * @param registry 工具注册表：命令类型与动作分类的唯一权威
@@ -81,17 +88,35 @@ public final class DecisionTokenVerifier {
      */
     public DecisionTokenVerifier(
             Map<String, PublicKey> publicKeys, ToolRegistry registry, String audience) {
+        this(publicKeys, registry, audience, PolicyHeadSource.none());
+    }
+
+    /**
+     * 带策略 head 源的构造器。
+     *
+     * @param publicKeys 已发布公钥，键为 {@code kid}
+     * @param registry 工具注册表
+     * @param audience 本服务名；可空
+     * @param policyHeads 策略 head 源；{@link PolicyHeadSource#none()} 表示不校验
+     * @throws NullPointerException 任一参数为 {@code null}（{@code audience} 除外）
+     */
+    public DecisionTokenVerifier(
+            Map<String, PublicKey> publicKeys,
+            ToolRegistry registry,
+            String audience,
+            PolicyHeadSource policyHeads) {
         Objects.requireNonNull(publicKeys, "publicKeys");
         this.publicKeys = Map.copyOf(publicKeys);
         this.registry = Objects.requireNonNull(registry, "registry");
         this.audience = audience;
+        this.policyHeads = Objects.requireNonNull(policyHeads, "policyHeads");
     }
 
     /**
      * 校验一条决策 token。
      *
      * <p>按 spec §7.3 的第 1–8、10 条判定，并在第 8 条之后追加一条受众校验（{@code aud} 不是 §7.3 的条目）； 第 9 条 {@code
-     * policy_stale} 在 T0 不可求值，见类说明。
+     * policy_stale} 只对不可逆动作求值，见类说明。
      *
      * @param jws JWS compact 串（{@code x-agent-decision} 的值）
      * @param context 请求侧事实
@@ -256,6 +281,12 @@ public final class DecisionTokenVerifier {
             return reject(AiErrorCode.AUD_MISMATCH, label, "audience differs");
         }
 
+        Optional<GuardVerdict.Reject> stale =
+                policyReject(claims.policy(), tool.get().actionClass(), label);
+        if (stale.isPresent()) {
+            return stale.get();
+        }
+
         if (!claims.decisionId().toString().equals(context.idempotencyKey())) {
             return reject(
                     AiErrorCode.IDEMPOTENCY_KEY_MISMATCH,
@@ -263,6 +294,58 @@ public final class DecisionTokenVerifier {
                     "idempotency key must be the decision_id");
         }
         return new GuardVerdict.Admit(claims);
+    }
+
+    /**
+     * spec §7.3 第 9 条：不可逆动作的策略版本必须与当前 head 一致。
+     *
+     * <p>返回 {@code Optional.empty()} 表示通过（或本部署不校验）。
+     */
+    private Optional<GuardVerdict.Reject> policyReject(
+            PolicyRef policy, ActionClass actionClass, String label) {
+        if (!policyHeads.enforced() || !actionClass.requiresApproval()) {
+            return Optional.empty();
+        }
+        if (policy == null || policy.bundle() == null || policy.bundleVersion() == null) {
+            return Optional.of(
+                    reject(
+                            AiErrorCode.POLICY_UNAVAILABLE,
+                            label,
+                            "policy reference is missing bundle or bundle_version"));
+        }
+        Optional<PolicyHead> head = policyHeads.head(policy.engine(), policy.bundle());
+        if (head.isEmpty()) {
+            return Optional.of(
+                    reject(
+                            AiErrorCode.POLICY_UNAVAILABLE,
+                            label,
+                            "no policy head for " + policy.engine() + "/" + policy.bundle()));
+        }
+        PolicyHead current = head.get();
+        if (current.version() != policy.bundleVersion()) {
+            return Optional.of(
+                    reject(
+                            AiErrorCode.POLICY_STALE,
+                            label,
+                            "policy bundle_version "
+                                    + policy.bundleVersion()
+                                    + " != head "
+                                    + current.version()));
+        }
+        if (current.epoch() != null) {
+            if (policy.epoch() == null) {
+                return Optional.of(
+                        reject(
+                                AiErrorCode.POLICY_UNAVAILABLE,
+                                label,
+                                "head provides an epoch but the token does not"));
+            }
+            if (!current.epoch().equals(policy.epoch())) {
+                return Optional.of(
+                        reject(AiErrorCode.POLICY_STALE, label, "policy epoch differs from head"));
+            }
+        }
+        return Optional.empty();
     }
 
     private static GuardVerdict.Reject reject(AiErrorCode code, String label, String detail) {

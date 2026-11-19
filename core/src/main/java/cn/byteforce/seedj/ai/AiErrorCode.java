@@ -50,7 +50,10 @@ public enum AiErrorCode {
     POLICY_STALE("policy_stale"),
 
     /** 决策账本不可用：无法写意图或无法核对。 */
-    LEDGER_UNAVAILABLE("ledger_unavailable");
+    LEDGER_UNAVAILABLE("ledger_unavailable"),
+
+    /** 策略层没有可用结果：没有求值引用，或本服务没有该策略包的 head。 */
+    POLICY_UNAVAILABLE("policy_unavailable");
 
     private final String wire;
 

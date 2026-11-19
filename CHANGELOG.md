@@ -48,6 +48,10 @@
   `seedj.im.push.node-id` 区分（空则进程随机，生产建议显式配置）。
 - `seedj-it` 的 coord 端到端：`CoordIT` 在真 coord v2 集群（server + agent 容器）上验证 ID、编号、
   全局序列、分布式锁、EventBus 发布/消费与「重试 → 死信」，并核对 coord 侧 topic 与消息。
+- `seedj-ai-starter`（T1-local）：策略版本钉死。决策面在落 intent 前求值 `PolicyEvaluator`，把
+  `PolicyRef`（engine/bundle/bundle_version/epoch/verdict）写进 intent 与 token；守卫对不可逆动作比对
+  `PolicyHeadSource` 的 head，新增 `policy_unavailable` 与既有的 `policy_stale`。默认关闭，关闭时行为与
+  T0 一致；coord 的实际策略求值（U8）仍未接，适配器只需实现两个端口。
 - `seedj-ai-starter`（T0）：决策账本（内存 / PostgreSQL 两套实现 + 哈希链与只追加触发器）、
   DecisionToken（Ed25519 签发/校验 + JWKS）、执行侧 guard（`x-agent-decision`，`POST /commands/*`）、
   决策面（`POST /v1/decisions`、记录读、outcome 上报、对账）与有界 agent 循环；
