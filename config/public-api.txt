@@ -433,6 +433,10 @@ seedj-ai-starter|cn.byteforce.seedj.starter.ai.runtime|Prompt
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.runtime|TaskContract
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.runtime|ToolInvoker
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.runtime|ToolResult
+seedj-ai-starter|cn.byteforce.seedj.starter.ai.runtime.llm|LlmAutoConfiguration
+seedj-ai-starter|cn.byteforce.seedj.starter.ai.runtime.llm|LlmException
+seedj-ai-starter|cn.byteforce.seedj.starter.ai.runtime.llm|LlmProperties
+seedj-ai-starter|cn.byteforce.seedj.starter.ai.runtime.llm|OpenAiCompatibleLlmGateway
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.token|DecisionTokenIssuer
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.token|DecisionTokenVerifier
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.token|Ed25519Jwks

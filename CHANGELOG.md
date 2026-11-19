@@ -48,6 +48,11 @@
   `seedj.im.push.node-id` 区分（空则进程随机，生产建议显式配置）。
 - `seedj-it` 的 coord 端到端：`CoordIT` 在真 coord v2 集群（server + agent 容器）上验证 ID、编号、
   全局序列、分布式锁、EventBus 发布/消费与「重试 → 死信」，并核对 coord 侧 topic 与消息。
+- `seedj-ai-starter`（LLM）：`seedj.ai.llm.*` 配置 + OpenAI 兼容的 native tool-calling 客户端
+  （`OpenAiCompatibleLlmGateway`）。`seedj.ai.tools[]` 按任务契约渲染成 `execute_command` 的工具枚举，
+  模型输出一次 tool_call 即映射成 `Proposal`；坏输出（无/多 tool_call、未知工具或命令、缺 rationale、
+  非法 targets）一律抛 `LlmException`，不降级成 `FINISH`；只对传输错误/429/5xx 重试；`api-key` 不进
+  日志与 `toString()`。默认关闭，宿主 `LlmGateway` bean 仍优先。
 - `seedj-ai-starter`（T1-local）：策略版本钉死。决策面在落 intent 前求值 `PolicyEvaluator`，把
   `PolicyRef`（engine/bundle/bundle_version/epoch/verdict）写进 intent 与 token；守卫对不可逆动作比对
   `PolicyHeadSource` 的 head，新增 `policy_unavailable` 与既有的 `policy_stale`。默认关闭，关闭时行为与

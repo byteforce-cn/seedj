@@ -5,8 +5,9 @@ DecisionToken，执行侧 guard 用 `x-agent-decision` 头逐字核对请求，�
 `reconciled`。宿主只留一个 `@EnableAIServer` 与几行配置。
 
 > 当前阶段：T0 的全部能力（决策账本、DecisionToken、执行侧 guard、决策面 HTTP、有界 agent 循环）
-> 加 T1-local 的**策略版本钉死**——决策面把 `PolicyRef` 写进 intent 与 token，守卫对不可逆动作校验
-> 策略 head 新鲜度。**不含** coord 的实际策略求值（上游 U8 未落地）、人工审批、不可逆动作的行级门禁、
+> 加 T1-local 的**策略版本钉死**（`PolicyRef` 进 intent 与 token，守卫校验不可逆动作的 head）与
+> **LLM 适配层**（`seedj.ai.llm.*` + OpenAI 兼容的 native tool-calling，模型输出直接映射成
+> `Proposal`）。**不含** coord 的实际策略求值（上游 U8 未落地）、人工审批、不可逆动作的行级门禁、
 > 外部副作用两段协议与 IM 回传，逐条见 [明确不做的范围](#明确不做的范围)。
 
 ## 依赖与模块分层
@@ -119,6 +120,13 @@ cn.byteforce.seedj.starter.ai.runtime.AiRuntimeAutoConfiguration
 | `seedj.ai.decision.kid` | 有默认值 | 密钥标识；未知 `kid` 的 token 一律拒绝 |
 | `seedj.ai.decision.signing-key` | 生产必填 | Ed25519 私钥；空则临时密钥并 WARN |
 | `seedj.ai.runtime.model.name` / `.version` | `runtime` 开，**启动期** | 决策请求与账本的 `model` 唯一来源 |
+| `seedj.ai.llm.enabled` | 默认 `false` | 是否装配 OpenAI 兼容的 LLM 客户端；关且宿主没有 `LlmGateway` bean 时循环不装配（启动 WARN） |
+| `seedj.ai.llm.base-url` / `.model` | `llm.enabled=true` 时**必填** | API 根（如 `https://api.openai.com/v1`，客户端补 `/chat/completions`）与模型名 |
+| `seedj.ai.llm.api-key` | 可空 | 非空时只进 `Authorization: Bearer`；不进日志与 `toString()` |
+| `seedj.ai.llm.temperature` / `.max-output-tokens` | 可空 | 不配就不发送，由服务端默认 |
+| `seedj.ai.llm.timeout` | `30s` | 单次请求的连接与读取超时 |
+| `seedj.ai.llm.max-attempts` | `2` | 单步最大尝试次数（含首次）；只对传输错误、429、5xx 重试 |
+| `seedj.ai.llm.tool-choice` | `required` | `required` / `auto`；端点不支持强制工具调用时改 `auto` |
 | `seedj.ai.tools[].command-type` / `.action-class` | `plane` 或 `guard` 开 | 工具白名单，两项都必填 |
 | `seedj.ai.contracts[].id` / `.commands` | `plane` 开，**启动期** | 契约能力集，命令须先登记为工具 |
 | `seedj.ai.plane.reconcile.datasource` | 可空 | 对账读的业务库 bean 名；空则用主数据源 |
@@ -247,6 +255,52 @@ seedj:
 **这一版不保证什么**：head 来自配置，所以 `policy_stale` 保证的是「token 与配置声称的当前版一致」，
 不是「与 coord 当时判定用的那一版一致」。后者要等 U8。
 
+## 配置 LLM：native tool-calling
+
+`LlmGateway` 是循环与模型之间唯一的端口。打开 `seedj.ai.llm.enabled` 后 starter 自己装配一个 **OpenAI 兼容**
+的 Chat Completions 客户端：模型通过原生 tool-calling 直接给出下一步，网关把它映射成 `Proposal`。
+
+```yaml
+seedj:
+  ai:
+    llm:
+      enabled: true
+      base-url: https://api.openai.com/v1   # 本地 vLLM/Ollama 换成自己的 /v1
+      api-key: ${SEEDJ_AI_LLM_API_KEY}      # 可空；本地常不收鉴权
+      model: gpt-5-mini
+      temperature: 0.2                      # 可空
+      max-output-tokens: 1024               # 可空
+      timeout: 30s
+      max-attempts: 2
+      tool-choice: required
+```
+
+**工具协议**：请求里带一个 `execute_command` 和三个终结工具——
+
+| 工具 | 参数 | 映射 |
+|---|---|---|
+| `execute_command` | `command_type`（`seedj.ai.tools[]` 的枚举，按任务契约过滤）、`payload`、`rationale`、可选 `targets` / `expected_version` | `EXECUTE_TOOL`；`action_class` 来自配置，不读模型 |
+| `finish` | `reason` | `FINISH` |
+| `ask_user` | `reason` | `ASK_USER` |
+| `escalate` | `reason` | `ESCALATE` |
+
+任务契约在 `seedj.ai.contracts[]` 里时，`command_type` 的枚举只保留该契约允许的命令；契约未知时用全部
+`seedj.ai.tools[]`。
+
+**fail-closed**：没有 tool_call、一次多个 tool_call、未知工具或命令、参数不是 JSON、`execute_command` 缺
+`rationale` 或超过决策面的 1KB 上限、`targets` 不是 UUID —— 一律抛 `LlmException`。网关不会把坏输出降级成
+`FINISH`：一次错误的收尾比一次失败更危险。
+
+**重试**只覆盖传输错误、429 与 5xx（`max-attempts`，默认 2 次尝试）；4xx 立即失败——配置错重试没有意义。
+
+**与 runtime 的关系**：`seedj.ai.llm.enabled=true` 提供 `LlmGateway` bean，`BoundedLoop` 因此装配；宿主也可以
+自己提供 `LlmGateway` bean 覆盖它（非 OpenAI 协议走这条路径）。两者都没有时循环不装配，启动日志会 WARN 并点名
+`seedj.ai.llm.enabled` 与 `LlmGateway`。
+
+**这一层不做的**：流式响应、把工具结果作为多轮 `tool` 消息回灌（观测由循环以文本传回）、按命令 schema 生成
+`payload` 的强约束（`CommandCatalog`/`ObjectSchema` 没在 runtime 暴露）、多 provider 原生协议。需要这些时在
+宿主实现 `LlmGateway`，循环与决策链不需要改。
+
 ## 完整示例：一次写动作的完整链路
 
 pilot 宿主（`seedj-it` 的 `PilotApplication`）一个进程同时当决策面、执行侧与运行时：
@@ -354,7 +408,8 @@ guard 只拦单段 `POST /commands/{type}`：`GET /commands/{id}`、`/queries/**
 
 ### 3. 让运行时替你走完这两步
 
-宿主提供一个 `LlmGateway` bean，`runtime.enabled=true` 时 `BoundedLoop` 就装配好了：
+打开 `seedj.ai.llm.enabled`（或宿主提供一个 `LlmGateway` bean），`runtime.enabled=true` 时 `BoundedLoop`
+就装配好了：
 
 ```java
 LoopResult result = loop.run(new TaskContract(contractId, conversationId, "记录一次故障工单", 4));
@@ -441,7 +496,9 @@ intent 无 outcome」——四件套只在手工调 `/outcome` 的用例里成�
 8. **`seedj-ai-starter` 自己的单测需要 Docker。** 账本契约（`PostgresDecisionLedgerTest`）、对账与
    决策面宿主测试都用 Testcontainers 起 `postgres:16-alpine`；没有 Docker 时这个模块的 `verify` 跑
    不完。纯规则测试不需要 Docker（如 `EvalBaselineTest`）。
-9. **账本的 `args` 在 T0 恒为空映射。** spec §6.2 要求 `args` 存**脱敏后**的可展示参数，而 T0 没有实现
+9. **LLM 适配层只有一种协议。** OpenAI 兼容的 Chat Completions + tool-calling；流式、结构化输出强约束、
+   多 provider 原生格式、按命令 schema 生成 payload 都不做。非 OpenAI 协议由宿主实现 `LlmGateway`。
+10. **账本的 `args` 在 T0 恒为空映射。** spec §6.2 要求 `args` 存**脱敏后**的可展示参数，而 T0 没有实现
    字段级脱敏（`ObjectSchema` 的 `writeOnly` 与命令专用字段都在命令注册表里，决策面没有接）。存原文会把
    `writeOnly` 字段写进哈希链账本，因此决策面选择留空：指纹信息由 `args_hash` 与 `idem_fingerprint`
    承担，账本不承载载荷文本。等 T1 接上按 schema 的脱敏后再补 `args`。
