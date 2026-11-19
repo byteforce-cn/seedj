@@ -15,7 +15,6 @@ import cn.byteforce.seedj.ai.DecisionRecordKind;
 import cn.byteforce.seedj.ai.Evidence;
 import cn.byteforce.seedj.ai.ModelRef;
 import cn.byteforce.seedj.ai.PolicyRef;
-import cn.byteforce.seedj.core.clock.Clock;
 import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;
 import cn.byteforce.seedj.infra.local.ai.InMemoryDecisionLedger;
@@ -179,6 +178,58 @@ class ApprovalServiceTest {
     }
 
     @Test
+    @DisplayName("视图带 deadline 与审批人")
+    void viewReturnsDeadlineAndApprovers() {
+        UUID decisionId = UUID.randomUUID();
+        ledger.appendIntent(intent(decisionId, ARGS_HASH));
+        service.start(intent(decisionId, ARGS_HASH), AUDIENCE);
+
+        ApprovalView view = service.view(decisionId);
+
+        assertThat(view.status()).isEqualTo("pending");
+        assertThat(view.deadline()).isEqualTo(NOW.plus(Duration.ofHours(4)));
+        assertThat(view.approvers()).containsExactly(APPROVER);
+    }
+
+    @Test
+    @DisplayName("工作流启动失败：intent + APPROVAL(UNKNOWN) + outcome，抛 unavailable")
+    void startFailureWritesUnknownAndOutcome() {
+        cn.byteforce.seedj.workflow.spi.WorkflowProvider failing =
+                org.mockito.Mockito.mock(cn.byteforce.seedj.workflow.spi.WorkflowProvider.class);
+        org.mockito.Mockito.when(failing.start(org.mockito.ArgumentMatchers.any()))
+                .thenThrow(
+                        new cn.byteforce.seedj.workflow.spi.WorkflowProviderException("down"));
+        ApprovalService failingService =
+                new ApprovalService(
+                        failing,
+                        ledger,
+                        new DecisionTokenIssuer(ai().decision()),
+                        () -> NOW,
+                        approvalProperties(List.of(APPROVER)),
+                        ai(),
+                        new LoggingApprovalNotifier());
+        UUID decisionId = UUID.randomUUID();
+        ledger.appendIntent(intent(decisionId, ARGS_HASH));
+
+        assertThatThrownBy(() -> failingService.start(intent(decisionId, ARGS_HASH), AUDIENCE))
+                .isInstanceOfSatisfying(
+                        ContractException.class,
+                        error -> assertThat(error.code()).isEqualTo(ContractErrorCode.UNAVAILABLE));
+        assertThat(ledger.byDecision(TENANT, decisionId))
+                .extracting(DecisionRecord::kind)
+                .containsExactly(
+                        DecisionRecordKind.INTENT,
+                        DecisionRecordKind.APPROVAL,
+                        DecisionRecordKind.OUTCOME);
+    }
+
+    @Test
+    @DisplayName("过期扫描在接上 pendingApprovals 前是 no-op")
+    void expirePendingIsNoOpForNow() {
+        assertThat(service.expirePending(NOW.plus(Duration.ofHours(5)))).isZero();
+    }
+
+    @Test
     @DisplayName("未批准的 grant 409")
     void grantBeforeApprovalIsConflict() {
         UUID decisionId = UUID.randomUUID();
@@ -192,41 +243,40 @@ class ApprovalServiceTest {
     }
 
     private ApprovalService service(List<UUID> approvers) {
-        ApprovalProperties properties =
-                new ApprovalProperties(
-                        true,
-                        "seedj-ai",
-                        "agent-approval",
-                        "1.0",
-                        approvers.stream().map(UUID::toString).toList(),
-                        Duration.ofHours(4),
-                        false,
-                        null,
-                        null);
-        AiProperties ai =
-                new AiProperties(
-                        true,
-                        new AiProperties.Plane(
-                                true,
-                                TENANT,
-                                "agent:decide",
-                                null,
-                                Duration.ofMinutes(10)),
-                        new AiProperties.Guard(false),
-                        null,
-                        new AiProperties.Identity(ACTOR.toString(), ON_BEHALF.toString()),
-                        new AiProperties.Decision(
-                                null, "kid", Duration.ofSeconds(300), AUDIENCE),
-                        List.of(),
-                        List.of());
         return new ApprovalService(
                 workflows,
                 ledger,
-                new DecisionTokenIssuer(ai.decision()),
+                new DecisionTokenIssuer(ai().decision()),
                 () -> NOW,
-                properties,
-                ai,
+                approvalProperties(approvers),
+                ai(),
                 new LoggingApprovalNotifier());
+    }
+
+    private static ApprovalProperties approvalProperties(List<UUID> approvers) {
+        return new ApprovalProperties(
+                true,
+                "seedj-ai",
+                "agent-approval",
+                "1.0",
+                approvers.stream().map(UUID::toString).toList(),
+                Duration.ofHours(4),
+                false,
+                null,
+                null);
+    }
+
+    private static AiProperties ai() {
+        return new AiProperties(
+                true,
+                new AiProperties.Plane(
+                        true, TENANT, "agent:decide", null, Duration.ofMinutes(10)),
+                new AiProperties.Guard(false),
+                null,
+                new AiProperties.Identity(ACTOR.toString(), ON_BEHALF.toString()),
+                new AiProperties.Decision(null, "kid", Duration.ofSeconds(300), AUDIENCE),
+                List.of(),
+                List.of());
     }
 
     private static DecisionIntent intent(UUID decisionId, String argsHash) {

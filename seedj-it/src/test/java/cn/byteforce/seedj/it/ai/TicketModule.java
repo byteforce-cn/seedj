@@ -19,15 +19,22 @@ public final class TicketModule implements ObjectModuleConfigurer {
 
     private final CommentTicketHandler comment;
 
+    private final RefundTicketHandler refund;
+
     /**
      * 构造模块声明。
      *
      * @param create 创建处理器
      * @param comment 评论处理器
+     * @param refund 退款处理器
      */
-    public TicketModule(CreateTicketHandler create, CommentTicketHandler comment) {
+    public TicketModule(
+            CreateTicketHandler create,
+            CommentTicketHandler comment,
+            RefundTicketHandler refund) {
         this.create = create;
         this.comment = comment;
+        this.refund = refund;
     }
 
     @Override
@@ -45,6 +52,13 @@ public final class TicketModule implements ObjectModuleConfigurer {
                 .emits("ticket.commented")
                 .commandField("ticket_id")
                 .commandField("note")
+                .commandField("expected_version")
+                .command("ticket.refund", RefundTicketCommand.class)
+                .permission("ticket.refund")
+                .handler(refund)
+                .emits("ticket.refunded")
+                .commandField("ticket_id")
+                .commandField("amount_cents")
                 .commandField("expected_version");
     }
 }

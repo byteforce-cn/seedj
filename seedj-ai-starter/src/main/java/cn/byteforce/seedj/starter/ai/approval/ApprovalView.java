@@ -1,6 +1,5 @@
 package cn.byteforce.seedj.starter.ai.approval;
 
-import cn.byteforce.seedj.ai.ApprovalStatus;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
@@ -27,7 +26,7 @@ import tools.jackson.databind.annotation.JsonNaming;
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public record ApprovalView(
         UUID decisionId,
-        ApprovalStatus status,
+        String status,
         String instanceId,
         String taskId,
         Instant requestedAt,

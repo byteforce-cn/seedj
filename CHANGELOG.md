@@ -48,6 +48,10 @@
   `seedj.im.push.node-id` 区分（空则进程随机，生产建议显式配置）。
 - `seedj-it` 的 coord 端到端：`CoordIT` 在真 coord v2 集群（server + agent 容器）上验证 ID、编号、
   全局序列、分布式锁、EventBus 发布/消费与「重试 → 死信」，并核对 coord 侧 topic 与消息。
+- `seedj-ai-starter`（T2-local 审批）：不可逆动作走 `pending_approval` → `GET/POST /v1/decisions/{id}/approval`
+  → `POST /v1/decisions/{id}/grant`；审批引擎只依赖 `WorkflowProvider`（本地用 `seedj-workflow-local`），
+  审批快照绑定 `args_hash`，驳回/超时落 `rejected` outcome，未开审批时不可逆动作直接 deny。
+  `BoundedLoop` 新增 `PENDING_APPROVAL` 结局与 `DecisionClient.grant`。
 - `seedj-ai-starter`（LLM）：`seedj.ai.llm.*` 配置 + OpenAI 兼容的 native tool-calling 客户端
   （`OpenAiCompatibleLlmGateway`）。`seedj.ai.tools[]` 按任务契约渲染成 `execute_command` 的工具枚举，
   模型输出一次 tool_call 即映射成 `Proposal`；坏输出（无/多 tool_call、未知工具或命令、缺 rationale、

@@ -134,8 +134,10 @@ public class PilotTestConfiguration {
      */
     @Bean
     ObjectModuleConfigurer pilotTicketModule(
-            CreateTicketHandler create, CommentTicketHandler comment) {
-        return new TicketModule(create, comment);
+            CreateTicketHandler create,
+            CommentTicketHandler comment,
+            RefundTicketHandler refund) {
+        return new TicketModule(create, comment, refund);
     }
 
     /**
@@ -158,6 +160,26 @@ public class PilotTestConfiguration {
     @Bean
     CommentTicketHandler pilotCommentTicketHandler() {
         return new CommentTicketHandler();
+    }
+
+    /**
+     * 退款处理器。
+     *
+     * @return 处理器
+     */
+    @Bean
+    RefundTicketHandler pilotRefundTicketHandler() {
+        return new RefundTicketHandler();
+    }
+
+    /**
+     * 审批工作流：pilot 用内存实现，证明批审批链在真实 HTTP 上闭环。
+     *
+     * @return 工作流端口
+     */
+    @Bean
+    cn.byteforce.seedj.workflow.spi.WorkflowProvider pilotWorkflowProvider() {
+        return new cn.byteforce.seedj.infra.local.workflow.InMemoryWorkflowProvider();
     }
 
     /**

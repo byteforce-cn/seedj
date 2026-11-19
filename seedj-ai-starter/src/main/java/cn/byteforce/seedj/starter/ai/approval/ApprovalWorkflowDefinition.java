@@ -24,7 +24,7 @@ import java.util.UUID;
  * @author ByteForce
  * @since 1.0.0
  */
-public final class ApprovalWorkflowDefinition {
+final class ApprovalWorkflowDefinition {
 
     private ApprovalWorkflowDefinition() {}
 

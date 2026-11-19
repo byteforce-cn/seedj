@@ -211,7 +211,7 @@ public final class ApprovalService {
         ApprovalSnapshot snapshot = latest(decisionId);
         return new ApprovalView(
                 decisionId,
-                snapshot.status(),
+                snapshot.status().wire(),
                 snapshot.instanceId(),
                 snapshot.taskId(),
                 snapshot.requestedAt(),

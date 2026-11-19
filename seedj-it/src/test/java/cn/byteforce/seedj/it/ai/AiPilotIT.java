@@ -280,6 +280,67 @@ class AiPilotIT extends AbstractPilotIT {
     }
 
     @Test
+    @DisplayName("不可逆动作：pending → approve → grant → guard 接受")
+    void irreversible_requires_approval_then_grant_and_guard_accepts() {
+        String title = "refund-" + UUID.randomUUID();
+        Map<String, Object> createPayload = Map.of("title", title, "status", "open");
+        Decision created = allowExecute("ticket.create", createPayload, List.of(), null);
+        ResponseEntity<String> createdResponse =
+                submit(
+                        "ticket.create",
+                        createPayload,
+                        List.of(),
+                        null,
+                        created.decisionId(),
+                        created.token());
+        assertThat(createdResponse.getStatusCode().value()).isEqualTo(202);
+        UUID ticketId = objectIdOf(title);
+
+        Map<String, Object> refundPayload = new LinkedHashMap<>();
+        refundPayload.put("ticket_id", ticketId.toString());
+        refundPayload.put("amount_cents", 12800);
+        ResponseEntity<String> pending =
+                postJson(
+                        "/v1/decisions",
+                        json(decisionRequest("ticket.refund", refundPayload, List.of(ticketId), null)));
+        assertThat(pending.getStatusCode().value())
+                .as("body=%s", pending.getBody())
+                .isEqualTo(200);
+        assertThat((String) JsonPath.read(pending.getBody(), "$.verdict"))
+                .isEqualTo("pending_approval");
+        assertThat((Object) JsonPath.read(pending.getBody(), "$.token")).isNull();
+        UUID decisionId = UUID.fromString(JsonPath.read(pending.getBody(), "$.decision_id"));
+
+        ResponseEntity<String> grantBeforeApproval =
+                postJson("/v1/decisions/" + decisionId + "/grant", "{}");
+        assertThat(grantBeforeApproval.getStatusCode().value()).isEqualTo(409);
+
+        ResponseEntity<String> approved =
+                postJson(
+                        "/v1/decisions/" + decisionId + "/approval",
+                        json(Map.of("action", "approve", "comment", "pilot approve")));
+        assertThat(approved.getStatusCode().value())
+                .as("body=%s", approved.getBody())
+                .isEqualTo(200);
+        assertThat((String) JsonPath.read(approved.getBody(), "$.status")).isEqualTo("approved");
+
+        ResponseEntity<String> granted = postJson("/v1/decisions/" + decisionId + "/grant", "{}");
+        assertThat(granted.getStatusCode().value()).as("body=%s", granted.getBody()).isEqualTo(200);
+        String token = JsonPath.read(granted.getBody(), "$.token");
+        assertThat(token).isNotBlank();
+
+        ResponseEntity<String> submitted =
+                submit("ticket.refund", refundPayload, List.of(ticketId), null, decisionId, token);
+        assertThat(submitted.getStatusCode().value()).as("body=%s", submitted.getBody()).isEqualTo(202);
+
+        assertThat(ledgerRecords(decisionId))
+                .extracting(DecisionRecord::kind)
+                .contains(DecisionRecordKind.INTENT, DecisionRecordKind.APPROVAL);
+        TemporalRow refunded = objects.current("ticket", ticketId).orElseThrow();
+        assertThat(refunded.fields().get("last_comment")).isEqualTo("refund 12800");
+    }
+
+    @Test
     @DisplayName("writeOnly 字段不影响守卫（哈希用原文），但读回的对象不含它")
     void write_only_field_does_not_break_guard() {
         String title = "write-only-" + UUID.randomUUID();

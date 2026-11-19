@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import cn.byteforce.seedj.ai.ActionClass;
 import cn.byteforce.seedj.ai.AgentToolSpec;
-import cn.byteforce.seedj.ai.ApprovalStatus;
 import cn.byteforce.seedj.ai.Evidence;
 import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;
@@ -121,8 +120,8 @@ class ApprovalControllerTest {
         assertThat(pending.verdict()).isEqualTo("pending_approval");
         assertThat(pending.token()).isNull();
 
-        ApprovalStatus before = controller.approval(pending.decisionId()).status();
-        assertThat(before).isEqualTo(ApprovalStatus.PENDING);
+        String before = controller.approval(pending.decisionId()).status();
+        assertThat(before).isEqualTo("pending");
 
         assertThatThrownBy(() -> controller.grant(pending.decisionId()))
                 .isInstanceOfSatisfying(
@@ -133,7 +132,7 @@ class ApprovalControllerTest {
                 controller.act(
                         pending.decisionId(),
                         new DecisionController.ApprovalActionRequest("approve", "ok"));
-        assertThat(approved.status()).isEqualTo(ApprovalStatus.APPROVED);
+        assertThat(approved.status()).isEqualTo("approved");
         assertThat(controller.grant(pending.decisionId()).token()).isNotBlank();
     }
 

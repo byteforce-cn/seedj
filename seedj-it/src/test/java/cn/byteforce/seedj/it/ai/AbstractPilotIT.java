@@ -271,11 +271,11 @@ abstract class AbstractPilotIT {
         return count == null ? 0 : count;
     }
 
-    private static String json(Object value) {
+    protected static String json(Object value) {
         return JSON.writeValueAsString(value);
     }
 
-    private static Map<String, Object> decisionRequest(
+    protected static Map<String, Object> decisionRequest(
             String commandType,
             Map<String, Object> payload,
             List<UUID> targets,

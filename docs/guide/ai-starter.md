@@ -5,10 +5,12 @@ DecisionToken，执行侧 guard 用 `x-agent-decision` 头逐字核对请求，�
 `reconciled`。宿主只留一个 `@EnableAIServer` 与几行配置。
 
 > 当前阶段：T0 的全部能力（决策账本、DecisionToken、执行侧 guard、决策面 HTTP、有界 agent 循环）
-> 加 T1-local 的**策略版本钉死**（`PolicyRef` 进 intent 与 token，守卫校验不可逆动作的 head）与
+> 加 T1-local 的**策略版本钉死**（`PolicyRef` 进 intent 与 token，守卫校验不可逆动作的 head）、
 > **LLM 适配层**（`seedj.ai.llm.*` + OpenAI 兼容的 native tool-calling，模型输出直接映射成
-> `Proposal`）。**不含** coord 的实际策略求值（上游 U8 未落地）、人工审批、不可逆动作的行级门禁、
-> 外部副作用两段协议与 IM 回传，逐条见 [明确不做的范围](#明确不做的范围)。
+> `Proposal`）与 **T2-local 审批**（`seedj.ai.approval.*`，不可逆动作 pending → approve →
+> grant）。**不含** coord 的实际策略求值（上游 U8 未落地）、coord 审批工作流适配器、
+> 不可逆动作的行级门禁（T3）、外部副作用两段协议与 IM 回传，逐条见
+> [明确不做的范围](#明确不做的范围)。
 
 ## 依赖与模块分层
 
@@ -200,7 +202,9 @@ seedj:
 
 T0 的强制力只到「token 里的 `action_class` 必须与注册表一致」（不一致即
 `action_class_mismatch`），以及「两个不可逆档位要求 token 携带 `APPROVED` 审批快照，否则签不出
-token」。审批流程本身还没交付（见 T0 明确不做）。
+token」。T2-local 已把审批流程接上：开启 `seedj.ai.approval.enabled` 后，决策面对不可逆动作返回
+`pending_approval`，批准后用 `/grant` 取 token；没有审批配置时直接 deny（`APPROVAL_UNAVAILABLE`），
+不会签出无审批 token。
 
 **没有 `forbidden` 这一档**：不进 `seedj.ai.tools[]` 就是禁止——白名单之外没有「允许但不推荐」的
 中间态。`ActionClass.requiresApproval()` 只对两个 `IRREVERSIBLE_*` 返回 `true`，`COMPENSABLE` 按
@@ -468,6 +472,44 @@ intent 无 outcome」——四件套只在手工调 `/outcome` 的用例里成�
   `SecurityFilterProperties.DEFAULT_FILTER_ORDER + 10`，即安全链之后、命令入口之前。放到安全链之前
   会让 `CallerProvider` 恒空、每个写命令都 `401`（`AgentGuardFilterTest` 有专门用例）。
 
+## 审批（T2-local）
+
+`IRREVERSIBLE_FINANCIAL` / `IRREVERSIBLE_EXTERNAL` 的 `execute_tool` 不再同步签 token，而是走四步：
+
+1. `POST /v1/decisions`：校验 → 落 intent → 启动审批工作流 → 追加 `APPROVAL(PENDING)`，返回
+   `{"verdict":"pending_approval","decision_id":…,"token":null}`；
+2. `GET /v1/decisions/{id}/approval`：看状态、截止时间与审批人；
+3. `POST /v1/decisions/{id}/approval`：`{"action":"approve"|"reject","comment":…}`；
+4. `POST /v1/decisions/{id}/grant`：已批准且未过期才签发 token，响应 `{"token":…}`。
+
+```yaml
+seedj:
+  ai:
+    approval:
+      enabled: true
+      approvers:
+        - 018f2e3a-0000-7000-8000-000000000118
+      deadline: 4h
+      allow-self-approve: false
+      # 定义默认 seedj-ai/agent-approval@1.0，通常不用改
+```
+
+- **审批引擎是端口**：只依赖 `WorkflowProvider`。本地加 `seedj-workflow-local`（`seedj.workflow.provider=memory`
+  或默认）即可；`approval.enabled=true` 但没有 `WorkflowProvider` bean 时**启动失败**并点名。
+- **审批人**：`approvers[]` 至少一个 UUID；审批端点的调用方 `id` 必须在这个列表里，且
+  `allow-self-approve=false` 时不能等于 `identity.on-behalf-of`（发起人）。只看
+  `seedj.ai.plane.permission` 不够。
+- **绑定**：审批快照的 `argsHash` 必须等于 intent 的 `argsHash`；grant 每次都重读账本，参数变了不可能
+  复用旧审批。
+- **拒绝/过期**：驳回追加 `APPROVAL(REJECTED)` + `outcome(rejected, APPROVAL_REJECTED)`；超时追加
+  `APPROVAL(EXPIRED)` + `outcome(rejected, APPROVAL_EXPIRED)`。两者之后 grant 都是 409。
+- **运行时**：`BoundedLoop` 遇到 pending 返回 `LoopResult.Outcome.PENDING_APPROVAL`（`detail` 是
+  `decision_id`），不调工具、不阻塞等人类；人在审批端点批准后，宿主用 `DecisionClient.grant(id)` 取
+  token 再提交命令。`DecisionGrant.allowed()` 不会把 pending 当放行。
+- **通知**：默认只记日志；有 IM 依赖时由卡片适配器覆盖（见 IM 指南）。
+- **coord 适配**：本版审批事实来自 `WorkflowProvider`，coord 的 `Evaluate` 版本（U8）与
+  workflow COMMITTED 之后只需换 Provider/端口实现，token、账本、guard 不改。
+
 ## 明确不做的范围
 
 以下每条都是**已知缺口**，不是「做了但没写文档」。做评测或对外承诺时按这条清单扣分。
@@ -475,8 +517,9 @@ intent 无 outcome」——四件套只在手工调 `/outcome` 的用例里成�
 1. **coord 的实际策略求值（`Evaluate`）。** T1-local 已交付：决策面钉版本、守卫校验 head、`policy_stale`
    与 `policy_unavailable` 都可用；但求值结果来自配置而不是 coord——`PolicyClient.evaluate` 仍只返回
    不透明 `byte[]`，没有「本次判定实际使用的那一版」（U8）。等 U8 落地后替换两个端口即可。
-2. **审批（`Start` / `Approve`）、`decision_admission` 与不可逆动作的行级门禁。** token 能携带
-   `APPROVED` 状态，但 T0 没有审批流程，也没有在数据库层按 `action_class` 拦不可逆动作；归 T2/T3。
+2. **coord 侧的 `Start` / `Approve` 适配器与不可逆动作的行级门禁。** T2-local 已用
+   `WorkflowProvider` 端口接上本地审批；coord 工作流 COMMITTED 后换 Provider 实现即可。数据库层按
+   `action_class` 拦不可逆动作（RLS/admission）归 T3。
 3. **外部副作用的两段协议与 IM 回传。** 「先固化外部可见内容、执行后只做事实记录」没有实现；审批
    通知与动作回传（IM 的系统卡片）也没有。
 4. **runtime 只对 `EXECUTE_TOOL` 走决策面。** `READ` / `FINISH` / `ASK_USER` / `ESCALATE` 是循环内

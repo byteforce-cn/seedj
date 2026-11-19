@@ -442,6 +442,38 @@ class BoundedLoopTest {
     }
 
     @Test
+    @DisplayName("grant 非 2xx：抛 IllegalStateException，消息只带状态码")
+    void grant_non_2xx_throws() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        HttpDecisionClient client = new HttpDecisionClient(builder, DECISION_BASE, model());
+
+        server.expect(requestTo(DECISION_BASE + "/v1/decisions/" + DECISION_ID + "/grant"))
+                .andRespond(withStatus(HttpStatus.NOT_FOUND));
+
+        assertThatThrownBy(() -> client.grant(DECISION_ID))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("404");
+        server.verify();
+    }
+
+    @Test
+    @DisplayName("grant 响应缺 token：抛 IllegalStateException")
+    void grant_missing_token_throws() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        HttpDecisionClient client = new HttpDecisionClient(builder, DECISION_BASE, model());
+
+        server.expect(requestTo(DECISION_BASE + "/v1/decisions/" + DECISION_ID + "/grant"))
+                .andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> client.grant(DECISION_ID))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("token");
+        server.verify();
+    }
+
+    @Test
     @DisplayName("决策请求是 snake_case，且不含 token")
     void decision_request_matches_wire_format() {
         RestClient.Builder builder = RestClient.builder();
