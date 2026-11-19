@@ -4,7 +4,6 @@ import cn.byteforce.seedj.ai.ActionClass;
 import cn.byteforce.seedj.ai.CommandRef;
 import cn.byteforce.seedj.ai.DecisionRecord;
 import cn.byteforce.seedj.ai.PolicyRef;
-
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;

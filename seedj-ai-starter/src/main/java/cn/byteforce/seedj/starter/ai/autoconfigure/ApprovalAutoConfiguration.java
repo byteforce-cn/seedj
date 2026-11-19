@@ -11,7 +11,6 @@ import cn.byteforce.seedj.starter.ai.approval.ApprovalService;
 import cn.byteforce.seedj.starter.ai.approval.LoggingApprovalNotifier;
 import cn.byteforce.seedj.starter.ai.token.DecisionTokenIssuer;
 import cn.byteforce.seedj.workflow.spi.WorkflowProvider;
-
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.AutoConfiguration;

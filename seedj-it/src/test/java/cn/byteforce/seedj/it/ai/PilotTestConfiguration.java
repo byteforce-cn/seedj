@@ -17,12 +17,17 @@ import cn.byteforce.seedj.module.ObjectModuleRegistry;
 import cn.byteforce.seedj.read.DataScopeResolver;
 import cn.byteforce.seedj.security.AuthorizationDecision;
 import cn.byteforce.seedj.security.AuthorizationDecisionPoint;
-
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import javax.sql.DataSource;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.security.autoconfigure.web.servlet.SecurityFilterProperties;
@@ -33,15 +38,6 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
-
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
-
-import javax.sql.DataSource;
 
 /**
  * pilot 的宿主侧夹具：调用方身份、授权判定、工单表的显式迁移，以及审计操作人。

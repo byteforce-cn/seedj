@@ -5,13 +5,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import cn.byteforce.seedj.workflow.spi.WorkflowDefinitionId;
 import cn.byteforce.seedj.workflow.spi.WorkflowDefinitionVersion;
-
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
 /** 审批配置的默认值、解析与启动期校验。 */
 class ApprovalPropertiesTest {

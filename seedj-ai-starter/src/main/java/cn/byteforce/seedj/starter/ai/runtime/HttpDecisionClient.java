@@ -2,19 +2,16 @@ package cn.byteforce.seedj.starter.ai.runtime;
 
 import cn.byteforce.seedj.ai.Proposal;
 import cn.byteforce.seedj.starter.ai.AiProperties;
-
-import org.springframework.http.MediaType;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientResponseException;
-
-import tools.jackson.databind.PropertyNamingStrategies;
-import tools.jackson.databind.annotation.JsonNaming;
-
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import org.springframework.http.MediaType;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
+import tools.jackson.databind.PropertyNamingStrategies;
+import tools.jackson.databind.annotation.JsonNaming;
 
 /**
  * 决策面的 HTTP 客户端：{@code POST {decisionBaseUrl}/v1/decisions} 求值， {@code POST

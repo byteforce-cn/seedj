@@ -28,10 +28,6 @@ import cn.byteforce.seedj.starter.ai.approval.DecisionTokenFactory;
 import cn.byteforce.seedj.starter.ai.policy.PolicyEvaluator;
 import cn.byteforce.seedj.starter.ai.policy.PolicyRequest;
 import cn.byteforce.seedj.starter.ai.token.DecisionTokenIssuer;
-
-import tools.jackson.databind.PropertyNamingStrategies;
-import tools.jackson.databind.annotation.JsonNaming;
-
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
@@ -40,6 +36,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import tools.jackson.databind.PropertyNamingStrategies;
+import tools.jackson.databind.annotation.JsonNaming;
 
 /**
  * 决策面的核心：判定契约能力、<b>先落 intent</b>、再决定签不签 token（spec §5.1、§6.4 两段式效果）。

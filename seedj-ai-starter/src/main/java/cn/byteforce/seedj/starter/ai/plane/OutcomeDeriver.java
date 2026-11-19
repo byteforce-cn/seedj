@@ -11,11 +11,9 @@ import cn.byteforce.seedj.core.exception.ContractException;
 import cn.byteforce.seedj.starter.ai.AiProperties;
 import cn.byteforce.seedj.starter.ai.ledger.RecordedEffect;
 import cn.byteforce.seedj.starter.ai.ledger.RecordedIntent;
-
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
-
 import javax.sql.DataSource;
 
 /**

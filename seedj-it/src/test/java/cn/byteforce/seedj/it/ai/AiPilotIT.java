@@ -5,7 +5,6 @@ import static cn.byteforce.seedj.it.ai.PilotTestConfiguration.AUDIENCE;
 import static cn.byteforce.seedj.it.ai.PilotTestConfiguration.CONTRACT_ID;
 import static cn.byteforce.seedj.it.ai.PilotTestConfiguration.TENANT;
 import static cn.byteforce.seedj.it.ai.PilotTestConfiguration.USER_ID;
-
 import static org.assertj.core.api.Assertions.assertThat;
 
 import cn.byteforce.seedj.ai.ActionClass;
@@ -24,9 +23,12 @@ import cn.byteforce.seedj.starter.ai.runtime.HttpDecisionClient;
 import cn.byteforce.seedj.starter.ai.runtime.HttpToolInvoker;
 import cn.byteforce.seedj.starter.ai.runtime.LoopResult;
 import cn.byteforce.seedj.starter.ai.runtime.TaskContract;
-
 import com.jayway.jsonpath.JsonPath;
-
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -40,12 +42,6 @@ import org.springframework.web.client.RestClient;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
 
 /**
  * Task 13 的 T0 退出判据：<b>每个写动作都能用「intent + command + audit entry + reconciled」四件套还原</b>。

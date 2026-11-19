@@ -18,7 +18,11 @@ import cn.byteforce.seedj.ai.DecisionKind;
 import cn.byteforce.seedj.ai.Proposal;
 import cn.byteforce.seedj.starter.ai.AiEnabledMarker;
 import cn.byteforce.seedj.starter.ai.AiProperties;
-
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -30,12 +34,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
-
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 
 /**
  * 有界 agent 循环与两个 HTTP 端口（spec §5.1 两条路径、§7.2 token 只走 {@code x-agent-decision}）。

@@ -1,7 +1,6 @@
 package cn.byteforce.seedj.starter.ai.approval;
 
 import cn.byteforce.seedj.ai.ApprovalStatus;
-
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;

@@ -5,12 +5,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import cn.byteforce.seedj.workflow.spi.AnyApprove;
 import cn.byteforce.seedj.workflow.spi.StepKind;
 import cn.byteforce.seedj.workflow.spi.WorkflowDefinition;
-
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
 import java.util.List;
 import java.util.UUID;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
 /** 审批工作流定义的形状：一个 HUMAN_TASK + 一个终态 ACTIVITY。 */
 class ApprovalWorkflowDefinitionTest {

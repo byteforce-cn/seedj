@@ -7,14 +7,12 @@ import cn.byteforce.seedj.infra.local.ai.InMemoryDecisionLedger;
 import cn.byteforce.seedj.infra.local.workflow.InMemoryWorkflowProvider;
 import cn.byteforce.seedj.starter.ai.AiProperties;
 import cn.byteforce.seedj.starter.ai.token.DecisionTokenIssuer;
-
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
 /** 过期扫描的调度入口：当前实现是 no-op，但不能抛。 */
 class ApprovalExpiryJobTest {

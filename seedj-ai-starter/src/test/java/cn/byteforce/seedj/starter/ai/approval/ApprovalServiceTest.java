@@ -21,13 +21,7 @@ import cn.byteforce.seedj.infra.local.ai.InMemoryDecisionLedger;
 import cn.byteforce.seedj.infra.local.workflow.InMemoryWorkflowProvider;
 import cn.byteforce.seedj.starter.ai.AiProperties;
 import cn.byteforce.seedj.starter.ai.token.DecisionTokenIssuer;
-
 import com.nimbusds.jose.JWSObject;
-
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
@@ -35,6 +29,9 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
 /** 审批状态机：start / act / grant / expire 的账本事实。 */
 class ApprovalServiceTest {

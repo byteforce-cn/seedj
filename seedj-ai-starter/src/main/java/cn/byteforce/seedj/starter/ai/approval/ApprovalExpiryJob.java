@@ -1,7 +1,6 @@
 package cn.byteforce.seedj.starter.ai.approval;
 
 import cn.byteforce.seedj.core.clock.Clock;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;

@@ -8,17 +8,14 @@ import cn.byteforce.seedj.ai.spi.DecisionLedger;
 import cn.byteforce.seedj.core.clock.Clock;
 import cn.byteforce.seedj.starter.ai.AiProperties;
 import cn.byteforce.seedj.starter.ai.ledger.RecordedEffect;
-
-import org.springframework.scheduling.annotation.Scheduled;
-
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
-
 import javax.sql.DataSource;
+import org.springframework.scheduling.annotation.Scheduled;
 
 /**
  * 事后核对：把「已上报的 ok」与「链上真实条目」对上，补一条 {@code reconciled}（spec §6.4 第 5 步）。

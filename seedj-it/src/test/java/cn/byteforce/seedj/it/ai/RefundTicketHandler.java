@@ -8,7 +8,6 @@ import cn.byteforce.seedj.domain.AppendRequest;
 import cn.byteforce.seedj.domain.AppendResult;
 import cn.byteforce.seedj.domain.TemporalRow;
 import cn.byteforce.seedj.domain.event.CommandEvent;
-
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;

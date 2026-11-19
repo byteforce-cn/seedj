@@ -5,7 +5,6 @@ import cn.byteforce.seedj.ai.DecisionIntent;
 import cn.byteforce.seedj.ai.DecisionTokenClaims;
 import cn.byteforce.seedj.starter.ai.ledger.RecordedIntent;
 import cn.byteforce.seedj.starter.ai.token.DecisionTokenIssuer;
-
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;

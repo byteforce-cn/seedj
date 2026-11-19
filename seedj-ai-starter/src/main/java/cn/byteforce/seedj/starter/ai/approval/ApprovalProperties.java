@@ -2,13 +2,11 @@ package cn.byteforce.seedj.starter.ai.approval;
 
 import cn.byteforce.seedj.workflow.spi.WorkflowDefinitionId;
 import cn.byteforce.seedj.workflow.spi.WorkflowDefinitionVersion;
-
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.boot.context.properties.bind.DefaultValue;
-
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.DefaultValue;
 
 /**
  * 审批配置（{@code seedj.ai.approval.*}）：不可逆动作在决策面先走人工审批。

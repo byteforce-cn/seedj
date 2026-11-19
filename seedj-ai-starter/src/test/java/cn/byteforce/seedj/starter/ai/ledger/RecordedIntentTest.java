@@ -4,13 +4,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import cn.byteforce.seedj.ai.DecisionRecord;
 import cn.byteforce.seedj.ai.DecisionRecordKind;
-
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
 /** intent 记录体读回的 fail-closed：缺字段就报错，不猜默认值。 */
 class RecordedIntentTest {

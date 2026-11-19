@@ -9,7 +9,6 @@ import cn.byteforce.seedj.workflow.spi.RetryPolicy;
 import cn.byteforce.seedj.workflow.spi.StepDefinition;
 import cn.byteforce.seedj.workflow.spi.StepKind;
 import cn.byteforce.seedj.workflow.spi.WorkflowDefinition;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;

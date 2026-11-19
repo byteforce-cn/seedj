@@ -3,7 +3,6 @@ package cn.byteforce.seedj.starter.ai.ledger;
 import cn.byteforce.seedj.ai.ApprovalSnapshot;
 import cn.byteforce.seedj.ai.ApprovalStatus;
 import cn.byteforce.seedj.ai.DecisionRecord;
-
 import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;

@@ -1,9 +1,7 @@
 package cn.byteforce.seedj.it.ai;
 
 import cn.byteforce.seedj.audit.Audited;
-
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import java.util.UUID;
 
 /**

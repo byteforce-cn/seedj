@@ -2,14 +2,12 @@ package cn.byteforce.seedj.starter.ai.runtime;
 
 import cn.byteforce.seedj.ai.CommandRef;
 import cn.byteforce.seedj.ai.Proposal;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * 有界 agent 循环：每一步先问模型，再按提案类型分叉（spec §5.1）。
