@@ -18,6 +18,11 @@ import cn.byteforce.seedj.starter.ai.approval.ApprovalService;
 import cn.byteforce.seedj.starter.ai.approval.LoggingApprovalNotifier;
 import cn.byteforce.seedj.starter.ai.guard.ConfiguredToolRegistry;
 import cn.byteforce.seedj.starter.ai.token.DecisionTokenIssuer;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -26,9 +31,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
 
 /** 审批与 grant 端点：授权、状态机与 token 签发。 */
 class ApprovalControllerTest {
@@ -126,7 +128,9 @@ class ApprovalControllerTest {
         assertThatThrownBy(() -> controller.grant(pending.decisionId()))
                 .isInstanceOfSatisfying(
                         ContractException.class,
-                        error -> assertThat(error.code()).isEqualTo(ContractErrorCode.VERSION_CONFLICT));
+                        error ->
+                                assertThat(error.code())
+                                        .isEqualTo(ContractErrorCode.VERSION_CONFLICT));
 
         var approved =
                 controller.act(
@@ -141,13 +145,14 @@ class ApprovalControllerTest {
     void rejectThenGrantConflicts() {
         DecisionService.DecisionResult pending = controller.decide(executeTool());
         controller.act(
-                pending.decisionId(),
-                new DecisionController.ApprovalActionRequest("reject", "no"));
+                pending.decisionId(), new DecisionController.ApprovalActionRequest("reject", "no"));
 
         assertThatThrownBy(() -> controller.grant(pending.decisionId()))
                 .isInstanceOfSatisfying(
                         ContractException.class,
-                        error -> assertThat(error.code()).isEqualTo(ContractErrorCode.VERSION_CONFLICT));
+                        error ->
+                                assertThat(error.code())
+                                        .isEqualTo(ContractErrorCode.VERSION_CONFLICT));
     }
 
     @Test
@@ -156,7 +161,8 @@ class ApprovalControllerTest {
         DecisionController withoutApproval =
                 new DecisionController(
                         new DecisionService(
-                                new CapabilityRegistry(List.of(), new ConfiguredToolRegistry(List.of())),
+                                new CapabilityRegistry(
+                                        List.of(), new ConfiguredToolRegistry(List.of())),
                                 new ConfiguredToolRegistry(List.of()),
                                 ledger,
                                 claims -> "jws",
@@ -193,10 +199,13 @@ class ApprovalControllerTest {
                         () ->
                                 controller.act(
                                         pending.decisionId(),
-                                        new DecisionController.ApprovalActionRequest("maybe", null)))
+                                        new DecisionController.ApprovalActionRequest(
+                                                "maybe", null)))
                 .isInstanceOfSatisfying(
                         ContractException.class,
-                        error -> assertThat(error.code()).isEqualTo(ContractErrorCode.INVALID_PAYLOAD));
+                        error ->
+                                assertThat(error.code())
+                                        .isEqualTo(ContractErrorCode.INVALID_PAYLOAD));
     }
 
     private static DecisionService.DecisionRequest executeTool() {
@@ -205,7 +214,8 @@ class ApprovalControllerTest {
                 CONVERSATION,
                 1,
                 "execute_tool",
-                new DecisionService.Command(COMMAND, Map.of("amount", "128.00"), List.of(TARGET), null),
+                new DecisionService.Command(
+                        COMMAND, Map.of("amount", "128.00"), List.of(TARGET), null),
                 "退款",
                 List.of(new Evidence("message", "im://msg/1", "sha256:abc")),
                 new DecisionService.Model("gpt", "2026-11", null, null),
@@ -225,7 +235,10 @@ class ApprovalControllerTest {
                 null,
                 new AiProperties.Identity(ACTOR.toString(), ON_BEHALF_OF.toString()),
                 new AiProperties.Decision(
-                        null, AiProperties.DEFAULT_KID, AiProperties.DEFAULT_DECISION_TTL, AUDIENCE),
+                        null,
+                        AiProperties.DEFAULT_KID,
+                        AiProperties.DEFAULT_DECISION_TTL,
+                        AUDIENCE),
                 List.of(),
                 List.of());
     }
