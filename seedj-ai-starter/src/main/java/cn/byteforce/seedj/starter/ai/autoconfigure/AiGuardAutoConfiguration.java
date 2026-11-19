@@ -1,13 +1,19 @@
 package cn.byteforce.seedj.starter.ai.autoconfigure;
 
 import cn.byteforce.seedj.ai.AgentToolSpec;
+import cn.byteforce.seedj.ai.spi.DecisionAdmissionStore;
 import cn.byteforce.seedj.ai.spi.ToolRegistry;
 import cn.byteforce.seedj.core.clock.Clock;
 import cn.byteforce.seedj.core.security.CallerIdCodec;
 import cn.byteforce.seedj.core.security.CallerProvider;
 import cn.byteforce.seedj.cqrs.CommandCatalog;
+import cn.byteforce.seedj.cqrs.spi.TransactionRunner;
+import cn.byteforce.seedj.infra.local.ai.InMemoryDecisionAdmissionStore;
 import cn.byteforce.seedj.starter.ai.AiEnabledMarker;
 import cn.byteforce.seedj.starter.ai.AiProperties;
+import cn.byteforce.seedj.starter.ai.guard.AdmissionSweeper;
+import cn.byteforce.seedj.starter.ai.guard.AgentDecisionGuc;
+import cn.byteforce.seedj.starter.ai.guard.AgentDecisionTransactionRunner;
 import cn.byteforce.seedj.starter.ai.guard.AgentGuardFilter;
 import cn.byteforce.seedj.starter.ai.guard.ConfiguredToolRegistry;
 import cn.byteforce.seedj.starter.ai.policy.ConfiguredPolicyHeadSource;
@@ -15,20 +21,25 @@ import cn.byteforce.seedj.starter.ai.policy.PolicyHeadSource;
 import cn.byteforce.seedj.starter.ai.policy.PolicyProperties;
 import cn.byteforce.seedj.starter.ai.token.DecisionTokenIssuer;
 import cn.byteforce.seedj.starter.ai.token.DecisionTokenVerifier;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import javax.sql.DataSource;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
 import org.springframework.boot.security.autoconfigure.web.servlet.SecurityFilterProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.jdbc.core.JdbcTemplate;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
@@ -50,14 +61,18 @@ import tools.jackson.databind.json.JsonMapper;
  * @author ByteForce
  * @since 1.0.0
  */
-@AutoConfiguration
+@AutoConfiguration(after = DataSourceAutoConfiguration.class)
 @ConditionalOnBean(AiEnabledMarker.class)
 @ConditionalOnProperty(
         prefix = "seedj.ai.guard",
         name = "enabled",
         havingValue = "true",
         matchIfMissing = true)
-@EnableConfigurationProperties({AiProperties.class, PolicyProperties.class})
+@EnableConfigurationProperties({
+    AiProperties.class,
+    PolicyProperties.class,
+    AdmissionProperties.class
+})
 public class AiGuardAutoConfiguration {
 
     /**
@@ -102,6 +117,72 @@ public class AiGuardAutoConfiguration {
      * @param properties AI 配置
      * @return 签发方
      */
+    /**
+     * 无 DataSource 的内存准入存储；有 DataSource 时由 PostgreSQL 配置提供。
+     *
+     * @return 准入存储
+     */
+    @Bean
+    @ConditionalOnMissingBean({DecisionAdmissionStore.class, DataSource.class})
+    public DecisionAdmissionStore inMemoryDecisionAdmissionStore() {
+        return new InMemoryDecisionAdmissionStore();
+    }
+
+    /**
+     * 命令事务的 GUC 设置器；只有有 DataSource 且准入开启时才装配。
+     *
+     * @param dataSource 数据源
+     * @return GUC 设置器
+     */
+    @Bean(autowireCandidate = false)
+    @ConditionalOnBean(DataSource.class)
+    @ConditionalOnProperty(
+            prefix = "seedj.ai.guard.admission",
+            name = "enabled",
+            havingValue = "true",
+            matchIfMissing = true)
+    public AgentDecisionGuc agentDecisionGuc(DataSource dataSource) {
+        return new AgentDecisionGuc(new JdbcTemplate(dataSource));
+    }
+
+    /**
+     * 把宿主的 {@link TransactionRunner} 包一层，在事务内设置 RLS GUC。
+     *
+     * @param guc GUC 设置器
+     * @return bean 后处理器
+     */
+    @Bean
+    static BeanPostProcessor agentDecisionTransactionRunnerPostProcessor(
+            ObjectProvider<AgentDecisionGuc> guc) {
+        return new BeanPostProcessor() {
+            @Override
+            public Object postProcessAfterInitialization(Object bean, String beanName) {
+                AgentDecisionGuc available = guc.getIfAvailable();
+                if (bean instanceof TransactionRunner runner
+                        && !(bean instanceof AgentDecisionTransactionRunner)
+                        && available != null) {
+                    return new AgentDecisionTransactionRunner(runner, available);
+                }
+                return bean;
+            }
+        };
+    }
+
+    /**
+     * 过期 admission 清理；宿主需要 {@code @EnableScheduling}。
+     *
+     * @param store 准入存储
+     * @param properties 准入配置
+     * @return 清理任务
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnBean(DecisionAdmissionStore.class)
+    public AdmissionSweeper admissionSweeper(
+            DecisionAdmissionStore store, AdmissionProperties properties) {
+        return new AdmissionSweeper(store, Duration.ofHours(1));
+    }
+
     @Bean
     @ConditionalOnMissingBean
     public DecisionTokenIssuer decisionTokenIssuer(AiProperties properties) {
@@ -180,11 +261,20 @@ public class AiGuardAutoConfiguration {
                 ObjectProvider<CallerIdCodec> callerIds,
                 Clock clock,
                 ObjectProvider<JsonMapper> mappers,
+                ObjectProvider<DecisionAdmissionStore> admissions,
+                AdmissionProperties admissionProperties,
                 AiProperties properties) {
             CallerIdCodec codec = callerIds.getIfAvailable(CallerIdCodec::uuid);
             JsonMapper mapper = mappers.getIfAvailable(() -> JsonMapper.builder().build());
             return new AgentGuardFilter(
-                    verifier, callers, codec, properties.decision().audience(), clock, mapper);
+                    verifier,
+                    callers,
+                    codec,
+                    properties.decision().audience(),
+                    clock,
+                    mapper,
+                    admissions.getIfAvailable(),
+                    admissionProperties.ttl());
         }
 
         /**

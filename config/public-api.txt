@@ -1,3 +1,4 @@
+core|cn.byteforce.seedj.ai.spi|DecisionAdmissionStore
 core|cn.byteforce.seedj.ai.spi|DecisionLedger
 core|cn.byteforce.seedj.ai.spi|ToolRegistry
 core|cn.byteforce.seedj.ai|ActionClass
@@ -9,6 +10,7 @@ core|cn.byteforce.seedj.ai|ApprovalStatus
 core|cn.byteforce.seedj.ai|ArgsHash
 core|cn.byteforce.seedj.ai|CommandFingerprint
 core|cn.byteforce.seedj.ai|CommandRef
+core|cn.byteforce.seedj.ai|DecisionAdmission
 core|cn.byteforce.seedj.ai|DecisionEffect
 core|cn.byteforce.seedj.ai|DecisionIntent
 core|cn.byteforce.seedj.ai|DecisionKind
@@ -20,6 +22,7 @@ core|cn.byteforce.seedj.ai|EffectStatus
 core|cn.byteforce.seedj.ai|Evidence
 core|cn.byteforce.seedj.ai|GuardVerdict
 core|cn.byteforce.seedj.ai|IdemFingerprint
+core|cn.byteforce.seedj.ai|LedgerAudit
 core|cn.byteforce.seedj.ai|LedgerHash
 core|cn.byteforce.seedj.ai|LedgerVerification
 core|cn.byteforce.seedj.ai|ModelRef
@@ -116,6 +119,7 @@ core|cn.byteforce.seedj.cqrs|CommandSubmission
 core|cn.byteforce.seedj.cqrs|CommandValidator
 core|cn.byteforce.seedj.cqrs|CqrsErrorCode
 core|cn.byteforce.seedj.cqrs|CqrsException
+core|cn.byteforce.seedj.cqrs|DecisionContext
 core|cn.byteforce.seedj.cqrs|EventSourcedRepository
 core|cn.byteforce.seedj.cqrs|EventStream
 core|cn.byteforce.seedj.cqrs|IdCodec
@@ -410,9 +414,13 @@ seedj-ai-starter|cn.byteforce.seedj.starter.ai.approval|ApprovalService
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.approval|ApprovalView
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.approval|DecisionTokenFactory
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.approval|LoggingApprovalNotifier
+seedj-ai-starter|cn.byteforce.seedj.starter.ai.autoconfigure|AdmissionProperties
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.autoconfigure|AiGuardAutoConfiguration
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.autoconfigure|ApprovalAutoConfiguration
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.autoconfigure|DecisionPlaneAutoConfiguration
+seedj-ai-starter|cn.byteforce.seedj.starter.ai.guard|AdmissionSweeper
+seedj-ai-starter|cn.byteforce.seedj.starter.ai.guard|AgentDecisionGuc
+seedj-ai-starter|cn.byteforce.seedj.starter.ai.guard|AgentDecisionTransactionRunner
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.guard|AgentGuardFilter
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.guard|ConfiguredToolRegistry
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.ledger|RecordedApproval
@@ -423,6 +431,7 @@ seedj-ai-starter|cn.byteforce.seedj.starter.ai.plane|ConfiguredReconciliationSou
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.plane|DecisionController
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.plane|DecisionService
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.plane|JwksController
+seedj-ai-starter|cn.byteforce.seedj.starter.ai.plane|LedgerReconciliationSource
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.plane|OutcomeDeriver
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.plane|PlaneReconciliationSource
 seedj-ai-starter|cn.byteforce.seedj.starter.ai.plane|ReconciliationJob
@@ -638,6 +647,7 @@ seedj-im-starter|cn.byteforce.seedj.starter.im|ImStoreAutoConfiguration
 seedj-infra-coord|cn.byteforce.seedj.infra.coord|CoordAutoConfiguration
 seedj-infra-coord|cn.byteforce.seedj.infra.coord|CoordProperties
 seedj-infra-coord|cn.byteforce.seedj.infra.coord|CoordProviderGuardAutoConfiguration
+seedj-infra-local|cn.byteforce.seedj.infra.local.ai|InMemoryDecisionAdmissionStore
 seedj-infra-local|cn.byteforce.seedj.infra.local.ai|InMemoryDecisionLedger
 seedj-infra-local|cn.byteforce.seedj.infra.local.audit|InMemoryAuditAutoConfiguration
 seedj-infra-local|cn.byteforce.seedj.infra.local.audit|InMemoryAuditStore
@@ -682,6 +692,7 @@ seedj-infra-local|cn.byteforce.seedj.infra.local.transit|TransitAutoConfiguratio
 seedj-infra-local|cn.byteforce.seedj.infra.local.transit|TransitProperties
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.ai|AiSchemaCapability
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.ai|PostgresAiAutoConfiguration
+seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.ai|PostgresDecisionAdmissionStore
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.ai|PostgresDecisionLedger
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.audit|AuditSchemaCapability
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.audit|JdbcAuditStore

@@ -30,7 +30,10 @@ final class ReconcileQueries {
     /** 按 {@code (issuer, idempotency_key)} 取命令记录。 */
     static final String COMMAND_BY_IDEMPOTENCY = "command_by_idempotency";
 
-    /** 按 {@code payload->>'command_id'} 取链条目（U9 前唯一的关联方式）。 */
+    /** 按 {@code payload->>'decision_id'} 取链条目（U9 直链）。 */
+    static final String AUDIT_BY_DECISION = "audit_by_decision";
+
+    /** 按 {@code payload->>'command_id'} 取链条目（历史条目的回退方式）。 */
     static final String AUDIT_BY_COMMAND = "audit_by_command";
 
     private static final String RESOURCE = "db/ai/reconcile.sql";
@@ -79,7 +82,19 @@ final class ReconcileQueries {
     }
 
     /**
-     * 查命令对应的链条目标识。
+     * 按决策标识直取链条目。
+     *
+     * @param decisionId 决策标识
+     * @return 链条目标识；没有对应条目时为空
+     */
+    Optional<String> auditEntryIdOfDecision(String decisionId) {
+        Objects.requireNonNull(decisionId, "decisionId");
+        return jdbc.query(statement(AUDIT_BY_DECISION), AUDIT_ENTRY_ID, decisionId).stream()
+                .findFirst();
+    }
+
+    /**
+     * 按命令记录标识查链条目（历史条目回退）。
      *
      * @param commandId 命令记录标识
      * @return 链条目标识；没有对应条目时为空

@@ -50,6 +50,7 @@ final class AiMigrations {
                         create trigger agent_decision_no_update before update or delete
                           on agent_decision_record
                           for each row execute function agent_decision_immutable();
-                        """));
+                        """),
+                new Migration(2, "admission and reconciliation indexes", AiAdmissionMigrations.V2));
     }
 }

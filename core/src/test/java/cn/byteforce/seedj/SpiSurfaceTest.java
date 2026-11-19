@@ -93,6 +93,7 @@ class SpiSurfaceTest {
                             "CommandRuntime",
                             "CommandStatus",
                             "CommandSubmission",
+                            "DecisionContext",
                             "CqrsErrorCode",
                             "CqrsException",
                             "EventSourcedRepository",
@@ -131,6 +132,7 @@ class SpiSurfaceTest {
                             "ArgsHash",
                             "CommandFingerprint",
                             "CommandRef",
+                            "DecisionAdmission",
                             "DecisionEffect",
                             "DecisionIntent",
                             "DecisionKind",
@@ -142,6 +144,7 @@ class SpiSurfaceTest {
                             "Evidence",
                             "GuardVerdict",
                             "IdemFingerprint",
+                            "LedgerAudit",
                             "LedgerHash",
                             "LedgerVerification",
                             "ModelRef",
@@ -149,7 +152,7 @@ class SpiSurfaceTest {
                             "PolicyRef",
                             "Proposal"),
                     "cn.byteforce.seedj.ai.spi",
-                    List.of("DecisionLedger", "ToolRegistry"));
+                    List.of("DecisionAdmissionStore", "DecisionLedger", "ToolRegistry"));
 
     private static final Map<String, List<String>> ALLOWED =
             Map.of(

@@ -510,6 +510,35 @@ seedj:
 - **coord 适配**：本版审批事实来自 `WorkflowProvider`，coord 的 `Evaluate` 版本（U8）与
   workflow COMMITTED 之后只需换 Provider/端口实现，token、账本、guard 不改。
 
+## 准入、RLS 与审计直链（T3-local）
+
+守卫校验 token 之后、命令执行之前，会把这次决策写成一条 `agent_decision_admission`（decision_id /
+command_type / targets / args_hash / actor / expires_at），并在命令事务内设置
+`agent.decision_id` / `agent.command_type` / `agent.args_hash` 三个事务级 GUC。不可逆表的 RLS 策略用
+`agent_admission_ok(command_type, args_hash)` 核对：没有 admission、已过期或参数不一致，直连写入被数据库拒绝。
+
+```yaml
+seedj:
+  ai:
+    guard:
+      admission:
+        enabled: true      # 有 DataSource 时默认开
+        ttl: 5m            # 实际取 min(token.exp, now + ttl)
+```
+
+- **直连兜底**：`app_rw` 对不可逆表保留 DML，但受 RLS 约束；`guard_rw` 只写 admission。宿主按
+  `alter table ... enable row level security` + `force row level security` + 一条
+  `using/with check (agent_admission_ok(...))` 策略接入；`seedj-it` 的 `AdmissionRlsIT` 是可复制样例。
+- **审计直链**：guard 把 `decision_id` / `ledger_intent_id` 带进 `DecisionContext`，命令审计 payload
+  追加这两个键；`reconcile.sql` 的 `audit_by_decision` 优先按 `decision_id` 直取，历史条目回退
+  `command_id`。审计迁移 V3 建了表达式索引。
+- **全量对账**：`LedgerReconciliationSource` 从账本扫描「outcome=ok 但 audit_entry_id 为空」；
+  `reconciliationJob.reconcileOnce` 另扫「有 intent 无 outcome」并追加
+  `reconciled(unknown, outcome_missing)`。两者都按 reason 去重。
+- **幽灵记录**：`DecisionLedger.audit(partition)` 除链校对之外比对表行数与链头；
+  `rowCount != headSequence` 即绕过账本直插的幽灵行。`verify` 保持只校对链头快照的语义。
+- **没有 DataSource**：内存宿主不装配 admission，启动 WARN；`agent.decision_id` 也不会设置，RLS 不适用。
+
 ## 明确不做的范围
 
 以下每条都是**已知缺口**，不是「做了但没写文档」。做评测或对外承诺时按这条清单扣分。
@@ -517,25 +546,22 @@ seedj:
 1. **coord 的实际策略求值（`Evaluate`）。** T1-local 已交付：决策面钉版本、守卫校验 head、`policy_stale`
    与 `policy_unavailable` 都可用；但求值结果来自配置而不是 coord——`PolicyClient.evaluate` 仍只返回
    不透明 `byte[]`，没有「本次判定实际使用的那一版」（U8）。等 U8 落地后替换两个端口即可。
-2. **coord 侧的 `Start` / `Approve` 适配器与不可逆动作的行级门禁。** T2-local 已用
-   `WorkflowProvider` 端口接上本地审批；coord 工作流 COMMITTED 后换 Provider 实现即可。数据库层按
-   `action_class` 拦不可逆动作（RLS/admission）归 T3。
+2. **coord 侧的 `Start` / `Approve` 适配器。** T2-local 已用 `WorkflowProvider` 端口接上本地审批；
+   coord 工作流 COMMITTED 后换 Provider 实现即可。T3-local 的 `decision_admission` + RLS 兜底已交付；
+   宿主需按指南给不可逆表套策略。
 3. **外部副作用的两段协议与 IM 回传。** 「先固化外部可见内容、执行后只做事实记录」没有实现；审批
    通知与动作回传（IM 的系统卡片）也没有。
 4. **runtime 只对 `EXECUTE_TOOL` 走决策面。** `READ` / `FINISH` / `ASK_USER` / `ESCALATE` 是循环内
    转换，不调决策面、不落账、不签 token。原因：决策面的 intent 要求 `command` 必填，而 `Proposal` 只
    在 `EXECUTE_TOOL` 时携带 `CommandRef`。代价是 runtime 驱动的只读步骤不进账本；决策面自己的只读
    路径（宿主直接调用并带上 `command`）仍可用并已测。
-5. **对账的跨租户扫描入口。** `PlaneReconciliationSource` 的默认实现
-   `ConfiguredReconciliationSource` 返回空列表并在启动时 WARN，`DecisionLedger` 也没有「按租户/
-   时间扫描」的读接口。所以 T0 的对账不是全量对账：它只核对宿主（或运维脚本）给出的 decision_id。
-6. **`verify` 看不到链头之后的幽灵记录。** 校对从链头往下按序扫记录，直连 `INSERT` 绕过账本、没有
-   推进链头的那类记录不在快照内。这是快照语义的直接推论，不是 bug——要发现它得比对表行数与链头
-   `last_sequence`。
-7. **`audit_entry` 与账本只能按 `command_id` 关联。** seedj 的审计条目 payload 固定为
-   `{command_id, event_ids}`（`@Audited` / `AuditAppendRequest`），不写 `decision_id` /
-   `ledger_intent_id`，所以 `select id from audit_entry where payload->>'command_id' = ?` 是对账唯一
-   可用的关联方式：可回放，但不是按 `decision_id` 的直链。U9 之后应改为直取。
+5. **跨租户扫描。** `DecisionLedger` 的扫描接口按租户与时间过滤；跨租户全量扫描仍未开放（决策面
+   租户由配置钉死，一次只处理一个租户）。
+6. **`verify` 看不到链头之后的幽灵记录；用 `audit`。** `verify` 仍只校对链头快照；`audit(partition)`
+   比对表行数与 `last_sequence`，能发现直连 `INSERT` 且未推进链头的行。
+7. **`audit_entry` 与账本已可按 `decision_id` 直链。** 命令审计 payload 追加 `decision_id` /
+   `ledger_intent_id`；对账优先按 `decision_id` 直取，历史条目回退 `command_id`。审计链契约本身
+   （`@Audited` 的 `{command_id,event_ids}`）不变，直链是附加键。
 8. **`seedj-ai-starter` 自己的单测需要 Docker。** 账本契约（`PostgresDecisionLedgerTest`）、对账与
    决策面宿主测试都用 Testcontainers 起 `postgres:16-alpine`；没有 Docker 时这个模块的 `verify` 跑
    不完。纯规则测试不需要 Docker（如 `EvalBaselineTest`）。

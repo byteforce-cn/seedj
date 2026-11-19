@@ -1,12 +1,15 @@
 package cn.byteforce.seedj.starter.ai.guard;
 
 import cn.byteforce.seedj.ai.AiErrorCode;
+import cn.byteforce.seedj.ai.DecisionAdmission;
 import cn.byteforce.seedj.ai.GuardVerdict;
+import cn.byteforce.seedj.ai.spi.DecisionAdmissionStore;
 import cn.byteforce.seedj.core.clock.Clock;
 import cn.byteforce.seedj.core.exception.ContractException;
 import cn.byteforce.seedj.core.security.Caller;
 import cn.byteforce.seedj.core.security.CallerIdCodec;
 import cn.byteforce.seedj.core.security.CallerProvider;
+import cn.byteforce.seedj.cqrs.DecisionContext;
 import cn.byteforce.seedj.starter.ai.token.DecisionTokenVerifier;
 import cn.byteforce.seedj.starter.ai.token.GuardContext;
 import cn.byteforce.seedj.starter.cqrs.web.CommandRequest;
@@ -23,6 +26,8 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -102,6 +107,10 @@ public final class AgentGuardFilter extends OncePerRequestFilter {
 
     private final Clock clock;
 
+    private final DecisionAdmissionStore admissions;
+
+    private final Duration admissionTtl;
+
     /**
      * 构造过滤器。
      *
@@ -120,12 +129,38 @@ public final class AgentGuardFilter extends OncePerRequestFilter {
             String audience,
             Clock clock,
             JsonMapper mapper) {
+        this(verifier, callers, callerIds, audience, clock, mapper, null, Duration.ofMinutes(5));
+    }
+
+    /**
+     * 带准入存储的构造器。
+     *
+     * @param verifier token 校验器
+     * @param callers 当前调用方
+     * @param callerIds 调用方标识 → actor 的编解码
+     * @param audience 本服务名
+     * @param clock 取时入口
+     * @param mapper JSON 编解码
+     * @param admissions 准入存储；{@code null} 表示不写 admission（仍设置决策上下文）
+     * @param admissionTtl admission 有效期上限
+     */
+    public AgentGuardFilter(
+            DecisionTokenVerifier verifier,
+            CallerProvider callers,
+            CallerIdCodec callerIds,
+            String audience,
+            Clock clock,
+            JsonMapper mapper,
+            DecisionAdmissionStore admissions,
+            Duration admissionTtl) {
         this.verifier = Objects.requireNonNull(verifier, "verifier");
         this.callers = Objects.requireNonNull(callers, "callers");
         this.callerIds = Objects.requireNonNull(callerIds, "callerIds");
         this.audience = audience;
         this.clock = Objects.requireNonNull(clock, "clock");
         this.mapper = Objects.requireNonNull(mapper, "mapper");
+        this.admissions = admissions;
+        this.admissionTtl = admissionTtl == null ? Duration.ofMinutes(5) : admissionTtl;
     }
 
     @Override
@@ -221,11 +256,63 @@ public final class AgentGuardFilter extends OncePerRequestFilter {
         }
 
         GuardVerdict verdict = verifier.verify(token, context, clock.now());
-        if (verdict instanceof GuardVerdict.Reject rejected) {
+        if (!(verdict instanceof GuardVerdict.Admit admitted)) {
+            GuardVerdict.Reject rejected = (GuardVerdict.Reject) verdict;
             reject(response, rejected.code().wire(), rejected.detail(), false);
             return;
         }
-        chain.doFilter(new CachedBodyRequest(request, body), response);
+        DecisionContext decisionContext =
+                new DecisionContext(
+                        admitted.claims().decisionId(),
+                        admitted.claims().ledgerIntentId(),
+                        context.commandType(),
+                        admitted.claims().argsHash());
+        if (admissions != null) {
+            Instant now = clock.now();
+            Instant maxExpiry = now.plus(admissionTtl);
+            Instant expiresAt =
+                    admitted.claims().expiresAt().isBefore(maxExpiry)
+                            ? admitted.claims().expiresAt()
+                            : maxExpiry;
+            try {
+                admissions.admit(
+                        new DecisionAdmission(
+                                admitted.claims().decisionId(),
+                                UUID.fromString(admitted.claims().tenant()),
+                                context.commandType(),
+                                context.targets(),
+                                admitted.claims().argsHash(),
+                                admitted.claims().actor(),
+                                expiresAt,
+                                now));
+            } catch (IllegalStateException conflict) {
+                if (conflict.getMessage() != null
+                        && conflict.getMessage().contains("admission conflict")) {
+                    reject(
+                            response,
+                            AiErrorCode.ADMISSION_CONFLICT.wire(),
+                            "admission conflict for decision " + admitted.claims().decisionId(),
+                            false);
+                } else {
+                    reject(
+                            response,
+                            AiErrorCode.ADMISSION_FAILED.wire(),
+                            "admission store unavailable",
+                            false);
+                }
+                return;
+            } catch (RuntimeException failure) {
+                reject(
+                        response,
+                        AiErrorCode.ADMISSION_FAILED.wire(),
+                        "admission store unavailable",
+                        false);
+                return;
+            }
+        }
+        try (DecisionContext.Scope ignored = DecisionContext.open(decisionContext)) {
+            chain.doFilter(new CachedBodyRequest(request, body), response);
+        }
     }
 
     /** 命令载荷的必填项；返回 {@code null} 表示可以继续校验。 */

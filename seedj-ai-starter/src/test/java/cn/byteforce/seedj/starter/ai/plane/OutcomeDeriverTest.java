@@ -213,10 +213,12 @@ class OutcomeDeriverTest {
 
         assertThat(scanning.reconcileOnce(now.plus(TTL).plusSeconds(60))).isEqualTo(1);
         assertThat(listed).containsExactly(decisionId);
-        // 有意图无效果：对账只登记待核对，不伪造 outcome，也不造 reconciled
+        // 有意图无效果：追加 reconciled(unknown, outcome_missing)，不伪造 outcome
         assertThat(ledger.byDecision(TENANT, decisionId))
                 .extracting(DecisionRecord::kind)
-                .containsExactly(DecisionRecordKind.INTENT);
+                .containsExactly(DecisionRecordKind.INTENT, DecisionRecordKind.RECONCILED);
+        assertThat(ledger.byDecision(TENANT, decisionId).get(1).body().get("reason"))
+                .isEqualTo(ReconciliationJob.REASON_OUTCOME_MISSING);
     }
 
     @Test

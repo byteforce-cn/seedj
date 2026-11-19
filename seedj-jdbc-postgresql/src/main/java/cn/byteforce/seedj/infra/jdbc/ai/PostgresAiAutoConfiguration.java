@@ -1,5 +1,6 @@
 package cn.byteforce.seedj.infra.jdbc.ai;
 
+import cn.byteforce.seedj.ai.spi.DecisionAdmissionStore;
 import cn.byteforce.seedj.ai.spi.DecisionLedger;
 import cn.byteforce.seedj.core.InfrastructureCapability;
 import cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner;
@@ -39,6 +40,12 @@ public class PostgresAiAutoConfiguration {
     @ConditionalOnMissingBean
     public DecisionLedger decisionLedger(DataSource dataSource) {
         return new PostgresDecisionLedger(dataSource);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public DecisionAdmissionStore decisionAdmissionStore(DataSource dataSource) {
+        return new PostgresDecisionAdmissionStore(dataSource);
     }
 
     @Bean

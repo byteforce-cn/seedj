@@ -12,10 +12,10 @@ import cn.byteforce.seedj.starter.ai.AiProperties;
 import cn.byteforce.seedj.starter.ai.approval.ApprovalService;
 import cn.byteforce.seedj.starter.ai.guard.ConfiguredToolRegistry;
 import cn.byteforce.seedj.starter.ai.plane.CapabilityRegistry;
-import cn.byteforce.seedj.starter.ai.plane.ConfiguredReconciliationSource;
 import cn.byteforce.seedj.starter.ai.plane.DecisionController;
 import cn.byteforce.seedj.starter.ai.plane.DecisionService;
 import cn.byteforce.seedj.starter.ai.plane.JwksController;
+import cn.byteforce.seedj.starter.ai.plane.LedgerReconciliationSource;
 import cn.byteforce.seedj.starter.ai.plane.OutcomeDeriver;
 import cn.byteforce.seedj.starter.ai.plane.PlaneReconciliationSource;
 import cn.byteforce.seedj.starter.ai.plane.ReconciliationJob;
@@ -264,14 +264,17 @@ public class DecisionPlaneAutoConfiguration {
     }
 
     /**
-     * 待对账决策的来源：T0 默认实现返回空列表，见 {@link ConfiguredReconciliationSource}。
+     * 待对账决策的来源：默认从账本扫描，宿主自定义 bean 优先。
      *
+     * @param ledger 决策账本
+     * @param properties AI 配置
      * @return 对账来源
      */
     @Bean
     @ConditionalOnMissingBean
-    public PlaneReconciliationSource planeReconciliationSource() {
-        return new ConfiguredReconciliationSource();
+    public PlaneReconciliationSource planeReconciliationSource(
+            DecisionLedger ledger, AiProperties properties) {
+        return new LedgerReconciliationSource(ledger, properties);
     }
 
     /**
