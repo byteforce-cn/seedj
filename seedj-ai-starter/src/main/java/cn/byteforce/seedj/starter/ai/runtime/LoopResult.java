@@ -35,7 +35,10 @@ public record LoopResult(Outcome outcome, int steps, String detail, List<String>
         TOOL_FAILED,
 
         /** 走满步数上限仍未收尾。 */
-        MAX_STEPS_REACHED
+        MAX_STEPS_REACHED,
+
+        /** 某一步在等待人工审批：没有执行，也没有失败。 */
+        PENDING_APPROVAL
     }
 
     /**
@@ -92,6 +95,20 @@ public record LoopResult(Outcome outcome, int steps, String detail, List<String>
      */
     public static LoopResult maxStepsReached(int steps, List<String> observations) {
         return new LoopResult(Outcome.MAX_STEPS_REACHED, steps, null, observations);
+    }
+
+    /**
+     * 停在待审批：{@code detail} 是 decision_id 字符串。
+     *
+     * @param steps 实际步数
+     * @param decisionId 决策标识
+     * @param observations 各步观测
+     * @return 结局
+     */
+    public static LoopResult pendingApproval(
+            int steps, java.util.UUID decisionId, List<String> observations) {
+        java.util.Objects.requireNonNull(decisionId, "decisionId");
+        return new LoopResult(Outcome.PENDING_APPROVAL, steps, decisionId.toString(), observations);
     }
 
     private static String truncate(String body) {

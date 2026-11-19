@@ -5,6 +5,9 @@ import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;
 import cn.byteforce.seedj.core.security.Caller;
 import cn.byteforce.seedj.core.security.CallerProvider;
+import cn.byteforce.seedj.starter.ai.approval.ApprovalAction;
+import cn.byteforce.seedj.starter.ai.approval.ApprovalService;
+import cn.byteforce.seedj.starter.ai.approval.ApprovalView;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
@@ -49,6 +52,12 @@ public final class DecisionController {
     /** 按决策标识上报执行结局。 */
     static final String DECISION_OUTCOME_PATH = "/v1/decisions/{id}/outcome";
 
+    /** 审批视图与动作。 */
+    static final String DECISION_APPROVAL_PATH = "/v1/decisions/{id}/approval";
+
+    /** 审批通过后取 token。 */
+    static final String DECISION_GRANT_PATH = "/v1/decisions/{id}/grant";
+
     private final DecisionService decisions;
 
     private final OutcomeDeriver outcomes;
@@ -56,6 +65,8 @@ public final class DecisionController {
     private final CallerProvider callers;
 
     private final String permission;
+
+    private final ApprovalService approval;
 
     /**
      * 构造控制器。
@@ -70,10 +81,29 @@ public final class DecisionController {
             OutcomeDeriver outcomes,
             CallerProvider callers,
             String permission) {
+        this(decisions, outcomes, callers, permission, null);
+    }
+
+    /**
+     * 带审批端口的构造器。
+     *
+     * @param decisions 决策服务
+     * @param outcomes outcome 派生器；{@code null} 表示没有对账数据源
+     * @param callers 当前调用方
+     * @param permission 调用决策面所需的权限名
+     * @param approval 审批服务；{@code null} 表示未装配审批
+     */
+    public DecisionController(
+            DecisionService decisions,
+            OutcomeDeriver outcomes,
+            CallerProvider callers,
+            String permission,
+            ApprovalService approval) {
         this.decisions = Objects.requireNonNull(decisions, "decisions");
         this.outcomes = outcomes;
         this.callers = Objects.requireNonNull(callers, "callers");
         this.permission = Objects.requireNonNull(permission, "permission");
+        this.approval = approval;
     }
 
     /**
@@ -148,8 +178,77 @@ public final class DecisionController {
                 reported.decisionId(), reported.outcomeRecordId(), reported.status().wire());
     }
 
+    /**
+     * 读取审批视图。
+     *
+     * @param id 决策标识
+     * @return 审批视图
+     * @throws ContractException {@code object_not_found}：没有审批记录；{@code unavailable}：未装配审批
+     */
+    @GetMapping(DECISION_APPROVAL_PATH)
+    public ApprovalView approval(@PathVariable UUID id) {
+        requirePermission();
+        return requireApproval().view(id);
+    }
+
+    /**
+     * 批准或驳回一条待审批决策。
+     *
+     * @param id 决策标识
+     * @param request 动作与意见
+     * @return 新的审批视图
+     * @throws ContractException {@code forbidden}：非审批人/自审批；{@code version_conflict}：已终结
+     */
+    @PostMapping(DECISION_APPROVAL_PATH)
+    public ApprovalView act(@PathVariable UUID id, @RequestBody ApprovalActionRequest request) {
+        Caller caller = requirePermission();
+        if (request == null || request.action() == null || request.action().isBlank()) {
+            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD, "缺少必填字段 action");
+        }
+        ApprovalAction action;
+        try {
+            action = ApprovalAction.fromWire(request.action());
+        } catch (IllegalArgumentException error) {
+            throw new ContractException(
+                    ContractErrorCode.INVALID_PAYLOAD, "未知审批动作: " + request.action());
+        }
+        ApprovalService service = requireApproval();
+        service.act(id, action, approverId(caller), request.comment());
+        return service.view(id);
+    }
+
+    /**
+     * 审批通过后签发 token。
+     *
+     * @param id 决策标识
+     * @return {@code {token}}
+     * @throws ContractException {@code version_conflict}：未批准/已过期
+     */
+    @PostMapping(DECISION_GRANT_PATH)
+    public GrantResponse grant(@PathVariable UUID id) {
+        requirePermission();
+        return new GrantResponse(requireApproval().grant(id));
+    }
+
+    private ApprovalService requireApproval() {
+        if (approval == null) {
+            throw new ContractException(
+                    ContractErrorCode.UNAVAILABLE, "未装配审批（seedj.ai.approval.enabled=false）");
+        }
+        return approval;
+    }
+
+    private static UUID approverId(Caller caller) {
+        try {
+            return UUID.fromString(caller.id());
+        } catch (IllegalArgumentException error) {
+            throw new ContractException(
+                    ContractErrorCode.FORBIDDEN, "审批人 id 不是 UUID: " + caller.id());
+        }
+    }
+
     /** 授权门槛：未认证 401，缺权限 403（两者都不泄露决策是否存在）。 */
-    private void requirePermission() {
+    private Caller requirePermission() {
         Caller caller =
                 callers.find()
                         .orElseThrow(
@@ -161,7 +260,25 @@ public final class DecisionController {
                     ContractErrorCode.FORBIDDEN,
                     "缺少权限 " + permission + "（seedj.ai.plane.permission）");
         }
+        return caller;
     }
+
+    /**
+     * 审批动作请求体（线格式 snake_case）。
+     *
+     * @param action {@code approve} 或 {@code reject}
+     * @param comment 意见；可空
+     */
+    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+    public record ApprovalActionRequest(String action, String comment) {}
+
+    /**
+     * grant 响应体。
+     *
+     * @param token JWS compact 串
+     */
+    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+    public record GrantResponse(String token) {}
 
     /**
      * 账本记录响应体（线格式 snake_case）。

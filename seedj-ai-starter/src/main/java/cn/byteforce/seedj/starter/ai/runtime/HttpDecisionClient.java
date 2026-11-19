@@ -47,6 +47,11 @@ public final class HttpDecisionClient implements DecisionClient {
 
     private static final String VERDICT_DENY = "deny";
 
+    private static final String VERDICT_PENDING = "pending_approval";
+
+    /** 审批通过后取 token 的路径后缀。 */
+    private static final String GRANT_PATH_SUFFIX = "/grant";
+
     private final RestClient client;
 
     private final String baseUrl;
@@ -83,6 +88,19 @@ public final class HttpDecisionClient implements DecisionClient {
      */
     @Override
     public DecisionGrant ask(TaskContract contract, int step, Proposal proposal, String audience) {
+        DecisionOutcome outcome = askOutcome(contract, step, proposal, audience);
+        if (outcome instanceof DecisionOutcome.Pending pending) {
+            throw new IllegalStateException("决策等待审批，需先 grant: " + pending.pending().decisionId());
+        }
+        if (outcome instanceof DecisionOutcome.Denied denied) {
+            return denied.grant();
+        }
+        return ((DecisionOutcome.Granted) outcome).grant();
+    }
+
+    @Override
+    public DecisionOutcome askOutcome(
+            TaskContract contract, int step, Proposal proposal, String audience) {
         Objects.requireNonNull(contract, "contract");
         Objects.requireNonNull(proposal, "proposal");
         DecisionResponse response;
@@ -97,7 +115,43 @@ public final class HttpDecisionClient implements DecisionClient {
         } catch (RestClientResponseException error) {
             throw new IllegalStateException("决策面返回 HTTP " + error.getStatusCode().value(), error);
         }
-        return grant(response);
+        if (response == null || response.decisionId() == null) {
+            throw new IllegalStateException("决策面响应缺少 decision_id");
+        }
+        if (VERDICT_PENDING.equals(response.verdict())) {
+            return new DecisionOutcome.Pending(
+                    new DecisionPending(
+                            response.decisionId(),
+                            VERDICT_PENDING,
+                            response.approvalDeadline(),
+                            response.approvalInstanceId(),
+                            response.approvalTaskId()));
+        }
+        DecisionGrant grant = grant(response);
+        return grant.allowed()
+                ? new DecisionOutcome.Granted(grant)
+                : new DecisionOutcome.Denied(grant);
+    }
+
+    @Override
+    public String grant(UUID decisionId) {
+        Objects.requireNonNull(decisionId, "decisionId");
+        GrantResponse response;
+        try {
+            response =
+                    client.post()
+                            .uri(baseUrl + DECISIONS_PATH + "/" + decisionId + GRANT_PATH_SUFFIX)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .retrieve()
+                            .body(GrantResponse.class);
+        } catch (RestClientResponseException error) {
+            throw new IllegalStateException(
+                    "决策面 grant 返回 HTTP " + error.getStatusCode().value(), error);
+        }
+        if (response == null || response.token() == null || response.token().isBlank()) {
+            throw new IllegalStateException("决策面 grant 响应缺少 token");
+        }
+        return response.token();
     }
 
     /**
@@ -221,5 +275,16 @@ public final class HttpDecisionClient implements DecisionClient {
             String verdict,
             String denyRule,
             String token,
-            Instant expiresAt) {}
+            Instant expiresAt,
+            Instant approvalDeadline,
+            String approvalInstanceId,
+            String approvalTaskId) {}
+
+    /**
+     * grant 响应体。
+     *
+     * @param token JWS compact 串
+     */
+    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+    record GrantResponse(String token) {}
 }

@@ -105,10 +105,16 @@ public final class BoundedLoop {
                 }
                 case EXECUTE_TOOL -> {
                     requireRationale(proposal);
-                    DecisionGrant grant = decisions.ask(contract, step, proposal, audience);
-                    if (!grant.allowed()) {
-                        return LoopResult.denied(step, grant.denyRule(), observations);
+                    DecisionOutcome outcome =
+                            decisions.askOutcome(contract, step, proposal, audience);
+                    if (outcome instanceof DecisionOutcome.Denied denied) {
+                        return LoopResult.denied(step, denied.grant().denyRule(), observations);
                     }
+                    if (outcome instanceof DecisionOutcome.Pending pending) {
+                        return LoopResult.pendingApproval(
+                                step, pending.pending().decisionId(), observations);
+                    }
+                    DecisionGrant grant = ((DecisionOutcome.Granted) outcome).grant();
                     ToolResult result =
                             tools.execute(call(proposal), grant.token(), grant.decisionId());
                     observations.add(describe(step, proposal, result));

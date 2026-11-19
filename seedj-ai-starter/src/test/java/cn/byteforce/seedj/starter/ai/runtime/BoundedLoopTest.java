@@ -383,6 +383,95 @@ class BoundedLoopTest {
     }
 
     @Test
+    @DisplayName("pending 结论让循环停下：不调工具、不报 outcome")
+    void pending_outcome_stops_loop() {
+        ScriptedGateway gateway = new ScriptedGateway(executeProposal());
+        PendingDecisionClient decisions = new PendingDecisionClient();
+        RecordingToolInvoker tools =
+                new RecordingToolInvoker(new ToolResult(true, "{}", COMMAND_ID));
+
+        LoopResult result = loop(gateway, decisions, tools).run(contract(3));
+
+        assertThat(result.outcome()).isEqualTo(LoopResult.Outcome.PENDING_APPROVAL);
+        assertThat(result.detail()).isEqualTo(DECISION_ID.toString());
+        assertThat(tools.executed).isEmpty();
+        assertThat(decisions.reports).isZero();
+    }
+
+    @Test
+    @DisplayName("HTTP pending_approval 映射成 Pending；ask 拒绝把 pending 当放行")
+    void http_pending_response_is_pending_outcome() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        HttpDecisionClient client = new HttpDecisionClient(builder, DECISION_BASE, model());
+
+        String body = "{\"decision_id\":\"" + DECISION_ID + "\",\"verdict\":\"pending_approval\"}";
+        server.expect(requestTo(DECISION_BASE + "/v1/decisions"))
+                .andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
+        server.expect(requestTo(DECISION_BASE + "/v1/decisions"))
+                .andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
+
+        DecisionOutcome outcome = client.askOutcome(contract(3), 2, executeProposal(), AUDIENCE);
+
+        assertThat(outcome).isInstanceOf(DecisionOutcome.Pending.class);
+        assertThat(((DecisionOutcome.Pending) outcome).pending().decisionId())
+                .isEqualTo(DECISION_ID);
+
+        assertThatThrownBy(() -> client.ask(contract(3), 2, executeProposal(), AUDIENCE))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("grant");
+        server.verify();
+    }
+
+    @Test
+    @DisplayName("grant POST /v1/decisions/{id}/grant 并返回 token")
+    void grant_posts_to_grant_endpoint() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        HttpDecisionClient client = new HttpDecisionClient(builder, DECISION_BASE, model());
+
+        server.expect(requestTo(DECISION_BASE + "/v1/decisions/" + DECISION_ID + "/grant"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(
+                        withSuccess("{\"token\":\"" + TOKEN + "\"}", MediaType.APPLICATION_JSON));
+
+        assertThat(client.grant(DECISION_ID)).isEqualTo(TOKEN);
+        server.verify();
+    }
+
+    @Test
+    @DisplayName("grant 非 2xx：抛 IllegalStateException，消息只带状态码")
+    void grant_non_2xx_throws() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        HttpDecisionClient client = new HttpDecisionClient(builder, DECISION_BASE, model());
+
+        server.expect(requestTo(DECISION_BASE + "/v1/decisions/" + DECISION_ID + "/grant"))
+                .andRespond(withStatus(HttpStatus.NOT_FOUND));
+
+        assertThatThrownBy(() -> client.grant(DECISION_ID))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("404");
+        server.verify();
+    }
+
+    @Test
+    @DisplayName("grant 响应缺 token：抛 IllegalStateException")
+    void grant_missing_token_throws() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        HttpDecisionClient client = new HttpDecisionClient(builder, DECISION_BASE, model());
+
+        server.expect(requestTo(DECISION_BASE + "/v1/decisions/" + DECISION_ID + "/grant"))
+                .andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> client.grant(DECISION_ID))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("token");
+        server.verify();
+    }
+
+    @Test
     @DisplayName("决策请求是 snake_case，且不含 token")
     void decision_request_matches_wire_format() {
         RestClient.Builder builder = RestClient.builder();
@@ -699,6 +788,29 @@ class BoundedLoopTest {
             if (reportFailure != null) {
                 throw reportFailure;
             }
+        }
+    }
+
+    private static final class PendingDecisionClient implements DecisionClient {
+
+        private int reports;
+
+        @Override
+        public DecisionGrant ask(
+                TaskContract contract, int step, Proposal proposal, String audience) {
+            throw new AssertionError("ask must not be called for pending");
+        }
+
+        @Override
+        public DecisionOutcome askOutcome(
+                TaskContract contract, int step, Proposal proposal, String audience) {
+            return new DecisionOutcome.Pending(
+                    new DecisionPending(DECISION_ID, "pending_approval", null, null, null));
+        }
+
+        @Override
+        public void report(UUID decisionId, UUID commandId) {
+            reports++;
         }
     }
 

@@ -52,12 +52,19 @@ seedj:
     decision:
       audience: ticket-service
       kid: agent-decision-2026-11
+    approval:
+      enabled: true
+      approvers:
+        - 018f2e3a-0000-7000-8000-0000000a9e01
+      deadline: 4h
     tools:
       - command-type: ticket.create
         action-class: COMPENSABLE
       - command-type: ticket.comment
         action-class: REVERSIBLE
+      - command-type: ticket.refund
+        action-class: IRREVERSIBLE_FINANCIAL
     contracts:
       # id 必须是 UUID：runtime 的 TaskContract.id 会被解析成 task_contract_id。
       - id: 018f2e3a-0000-7000-8000-00000000c017
-        commands: [ticket.create, ticket.comment]
+        commands: [ticket.create, ticket.comment, ticket.refund]

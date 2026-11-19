@@ -65,6 +65,10 @@ docker compose up -d
 | `seedj.ai.llm.enabled` | `true` / `false` | LLM 客户端；默认 `false`，开启后 `base-url` / `model` 必填 |
 | `seedj.ai.llm.base-url` / `model` / `api-key` | 字符串 | OpenAI 兼容端点、模型名与可选密钥（密钥不进日志） |
 | `seedj.ai.llm.timeout` / `max-attempts` / `tool-choice` | 时长 / 整数 / 枚举 | 超时（默认 30s）、重试次数（默认 2）、工具选择（`required` / `auto`） |
+| `seedj.ai.approval.enabled` | `true` / `false` | 不可逆动作审批；默认 `false`，开启后需要 `WorkflowProvider` 与至少一个审批人 |
+| `seedj.ai.approval.approvers` | UUID 列表 | 审批人；`enabled=true` 时至少一个 |
+| `seedj.ai.approval.deadline` / `allow-self-approve` | 时长 / 布尔 | 审批时限（默认 4h）与是否允许发起人自批（默认 `false`） |
+| `seedj.ai.approval.namespace` / `name` / `version` | 字符串 | 审批工作流定义，默认 `seedj-ai` / `agent-approval` / `1.0` |
 | `seedj.ai.provider` | `postgres`（`matchIfMissing=true`）/ 其它 | 账本实现的**开关**，不是 `AiProperties` 的绑定项：由 `seedj-jdbc-postgresql` 的 `PostgresAiAutoConfiguration` 读取，等于 `postgres` 时装配数据库账本，其它值让它整体退出；starter 不提供内存账本 bean，非 `postgres` 场景宿主必须自备 `DecisionLedger` |
 
 ## coord 基础设施

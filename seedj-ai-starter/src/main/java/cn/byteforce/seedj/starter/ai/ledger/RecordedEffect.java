@@ -1,4 +1,4 @@
-package cn.byteforce.seedj.starter.ai.plane;
+package cn.byteforce.seedj.starter.ai.ledger;
 
 import cn.byteforce.seedj.ai.DecisionRecord;
 import cn.byteforce.seedj.ai.EffectStatus;
@@ -22,7 +22,7 @@ import java.util.UUID;
  * @author ByteForce
  * @since 1.0.0
  */
-record RecordedEffect(EffectStatus status, String auditEntryId, UUID commandId) {
+public record RecordedEffect(EffectStatus status, String auditEntryId, UUID commandId) {
 
     /**
      * 读回一条 {@code outcome} / {@code reconciled} 记录的结局。
@@ -32,7 +32,7 @@ record RecordedEffect(EffectStatus status, String auditEntryId, UUID commandId) 
      * @throws NullPointerException {@code record} 为 {@code null}
      * @throws IllegalStateException 记录体缺 {@code effect} 或缺 {@code effect.status}
      */
-    static RecordedEffect of(DecisionRecord record) {
+    public static RecordedEffect of(DecisionRecord record) {
         Objects.requireNonNull(record, "record");
         Object effect = record.body().get("effect");
         if (!(effect instanceof Map<?, ?> fields)) {

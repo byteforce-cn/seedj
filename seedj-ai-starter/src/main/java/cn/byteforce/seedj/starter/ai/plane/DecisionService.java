@@ -23,6 +23,8 @@ import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;
 import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.starter.ai.AiProperties;
+import cn.byteforce.seedj.starter.ai.approval.ApprovalService;
+import cn.byteforce.seedj.starter.ai.approval.DecisionTokenFactory;
 import cn.byteforce.seedj.starter.ai.policy.PolicyEvaluator;
 import cn.byteforce.seedj.starter.ai.policy.PolicyRequest;
 import cn.byteforce.seedj.starter.ai.token.DecisionTokenIssuer;
@@ -103,6 +105,9 @@ public final class DecisionService {
     /** {@code deny_rule}：策略求值的结论不是 {@code allow}。 */
     public static final String RULE_POLICY = "POLICY_DENY";
 
+    /** {@code deny_rule}：不可逆动作需要审批，但本部署没有装配审批。 */
+    public static final String RULE_APPROVAL_UNAVAILABLE = ApprovalService.APPROVAL_UNAVAILABLE;
+
     /** 账本 {@code identity.acting_service}：写死为决策面自身，避免被请求影响。 */
     private static final String ACTING_SERVICE = "seedj-ai-plane";
 
@@ -142,6 +147,8 @@ public final class DecisionService {
 
     private final PolicyEvaluator policy;
 
+    private final ApprovalService approval;
+
     /**
      * 用配置解析出的身份与 token 签发方构造。
      *
@@ -164,7 +171,16 @@ public final class DecisionService {
             IdGenerator<UUID> ids,
             Clock clock,
             AiProperties properties) {
-        this(capabilities, tools, ledger, issuer, ids, clock, properties, PolicyEvaluator.none());
+        this(
+                capabilities,
+                tools,
+                ledger,
+                issuer,
+                ids,
+                clock,
+                properties,
+                PolicyEvaluator.none(),
+                null);
     }
 
     /**
@@ -197,7 +213,43 @@ public final class DecisionService {
                 ids,
                 clock,
                 properties,
-                policy);
+                policy,
+                null);
+    }
+
+    /**
+     * 带审批端口的公开构造器。
+     *
+     * @param capabilities 任务契约能力集
+     * @param tools 工具注册表
+     * @param ledger 决策账本
+     * @param issuer DecisionToken 签发方
+     * @param ids 决策标识生成器
+     * @param clock 取时入口
+     * @param properties AI 配置
+     * @param policy 策略求值端口
+     * @param approval 审批端口；{@code null} 表示不可逆动作一律 deny
+     */
+    public DecisionService(
+            CapabilityRegistry capabilities,
+            ToolRegistry tools,
+            DecisionLedger ledger,
+            DecisionTokenIssuer issuer,
+            IdGenerator<UUID> ids,
+            Clock clock,
+            AiProperties properties,
+            PolicyEvaluator policy,
+            ApprovalService approval) {
+        this(
+                capabilities,
+                tools,
+                ledger,
+                Objects.requireNonNull(issuer, "issuer")::sign,
+                ids,
+                clock,
+                properties,
+                policy,
+                approval);
     }
 
     /** 签发口：把 {@link DecisionTokenIssuer} 的 final 实现挡在构造器之外，便于钉死「先落 intent」的顺序。 */
@@ -209,7 +261,16 @@ public final class DecisionService {
             IdGenerator<UUID> ids,
             Clock clock,
             AiProperties properties) {
-        this(capabilities, tools, ledger, signer, ids, clock, properties, PolicyEvaluator.none());
+        this(
+                capabilities,
+                tools,
+                ledger,
+                signer,
+                ids,
+                clock,
+                properties,
+                PolicyEvaluator.none(),
+                null);
     }
 
     /** 签发口 + 策略端口的内部构造器（测试用短路径）。 */
@@ -222,6 +283,20 @@ public final class DecisionService {
             Clock clock,
             AiProperties properties,
             PolicyEvaluator policy) {
+        this(capabilities, tools, ledger, signer, ids, clock, properties, policy, null);
+    }
+
+    /** 签发口 + 策略端口 + 审批端口的内部构造器（测试用短路径）。 */
+    DecisionService(
+            CapabilityRegistry capabilities,
+            ToolRegistry tools,
+            DecisionLedger ledger,
+            Signer signer,
+            IdGenerator<UUID> ids,
+            Clock clock,
+            AiProperties properties,
+            PolicyEvaluator policy,
+            ApprovalService approval) {
         this.capabilities = Objects.requireNonNull(capabilities, "capabilities");
         this.tools = Objects.requireNonNull(tools, "tools");
         this.ledger = Objects.requireNonNull(ledger, "ledger");
@@ -236,6 +311,7 @@ public final class DecisionService {
         this.audience = blankToNull(config.decision().audience());
         this.ttl = Objects.requireNonNull(config.decision().ttl(), "seedj.ai.decision.ttl");
         this.policy = Objects.requireNonNull(policy, "policy");
+        this.approval = approval;
     }
 
     /**
@@ -340,21 +416,34 @@ public final class DecisionService {
             return new DecisionResult(
                     decisionId, intentRecord.recordId(), VERDICT_ALLOW, null, null, null);
         }
+        if (actionClass.requiresApproval()) {
+            if (approval == null) {
+                ledger.appendOutcome(
+                        decisionId,
+                        DecisionEffect.rejected(RULE_APPROVAL_UNAVAILABLE),
+                        OutcomeSource.PLANE_DECIDED);
+                return new DecisionResult(
+                        decisionId,
+                        intentRecord.recordId(),
+                        VERDICT_DENY,
+                        RULE_APPROVAL_UNAVAILABLE,
+                        null,
+                        null);
+            }
+            approval.start(intent, tokenAudience);
+            return new DecisionResult(
+                    decisionId, intentRecord.recordId(), "pending_approval", null, null, null);
+        }
         Instant issuedAt = clock.now();
         Instant expiresAt = issuedAt.plus(ttl);
         DecisionTokenClaims claims =
-                new DecisionTokenClaims(
-                        DecisionTokenClaims.VERSION,
-                        decisionId,
+                DecisionTokenFactory.claims(
+                        intent,
                         intentRecord.recordId(),
-                        commandRef,
-                        argsHash,
+                        null,
+                        tenantId,
                         actor,
                         onBehalfOf,
-                        tenantId.toString(),
-                        actionClass,
-                        policyRef,
-                        null,
                         issuedAt,
                         expiresAt,
                         tokenAudience);
