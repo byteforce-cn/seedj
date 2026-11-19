@@ -1,5 +1,6 @@
 package cn.byteforce.seedj.starter.ai.plane;
 
+import cn.byteforce.seedj.starter.ai.ledger.RecordedEffect;
 import cn.byteforce.seedj.ai.DecisionEffect;
 import cn.byteforce.seedj.ai.DecisionRecord;
 import cn.byteforce.seedj.ai.DecisionRecordKind;
