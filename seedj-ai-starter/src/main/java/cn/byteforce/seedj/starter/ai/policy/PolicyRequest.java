@@ -11,8 +11,8 @@ import java.util.UUID;
  * <p>策略引擎要回答的是「这一步该不该做」，而不是「载荷长什么样」；载荷已由 {@code args_hash} 概括，原文留在调用方与
  * 账本之外。这样宿主把求值委托给外部引擎时，不必把业务字段送出去。
  *
- * <p>{@code argsHash} 与账本、守卫用的是同一个值：策略判定与执行绑定的是同一次参数形态。{@code actionClass} 只在
- * {@code EXECUTE_TOOL} 时非空——与 {@code Proposal}/{@code DecisionIntent} 的约束一致。
+ * <p>{@code argsHash} 与账本、守卫用的是同一个值：策略判定与执行绑定的是同一次参数形态。{@code actionClass} 只在 {@code EXECUTE_TOOL}
+ * 时非空——与 {@code Proposal}/{@code DecisionIntent} 的约束一致。
  *
  * @param tenantId 租户标识（决策面配置钉死）
  * @param decisionId 本次决策标识（同时是命令幂等键）

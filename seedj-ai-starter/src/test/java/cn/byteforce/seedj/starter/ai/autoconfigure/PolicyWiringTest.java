@@ -21,11 +21,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * 策略端口的两侧装配：开关关闭时一个 bean 都没有，开启时决策面拿到求值器、守卫拿到 head 源，{@code verify=none}
- * 只影响是否参与校验。
+ * 策略端口的两侧装配：开关关闭时一个 bean 都没有，开启时决策面拿到求值器、守卫拿到 head 源，{@code verify=none} 只影响是否参与校验。
  *
- * <p>这些断言钉住的是「配置键 → bean」这一段：端口本身由 {@code ConfiguredPolicyEvaluatorTest} 与
- * {@code DecisionTokenVerifierTest} 覆盖。
+ * <p>这些断言钉住的是「配置键 → bean」这一段：端口本身由 {@code ConfiguredPolicyEvaluatorTest} 与 {@code
+ * DecisionTokenVerifierTest} 覆盖。
  */
 class PolicyWiringTest {
 

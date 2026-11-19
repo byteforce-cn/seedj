@@ -5,8 +5,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import cn.byteforce.seedj.ai.ActionClass;
-import cn.byteforce.seedj.ai.AiErrorCode;
 import cn.byteforce.seedj.ai.AgentToolSpec;
+import cn.byteforce.seedj.ai.AiErrorCode;
 import cn.byteforce.seedj.ai.ApprovalSnapshot;
 import cn.byteforce.seedj.ai.ApprovalStatus;
 import cn.byteforce.seedj.ai.ArgsHash;
@@ -16,9 +16,9 @@ import cn.byteforce.seedj.ai.DecisionTokenClaims;
 import cn.byteforce.seedj.ai.GuardVerdict;
 import cn.byteforce.seedj.ai.PolicyRef;
 import cn.byteforce.seedj.ai.spi.ToolRegistry;
+import cn.byteforce.seedj.starter.ai.AiProperties;
 import cn.byteforce.seedj.starter.ai.policy.PolicyHead;
 import cn.byteforce.seedj.starter.ai.policy.PolicyHeadSource;
-import cn.byteforce.seedj.starter.ai.AiProperties;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JOSEObjectType;
 import com.nimbusds.jose.JWSAlgorithm;
@@ -597,7 +597,6 @@ class DecisionTokenVerifierTest {
                         GuardVerdict.Reject.class,
                         reject -> assertThat(reject.code().wire()).isEqualTo("aud_mismatch"));
     }
-
 
     @Test
     @DisplayName("不可逆动作：策略引用与 head 一致即放行")

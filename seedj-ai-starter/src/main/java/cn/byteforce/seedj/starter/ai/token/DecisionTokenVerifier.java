@@ -34,9 +34,9 @@ import org.slf4j.LoggerFactory;
  * 最后是受众（本实现追加）与幂等键（§7.3-10）。顺序错了会返回错误的错误码，而调用方与告警按码处置。任何一步失败都返回 {@link
  * GuardVerdict.Reject}，本类不抛异常——守卫的失败方式必须是「拒绝」，不是「崩溃后由框架决定」。
  *
- * <p><b>策略新鲜度（spec §7.3 第 9 条，T1-local）</b>：不可逆动作（{@code ActionClass.requiresApproval()}）要求
- * token 里的 {@code engine/bundle/bundleVersion/epoch} 与 {@link PolicyHeadSource} 给出的 head 一致；版本不一致或
- * epoch 不一致返回 {@code policy_stale}，引用缺失、head 缺失、head 有 epoch 而 token 没有返回 {@code
+ * <p><b>策略新鲜度（spec §7.3 第 9 条，T1-local）</b>：不可逆动作（{@code ActionClass.requiresApproval()}）要求 token
+ * 里的 {@code engine/bundle/bundleVersion/epoch} 与 {@link PolicyHeadSource} 给出的 head 一致；版本不一致或 epoch
+ * 不一致返回 {@code policy_stale}，引用缺失、head 缺失、head 有 epoch 而 token 没有返回 {@code
  * policy_unavailable}。{@link PolicyHeadSource#none()}（{@code seedj.ai.policy.verify=none}）表示本部署不参与
  * 校验，本类跳过这一步。可逆与可补偿动作不比对——第 9 条只约束不可逆档位。
  *
@@ -115,8 +115,8 @@ public final class DecisionTokenVerifier {
     /**
      * 校验一条决策 token。
      *
-     * <p>按 spec §7.3 的第 1–8、10 条判定，并在第 8 条之后追加一条受众校验（{@code aud} 不是 §7.3 的条目）； 第 9 条
-     * {@code policy_stale} 只对不可逆动作求值，见类说明。
+     * <p>按 spec §7.3 的第 1–8、10 条判定，并在第 8 条之后追加一条受众校验（{@code aud} 不是 §7.3 的条目）； 第 9 条 {@code
+     * policy_stale} 只对不可逆动作求值，见类说明。
      *
      * @param jws JWS compact 串（{@code x-agent-decision} 的值）
      * @param context 请求侧事实
@@ -327,8 +327,10 @@ public final class DecisionTokenVerifier {
                     reject(
                             AiErrorCode.POLICY_STALE,
                             label,
-                            "policy bundle_version " + policy.bundleVersion()
-                                    + " != head " + current.version()));
+                            "policy bundle_version "
+                                    + policy.bundleVersion()
+                                    + " != head "
+                                    + current.version()));
         }
         if (current.epoch() != null) {
             if (policy.epoch() == null) {

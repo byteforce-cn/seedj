@@ -40,8 +40,7 @@ public record PolicyProperties(
     /**
      * 守卫侧的校验范围。
      *
-     * <p>{@link #NONE} 只让决策面钉版本、不要求守卫比对（适合「先观察、后强制」的灰度）；{@link #IRREVERSIBLE}
-     * 只对两个不可逆档位强制。
+     * <p>{@link #NONE} 只让决策面钉版本、不要求守卫比对（适合「先观察、后强制」的灰度）；{@link #IRREVERSIBLE} 只对两个不可逆档位强制。
      */
     public enum Verify {
 

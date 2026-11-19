@@ -27,9 +27,9 @@ public interface PolicyHeadSource {
     /**
      * 本部署是否参与新鲜度校验。
      *
-     * <p>默认 {@code true}；{@link #none()} 返回 {@code false}，守卫据此<b>跳过</b>策略比对（而不是把不可逆动作
-     * 全判成 {@code policy_unavailable}）。这个区分让「只钉版本、先不强制」（{@code seedj.ai.policy.verify=none}）与
-     * 「启用了但拿不到 head」在守卫侧有不同的答案。
+     * <p>默认 {@code true}；{@link #none()} 返回 {@code false}，守卫据此<b>跳过</b>策略比对（而不是把不可逆动作 全判成 {@code
+     * policy_unavailable}）。这个区分让「只钉版本、先不强制」（{@code seedj.ai.policy.verify=none}）与 「启用了但拿不到
+     * head」在守卫侧有不同的答案。
      *
      * @return {@code true} 表示 guarded 动作必须能确认策略新鲜度
      */

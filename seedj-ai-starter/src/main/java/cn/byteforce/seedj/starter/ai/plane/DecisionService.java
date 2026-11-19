@@ -303,7 +303,9 @@ public final class DecisionService {
                         : PolicyRef.none();
         // not_evaluated 是「这一层没有意见」（PolicyRef.none() 的语义），不等于放行结论：
         // 求值器一旦返回任何其它结论，只有 allow 能通过，未知取值同样落进 POLICY_DENY。
-        if (denyRule == null && policyEvaluated(policyRef) && !POLICY_ALLOW.equals(policyRef.verdict())) {
+        if (denyRule == null
+                && policyEvaluated(policyRef)
+                && !POLICY_ALLOW.equals(policyRef.verdict())) {
             denyRule = RULE_POLICY;
         }
         DecisionIntent intent =

@@ -52,9 +52,9 @@ public final class ConfiguredPolicyHeadSource implements PolicyHeadSource {
             throw new IllegalStateException("seedj.ai.policy.bundle 未配置：启用策略时必须声明受管策略包");
         }
         if (properties.version() == null) {
-            throw new IllegalStateException(
-                    "seedj.ai.policy.version 未配置：启用策略时必须声明当前 head 版本");
+            throw new IllegalStateException("seedj.ai.policy.version 未配置：启用策略时必须声明当前 head 版本");
         }
-        return new PolicyHead(properties.engine(), bundle, properties.version(), properties.epoch());
+        return new PolicyHead(
+                properties.engine(), bundle, properties.version(), properties.epoch());
     }
 }

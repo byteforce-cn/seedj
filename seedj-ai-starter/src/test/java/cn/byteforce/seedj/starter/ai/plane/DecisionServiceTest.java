@@ -573,11 +573,11 @@ class DecisionServiceTest {
                         });
     }
 
-
     @Test
     @DisplayName("策略引用同时进 intent 与 token：账本与凭据钉的是同一个版本")
     void policy_ref_is_in_intent_and_token() {
-        PolicyRef pinned = new PolicyRef("local", "ticket-policy", 3L, 41L, "allow", List.of(), null);
+        PolicyRef pinned =
+                new PolicyRef("local", "ticket-policy", 3L, 41L, "allow", List.of(), null);
         DecisionService service = serviceWithPolicy(request -> pinned);
 
         DecisionService.DecisionResult result = service.decide(executeTool(CREATE));
@@ -585,7 +585,10 @@ class DecisionServiceTest {
         assertThat(result.verdict()).isEqualTo(DecisionService.VERDICT_ALLOW);
         assertThat(result.token()).isNotNull();
         assertThat(intents).singleElement().extracting(DecisionIntent::policy).isEqualTo(pinned);
-        assertThat(signed).singleElement().extracting(DecisionTokenClaims::policy).isEqualTo(pinned);
+        assertThat(signed)
+                .singleElement()
+                .extracting(DecisionTokenClaims::policy)
+                .isEqualTo(pinned);
     }
 
     @Test
@@ -636,8 +639,14 @@ class DecisionServiceTest {
 
         DecisionService.DecisionResult result = service.decide(executeTool(CREATE));
 
-        assertThat(intents).singleElement().extracting(DecisionIntent::policy).isEqualTo(PolicyRef.none());
-        assertThat(signed).singleElement().extracting(DecisionTokenClaims::policy).isEqualTo(PolicyRef.none());
+        assertThat(intents)
+                .singleElement()
+                .extracting(DecisionIntent::policy)
+                .isEqualTo(PolicyRef.none());
+        assertThat(signed)
+                .singleElement()
+                .extracting(DecisionTokenClaims::policy)
+                .isEqualTo(PolicyRef.none());
         assertThat(result.token()).isNotNull();
     }
 

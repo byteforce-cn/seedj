@@ -7,11 +7,10 @@ import java.util.Objects;
 /**
  * 配置驱动的策略求值器：T1-local 不跑规则，只把配置里的版本钉进每条决策。
  *
- * <p>结论恒为 {@code allow}——本地没有规则可判，这个 {@code allow} 说的是「本地不拦」，不是「策略允许」。真正的规则引擎
- * （coord 的 {@code Evaluate}）落地后由宿主提供 {@link PolicyEvaluator} bean 替换本实现，账本与 token 的字段不变。
+ * <p>结论恒为 {@code allow}——本地没有规则可判，这个 {@code allow} 说的是「本地不拦」，不是「策略允许」。真正的规则引擎 （coord 的 {@code
+ * Evaluate}）落地后由宿主提供 {@link PolicyEvaluator} bean 替换本实现，账本与 token 的字段不变。
  *
- * <p>配置不完整时在构造器里失败并点名配置键：策略引用一旦缺版本，守卫侧对不可逆动作只能拒绝，与其到运行期才发现，
- * 不如启动就拦住。
+ * <p>配置不完整时在构造器里失败并点名配置键：策略引用一旦缺版本，守卫侧对不可逆动作只能拒绝，与其到运行期才发现， 不如启动就拦住。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -54,8 +53,7 @@ public final class ConfiguredPolicyEvaluator implements PolicyEvaluator {
             throw new IllegalStateException("seedj.ai.policy.bundle 未配置：启用策略时必须声明受管策略包");
         }
         if (properties.version() == null) {
-            throw new IllegalStateException(
-                    "seedj.ai.policy.version 未配置：启用策略时必须声明当前 head 版本");
+            throw new IllegalStateException("seedj.ai.policy.version 未配置：启用策略时必须声明当前 head 版本");
         }
         return new PolicyRef(
                 properties.engine(),

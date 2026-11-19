@@ -13,8 +13,7 @@ import org.junit.jupiter.api.Test;
 /**
  * 配置驱动的策略端口：钉版本、不猜、缺配置点名。
  *
- * <p>断言只看「引用里有什么」与「head 认识谁」——这两个形状是账本、token 与守卫共享的契约，改一个就会让
- * {@code policy_stale} 的语义漂移。
+ * <p>断言只看「引用里有什么」与「head 认识谁」——这两个形状是账本、token 与守卫共享的契约，改一个就会让 {@code policy_stale} 的语义漂移。
  */
 class ConfiguredPolicyEvaluatorTest {
 
