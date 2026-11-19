@@ -53,7 +53,13 @@ public enum AiErrorCode {
     LEDGER_UNAVAILABLE("ledger_unavailable"),
 
     /** 策略层没有可用结果：没有求值引用，或本服务没有该策略包的 head。 */
-    POLICY_UNAVAILABLE("policy_unavailable");
+    POLICY_UNAVAILABLE("policy_unavailable"),
+
+    /** 准入凭证写入失败：守卫 fail-closed，命令不放行。 */
+    ADMISSION_FAILED("admission_failed"),
+
+    /** 同决策已存在不同参数的准入凭证：拒绝重放。 */
+    ADMISSION_CONFLICT("admission_conflict");
 
     private final String wire;
 

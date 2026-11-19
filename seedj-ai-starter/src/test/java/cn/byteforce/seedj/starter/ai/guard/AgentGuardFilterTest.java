@@ -13,6 +13,8 @@ import cn.byteforce.seedj.ai.AgentToolSpec;
 import cn.byteforce.seedj.ai.ArgsHash;
 import cn.byteforce.seedj.ai.CommandFingerprint;
 import cn.byteforce.seedj.ai.CommandRef;
+import cn.byteforce.seedj.ai.DecisionAdmission;
+import cn.byteforce.seedj.ai.spi.DecisionAdmissionStore;
 import cn.byteforce.seedj.ai.DecisionTokenClaims;
 import cn.byteforce.seedj.ai.PolicyRef;
 import cn.byteforce.seedj.core.clock.Clock;
@@ -25,6 +27,7 @@ import cn.byteforce.seedj.cqrs.CommandRuntime;
 import cn.byteforce.seedj.cqrs.TemporalCommandAudit;
 import cn.byteforce.seedj.cqrs.spi.TransactionRunner;
 import cn.byteforce.seedj.domain.ScopePredicate;
+import cn.byteforce.seedj.infra.local.ai.InMemoryDecisionAdmissionStore;
 import cn.byteforce.seedj.infra.local.cqrs.InMemoryCommandStore;
 import cn.byteforce.seedj.infra.local.domain.InMemoryTemporalStore;
 import cn.byteforce.seedj.infra.local.id.Uuid7IdGenerator;
@@ -152,6 +155,93 @@ class AgentGuardFilterTest {
         AgentGuardFilter filter =
                 new AgentGuardFilter(VERIFIER, callers, codec, AUDIENCE, (Clock) () -> NOW, MAPPER);
         return MockMvcBuilders.standaloneSetup(new ProbeController()).addFilter(filter).build();
+    }
+
+    private MockMvc mvcWith(DecisionAdmissionStore admissions) {
+        AgentGuardFilter filter =
+                new AgentGuardFilter(
+                        VERIFIER,
+                        callers,
+                        CallerIdCodec.uuid(),
+                        AUDIENCE,
+                        (Clock) () -> NOW,
+                        MAPPER,
+                        admissions,
+                        Duration.ofMinutes(5));
+        return MockMvcBuilders.standaloneSetup(new ProbeController()).addFilter(filter).build();
+    }
+
+    @Test
+    @DisplayName("准入成功：admission 落库，命令继续执行")
+    void admitted_request_writes_admission_and_continues() throws Exception {
+        InMemoryDecisionAdmissionStore store = new InMemoryDecisionAdmissionStore();
+
+        mvcWith(store)
+                .perform(
+                        post("/commands/" + COMMAND_TYPE)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .header(AgentGuardFilter.DECISION_HEADER, token(COMMAND, PAYLOAD))
+                                .content(json(requestBody())))
+                .andExpect(status().isAccepted());
+
+        assertThat(store.find(DECISION_ID)).hasValueSatisfying(admission -> {
+            assertThat(admission.commandType()).isEqualTo(COMMAND_TYPE);
+            assertThat(admission.argsHash()).isEqualTo(ArgsHash.of(
+                    new CommandFingerprint(COMMAND_TYPE, PAYLOAD, TARGETS, EXPECTED_VERSION)));
+        });
+        assertThat(commandSubmitted).isTrue();
+    }
+
+    @Test
+    @DisplayName("同决策不同参数的 admission：403 admission_conflict，命令不执行")
+    void conflicting_admission_is_rejected() throws Exception {
+        InMemoryDecisionAdmissionStore store = new InMemoryDecisionAdmissionStore();
+        store.admit(new DecisionAdmission(
+                DECISION_ID, TENANT, "ticket.other", List.of(), "sha256:other", ACTOR,
+                NOW.plusSeconds(60), NOW));
+
+        mvcWith(store)
+                .perform(
+                        post("/commands/" + COMMAND_TYPE)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .header(AgentGuardFilter.DECISION_HEADER, token(COMMAND, PAYLOAD))
+                                .content(json(requestBody())))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("admission_conflict"));
+
+        assertThat(commandSubmitted).isFalse();
+    }
+
+    @Test
+    @DisplayName("admission 写入失败：403 admission_failed，命令不执行")
+    void admission_failure_is_rejected() throws Exception {
+        DecisionAdmissionStore failing = new DecisionAdmissionStore() {
+            @Override
+            public void admit(DecisionAdmission admission) {
+                throw new IllegalStateException("store down");
+            }
+
+            @Override
+            public Optional<DecisionAdmission> find(UUID decisionId) {
+                return Optional.empty();
+            }
+
+            @Override
+            public int deleteExpired(Instant before) {
+                return 0;
+            }
+        };
+
+        mvcWith(failing)
+                .perform(
+                        post("/commands/" + COMMAND_TYPE)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .header(AgentGuardFilter.DECISION_HEADER, token(COMMAND, PAYLOAD))
+                                .content(json(requestBody())))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("admission_failed"));
+
+        assertThat(commandSubmitted).isFalse();
     }
 
     @Test
