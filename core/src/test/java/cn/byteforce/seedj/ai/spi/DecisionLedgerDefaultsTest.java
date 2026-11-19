@@ -35,7 +35,8 @@ class DecisionLedgerDefaultsTest {
 
                 @Override
                 public cn.byteforce.seedj.ai.DecisionRecord appendReconciled(
-                        UUID decisionId, cn.byteforce.seedj.ai.DecisionEffect effect,
+                        UUID decisionId,
+                        cn.byteforce.seedj.ai.DecisionEffect effect,
                         String reason) {
                     throw new UnsupportedOperationException();
                 }

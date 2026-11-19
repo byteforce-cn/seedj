@@ -3,8 +3,8 @@ package cn.byteforce.seedj.infra.jdbc.ai;
 /**
  * V2 迁移的 DDL：准入表、扫描索引与 RLS 辅助函数。
  *
- * <p>单独放一个类是为了让 {@link AiMigrations} 保持「版本列表 + 说明」的薄结构；DDL 本身不依赖任何 Java 值。
- * 函数体用单引号字符串（与 V1 同一原因：迁移执行器按 {@code ;} 切分，不识别美元引用）。
+ * <p>单独放一个类是为了让 {@link AiMigrations} 保持「版本列表 + 说明」的薄结构；DDL 本身不依赖任何 Java 值。 函数体用单引号字符串（与 V1
+ * 同一原因：迁移执行器按 {@code ;} 切分，不识别美元引用）。
  *
  * @author ByteForce
  * @since 1.0.0

@@ -217,8 +217,7 @@ class OutcomeDeriverTest {
         assertThat(ledger.byDecision(TENANT, decisionId))
                 .extracting(DecisionRecord::kind)
                 .containsExactly(DecisionRecordKind.INTENT, DecisionRecordKind.RECONCILED);
-        assertThat(
-                        ledger.byDecision(TENANT, decisionId).get(1).body().get("reason"))
+        assertThat(ledger.byDecision(TENANT, decisionId).get(1).body().get("reason"))
                 .isEqualTo(ReconciliationJob.REASON_OUTCOME_MISSING);
     }
 

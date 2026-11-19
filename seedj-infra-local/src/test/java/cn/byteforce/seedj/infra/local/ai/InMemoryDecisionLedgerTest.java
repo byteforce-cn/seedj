@@ -42,8 +42,7 @@ class InMemoryDecisionLedgerTest extends DecisionLedgerContractTest {
         UUID done = decision(102);
         ledger.appendIntent(intent(TENANT, pending));
         ledger.appendIntent(intent(TENANT, done));
-        ledger.appendOutcome(
-                done, DecisionEffect.ok(null, null), OutcomeSource.RUNTIME_REPORTED);
+        ledger.appendOutcome(done, DecisionEffect.ok(null, null), OutcomeSource.RUNTIME_REPORTED);
 
         assertThat(ledger.pendingOutcomes(TENANT, Instant.now().plusSeconds(1), 10))
                 .containsExactly(pending);
@@ -93,19 +92,14 @@ class InMemoryDecisionLedgerTest extends DecisionLedgerContractTest {
 
         assertThat(ledger.audit(cn.byteforce.seedj.ai.DecisionRecord.partitionOf(TENANT)).ok())
                 .isTrue();
-        assertThat(ledger.audit(cn.byteforce.seedj.ai.DecisionRecord.partitionOf(TENANT)).rowCount())
+        assertThat(
+                        ledger.audit(cn.byteforce.seedj.ai.DecisionRecord.partitionOf(TENANT))
+                                .rowCount())
                 .isEqualTo(1);
     }
 
     private static ApprovalSnapshot approval(ApprovalStatus status) {
         return new ApprovalSnapshot(
-                "i-1",
-                "t-1",
-                status,
-                Instant.now().minusSeconds(10),
-                null,
-                null,
-                "sha256:a",
-                null);
+                "i-1", "t-1", status, Instant.now().minusSeconds(10), null, null, "sha256:a", null);
     }
 }

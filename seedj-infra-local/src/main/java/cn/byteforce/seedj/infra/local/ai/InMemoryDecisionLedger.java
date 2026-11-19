@@ -6,8 +6,8 @@ import cn.byteforce.seedj.ai.DecisionIntent;
 import cn.byteforce.seedj.ai.DecisionRecord;
 import cn.byteforce.seedj.ai.DecisionRecordBodies;
 import cn.byteforce.seedj.ai.DecisionRecordKind;
-import cn.byteforce.seedj.ai.LedgerHash;
 import cn.byteforce.seedj.ai.LedgerAudit;
+import cn.byteforce.seedj.ai.LedgerHash;
 import cn.byteforce.seedj.ai.LedgerVerification;
 import cn.byteforce.seedj.ai.OutcomeSource;
 import cn.byteforce.seedj.ai.spi.DecisionLedger;
@@ -328,10 +328,7 @@ public final class InMemoryDecisionLedger implements DecisionLedger {
         state.lock.lock();
         try {
             return new LedgerAudit(
-                    partitionName,
-                    state.records.size(),
-                    state.sequence,
-                    verify(partitionName));
+                    partitionName, state.records.size(), state.sequence, verify(partitionName));
         } finally {
             state.lock.unlock();
         }

@@ -6,8 +6,8 @@ import cn.byteforce.seedj.ai.DecisionIntent;
 import cn.byteforce.seedj.ai.DecisionRecord;
 import cn.byteforce.seedj.ai.DecisionRecordBodies;
 import cn.byteforce.seedj.ai.DecisionRecordKind;
-import cn.byteforce.seedj.ai.LedgerHash;
 import cn.byteforce.seedj.ai.LedgerAudit;
+import cn.byteforce.seedj.ai.LedgerHash;
 import cn.byteforce.seedj.ai.LedgerVerification;
 import cn.byteforce.seedj.ai.OutcomeSource;
 import cn.byteforce.seedj.ai.spi.DecisionLedger;
@@ -235,7 +235,8 @@ public final class PostgresDecisionLedger implements DecisionLedger {
                 jdbc.query(
                         "SELECT "
                                 + COLUMNS
-                                + " FROM agent_decision_record WHERE record_id = ? AND tenant_id = ?",
+                                + " FROM agent_decision_record WHERE record_id = ? AND tenant_id ="
+                                + " ?",
                         RECORD_MAPPER,
                         recordId,
                         tenantId);
@@ -324,8 +325,8 @@ public final class PostgresDecisionLedger implements DecisionLedger {
                 jdbc.query(
                         "SELECT "
                                 + COLUMNS
-                                + " FROM agent_decision_record WHERE partition = ? AND sequence <= ?"
-                                + " ORDER BY sequence",
+                                + " FROM agent_decision_record WHERE partition = ? AND sequence <="
+                                + " ? ORDER BY sequence",
                         RECORD_MAPPER,
                         partition,
                         head.lastSequence());
@@ -361,7 +362,8 @@ public final class PostgresDecisionLedger implements DecisionLedger {
     private ChainHead readChainHead(String partition) {
         List<ChainHead> heads =
                 jdbc.query(
-                        "SELECT last_sequence, last_hash FROM agent_decision_chain WHERE partition = ?",
+                        "SELECT last_sequence, last_hash FROM agent_decision_chain WHERE partition"
+                                + " = ?",
                         (rs, rowNum) ->
                                 new ChainHead(
                                         rs.getLong("last_sequence"), rs.getString("last_hash")),

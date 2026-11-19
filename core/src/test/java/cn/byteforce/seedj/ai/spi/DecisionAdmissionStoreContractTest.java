@@ -36,8 +36,7 @@ public abstract class DecisionAdmissionStoreContractTest {
 
         assertThatThrownBy(
                         () ->
-                                store()
-                                        .admit(
+                                store().admit(
                                                 new DecisionAdmission(
                                                         first.decisionId(),
                                                         first.tenantId(),

@@ -5,8 +5,8 @@ import java.util.Objects;
 /**
  * 账本的体检结果：链自洽之外，还要能发现「绕过账本直插、没有推进链头」的幽灵记录。
  *
- * <p>{@link #verify} 只看链头快照内的记录；{@link #rowCount} 与 {@link #headSequence} 不等，说明表里存在
- * 链头之外的行。两者都为真才 {@link #ok()}。
+ * <p>{@link #verify} 只看链头快照内的记录；{@link #rowCount} 与 {@link #headSequence} 不等，说明表里存在 链头之外的行。两者都为真才
+ * {@link #ok()}。
  *
  * @param partition 分区
  * @param rowCount 表内该分区的总行数

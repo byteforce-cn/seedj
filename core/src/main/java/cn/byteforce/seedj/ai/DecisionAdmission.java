@@ -8,8 +8,8 @@ import java.util.UUID;
 /**
  * 准入凭证：守卫已经校验过 token 并允许这一次命令进入执行侧。
  *
- * <p>它不是业务事实，也不撤销：命令回滚不删除 admission，由过期清理回收。数据库层用它做不可逆动作的兜底——
- * 「有合法 admission 行」才能写不可逆表，直连 SQL 没有 admission 一律拒绝。
+ * <p>它不是业务事实，也不撤销：命令回滚不删除 admission，由过期清理回收。数据库层用它做不可逆动作的兜底—— 「有合法 admission 行」才能写不可逆表，直连 SQL 没有
+ * admission 一律拒绝。
  *
  * @param decisionId 决策标识（同时是命令幂等键）
  * @param tenantId 租户

@@ -147,7 +147,10 @@ public interface DecisionLedger {
     default LedgerAudit audit(String partition) {
         LedgerVerification verification = verify(partition);
         return new LedgerAudit(
-                partition, verification.checkedRecords(), verification.checkedRecords(), verification);
+                partition,
+                verification.checkedRecords(),
+                verification.checkedRecords(),
+                verification);
     }
 
     /**

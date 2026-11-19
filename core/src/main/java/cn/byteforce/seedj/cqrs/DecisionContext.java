@@ -7,8 +7,8 @@ import java.util.UUID;
 /**
  * 当前请求的决策上下文：命令事务据此设置 {@code agent.decision_id}，审计据此写直链。
  *
- * <p>线程级、由 guard 在准入成功后打开、请求结束关闭；非 web/异步线程没有上下文时所有读取方必须 no-op。
- * 这不是事实来源——事实在账本里；它只是把「这一条 HTTP 请求对应哪个 decision」带到同一线程的后续组件。
+ * <p>线程级、由 guard 在准入成功后打开、请求结束关闭；非 web/异步线程没有上下文时所有读取方必须 no-op。 这不是事实来源——事实在账本里；它只是把「这一条 HTTP
+ * 请求对应哪个 decision」带到同一线程的后续组件。
  *
  * @param decisionId 决策标识
  * @param ledgerIntentId 账本意图记录标识
