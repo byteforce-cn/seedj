@@ -7,7 +7,6 @@ import cn.byteforce.seedj.iam.authz.AttributeLookup;
 import cn.byteforce.seedj.iam.authz.AttributeSnapshot;
 import cn.byteforce.seedj.iam.authz.AttributeState;
 import cn.byteforce.seedj.iam.authz.IamBinding;
-import cn.byteforce.seedj.iam.authz.IamCheckResult;
 import cn.byteforce.seedj.iam.authz.IamCondition;
 import cn.byteforce.seedj.iam.authz.IamConditionOperator;
 import cn.byteforce.seedj.iam.authz.IamConditionTerm;

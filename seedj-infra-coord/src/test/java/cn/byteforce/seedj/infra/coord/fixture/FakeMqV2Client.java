@@ -322,6 +322,17 @@ public final class FakeMqV2Client implements MqV2Client {
         throw new UnsupportedOperationException("pollDlq is not used by seedj");
     }
 
+    @Override
+    public MqV2PollDlqResult pollDlq(
+            String topic,
+            int partition,
+            long topicEpoch,
+            Long startOffset,
+            int maxMessages,
+            String consumerGroup) {
+        return pollDlq(topic, partition, topicEpoch, startOffset, maxMessages);
+    }
+
     private record Topic(String name, long epoch, int partitions) {
         Topic {
             Objects.requireNonNull(name, "name");

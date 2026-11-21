@@ -1,6 +1,8 @@
 package cn.byteforce.seedj.infra.local.pki;
 
-import cn.byteforce.seedj.pki.PkiProvider;
+import cn.byteforce.seedj.provider.pki.PkiProvider;
+import cn.byteforce.seedj.transit.TransitProvider;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -25,11 +27,14 @@ public class PkiAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public PkiProvider pkiProvider(PkiProperties props) {
+    public PkiProvider pkiProvider(
+            PkiProperties props, ObjectProvider<TransitProvider> transitProvider) {
+        TransitProvider transit = transitProvider.getIfAvailable();
         return new BcPkiProvider(
                 props.getCaResource(),
                 props.getCaPassword().toCharArray(),
                 props.getCaAlias(),
-                props.getRevocationStore());
+                props.getRevocationStore(),
+                transit == null ? null : transit.signer());
     }
 }

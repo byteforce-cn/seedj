@@ -1,6 +1,7 @@
 package cn.byteforce.seedj.infra.jdbc.ai;
 
 import cn.byteforce.seedj.core.Migration;
+import cn.byteforce.seedj.infra.jdbc.MigrationSet;
 import java.util.List;
 
 /**
@@ -15,6 +16,15 @@ import java.util.List;
 final class AiMigrations {
 
     private AiMigrations() {}
+
+    /**
+     * 迁移声明。
+     *
+     * @return 能力名、scope、顺序与迁移列表
+     */
+    static MigrationSet migrationSet() {
+        return new MigrationSet("postgres-ai-ledger", "ai", 120, all());
+    }
 
     static List<Migration> all() {
         return List.of(

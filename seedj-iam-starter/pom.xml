@@ -27,6 +27,18 @@
         </dependency>
         <dependency>
             <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>seedj-transit-contract</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>seedj-pki-contract</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>seedj-iam-contract</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cn.byteforce.seedj</groupId>
             <artifactId>seedj-infra-local</artifactId>
         </dependency>
         <dependency>

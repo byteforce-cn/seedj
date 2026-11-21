@@ -18,6 +18,10 @@
     <dependencies>
         <dependency>
             <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>seedj-ai-contract</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cn.byteforce.seedj</groupId>
             <artifactId>seedj-ai-starter</artifactId>
         </dependency>
         <dependency>

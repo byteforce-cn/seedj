@@ -1,2 +1,42 @@
-# 架构规则已知违规：T3 逐个偿还，清空即门禁全绿。
-# 格式：rule|origin -> target（与 ArchitectureTest 的违规 key 一致）
+# starter 依赖具体适配器：F1 的已知债务。biz-starter、ai-starter 已归位；
+# 剩余 IAM/IM 的存储配置仍持有具体实现，待抽 capability-autoconfigure 后清空。
+# 格式：rule|origin -> target
+starter-does-not-depend-on-adapters|cn.byteforce.seedj.starter.iam.authz.IamAuthzConfiguration -> cn.byteforce.seedj.infra.jdbc.iam.JdbcIamBindingStore
+starter-does-not-depend-on-adapters|cn.byteforce.seedj.starter.iam.authz.IamAuthzConfiguration -> cn.byteforce.seedj.infra.local.iam.InMemoryIamAttributeSource
+starter-does-not-depend-on-adapters|cn.byteforce.seedj.starter.iam.authz.IamAuthzConfiguration -> cn.byteforce.seedj.infra.local.iam.InMemoryIamBindingStore
+starter-does-not-depend-on-adapters|cn.byteforce.seedj.starter.iam.autoconfigure.IamJdbcStoreConfiguration -> cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner
+starter-does-not-depend-on-adapters|cn.byteforce.seedj.starter.iam.autoconfigure.IamJdbcStoreConfiguration -> cn.byteforce.seedj.infra.jdbc.iam.IamSchemaCapability
+starter-does-not-depend-on-adapters|cn.byteforce.seedj.starter.iam.autoconfigure.IamJdbcStoreConfiguration -> cn.byteforce.seedj.infra.jdbc.iam.JdbcIamAuditSink
+starter-does-not-depend-on-adapters|cn.byteforce.seedj.starter.iam.autoconfigure.IamJdbcStoreConfiguration -> cn.byteforce.seedj.infra.jdbc.iam.JdbcIamAuthorizationRepository
+starter-does-not-depend-on-adapters|cn.byteforce.seedj.starter.iam.autoconfigure.IamJdbcStoreConfiguration -> cn.byteforce.seedj.infra.jdbc.iam.JdbcIamGroupRepository
+starter-does-not-depend-on-adapters|cn.byteforce.seedj.starter.iam.autoconfigure.IamJdbcStoreConfiguration -> cn.byteforce.seedj.infra.jdbc.iam.JdbcIamPolicyRepository
+starter-does-not-depend-on-adapters|cn.byteforce.seedj.starter.iam.autoconfigure.IamJdbcStoreConfiguration -> cn.byteforce.seedj.infra.jdbc.iam.JdbcIamSigningKeyStore
+starter-does-not-depend-on-adapters|cn.byteforce.seedj.starter.iam.autoconfigure.IamJdbcStoreConfiguration -> cn.byteforce.seedj.infra.jdbc.iam.JdbcIamTokenRevoker
+starter-does-not-depend-on-adapters|cn.byteforce.seedj.starter.iam.autoconfigure.IamJdbcStoreConfiguration -> cn.byteforce.seedj.infra.jdbc.iam.JdbcIamTotpRepository
+starter-does-not-depend-on-adapters|cn.byteforce.seedj.starter.iam.autoconfigure.IamJdbcStoreConfiguration -> cn.byteforce.seedj.infra.jdbc.iam.JdbcIamUserRepository
+starter-does-not-depend-on-adapters|cn.byteforce.seedj.starter.iam.autoconfigure.IamJdbcStoreConfiguration -> cn.byteforce.seedj.infra.jdbc.iam.OAuth2SchemaCapability
+starter-does-not-depend-on-adapters|cn.byteforce.seedj.starter.iam.autoconfigure.IamStoreConfiguration$AesSecretConfiguration -> cn.byteforce.seedj.infra.local.iam.AesGcmIamSecretProtector
+starter-does-not-depend-on-adapters|cn.byteforce.seedj.starter.iam.autoconfigure.IamStoreConfiguration$MemoryStoreConfiguration -> cn.byteforce.seedj.infra.local.iam.InMemoryIamAuditSink
+starter-does-not-depend-on-adapters|cn.byteforce.seedj.starter.iam.autoconfigure.IamStoreConfiguration$MemoryStoreConfiguration -> cn.byteforce.seedj.infra.local.iam.InMemoryIamAuthorizationRepository
+starter-does-not-depend-on-adapters|cn.byteforce.seedj.starter.iam.autoconfigure.IamStoreConfiguration$MemoryStoreConfiguration -> cn.byteforce.seedj.infra.local.iam.InMemoryIamGroupRepository
+starter-does-not-depend-on-adapters|cn.byteforce.seedj.starter.iam.autoconfigure.IamStoreConfiguration$MemoryStoreConfiguration -> cn.byteforce.seedj.infra.local.iam.InMemoryIamPolicyRepository
+starter-does-not-depend-on-adapters|cn.byteforce.seedj.starter.iam.autoconfigure.IamStoreConfiguration$MemoryStoreConfiguration -> cn.byteforce.seedj.infra.local.iam.InMemoryIamSigningKeyStore
+starter-does-not-depend-on-adapters|cn.byteforce.seedj.starter.iam.autoconfigure.IamStoreConfiguration$MemoryStoreConfiguration -> cn.byteforce.seedj.infra.local.iam.InMemoryIamTokenRevoker
+starter-does-not-depend-on-adapters|cn.byteforce.seedj.starter.iam.autoconfigure.IamStoreConfiguration$MemoryStoreConfiguration -> cn.byteforce.seedj.infra.local.iam.InMemoryIamTotpRepository
+starter-does-not-depend-on-adapters|cn.byteforce.seedj.starter.iam.autoconfigure.IamStoreConfiguration$MemoryStoreConfiguration -> cn.byteforce.seedj.infra.local.iam.InMemoryIamUserRepository
+starter-does-not-depend-on-adapters|cn.byteforce.seedj.starter.iam.autoconfigure.IamStoreConfiguration$TransitSecretConfiguration -> cn.byteforce.seedj.infra.local.iam.TransitIamSecretProtector
+starter-does-not-depend-on-adapters|cn.byteforce.seedj.starter.iam.config.IamServerAutoConfiguration -> cn.byteforce.seedj.infra.local.iam.InMemoryIamTokenRevoker
+starter-does-not-depend-on-adapters|cn.byteforce.seedj.starter.iam.security.IamRevocableAuthorizationService -> cn.byteforce.seedj.infra.local.iam.InMemoryIamTokenRevoker
+starter-does-not-depend-on-adapters|cn.byteforce.seedj.starter.im.ImMessagingService -> cn.byteforce.seedj.infra.local.im.InMemoryImCardActionStore
+starter-does-not-depend-on-adapters|cn.byteforce.seedj.starter.im.ImStoreAutoConfiguration$JdbcStores -> cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner
+starter-does-not-depend-on-adapters|cn.byteforce.seedj.starter.im.ImStoreAutoConfiguration$JdbcStores -> cn.byteforce.seedj.infra.jdbc.im.ImSchemaCapability
+starter-does-not-depend-on-adapters|cn.byteforce.seedj.starter.im.ImStoreAutoConfiguration$JdbcStores -> cn.byteforce.seedj.infra.jdbc.im.JdbcImCardActionStore
+starter-does-not-depend-on-adapters|cn.byteforce.seedj.starter.im.ImStoreAutoConfiguration$JdbcStores -> cn.byteforce.seedj.infra.jdbc.im.JdbcImConversationStore
+starter-does-not-depend-on-adapters|cn.byteforce.seedj.starter.im.ImStoreAutoConfiguration$JdbcStores -> cn.byteforce.seedj.infra.jdbc.im.JdbcImCursorStore
+starter-does-not-depend-on-adapters|cn.byteforce.seedj.starter.im.ImStoreAutoConfiguration$JdbcStores -> cn.byteforce.seedj.infra.jdbc.im.JdbcImMessageStore
+starter-does-not-depend-on-adapters|cn.byteforce.seedj.starter.im.ImStoreAutoConfiguration$JdbcStores -> cn.byteforce.seedj.infra.jdbc.im.JdbcImSequenceAllocator
+starter-does-not-depend-on-adapters|cn.byteforce.seedj.starter.im.ImStoreAutoConfiguration$MemoryStores -> cn.byteforce.seedj.infra.local.im.AtomicLongSequenceAllocator
+starter-does-not-depend-on-adapters|cn.byteforce.seedj.starter.im.ImStoreAutoConfiguration$MemoryStores -> cn.byteforce.seedj.infra.local.im.InMemoryImCardActionStore
+starter-does-not-depend-on-adapters|cn.byteforce.seedj.starter.im.ImStoreAutoConfiguration$MemoryStores -> cn.byteforce.seedj.infra.local.im.InMemoryImConversationStore
+starter-does-not-depend-on-adapters|cn.byteforce.seedj.starter.im.ImStoreAutoConfiguration$MemoryStores -> cn.byteforce.seedj.infra.local.im.InMemoryImCursorStore
+starter-does-not-depend-on-adapters|cn.byteforce.seedj.starter.im.ImStoreAutoConfiguration$MemoryStores -> cn.byteforce.seedj.infra.local.im.InMemoryImMessageStore

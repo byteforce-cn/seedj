@@ -8,7 +8,7 @@ import cn.byteforce.seedj.eventbus.spi.EventConsumerStore;
 import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.lock.LockProvider;
 import cn.byteforce.seedj.numbering.Numbering;
-import cn.byteforce.seedj.pki.PkiProvider;
+import cn.byteforce.seedj.provider.pki.PkiProvider;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -78,6 +78,7 @@ public class CoordAutoConfiguration {
         }
         return new CoordPkiProvider(
                 client.pki(),
+                client.transit(),
                 new CoordPkiState(
                         new CoordKvStore(client.kv(), client.tx()),
                         CoordKeySpace.of(CoordNamespaces.of(properties, environment), "pki")),

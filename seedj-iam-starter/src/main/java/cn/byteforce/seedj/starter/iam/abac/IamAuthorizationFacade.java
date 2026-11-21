@@ -1,14 +1,14 @@
 package cn.byteforce.seedj.starter.iam.abac;
 
-import cn.byteforce.seedj.iam.IamAuthorizationDecision;
-import cn.byteforce.seedj.iam.IamAuthorizationRequest;
 import cn.byteforce.seedj.iam.IamErrorCode;
 import cn.byteforce.seedj.iam.IamException;
-import cn.byteforce.seedj.iam.IamSubject;
 import cn.byteforce.seedj.iam.IamSubjectAuthorization;
 import cn.byteforce.seedj.iam.IamUser;
 import cn.byteforce.seedj.iam.spi.IamPolicyDecisionPoint;
 import cn.byteforce.seedj.iam.spi.IamUserRepository;
+import cn.byteforce.seedj.security.AuthorizationDecision;
+import cn.byteforce.seedj.security.AuthorizationRequest;
+import cn.byteforce.seedj.security.AuthorizationSubject;
 import cn.byteforce.seedj.starter.iam.IamProperties;
 import cn.byteforce.seedj.starter.iam.identity.IamAuthorizationService;
 import java.util.LinkedHashMap;
@@ -44,11 +44,17 @@ public class IamAuthorizationFacade {
 
     public boolean authorize(
             Authentication authentication, String resourceType, String resourceId, String action) {
-        IamSubject subject = subject(authentication);
-        IamAuthorizationDecision decision =
+        AuthorizationSubject subject = subject(authentication);
+        AuthorizationDecision decision =
                 pdp.decide(
-                        new IamAuthorizationRequest(
-                                subject, action, resourceType, resourceId, Map.of(), Map.of()));
+                        new AuthorizationRequest(
+                                subject,
+                                action,
+                                resourceType,
+                                resourceId,
+                                Map.of(),
+                                java.time.Instant.now(),
+                                Map.of()));
         return decision.allowed();
     }
 
@@ -61,7 +67,7 @@ public class IamAuthorizationFacade {
         }
     }
 
-    private IamSubject subject(Authentication authentication) {
+    private AuthorizationSubject subject(Authentication authentication) {
         if (authentication == null) {
             throw new IamException(IamErrorCode.FORBIDDEN, "authentication required");
         }
@@ -75,7 +81,7 @@ public class IamAuthorizationFacade {
             if (authentication instanceof JwtAuthenticationToken jwt) {
                 attributes.putAll(jwt.getToken().getClaims());
             }
-            return new IamSubject(
+            return new AuthorizationSubject(
                     user.id(),
                     user.userName(),
                     user.tenantId(),
@@ -120,7 +126,7 @@ public class IamAuthorizationFacade {
                 groups.addAll(claimGroups);
             }
         }
-        return new IamSubject(
+        return new AuthorizationSubject(
                 subjectId,
                 username,
                 tenantId,

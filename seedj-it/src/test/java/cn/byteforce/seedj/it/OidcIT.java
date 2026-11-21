@@ -13,9 +13,9 @@ import cn.byteforce.seedj.it.support.IamTestSession;
 import cn.byteforce.seedj.it.support.IamTestSession.AuthorizationResult;
 import cn.byteforce.seedj.it.support.IamTestSession.HttpResult;
 import cn.byteforce.seedj.it.support.IamTestSession.TokenResponse;
-import cn.byteforce.seedj.pki.PkiProvider;
-import cn.byteforce.seedj.pki.PkiProvider.CertificateRequest;
-import cn.byteforce.seedj.pki.PkiProvider.IssuedCertificate;
+import cn.byteforce.seedj.provider.pki.CertificateRequest;
+import cn.byteforce.seedj.provider.pki.IssuedCertificate;
+import cn.byteforce.seedj.provider.pki.PkiProvider;
 import com.jayway.jsonpath.JsonPath;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.crypto.RSASSAVerifier;
@@ -225,7 +225,7 @@ public class OidcIT {
         List<Map<String, Object>> keys = JsonPath.read(result.body(), "$.keys");
         assertThat(keys).hasSize(1);
         assertThat(keys.get(0).get("kid"))
-                .isEqualTo(pki.signingIdentity("iam-jwt-signer").serialNumber());
+                .isEqualTo(pki.signingIdentity("iam-jwt-signer").serialNumber().toString(16));
     }
 
     @Test
@@ -904,7 +904,7 @@ public class OidcIT {
     @DisplayName("RFC 8705：tls_client_auth 客户端缺少证书返回 invalid_client")
     void tokenEndpointMustRejectTlsClientWithoutCertificate(@ClusterPki PkiProvider pki) {
         IamTestSession session =
-                new IamTestSession(issuer, pki.trustContext(), IamTestSession.TLS_CLIENT_ID);
+                new IamTestSession(issuer, pki.sslContext(null), IamTestSession.TLS_CLIENT_ID);
         HttpResult result =
                 session.tokenRequest(
                         IamTestSession.form(
@@ -924,7 +924,7 @@ public class OidcIT {
     @Test
     @DisplayName("RFC 8705 §2.1.1：证书 Subject DN 不匹配返回 invalid_client")
     void tokenEndpointMustRejectTlsClientWithWrongSubject(@ClusterPki PkiProvider pki) {
-        IssuedCertificate wrong = pki.issue(CertificateRequest.client("CN=wrong-client"));
+        IssuedCertificate wrong = pki.issue("client", CertificateRequest.client("CN=wrong-client"));
         IamTestSession session =
                 new IamTestSession(issuer, pki.sslContext(wrong), IamTestSession.TLS_CLIENT_ID);
         HttpResult result =
@@ -946,7 +946,7 @@ public class OidcIT {
     @Test
     @DisplayName("mTLS：client_secret_basic 客户端不要求客户端证书")
     void tokenEndpointMustAllowSecretClientWithoutCertificate(@ClusterPki PkiProvider pki) {
-        IamTestSession session = new IamTestSession(issuer, pki.trustContext());
+        IamTestSession session = new IamTestSession(issuer, pki.sslContext(null));
         AuthorizationResult result =
                 session.authorize(
                         "openid",
@@ -963,7 +963,7 @@ public class OidcIT {
     @Test
     @DisplayName("mTLS：discovery 不要求客户端证书")
     void discoveryMustAllowAnonymousClient(@ClusterPki PkiProvider pki) {
-        IamTestSession session = new IamTestSession(issuer, pki.trustContext());
+        IamTestSession session = new IamTestSession(issuer, pki.sslContext(null));
         HttpResult result =
                 session.get("/.well-known/openid-configuration", MediaType.APPLICATION_JSON);
 
@@ -1918,7 +1918,7 @@ public class OidcIT {
     }
 
     private static IamTestSession tlsClientSession(PkiProvider pki) {
-        IssuedCertificate cert = pki.issue(CertificateRequest.client("CN=tls-client"));
+        IssuedCertificate cert = pki.issue("client", CertificateRequest.client("CN=tls-client"));
         return new IamTestSession(issuer, pki.sslContext(cert), IamTestSession.TLS_CLIENT_ID);
     }
 

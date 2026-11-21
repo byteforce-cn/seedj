@@ -2,6 +2,7 @@ package cn.byteforce.seedj.starter.im;
 
 import cn.byteforce.seedj.core.security.Caller;
 import cn.byteforce.seedj.starter.im.protocol.Cmd;
+import cn.byteforce.seedj.starter.im.protocol.ImCodec;
 import cn.byteforce.seedj.starter.im.protocol.ImFrame;
 import cn.byteforce.seedj.starter.im.protocol.body.LoginReq;
 import cn.byteforce.seedj.starter.im.protocol.body.LoginResp;

@@ -39,6 +39,23 @@ IAM 的退出标准与当前状态见 [IAM 装配 §生产可用性边界](iam-s
 缩短或延长互斥窗口；对强一致有要求的场景，仍要在存储侧用唯一约束/条件更新兜底。释放
 使用事务读集校验，过期持有者不会误删新持有者的记录。
 
+## coord PKI 的单 CA / 无 role 边界
+
+coord 0.4.4 只有一张 CA、没有 Vault 式 role/issuer 抽象。`PkiProvider` 的 `roleName` 在 coord
+适配里降级为 **CN 命名空间前缀**（`<role>:<cn>`）；`issuerRef` 只接受 `default`。`signCsr` 的
+CN/SAN 来自 CSR，role 只做格式校验——不要指望它按 role 施加 TTL/域名策略。
+
+吊销与 CRL 是 CA 侧的权威事实：`revoke` 之后同 CN 的 `issue` 会失败，恢复只能走
+`rotateSigningIdentity`。但 coord 没有 HTTP CRL 端点，也没有后台发布任务；**吊销生效延迟 =
+消费方的 CRL/缓存刷新窗口**，不查 CRL 的第三方 TrustManager 仍会接受旧证书。
+
+## coord 托管私钥不能当 IAM JWT 签名钥
+
+`seedj.iam.jwk.provider=pki` 需要把私钥导出成 RS256 JWK。coord 0.4.4 的 `IssueCert` /
+`RotateCert` 只返回 `keyName`/`keyVersion`，私钥留在 Transit，因此 coord 托管身份会在
+`PkiIamSigningKeyStore` 构造期失败。IAM 的 PKI 签名请用 `provider=local`，或改用自持钥的
+`signCsr`；默认 JDBC/memory JWK 不受影响。
+
 ## coord 消费账本的边界
 
 `seedj.eventbus.transport=coord` 的消费状态在 coord KV 的投递账本里：每次 poll 只扫描前
@@ -65,3 +82,18 @@ IM 的在线状态查询是**节点内**视图：多节点部署时，查询只�
 
 线格式（`/commands/{type}`、`/objects/{type}/{id}`、错误信封 `{code,message,details}`）
 已冻结；Java API 在 1.0.0 前仍可能调整。制品暂未发布到 Maven Central，使用方需从源码构建。
+
+## 1.0 冻结边界：有意保留的复杂度
+
+以下不是缺陷，1.0 之前不再扩展；引用它们的代码不要期待行为变化。
+
+- **两条写路径**：默认是命令 + 当前视图（`CommandRuntime` 双时间轴）；事件溯源
+  （`CommandAgent`）是显式第二选择。只有在需要完整事件历史、可回放聚合时才使用它；1.0
+  前没有生产采用者的场景不要新增依赖。`writeRuntimes` 由 `ConceptBudgetTest` 钉在 2。
+- **workflow 本地 provider 可用，JDBC provider 未完成**：`seedj-workflow-local` 提供完整
+  的内存状态机；PostgreSQL 侧只有 schema、跨连接读与 timer 扫描。1.0 发布说明会写明
+  这一边界，新增能力只走 `default` 方法与 `WorkflowCapabilities`。
+- **四个宿主 + `seedj-it` 夹具**是测试架构的第二套装配：`ClusterExtension`、`IamTestSession`、
+  `OidcIT` 属于测试支撑，不进入产品发布物；`TestSliceBudgetTest` 负责保证 Spring 测试不膨胀。
+- **约 350 处 `@Conditional`**：大部分是 `@ConditionalOnMissingBean`/`@ConditionalOnProperty`
+  的正常用法。不要为了减少注解数量引入自定义条件组合——provider 选择已经局部化到适配器。

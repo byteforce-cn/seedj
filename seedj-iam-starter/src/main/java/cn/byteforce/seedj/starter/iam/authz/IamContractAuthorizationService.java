@@ -8,7 +8,6 @@ import cn.byteforce.seedj.iam.authz.ConditionOutcome;
 import cn.byteforce.seedj.iam.authz.IamAttributeSource;
 import cn.byteforce.seedj.iam.authz.IamBinding;
 import cn.byteforce.seedj.iam.authz.IamBindingStore;
-import cn.byteforce.seedj.iam.authz.IamCheckResult;
 import cn.byteforce.seedj.iam.authz.IamCondition;
 import cn.byteforce.seedj.iam.authz.IamConditionEvaluator;
 import cn.byteforce.seedj.iam.authz.IamPermissionCondition;
@@ -21,7 +20,6 @@ import cn.byteforce.seedj.iam.authz.SodRule;
 import cn.byteforce.seedj.iam.authz.SodRuleSet;
 import cn.byteforce.seedj.iam.spi.IamAuthorizationRepository;
 import cn.byteforce.seedj.security.AuthorizationDecision;
-import cn.byteforce.seedj.security.AuthorizationDecisionPoint;
 import cn.byteforce.seedj.security.AuthorizationRequest;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -40,7 +38,7 @@ import java.util.Set;
  * @author ByteForce
  * @since 1.0.0
  */
-public final class IamContractAuthorizationService implements AuthorizationDecisionPoint {
+public final class IamContractAuthorizationService {
 
     private final IamBindingStore bindings;
 
@@ -86,12 +84,14 @@ public final class IamContractAuthorizationService implements AuthorizationDecis
     }
 
     /**
-     * 决策点入口：把授权请求映射为 04 授权契约检查。
+     * 决策入口：把授权请求映射为 04 授权契约检查。
+     *
+     * <p>本类不是 {@code AuthorizationDecisionPoint} bean：容器里只能有一个决策点生产 者（{@code
+     * CompositeAuthorizationDecisionPoint}），这里由组合点以方法引用调用。
      *
      * @param request 授权请求
      * @return 决策
      */
-    @Override
     public AuthorizationDecision decide(AuthorizationRequest request) {
         IamCheckResult result =
                 check(request.subject().id(), request.action(), request.asOf(), null, null, null);
@@ -134,7 +134,7 @@ public final class IamContractAuthorizationService implements AuthorizationDecis
      * @param providedState 调用方快照状态；可空（缺省 fresh）
      * @return 检查结果
      */
-    public IamCheckResult check(
+    IamCheckResult check(
             String principal,
             String permission,
             Instant asOf,

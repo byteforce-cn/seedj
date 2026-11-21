@@ -1,7 +1,7 @@
 package cn.byteforce.seedj.infra.local.pki;
 
-import cn.byteforce.seedj.pki.PkiProvider;
-import cn.byteforce.seedj.pki.PkiProviderContractTest;
+import cn.byteforce.seedj.provider.pki.PkiProvider;
+import cn.byteforce.seedj.provider.pki.PkiProviderContractTest;
 import java.nio.file.Path;
 import org.junit.jupiter.api.io.TempDir;
 

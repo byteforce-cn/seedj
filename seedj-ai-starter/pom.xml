@@ -28,15 +28,30 @@
         </dependency>
         <dependency>
             <groupId>cn.byteforce.seedj</groupId>
-            <artifactId>seedj-biz-starter</artifactId>
+            <artifactId>seedj-workflow-contract</artifactId>
         </dependency>
         <dependency>
             <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>seedj-ai-contract</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>seedj-im-contract</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>seedj-biz-starter</artifactId>
+        </dependency>
+        <!-- 适配器只在测试期出现：AI 的存储选择由适配器自动配置竞争（F1）。 -->
+        <dependency>
+            <groupId>cn.byteforce.seedj</groupId>
             <artifactId>seedj-infra-local</artifactId>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>cn.byteforce.seedj</groupId>
             <artifactId>seedj-jdbc-postgresql</artifactId>
+            <scope>test</scope>
         </dependency>
 
         <dependency>

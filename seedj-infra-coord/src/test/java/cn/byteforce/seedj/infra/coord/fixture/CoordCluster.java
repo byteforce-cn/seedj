@@ -28,7 +28,7 @@ import org.testcontainers.utility.DockerImageName;
 public final class CoordCluster implements AutoCloseable {
 
     private static final String IMAGE =
-            System.getProperty("seedj.coord.test.image", "ghcr.io/byteforce-cn/coord:v0.4.3");
+            System.getProperty("seedj.coord.test.image", "ghcr.io/byteforce-cn/coord:v0.4.4");
     private static final Duration STARTUP = Duration.ofSeconds(90);
 
     private final GenericContainer<?> server;

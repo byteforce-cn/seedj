@@ -14,6 +14,7 @@ import cn.byteforce.seedj.infra.local.im.InMemoryImCursorStore;
 import cn.byteforce.seedj.infra.local.im.InMemoryImMessageStore;
 import cn.byteforce.seedj.outbox.OutboxWriter;
 import cn.byteforce.seedj.starter.im.protocol.Cmd;
+import cn.byteforce.seedj.starter.im.protocol.ImCodec;
 import cn.byteforce.seedj.starter.im.protocol.ImFrame;
 import cn.byteforce.seedj.starter.im.protocol.body.AckReq;
 import cn.byteforce.seedj.starter.im.protocol.body.ChatDeliver;

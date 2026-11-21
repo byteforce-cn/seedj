@@ -1,5 +1,6 @@
 package cn.byteforce.seedj.starter.im;
 
+import cn.byteforce.seedj.starter.im.protocol.ImCodec;
 import cn.byteforce.seedj.starter.im.protocol.ImFrame;
 import io.netty.channel.Channel;
 import java.util.Collection;

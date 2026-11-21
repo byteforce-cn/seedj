@@ -1,7 +1,12 @@
 # 错误码与 HTTP 状态
 
-所有错误响应固定 `{code,message,details}`；`details.reason_code` 提供细分原因（缺省回落到
-`code`）。映射只有一处：`seedj-biz-starter` 的 `ContractErrorHandler`。
+业务契约面（`/commands/**`、`/objects/**`、`/api/**`、`/v1/decisions/**` 与 IAM 管理端点）
+的错误响应固定 `{code,message,details}`；`details.reason_code` 提供细分原因（缺省回落到
+`code`）。契约错误的映射只有一处：`seedj-biz-starter` 的 `ContractErrorHandler`；IAM 管理
+端点由 `IamExceptionHandler` 映射到同一信封。
+
+**线格式例外（RFC 协议端点）**：SCIM 端点使用 RFC 7644 的 `{schemas,status,detail,scimType}`，
+OAuth2 token 端点使用 RFC 6749 的 `{error,error_description}`。这两类端点不套用 `{code,message,details}`，也不得在其它端点上复用它们的形状。
 
 ## 契约错误（ContractException）
 
@@ -33,6 +38,26 @@
 | `InfrastructureException` / `DataAccessException` | 503 | `EIS-503-001` | 依赖不可用 |
 | 非法 JSON / 参数类型不匹配 | 400 | `EIS-400-001` | 不泄露解析细节 |
 
+## IAM 管理端点
+
+IAM 管理端点（`/authz/**`、`/api/iam/**`、`/iam/**`）返回同一信封，`code` 是稳定的
+`IAM-<枚举名>`，`details.reason_code` 保留枚举名：
+
+| 异常 | HTTP | code | 说明 |
+|---|---|---|---|
+| `IamException(USER_NOT_FOUND)` 等 `*_NOT_FOUND` | 404 | `IAM-<枚举名>` | 目录/策略/权限不存在 |
+| `IamException(FORBIDDEN)` | 403 | `IAM-FORBIDDEN` | 已认证但无权限 |
+| `IamException(INVALID_CREDENTIALS)` 等认证失败 | 401 | `IAM-<枚举名>` | 凭据、TOTP、MFA 挑战失败 |
+| `IamException(*_CONFLICT / TOTP_ALREADY_ENROLLED)` | 409 | `IAM-<枚举名>` | 唯一约束/状态冲突 |
+| `IamException(RATE_LIMITED)` | 429 | `IAM-RATE_LIMITED` | 限流 |
+| `IamException(STORE_UNAVAILABLE)` | 503 | `IAM-STORE_UNAVAILABLE` | IAM 存储不可用 |
+
+属性快照端点（`/authz/principals/{id}/attributes`）使用 `IAM-ATTRIBUTE_MISSING`（409）、
+`IAM-ATTRIBUTE_SOURCE_UNAVAILABLE`（503）与 `IAM-ATTRIBUTE_CALLER_VIOLATION`（403）。
+
+SCIM 与 OAuth2 token 端点是上文的协议例外：`ScimExceptionHandler` 与
+`NativeAuthErrorResponseHandler` 各自输出 RFC 形状，不经过 `IamExceptionHandler`。
+
 ## 命令边界的三条硬规则
 
 1. **未授权是 403，不是 401/500**：身份已认证但缺少 `descriptor.permission()`。
@@ -42,5 +67,6 @@
 ## 测试证据
 
 - `ContractErrorHandlerTest`：上面每一行的状态码与 `code`。
+- `IamExceptionHandlerTest`：IAM 全枚举的 `IAM-<枚举名>` 映射与信封字段集合（含 MockMvc 线形状）。
 - `CommandControllerTest`：403 / 400 / 409 / 未知类型 / 非 UUID 调用方。
 - `HrEmployeeHttpTest`、`HrServerPostgresIT`：真实 Spring 上下文下的错误矩阵。

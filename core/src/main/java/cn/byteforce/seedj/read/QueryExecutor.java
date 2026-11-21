@@ -1,12 +1,13 @@
 package cn.byteforce.seedj.read;
 
-import java.util.List;
+import cn.byteforce.seedj.domain.Page;
 import java.util.Map;
 
 /**
- * 已校验 SQL 的执行出口：适配器只负责执行，不再拼接或改写条件。
+ * 自定义查询的执行出口：适配器负责 SQL 生成与执行。
  *
- * <p>SQL 与参数由 {@link ReadGateway} 生成：行范围、分页都已绑定为位置参数；适配器不得 自行解析、拼接或放宽条件。
+ * <p>{@link ReadGateway} 只做校验、对象权限、行范围解析、字段策略与审计，然后把 {@link QueryPlan} 交给实现。行范围谓词必须由实现编译成 SQL（列名限定为
+ * {@code seedj_q}）， 不得忽略或放宽。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -14,20 +15,10 @@ import java.util.Map;
 public interface QueryExecutor {
 
     /**
-     * 执行一页查询。
+     * 执行一条已校验的查询计划。
      *
-     * @param sql 完整 SQL（含 LIMIT/OFFSET 占位符）
-     * @param parameters 位置参数（与 SQL 顺序一致）
-     * @return 行（列名 → 值）
+     * @param plan 查询计划
+     * @return 一页行（列名 → 值）与总数；总数是行范围过滤后的条数
      */
-    List<Map<String, Object>> page(String sql, List<Object> parameters);
-
-    /**
-     * 执行计数查询。
-     *
-     * @param sql 计数 SQL
-     * @param parameters 位置参数
-     * @return 总条数
-     */
-    long count(String sql, List<Object> parameters);
+    Page<Map<String, Object>> execute(QueryPlan plan);
 }

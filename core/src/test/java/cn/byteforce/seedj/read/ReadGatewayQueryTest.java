@@ -23,7 +23,6 @@ import cn.byteforce.seedj.domain.TemporalRow;
 import cn.byteforce.seedj.domain.TemporalSearch;
 import cn.byteforce.seedj.domain.TemporalStore;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -97,18 +96,19 @@ class ReadGatewayQueryTest {
                 gateway.query(
                         SPEC, Map.of("number", "E-1"), null, null, new PageRequest(2, 10), CALLER);
 
-        assertThat(executor.pageSql)
-                .isEqualTo(
-                        "SELECT * FROM (SELECT employee_no, phone,"
-                                + " id_number_hash, org_unit_id FROM hr_employee WHERE employee_no = ?)"
-                                + " seedj_q WHERE seedj_q.\"org_unit_id\" = ?"
-                                + " ORDER BY seedj_q.\"employee_no\" ASC LIMIT ? OFFSET ?");
-        assertThat(executor.pageArguments).containsExactly("E-1", "D01", 10, 10L);
+        QueryPlan plan = executor.plan;
+        assertThat(plan.spec()).isSameAs(SPEC);
+        assertThat(plan.parameters()).containsExactly(Map.entry("number", "E-1"));
+        assertThat(plan.scope()).isEqualTo(new ScopePredicate.Eq("org_unit_id", "D01"));
+        assertThat(plan.sortField()).isEqualTo("employee_no");
+        assertThat(plan.direction()).isEqualTo(SortDirection.ASC);
+        assertThat(plan.page()).isEqualTo(new PageRequest(2, 10));
+        assertThat(plan.schema()).isSameAs(SCHEMA);
         assertThat(page.items()).hasSize(1);
         assertThat(page.items().get(0)).containsEntry("employee_no", "E-1");
         assertThat(page.items().get(0)).doesNotContainKeys("id_number_hash", "phone");
-        assertThat(page.total()).isEqualTo(0);
-        assertThat(executor.calls).containsExactly("page", "count");
+        assertThat(page.total()).isEqualTo(2);
+        assertThat(executor.calls).isEqualTo(1);
     }
 
     @Test
@@ -187,7 +187,7 @@ class ReadGatewayQueryTest {
                         SPEC, Map.of("number", "E-1"), null, null, PageRequest.defaults(), CALLER);
 
         assertThat(page.items()).isEmpty();
-        assertThat(executor.calls).isEmpty();
+        assertThat(executor.calls).isZero();
     }
 
     @Test
@@ -208,24 +208,6 @@ class ReadGatewayQueryTest {
                 .isInstanceOfSatisfying(
                         ContractException.class,
                         error -> assertThat(error.code()).isEqualTo(ContractErrorCode.UNAVAILABLE));
-    }
-
-    @Test
-    @DisplayName("单表仓储走同一网关，返回类型化页")
-    void temporalQueryRepositoryMapsRows() {
-        ReadGateway gateway = gateway(new ScopePredicate.All(), true, FieldPolicy.defaults(SCHEMA));
-        TemporalQueryRepository<String> repository =
-                new TemporalQueryRepository<>(
-                        gateway,
-                        "employee",
-                        "employee_no",
-                        SortDirection.ASC,
-                        fields -> String.valueOf(fields.get("employee_no")));
-
-        Page<String> page = repository.find(Map.of("org_unit_id", "D01"), CALLER);
-
-        assertThat(page.items()).containsExactly("E-1");
-        assertThat(page.total()).isEqualTo(1);
     }
 
     private ReadGateway gateway(ScopePredicate scope, boolean withExecutor, FieldPolicy policy) {
@@ -288,29 +270,20 @@ class ReadGatewayQueryTest {
 
     private static final class RecordingExecutor implements QueryExecutor {
 
-        final List<String> calls = new ArrayList<>();
+        int calls;
 
-        String pageSql;
-
-        List<Object> pageArguments;
+        QueryPlan plan;
 
         @Override
-        public List<Map<String, Object>> page(String sql, List<Object> parameters) {
-            calls.add("page");
-            pageSql = sql;
-            pageArguments = parameters;
+        public Page<Map<String, Object>> execute(QueryPlan plan) {
+            calls++;
+            this.plan = plan;
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("employee_no", "E-1");
             row.put("phone", "110101199001010101");
             row.put("id_number_hash", "hash");
             row.put("org_unit_id", "D01");
-            return List.of(row);
-        }
-
-        @Override
-        public long count(String sql, List<Object> parameters) {
-            calls.add("count");
-            return 0;
+            return new Page<>(List.of(row), 2, plan.page().page(), plan.page().size());
         }
     }
 

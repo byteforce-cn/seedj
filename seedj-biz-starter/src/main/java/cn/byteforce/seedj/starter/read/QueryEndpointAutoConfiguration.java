@@ -5,20 +5,14 @@ import cn.byteforce.seedj.core.exception.ContractException;
 import cn.byteforce.seedj.core.security.Caller;
 import cn.byteforce.seedj.core.security.CallerProvider;
 import cn.byteforce.seedj.domain.Page;
-import cn.byteforce.seedj.domain.PageRequest;
-import cn.byteforce.seedj.domain.SortDirection;
 import cn.byteforce.seedj.domain.TemporalRow;
-import cn.byteforce.seedj.domain.TemporalSearch;
 import cn.byteforce.seedj.module.ObjectModuleRegistry;
 import cn.byteforce.seedj.module.QueryDeclaration;
 import cn.byteforce.seedj.read.ReadGateway;
-import java.time.Instant;
-import java.time.format.DateTimeParseException;
+import cn.byteforce.seedj.starter.web.ObjectQueryParameters;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -33,6 +27,8 @@ import org.springframework.web.servlet.function.ServerResponse;
 /**
  * 为每个 {@code .query(...)} 声明生成 GET 端点，统一走 {@link ReadGateway}。
  *
+ * <p>参数解析与通用对象面共用 {@link ObjectQueryParameters}：保留字、过滤、分页、时点、 排序与游标只有一个实现。
+ *
  * @author ByteForce
  * @since 1.0.0
  */
@@ -41,9 +37,6 @@ import org.springframework.web.servlet.function.ServerResponse;
 @ConditionalOnBean({ReadGateway.class, ObjectModuleRegistry.class, CallerProvider.class})
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 public class QueryEndpointAutoConfiguration {
-
-    private static final Set<String> RESERVED =
-            Set.of("page", "size", "direction", "as_of", "recorded_as_of");
 
     /**
      * 模块查询路由。
@@ -101,27 +94,12 @@ public class QueryEndpointAutoConfiguration {
             throw new ContractException(
                     ContractErrorCode.FORBIDDEN, "missing query permission: " + query.permission());
         }
-        Map<String, String> params = params(request);
-        Map<String, Object> filters = new LinkedHashMap<>();
-        params.forEach(
-                (name, value) -> {
-                    if (!RESERVED.contains(name)) {
-                        filters.put(name, value);
-                    }
-                });
-        PageRequest page =
-                new PageRequest(intParam(params, "page", 1), intParam(params, "size", 20));
-        TemporalSearch search =
-                new TemporalSearch(
+        Page<TemporalRow> result =
+                gateway.search(
                         query.objectType(),
-                        filters,
-                        instant(params.get("as_of"), "as_of"),
-                        instant(params.get("recorded_as_of"), "recorded_as_of"),
-                        null,
-                        query.sortField(),
-                        direction(params.get("direction")),
-                        page);
-        Page<TemporalRow> result = gateway.search(query.objectType(), search, caller);
+                        ObjectQueryParameters.parse(params(request))
+                                .toSearch(query.objectType(), query.sortField()),
+                        caller);
         List<Object> items =
                 result.items().stream().map(row -> viewMapper.map(row, query.viewType())).toList();
         return ServerResponse.ok()
@@ -135,42 +113,6 @@ public class QueryEndpointAutoConfiguration {
                         (name, values) ->
                                 params.put(name, values.isEmpty() ? null : values.get(0)));
         return params;
-    }
-
-    private static int intParam(Map<String, String> params, String name, int defaultValue) {
-        String raw = params.get(name);
-        if (raw == null || raw.isBlank()) {
-            return defaultValue;
-        }
-        try {
-            return Integer.parseInt(raw);
-        } catch (NumberFormatException error) {
-            throw new ContractException(
-                    ContractErrorCode.INVALID_PAYLOAD, "invalid " + name + ": " + raw);
-        }
-    }
-
-    private static SortDirection direction(String raw) {
-        if (raw == null || raw.isBlank()) {
-            return SortDirection.ASC;
-        }
-        try {
-            return SortDirection.valueOf(raw.trim().toUpperCase(Locale.ROOT));
-        } catch (IllegalArgumentException error) {
-            throw new ContractException(
-                    ContractErrorCode.INVALID_PAYLOAD, "invalid direction: " + raw);
-        }
-    }
-
-    private static Instant instant(String raw, String name) {
-        if (raw == null || raw.isBlank()) {
-            return null;
-        }
-        try {
-            return Instant.parse(raw);
-        } catch (DateTimeParseException error) {
-            throw new ContractException(ContractErrorCode.INVALID_PAYLOAD, "invalid " + name);
-        }
     }
 
     /** 查询响应。 */

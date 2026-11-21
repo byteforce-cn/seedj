@@ -13,7 +13,7 @@
     <packaging>jar</packaging>
 
     <name>Byteforce Seedj :: Infrastructure :: Coord</name>
-    <description>coord 0.4.3 基础设施实现：ID、编号、全局序列、EventBus 发布；不启动 server、不产出可执行制品</description>
+    <description>coord 0.4.4 基础设施实现：ID、编号、全局序列、EventBus 发布；不启动 server、不产出可执行制品</description>
 
     <dependencies>
         <dependency>
@@ -22,8 +22,24 @@
         </dependency>
         <dependency>
             <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>seedj-pki-contract</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cn.byteforce.seedj</groupId>
             <artifactId>core</artifactId>
             <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>seedj-pki-contract</artifactId>
+            <version>${revision}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcpkix-jdk18on</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>

@@ -100,7 +100,7 @@ class ApiAlignmentTest {
     void objectQueryControllerMatchesSpec() throws Exception {
         Method find =
                 ObjectQueryController.class.getMethod(
-                        "find", String.class, UUID.class, String.class, String.class, Long.class);
+                        "find", String.class, UUID.class, String.class, String.class, String.class);
         GetMapping mapping = find.getAnnotation(GetMapping.class);
         assertThat(mapping).isNotNull();
         assertThat(mapping.value()).containsExactly("/objects/{objectType}/{id}");

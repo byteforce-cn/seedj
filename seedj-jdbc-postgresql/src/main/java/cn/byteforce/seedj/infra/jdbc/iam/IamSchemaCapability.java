@@ -1,50 +1,30 @@
 package cn.byteforce.seedj.infra.jdbc.iam;
 
-import cn.byteforce.seedj.core.InfrastructureCapability;
-import cn.byteforce.seedj.core.Migration;
 import cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner;
-import java.util.List;
+import cn.byteforce.seedj.infra.jdbc.JdbcSchemaCapability;
 
-/** Ensures the IAM tables exist before any identity bean is used. */
-public class IamSchemaCapability implements InfrastructureCapability {
+/**
+ * IamMigrations 的 schema 能力：迁移数据在 {@link IamMigrations}，模板逻辑在 {@link JdbcSchemaCapability}。
+ *
+ * <p>本类只保留公开常量与构造器，供既有装配与测试继续引用。
+ *
+ * @author ByteForce
+ * @since 1.0.0
+ */
+public class IamSchemaCapability extends JdbcSchemaCapability {
 
+    /** 能力名称。 */
     public static final String NAME = "postgres-iam-schema";
+
+    /** 迁移 scope。 */
     public static final String MIGRATION_SCOPE = "iam";
 
-    private final JdbcMigrationRunner runner;
-    private final List<Migration> migrations;
-
+    /**
+     * 构造能力。
+     *
+     * @param runner 迁移执行器
+     */
     public IamSchemaCapability(JdbcMigrationRunner runner) {
-        this(runner, IamMigrations.all());
-    }
-
-    IamSchemaCapability(JdbcMigrationRunner runner, List<Migration> migrations) {
-        this.runner = runner;
-        this.migrations = List.copyOf(migrations);
-    }
-
-    @Override
-    public String getName() {
-        return NAME;
-    }
-
-    @Override
-    public boolean isReady() {
-        return runner.isUpToDate(MIGRATION_SCOPE, migrations);
-    }
-
-    @Override
-    public void initialize() {
-        runner.migrate(MIGRATION_SCOPE, migrations);
-    }
-
-    @Override
-    public void validate() {
-        runner.validate(MIGRATION_SCOPE, migrations);
-    }
-
-    @Override
-    public int getOrder() {
-        return 200;
+        super(IamMigrations.migrationSet(), runner);
     }
 }

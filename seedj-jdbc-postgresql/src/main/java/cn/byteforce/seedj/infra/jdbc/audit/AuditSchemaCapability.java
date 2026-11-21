@@ -1,56 +1,30 @@
 package cn.byteforce.seedj.infra.jdbc.audit;
 
-import cn.byteforce.seedj.core.InfrastructureCapability;
-import cn.byteforce.seedj.core.Migration;
 import cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner;
-import java.util.List;
+import cn.byteforce.seedj.infra.jdbc.JdbcSchemaCapability;
 
 /**
- * 保证 audit_entry / audit_head / 迁移历史表一定存在。
+ * AuditMigrations 的 schema 能力：迁移数据在 {@link AuditMigrations}，模板逻辑在 {@link JdbcSchemaCapability}。
  *
- * <p>由 {@code InfrastructureInitializer} 在启动期调用；required=true，迁移失败 阻断应用启动，而不是等到第一条命令才报错。
+ * <p>本类只保留公开常量与构造器，供既有装配与测试继续引用。
+ *
+ * @author ByteForce
+ * @since 1.0.0
  */
-public class AuditSchemaCapability implements InfrastructureCapability {
+public class AuditSchemaCapability extends JdbcSchemaCapability {
 
+    /** 能力名称。 */
     public static final String NAME = "postgres-audit";
 
+    /** 迁移 scope。 */
     public static final String MIGRATION_SCOPE = "audit";
 
-    private final JdbcMigrationRunner runner;
-
-    private final List<Migration> migrations;
-
+    /**
+     * 构造能力。
+     *
+     * @param runner 迁移执行器
+     */
     public AuditSchemaCapability(JdbcMigrationRunner runner) {
-        this(runner, AuditMigrations.all());
-    }
-
-    AuditSchemaCapability(JdbcMigrationRunner runner, List<Migration> migrations) {
-        this.runner = runner;
-        this.migrations = List.copyOf(migrations);
-    }
-
-    @Override
-    public String getName() {
-        return NAME;
-    }
-
-    @Override
-    public boolean isReady() {
-        return runner.isUpToDate(MIGRATION_SCOPE, migrations);
-    }
-
-    @Override
-    public void initialize() {
-        runner.migrate(MIGRATION_SCOPE, migrations);
-    }
-
-    @Override
-    public void validate() {
-        runner.validate(MIGRATION_SCOPE, migrations);
-    }
-
-    @Override
-    public int getOrder() {
-        return 110;
+        super(AuditMigrations.migrationSet(), runner);
     }
 }

@@ -1,5 +1,6 @@
 package cn.byteforce.seedj.starter.iam.authz;
 
+import cn.byteforce.seedj.core.exception.ApiError;
 import cn.byteforce.seedj.core.security.Caller;
 import cn.byteforce.seedj.core.security.CallerProvider;
 import cn.byteforce.seedj.iam.IamErrorCode;
@@ -7,7 +8,6 @@ import cn.byteforce.seedj.iam.IamException;
 import cn.byteforce.seedj.iam.authz.AttributeLookup;
 import cn.byteforce.seedj.iam.authz.AttributeSnapshot;
 import cn.byteforce.seedj.iam.authz.AttributeState;
-import cn.byteforce.seedj.iam.authz.IamCheckResult;
 import cn.byteforce.seedj.iam.authz.IamResolution;
 import cn.byteforce.seedj.security.AuthorizationDecision;
 import cn.byteforce.seedj.security.AuthorizationDecisionPoint;
@@ -55,7 +55,7 @@ public class IamAuthorizationController {
      */
     public IamAuthorizationController(
             IamContractAuthorizationService service, ObjectProvider<CallerProvider> callers) {
-        this(service, service, callers);
+        this(service, service::decide, callers);
     }
 
     /**
@@ -193,44 +193,32 @@ public class IamAuthorizationController {
         if (!trustedService()) {
             return ResponseEntity.status(403)
                     .body(
-                            Map.of(
-                                    "reason_code", "ATTRIBUTE_CALLER_VIOLATION",
-                                    "message", "trusted service permission required"));
+                            new ApiError(
+                                    "IAM-ATTRIBUTE_CALLER_VIOLATION",
+                                    "trusted service permission required",
+                                    Map.of("reason_code", "ATTRIBUTE_CALLER_VIOLATION")));
         }
         AttributeLookup lookup = service.attributes(principalId, asOf, recordedAsOf);
         if (lookup.state() == AttributeState.MISSING) {
-            return ResponseEntity.status(409)
-                    .body(
-                            Map.of(
-                                    "reason_code",
-                                    "ATTRIBUTE_MISSING",
-                                    "principal",
-                                    principalId,
-                                    "as_of",
-                                    asOf.toString()));
+            return ResponseEntity.status(409).body(attributeMissing(principalId, asOf));
         }
         if (lookup.state() == AttributeState.SOURCE_UNAVAILABLE) {
             return ResponseEntity.status(503)
                     .body(
-                            Map.of(
-                                    "reason_code",
-                                    "ATTRIBUTE_SOURCE_UNAVAILABLE",
-                                    "principal",
-                                    principalId,
-                                    "as_of",
-                                    asOf.toString()));
+                            new ApiError(
+                                    "IAM-ATTRIBUTE_SOURCE_UNAVAILABLE",
+                                    "attribute source unavailable",
+                                    Map.of(
+                                            "reason_code",
+                                            "ATTRIBUTE_SOURCE_UNAVAILABLE",
+                                            "principal",
+                                            principalId,
+                                            "as_of",
+                                            asOf.toString())));
         }
         AttributeSnapshot snapshot = lookup.snapshot();
         if (snapshot == null) {
-            return ResponseEntity.status(409)
-                    .body(
-                            Map.of(
-                                    "reason_code",
-                                    "ATTRIBUTE_MISSING",
-                                    "principal",
-                                    principalId,
-                                    "as_of",
-                                    asOf.toString()));
+            return ResponseEntity.status(409).body(attributeMissing(principalId, asOf));
         }
         return ResponseEntity.ok(
                 new IamAuthorizationDtos.AttributesResponse(
@@ -242,6 +230,19 @@ public class IamAuthorizationController {
                         snapshot.sourceVersion(),
                         lookup.state().wireName(),
                         snapshot.snapshot()));
+    }
+
+    private static ApiError attributeMissing(String principalId, Instant asOf) {
+        return new ApiError(
+                "IAM-ATTRIBUTE_MISSING",
+                "attribute snapshot is missing",
+                Map.of(
+                        "reason_code",
+                        "ATTRIBUTE_MISSING",
+                        "principal",
+                        principalId,
+                        "as_of",
+                        asOf.toString()));
     }
 
     private boolean trustedService() {

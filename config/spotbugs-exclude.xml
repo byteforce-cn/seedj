@@ -56,6 +56,15 @@
         <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
     </Match>
 
+    <!--
+      UUIDv7 实现已上移到 core；infra-local 保留同名子类作为既有装配的兼容入口，
+      类名与父类一致是刻意选择，不是命名事故。
+    -->
+    <Match>
+        <Class name="cn.byteforce.seedj.infra.local.id.Uuid7IdGenerator"/>
+        <Bug pattern="NM_SAME_SIMPLE_NAME_AS_SUPERCLASS"/>
+    </Match>
+
     <!-- 列表查询禁止 min_version：构造器里的空值分支是契约校验，不是空指针解引用。 -->
     <Match>
         <Class name="cn.byteforce.seedj.domain.TemporalSearch"/>

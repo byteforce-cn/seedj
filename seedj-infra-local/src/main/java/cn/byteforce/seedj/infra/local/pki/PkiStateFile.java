@@ -1,13 +1,12 @@
 package cn.byteforce.seedj.infra.local.pki;
 
-import cn.byteforce.seedj.pki.PkiErrorCode;
-import cn.byteforce.seedj.pki.PkiException;
-import cn.byteforce.seedj.pki.PkiProvider.CertificateStatus;
-import cn.byteforce.seedj.pki.PkiProvider.IssuedCertificate;
-import cn.byteforce.seedj.pki.PkiProvider.RevocationReason;
+import cn.byteforce.seedj.provider.pki.PkiErrorCode;
+import cn.byteforce.seedj.provider.pki.PkiException;
+import cn.byteforce.seedj.provider.pki.RevocationReason;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
@@ -24,7 +23,9 @@ import java.security.cert.X509Certificate;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
@@ -38,10 +39,13 @@ import java.util.function.Consumer;
  * <p>文件格式：
  *
  * <pre>
- * issued.&lt;serial&gt;=&lt;notAfterEpochMilli&gt;
- * revoked.&lt;serial&gt;=&lt;REVOCATION_REASON&gt;
+ * issued.&lt;serial-hex&gt;=&lt;notAfterEpochMilli&gt;
+ * issuedcert.&lt;serial-hex&gt;=&lt;base64 DER&gt;
+ * revoked.&lt;serial-hex&gt;=&lt;revokedAtEpochMilli&gt;|&lt;REVOCATION_REASON&gt;
+ * crl.number=&lt;monotonic counter&gt;
  * keypair.&lt;alias&gt;.private=&lt;base64 PKCS#8&gt;
  * keypair.&lt;alias&gt;.public=&lt;base64 X.509&gt;
+ * identity.&lt;alias&gt;.cert=&lt;base64 DER&gt;
  * </pre>
  *
  * <p>并发控制：
@@ -61,7 +65,9 @@ final class PkiStateFile {
             new ConcurrentHashMap<>();
 
     private static final String ISSUED_PREFIX = "issued.";
+    private static final String ISSUED_CERT_PREFIX = "issuedcert.";
     private static final String REVOKED_PREFIX = "revoked.";
+    private static final String CRL_NUMBER = "crl.number";
     private static final String KEYPAIR_PREFIX = "keypair.";
     private static final String KEYPAIR_PRIVATE_SUFFIX = ".private";
     private static final String KEYPAIR_PUBLIC_SUFFIX = ".public";
@@ -69,6 +75,9 @@ final class PkiStateFile {
     private static final String IDENTITY_CERT_SUFFIX = ".cert";
 
     private static final String FILE_HEADER = "seedj PKI state";
+
+    /** 一条 CRL 条目。 */
+    record RevokedEntry(BigInteger serial, Instant revokedAt, RevocationReason reason) {}
 
     private final Path file;
 
@@ -78,42 +87,144 @@ final class PkiStateFile {
 
     // ==================== 证书状态 ====================
 
-    void recordIssued(IssuedCertificate cert) {
-        String key = ISSUED_PREFIX + cert.serialNumber();
-        long notAfter = cert.notAfter().toEpochMilli();
+    void recordIssued(X509Certificate certificate) {
+        String serial = serialOf(certificate);
+        String issuedKey = ISSUED_PREFIX + serial;
+        String certKey = ISSUED_CERT_PREFIX + serial;
+        long notAfter = certificate.getNotAfter().getTime();
+        String encoded = encode(certificate);
         // 只增不减：同一 serial 重签（过期续期）时顺延 notAfter；普通签发 serial 不同，行为不变。
         update(
                 props -> {
                     long previous =
-                            props.containsKey(key)
-                                    ? Long.parseLong(props.getProperty(key))
+                            props.containsKey(issuedKey)
+                                    ? Long.parseLong(props.getProperty(issuedKey))
                                     : Long.MIN_VALUE;
-                    props.setProperty(key, String.valueOf(Math.max(previous, notAfter)));
+                    props.setProperty(issuedKey, String.valueOf(Math.max(previous, notAfter)));
+                    props.setProperty(certKey, encoded);
                 });
     }
 
-    void recordRevoked(String serialNumber, RevocationReason reason) {
+    Optional<X509Certificate> certificate(BigInteger serialNumber) {
+        String encoded = read().getProperty(ISSUED_CERT_PREFIX + hex(serialNumber));
+        if (encoded == null) {
+            return Optional.empty();
+        }
+        try {
+            CertificateFactory factory = CertificateFactory.getInstance("X.509");
+            return Optional.of(
+                    (X509Certificate)
+                            factory.generateCertificate(
+                                    new ByteArrayInputStream(Base64.getDecoder().decode(encoded))));
+        } catch (Exception e) {
+            throw new PkiException(
+                    PkiErrorCode.STATE_UNAVAILABLE, "解码已签发证书失败: " + hex(serialNumber), e);
+        }
+    }
+
+    boolean revoked(BigInteger serialNumber) {
+        return read().getProperty(REVOKED_PREFIX + hex(serialNumber)) != null;
+    }
+
+    void recordRevoked(BigInteger serialNumber, RevocationReason reason) {
+        String hex = hex(serialNumber);
         update(
                 props -> {
-                    if (!props.containsKey(ISSUED_PREFIX + serialNumber)) {
-                        throw new PkiException(PkiErrorCode.NOT_FOUND, "未签发的序列号: " + serialNumber);
+                    if (!props.containsKey(ISSUED_PREFIX + hex)) {
+                        throw new PkiException(PkiErrorCode.NOT_FOUND, "未签发的序列号: " + hex);
                     }
-                    props.setProperty(REVOKED_PREFIX + serialNumber, reason.name());
+                    // 重复吊销幂等：保留首次的 reason 与时间。
+                    if (props.containsKey(REVOKED_PREFIX + hex)) {
+                        return;
+                    }
+                    props.setProperty(
+                            REVOKED_PREFIX + hex,
+                            Instant.now().toEpochMilli() + "|" + reason.name());
                 });
     }
 
-    CertificateStatus status(String serialNumber) {
+    List<RevokedEntry> revokedEntries() {
         Properties props = read();
-        if (!props.containsKey(ISSUED_PREFIX + serialNumber)) {
-            return CertificateStatus.UNKNOWN;
+        List<RevokedEntry> entries = new ArrayList<>();
+        for (String key : props.stringPropertyNames()) {
+            if (!key.startsWith(REVOKED_PREFIX)) {
+                continue;
+            }
+            BigInteger serial = new BigInteger(key.substring(REVOKED_PREFIX.length()), 16);
+            String value = props.getProperty(key);
+            String[] parts = value.split("\\|", 2);
+            try {
+                if (parts.length == 2) {
+                    entries.add(
+                            new RevokedEntry(
+                                    serial,
+                                    Instant.ofEpochMilli(Long.parseLong(parts[0])),
+                                    RevocationReason.valueOf(parts[1])));
+                } else {
+                    // 旧格式只有 reason；用证书 notBefore 兜底，实在没有就用 epoch。
+                    entries.add(
+                            new RevokedEntry(
+                                    serial,
+                                    certificate(serial)
+                                            .map(cert -> cert.getNotBefore().toInstant())
+                                            .orElse(Instant.EPOCH),
+                                    RevocationReason.valueOf(parts[0])));
+                }
+            } catch (RuntimeException e) {
+                throw new PkiException(PkiErrorCode.STATE_UNAVAILABLE, "解析吊销记录失败: " + key, e);
+            }
         }
-        if (props.containsKey(REVOKED_PREFIX + serialNumber)) {
-            return CertificateStatus.REVOKED;
-        }
-        long notAfterMillis = Long.parseLong(props.getProperty(ISSUED_PREFIX + serialNumber));
-        return Instant.now().toEpochMilli() > notAfterMillis
-                ? CertificateStatus.EXPIRED
-                : CertificateStatus.VALID;
+        return List.copyOf(entries);
+    }
+
+    long crlNumber() {
+        String value = read().getProperty(CRL_NUMBER);
+        return value == null ? 1L : Long.parseLong(value);
+    }
+
+    long nextCrlNumber() {
+        AtomicReference<Long> next = new AtomicReference<>();
+        update(
+                props -> {
+                    long value =
+                            props.containsKey(CRL_NUMBER)
+                                    ? Long.parseLong(props.getProperty(CRL_NUMBER)) + 1
+                                    : 2;
+                    props.setProperty(CRL_NUMBER, String.valueOf(value));
+                    next.set(value);
+                });
+        return next.get();
+    }
+
+    /**
+     * 删除 {@code cutoff} 之前到期的签发记录；吊销记录与已吊销证书永不删除。
+     *
+     * @return 删除的证书记录数
+     */
+    int tidy(Instant cutoff) {
+        AtomicReference<Integer> removed = new AtomicReference<>(0);
+        update(
+                props -> {
+                    int count = 0;
+                    for (String key : new ArrayList<>(props.stringPropertyNames())) {
+                        if (!key.startsWith(ISSUED_PREFIX)) {
+                            continue;
+                        }
+                        String hex = key.substring(ISSUED_PREFIX.length());
+                        if (props.containsKey(REVOKED_PREFIX + hex)) {
+                            continue;
+                        }
+                        long notAfter = Long.parseLong(props.getProperty(key));
+                        if (notAfter >= cutoff.toEpochMilli()) {
+                            continue;
+                        }
+                        props.remove(key);
+                        props.remove(ISSUED_CERT_PREFIX + hex);
+                        count++;
+                    }
+                    removed.set(count);
+                });
+        return removed.get();
     }
 
     void clear() {
@@ -185,12 +296,7 @@ final class PkiStateFile {
 
     void putIdentityCertificate(String alias, X509Certificate cert) {
         String key = identityCertKey(alias);
-        String encoded;
-        try {
-            encoded = Base64.getEncoder().encodeToString(cert.getEncoded());
-        } catch (Exception e) {
-            throw new PkiException("编码签名身份证书失败: " + alias, e);
-        }
+        String encoded = encode(cert);
         update(props -> props.setProperty(key, encoded));
     }
 
@@ -287,6 +393,22 @@ final class PkiStateFile {
     }
 
     // ==================== 密钥对工具 ====================
+
+    private static String serialOf(X509Certificate certificate) {
+        return hex(certificate.getSerialNumber());
+    }
+
+    private static String hex(BigInteger serial) {
+        return serial.toString(16);
+    }
+
+    private static String encode(X509Certificate certificate) {
+        try {
+            return Base64.getEncoder().encodeToString(certificate.getEncoded());
+        } catch (Exception e) {
+            throw new PkiException("编码证书失败", e);
+        }
+    }
 
     private static KeyPair generateKeyPair(int keySize) {
         try {

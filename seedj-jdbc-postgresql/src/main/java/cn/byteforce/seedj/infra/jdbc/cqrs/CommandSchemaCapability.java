@@ -1,59 +1,36 @@
 package cn.byteforce.seedj.infra.jdbc.cqrs;
 
-import cn.byteforce.seedj.core.InfrastructureCapability;
 import cn.byteforce.seedj.core.Migration;
 import cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner;
+import cn.byteforce.seedj.infra.jdbc.JdbcSchemaCapability;
 import java.util.List;
 
 /**
- * 保证 {@code command_record} 表与索引一定存在。
+ * 命令记录表的 schema 能力：迁移数据在 {@link CommandMigrations}，模板逻辑在 {@link JdbcSchemaCapability}。
  *
- * <p>由 {@code InfrastructureInitializer} 在启动期调用；迁移失败阻断启动， 而不是等到第一条命令才报错。
+ * <p>本类只保留公开常量与构造器；2 参构造器供升级测试替换迁移列表。
  *
  * @author ByteForce
  * @since 1.0.0
  */
-public class CommandSchemaCapability implements InfrastructureCapability {
+public class CommandSchemaCapability extends JdbcSchemaCapability {
 
+    /** 能力名称。 */
     public static final String NAME = "postgres-command";
 
+    /** 迁移 scope。 */
     public static final String MIGRATION_SCOPE = "command";
 
-    private final JdbcMigrationRunner runner;
-
-    private final List<Migration> migrations;
-
+    /**
+     * 构造能力。
+     *
+     * @param runner 迁移执行器
+     */
     public CommandSchemaCapability(JdbcMigrationRunner runner) {
-        this(runner, CommandMigrations.all());
+        super(CommandMigrations.migrationSet(), runner);
     }
 
     CommandSchemaCapability(JdbcMigrationRunner runner, List<Migration> migrations) {
-        this.runner = runner;
-        this.migrations = List.copyOf(migrations);
-    }
-
-    @Override
-    public String getName() {
-        return NAME;
-    }
-
-    @Override
-    public boolean isReady() {
-        return runner.isUpToDate(MIGRATION_SCOPE, migrations);
-    }
-
-    @Override
-    public void initialize() {
-        runner.migrate(MIGRATION_SCOPE, migrations);
-    }
-
-    @Override
-    public void validate() {
-        runner.validate(MIGRATION_SCOPE, migrations);
-    }
-
-    @Override
-    public int getOrder() {
-        return 130;
+        super(CommandMigrations.migrationSet().withMigrations(migrations), runner);
     }
 }

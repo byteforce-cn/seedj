@@ -29,6 +29,15 @@ class TestSliceBudgetTest {
         testFiles.addAll(CognitiveLoadBaseline.javaFiles(ROOT, "seedj-server/hr/src/test/java"));
         testFiles.addAll(CognitiveLoadBaseline.javaFiles(ROOT, "seedj-it/src/test/java"));
         testFiles.addAll(CognitiveLoadBaseline.javaFiles(ROOT, "core/src/test/java"));
+        for (String contract :
+                List.of(
+                        "seedj-workflow-contract",
+                        "seedj-transit-contract",
+                        "seedj-ai-contract",
+                        "seedj-im-contract",
+                        "seedj-iam-contract")) {
+            testFiles.addAll(CognitiveLoadBaseline.javaFiles(ROOT, contract + "/src/test/java"));
+        }
         testFiles.addAll(
                 CognitiveLoadBaseline.javaFiles(ROOT, "seedj-jdbc-postgresql/src/test/java"));
 

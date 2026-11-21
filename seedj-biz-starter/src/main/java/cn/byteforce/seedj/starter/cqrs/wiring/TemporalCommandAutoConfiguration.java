@@ -1,6 +1,5 @@
 package cn.byteforce.seedj.starter.cqrs.wiring;
 
-import cn.byteforce.seedj.core.InfrastructureCapability;
 import cn.byteforce.seedj.core.clock.Clock;
 import cn.byteforce.seedj.core.clock.Clocks;
 import cn.byteforce.seedj.core.security.CallerIdCodec;
@@ -16,17 +15,7 @@ import cn.byteforce.seedj.domain.ObjectSchema;
 import cn.byteforce.seedj.domain.ObjectSchemaRegistry;
 import cn.byteforce.seedj.domain.TemporalStore;
 import cn.byteforce.seedj.id.IdGenerator;
-import cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner;
-import cn.byteforce.seedj.infra.jdbc.cqrs.CommandSchemaCapability;
-import cn.byteforce.seedj.infra.jdbc.cqrs.EventSchemaCapability;
-import cn.byteforce.seedj.infra.jdbc.cqrs.PostgresCommandStore;
-import cn.byteforce.seedj.infra.jdbc.domain.PostgresTemporalStore;
-import cn.byteforce.seedj.infra.jdbc.domain.TemporalSchemaCapability;
-import cn.byteforce.seedj.infra.jdbc.domain.TemporalTable;
-import cn.byteforce.seedj.infra.jdbc.domain.TemporalTables;
-import cn.byteforce.seedj.infra.local.cqrs.InMemoryCommandStore;
-import cn.byteforce.seedj.infra.local.domain.InMemoryTemporalStore;
-import cn.byteforce.seedj.infra.local.id.Uuid7IdGenerator;
+import cn.byteforce.seedj.id.Uuid7IdGenerator;
 import cn.byteforce.seedj.lock.LockProvider;
 import cn.byteforce.seedj.outbox.OutboxWriter;
 import cn.byteforce.seedj.starter.autoconfigure.BizEnabledMarker;
@@ -38,7 +27,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import javax.sql.DataSource;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -48,12 +36,9 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
-import org.springframework.boot.jdbc.autoconfigure.JdbcTemplateAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
-import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
  * 命令运行时、对象查询与 HTTP 面的默认装配。
@@ -67,16 +52,12 @@ import org.springframework.jdbc.core.JdbcTemplate;
 @AutoConfiguration(
         afterName = {
             "cn.byteforce.seedj.starter.security.BizSecurityAutoConfiguration",
-            "cn.byteforce.seedj.starter.audit.AuditAutoConfiguration"
-        },
-        after = {DataSourceAutoConfiguration.class, JdbcTemplateAutoConfiguration.class})
+            "cn.byteforce.seedj.starter.audit.AuditAutoConfiguration",
+            "org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration"
+        })
 @ConditionalOnBean(BizEnabledMarker.class)
 @EnableConfigurationProperties(CommandRuntimeProperties.class)
 public class TemporalCommandAutoConfiguration {
-
-    private static final String COMMAND_PROVIDER = "seedj.command.provider";
-
-    private static final String OBJECT_PROVIDER = "seedj.object.provider";
 
     /**
      * 契约面统一时钟；应用可覆盖。
@@ -99,38 +80,6 @@ public class TemporalCommandAutoConfiguration {
     @ConditionalOnMissingBean(name = "commandIdGenerator")
     public IdGenerator<UUID> commandIdGenerator(Clock clock) {
         return new Uuid7IdGenerator(clock);
-    }
-
-    /**
-     * 命令记录存储。
-     *
-     * @param environment 配置
-     * @param jdbc JDBC 模板
-     * @return 命令存储
-     */
-    @Bean
-    @ConditionalOnMissingBean
-    @ConditionalOnProperty(
-            prefix = "seedj.command",
-            name = "enabled",
-            havingValue = "true",
-            matchIfMissing = true)
-    public CommandStore commandStore(Environment environment, ObjectProvider<JdbcTemplate> jdbc) {
-        JdbcTemplate template = jdbc.getIfAvailable();
-        String provider =
-                environment.getProperty(COMMAND_PROVIDER, template == null ? "memory" : "postgres");
-        return switch (provider) {
-            case "memory" -> new InMemoryCommandStore();
-            case "postgres" -> {
-                if (template == null) {
-                    throw new IllegalStateException(
-                            "seedj.command.provider=postgres requires a DataSource/JdbcTemplate");
-                }
-                yield new PostgresCommandStore(template);
-            }
-            default ->
-                    throw new IllegalStateException("unknown seedj.command.provider: " + provider);
-        };
     }
 
     /**
@@ -174,77 +123,6 @@ public class TemporalCommandAutoConfiguration {
         return declared.isEmpty()
                 ? ObjectSchemaRegistry.empty()
                 : new ObjectSchemaRegistry(List.copyOf(declared.values()));
-    }
-
-    /**
-     * 对象表映射：优先使用显式声明的 {@link TemporalTable}，否则由 {@link ObjectSchema} 派生。两者都没有时是空注册表，访问未知类型会在使用点失败。
-     *
-     * @param tables 显式表定义
-     * @param schemas 业务 schema 注册表
-     * @return 表注册表
-     */
-    @Bean
-    @ConditionalOnMissingBean
-    @ConditionalOnProperty(
-            prefix = "seedj.object",
-            name = "enabled",
-            havingValue = "true",
-            matchIfMissing = true)
-    public TemporalTables temporalTables(
-            ObjectProvider<TemporalTable> tables, ObjectSchemaRegistry schemas) {
-        List<TemporalTable> declared = tables.orderedStream().toList();
-        if (!declared.isEmpty()) {
-            return new TemporalTables(declared);
-        }
-        return new TemporalTables(schemas.all().stream().map(TemporalTable::from).toList());
-    }
-
-    /**
-     * 双时间轴对象存储。
-     *
-     * @param environment 配置
-     * @param jdbc JDBC 模板
-     * @param tables 对象表注册表
-     * @param schemas 对象 schema 注册表
-     * @param clock 取时入口
-     * @return 对象存储
-     */
-    @Bean
-    @ConditionalOnMissingBean
-    @ConditionalOnProperty(
-            prefix = "seedj.object",
-            name = "enabled",
-            havingValue = "true",
-            matchIfMissing = true)
-    public TemporalStore temporalStore(
-            Environment environment,
-            ObjectProvider<JdbcTemplate> jdbc,
-            ObjectProvider<TemporalTables> tables,
-            ObjectSchemaRegistry schemas,
-            Clock clock) {
-        JdbcTemplate template = jdbc.getIfAvailable();
-        TemporalTables registry = tables.getIfAvailable();
-        String provider =
-                environment.getProperty(
-                        OBJECT_PROVIDER,
-                        template == null || registry == null ? "memory" : "postgres");
-        return switch (provider) {
-            case "memory" -> new InMemoryTemporalStore(clock, schemas);
-            case "postgres" -> {
-                if (template == null) {
-                    throw new IllegalStateException(
-                            "seedj.object.provider=postgres requires a DataSource/JdbcTemplate");
-                }
-                if (registry == null || registry.isEmpty()) {
-                    throw new IllegalStateException(
-                            "seedj.object.provider=postgres requires registered TemporalTables "
-                                    + "or ObjectSchema beans");
-                }
-                yield new PostgresTemporalStore(template, clock, registry);
-            }
-            default ->
-                    throw new IllegalStateException("unknown seedj.object.provider: " + provider);
-        };
     }
 
     /**
@@ -393,81 +271,6 @@ public class TemporalCommandAutoConfiguration {
         return delegate == null
                 ? CommandValidator.none()
                 : new BeanValidationCommandValidator(delegate);
-    }
-
-    /** PostgreSQL 命令表迁移。 */
-    @Configuration(proxyBeanMethods = false)
-    @ConditionalOnClass({JdbcTemplate.class, DataSource.class})
-    @ConditionalOnBean(DataSource.class)
-    @ConditionalOnProperty(
-            prefix = "seedj.command",
-            name = "enabled",
-            havingValue = "true",
-            matchIfMissing = true)
-    static class CommandSchemaConfiguration {
-
-        @Bean
-        @ConditionalOnMissingBean(name = "postgresCommandSchemaCapability")
-        @ConditionalOnProperty(
-                prefix = "seedj.command",
-                name = "provider",
-                havingValue = "postgres",
-                matchIfMissing = true)
-        InfrastructureCapability postgresCommandSchemaCapability(
-                DataSource dataSource, ObjectProvider<JdbcMigrationRunner> runners) {
-            return new CommandSchemaCapability(
-                    runners.getIfAvailable(() -> new JdbcMigrationRunner(dataSource)));
-        }
-    }
-
-    /** PostgreSQL 双时间轴共享对象迁移。 */
-    @Configuration(proxyBeanMethods = false)
-    @ConditionalOnClass({JdbcTemplate.class, DataSource.class})
-    @ConditionalOnBean(DataSource.class)
-    @ConditionalOnProperty(
-            prefix = "seedj.object",
-            name = "enabled",
-            havingValue = "true",
-            matchIfMissing = true)
-    static class TemporalSchemaConfiguration {
-
-        @Bean
-        @ConditionalOnMissingBean(name = "postgresTemporalSchemaCapability")
-        @ConditionalOnProperty(
-                prefix = "seedj.object",
-                name = "provider",
-                havingValue = "postgres",
-                matchIfMissing = true)
-        InfrastructureCapability postgresTemporalSchemaCapability(
-                DataSource dataSource, ObjectProvider<JdbcMigrationRunner> runners) {
-            return new TemporalSchemaCapability(
-                    runners.getIfAvailable(() -> new JdbcMigrationRunner(dataSource)));
-        }
-    }
-
-    /** PostgreSQL 事件存储共享迁移：保证 {@code event_stream} 表存在。 */
-    @Configuration(proxyBeanMethods = false)
-    @ConditionalOnClass({JdbcTemplate.class, DataSource.class})
-    @ConditionalOnBean(DataSource.class)
-    @ConditionalOnProperty(
-            prefix = "seedj.event-store",
-            name = "enabled",
-            havingValue = "true",
-            matchIfMissing = true)
-    static class EventSchemaConfiguration {
-
-        @Bean
-        @ConditionalOnMissingBean(name = "postgresEventSchemaCapability")
-        @ConditionalOnProperty(
-                prefix = "seedj.event-store",
-                name = "provider",
-                havingValue = "postgres",
-                matchIfMissing = true)
-        InfrastructureCapability postgresEventSchemaCapability(
-                DataSource dataSource, ObjectProvider<JdbcMigrationRunner> runners) {
-            return new EventSchemaCapability(
-                    runners.getIfAvailable(() -> new JdbcMigrationRunner(dataSource)));
-        }
     }
 
     /** Web 面：命令与对象查询控制器。 */

@@ -10,12 +10,12 @@ import cn.byteforce.seedj.core.security.ScopeContext;
 import cn.byteforce.seedj.domain.FieldType;
 import cn.byteforce.seedj.domain.Maskers;
 import cn.byteforce.seedj.domain.Privacy;
-import cn.byteforce.seedj.iam.IamAuthorizationDecision;
-import cn.byteforce.seedj.iam.IamAuthorizationRequest;
 import cn.byteforce.seedj.iam.spi.IamPolicyDecisionPoint;
 import cn.byteforce.seedj.module.ObjectModuleRegistry;
 import cn.byteforce.seedj.module.ObjectModules;
 import cn.byteforce.seedj.read.FieldPolicy;
+import cn.byteforce.seedj.security.AuthorizationDecision;
+import cn.byteforce.seedj.security.AuthorizationRequest;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -57,9 +57,11 @@ class IamFieldPolicyResolverTest {
                         new StubPdp(
                                 request ->
                                         request.action().equals("read")
-                                                ? IamAuthorizationDecision.allow("allow-read")
-                                                : IamAuthorizationDecision.deny(
-                                                        "no matching allow policy")),
+                                                ? AuthorizationDecision.allow("allow-read")
+                                                : AuthorizationDecision.deny(
+                                                        "no matching allow policy",
+                                                        "no matching allow policy",
+                                                        null)),
                         registry());
 
         FieldPolicy policy = resolver.resolve("employee", caller(), ScopeContext.empty());
@@ -76,9 +78,11 @@ class IamFieldPolicyResolverTest {
                                 request ->
                                         request.action().equals("read.masked")
                                                         && request.resourceId().equals("phone")
-                                                ? IamAuthorizationDecision.allow("allow-masked")
-                                                : IamAuthorizationDecision.deny(
-                                                        "no matching allow policy")),
+                                                ? AuthorizationDecision.allow("allow-masked")
+                                                : AuthorizationDecision.deny(
+                                                        "no matching allow policy",
+                                                        "no matching allow policy",
+                                                        null)),
                         registry());
 
         FieldPolicy policy = resolver.resolve("employee", caller(), ScopeContext.empty());
@@ -94,9 +98,9 @@ class IamFieldPolicyResolverTest {
                         new StubPdp(
                                 request ->
                                         request.action().equals("read")
-                                                ? IamAuthorizationDecision.deny(
-                                                        "denied", "deny-read")
-                                                : IamAuthorizationDecision.allow("allow-masked")),
+                                                ? AuthorizationDecision.deny(
+                                                        "denied", "denied", "deny-read")
+                                                : AuthorizationDecision.allow("allow-masked")),
                         registry());
 
         FieldPolicy policy = resolver.resolve("employee", caller(), ScopeContext.empty());
@@ -111,7 +115,10 @@ class IamFieldPolicyResolverTest {
                 new IamFieldPolicyResolver(
                         new StubPdp(
                                 request ->
-                                        IamAuthorizationDecision.deny("no matching allow policy")),
+                                        AuthorizationDecision.deny(
+                                                "no matching allow policy",
+                                                "no matching allow policy",
+                                                null)),
                         registry());
 
         FieldPolicy policy = resolver.resolve("employee", caller(), ScopeContext.empty());
@@ -121,34 +128,38 @@ class IamFieldPolicyResolverTest {
 
     @Test
     void writeOnlyFieldIsNeverQueried() {
-        List<IamAuthorizationRequest> requests = new ArrayList<>();
+        List<AuthorizationRequest> requests = new ArrayList<>();
         IamFieldPolicyResolver resolver =
                 new IamFieldPolicyResolver(
                         new StubPdp(
                                 request -> {
                                     requests.add(request);
-                                    return IamAuthorizationDecision.deny(
-                                            "no matching allow policy");
+                                    return AuthorizationDecision.deny(
+                                            "no matching allow policy",
+                                            "no matching allow policy",
+                                            null);
                                 }),
                         registry());
 
         resolver.resolve("employee", caller(), ScopeContext.empty());
 
         assertThat(requests)
-                .extracting(IamAuthorizationRequest::resourceId)
+                .extracting(AuthorizationRequest::resourceId)
                 .doesNotContain("id_number_hash");
     }
 
     @Test
     void classificationIsPassedToPdp() {
-        List<IamAuthorizationRequest> requests = new ArrayList<>();
+        List<AuthorizationRequest> requests = new ArrayList<>();
         IamFieldPolicyResolver resolver =
                 new IamFieldPolicyResolver(
                         new StubPdp(
                                 request -> {
                                     requests.add(request);
-                                    return IamAuthorizationDecision.deny(
-                                            "no matching allow policy");
+                                    return AuthorizationDecision.deny(
+                                            "no matching allow policy",
+                                            "no matching allow policy",
+                                            null);
                                 }),
                         registry());
 
@@ -169,10 +180,12 @@ class IamFieldPolicyResolverTest {
                         new StubPdp(
                                 request ->
                                         request.action().equals("read.masked")
-                                                ? IamAuthorizationDecision.deny(
-                                                        "denied", "deny-masked")
-                                                : IamAuthorizationDecision.deny(
-                                                        "no matching allow policy")),
+                                                ? AuthorizationDecision.deny(
+                                                        "denied", "denied", "deny-masked")
+                                                : AuthorizationDecision.deny(
+                                                        "no matching allow policy",
+                                                        "no matching allow policy",
+                                                        null)),
                         registry());
 
         FieldPolicy policy = resolver.resolve("employee", caller(), ScopeContext.empty());
@@ -187,7 +200,10 @@ class IamFieldPolicyResolverTest {
                 new IamFieldPolicyResolver(
                         new StubPdp(
                                 request ->
-                                        IamAuthorizationDecision.deny("no matching allow policy")),
+                                        AuthorizationDecision.deny(
+                                                "no matching allow policy",
+                                                "no matching allow policy",
+                                                null)),
                         registry());
 
         assertThat(resolver.supports("employee")).isTrue();
@@ -200,7 +216,10 @@ class IamFieldPolicyResolverTest {
                 new IamFieldPolicyResolver(
                         new StubPdp(
                                 request ->
-                                        IamAuthorizationDecision.deny("no matching allow policy")),
+                                        AuthorizationDecision.deny(
+                                                "no matching allow policy",
+                                                "no matching allow policy",
+                                                null)),
                         registry());
 
         org.assertj.core.api.Assertions.assertThatThrownBy(
@@ -211,17 +230,16 @@ class IamFieldPolicyResolverTest {
 
     private static final class StubPdp implements IamPolicyDecisionPoint {
 
-        private final java.util.function.Function<IamAuthorizationRequest, IamAuthorizationDecision>
+        private final java.util.function.Function<AuthorizationRequest, AuthorizationDecision>
                 decision;
 
         private StubPdp(
-                java.util.function.Function<IamAuthorizationRequest, IamAuthorizationDecision>
-                        decision) {
+                java.util.function.Function<AuthorizationRequest, AuthorizationDecision> decision) {
             this.decision = decision;
         }
 
         @Override
-        public IamAuthorizationDecision decide(IamAuthorizationRequest request) {
+        public AuthorizationDecision decide(AuthorizationRequest request) {
             return decision.apply(request);
         }
     }

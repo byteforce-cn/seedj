@@ -4,10 +4,11 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import cn.byteforce.seedj.starter.im.protocol.Cmd;
+import cn.byteforce.seedj.starter.im.protocol.ImCodec;
 import cn.byteforce.seedj.starter.im.protocol.ImFrame;
-import cn.byteforce.seedj.starter.im.protocol.ImFrames;
 import cn.byteforce.seedj.starter.im.protocol.body.LoginReq;
 import cn.byteforce.seedj.starter.im.protocol.body.LoginResp;
+import cn.byteforce.seedj.starter.im.transport.ImFrames;
 import cn.byteforce.seedj.starter.security.JwtClaimsMapper;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import io.netty.buffer.ByteBuf;

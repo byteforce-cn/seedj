@@ -2,7 +2,7 @@ package cn.byteforce.seedj.infra.local.pki;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import cn.byteforce.seedj.pki.PkiProvider;
+import cn.byteforce.seedj.provider.pki.PkiProvider;
 import java.nio.file.Path;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

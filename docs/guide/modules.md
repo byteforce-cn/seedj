@@ -10,11 +10,12 @@ seedj-server/im           →  seedj-im-starter  →  seedj-biz-starter
                           →  core
 seedj-server/ai           →  seedj-ai-starter  →  seedj-biz-starter
                           →  seedj-infra-local / seedj-jdbc-postgresql
-                          →  core
+                          →  seedj-{workflow,transit,ai,im,iam}-contract  →  core
 ```
 
-`core` 不依赖 Spring，也不依赖任何适配器；适配器只实现 `core` 的 SPI，starter 负责把
-实现装配起来，宿主只做组合。
+能力契约模块只依赖 `core`（`workflow-contract` 连 `core` 都不依赖），彼此不互相依赖；
+`core` 不依赖 Spring，也不依赖任何适配器；适配器只实现 `core` 的 SPI，并自带
+`@AutoConfiguration` 用 `seedj.*.provider` 竞争（starter 不再编译期依赖适配器），宿主只做组合。
 
 AI 这一支的单向性由 ArchUnit 规则守着：`seedj-ai-starter` 依赖 `seedj-biz-starter`（拿
 `CallerProvider`、`CommandCatalog` 与命令入口线格式），**`seedj-biz-starter` 不得反向依赖
@@ -24,12 +25,18 @@ AI 这一支的单向性由 ArchUnit 规则守着：`seedj-ai-starter` 依赖 `s
 
 | 模块 | 职责 | 进发布物 |
 |---|---|---|
-| `core` | 契约：错误码、时间轴、命令、IAM、工作流、SPI、`@SeedjObject` 注解 | ✅ |
+| `core` | 内核契约：错误码、时间轴、命令、读模型、安全、SPI、`@SeedjObject` 注解 | ✅ |
+| `seedj-workflow-contract` | 工作流契约（零外部依赖） | ✅ |
+| `seedj-transit-contract` | 传输/加密契约 | ✅ |
+| `seedj-pki-contract` | PKI 契约：证书/CSR、Transit 签名、吊销与 CRL、alias 映射、TLS 配置 | ✅ |
+| `seedj-ai-contract` | AI 契约：命令指纹、动作分类、策略与账本值类型 | ✅ |
+| `seedj-im-contract` | IM 契约：会话、成员、消息与存储端口 | ✅ |
+| `seedj-iam-contract` | IAM 契约：用户/组/角色/策略、SCIM 与授权值类型 | ✅ |
 | `seedj-codegen` | 构建期注解处理器：schema、OpenAPI、迁移候选、可选读视图 | 构建期 |
 | `seedj-infra-local` | 内存、文件、BouncyCastle 适配器 | ✅ |
 | `seedj-workflow-local` | 工作流 SPI 的本地内存实现 | ✅ |
 | `seedj-jdbc-postgresql` | PostgreSQL 适配器、DDL、版本化迁移、生产事件存储 | ✅ |
-| `seedj-infra-coord` | coord 适配器（组合 coord 原语）：ID、编号、全局序列、EventBus 发布/消费、分布式锁 | ✅ |
+| `seedj-infra-coord` | coord 适配器（组合 coord 原语）：ID、编号、全局序列、EventBus 发布/消费、分布式锁、PKI/Transit | ✅ |
 | `seedj-biz-starter` | 业务装配：本地开发认证、命令、查询、审计、事件总线 | ✅ |
 | `seedj-im-starter` | IM 长连接装配：帧协议、Netty TCP/WebSocket、JWT 握手、连接注册表 | ✅ |
 | `seedj-iam-starter` | IAM 装配：OIDC、SCIM、RBAC、ABAC | ✅ |
@@ -45,8 +52,9 @@ AI 这一支的单向性由 ArchUnit 规则守着：`seedj-ai-starter` 依赖 `s
 - 实现：`cn.byteforce.seedj.infra.*`
 - 装配：`cn.byteforce.seedj.starter.*`
 
-新增能力时保持这个分层：SPI 与值类型进 `core`，实现进 `infra`/`jdbc`，`@AutoConfiguration`
-进对应的 starter，宿主不出现业务装配代码。
+新增能力时保持这个分层：SPI 与值类型进 `core`，实现与“选哪个 provider”的
+`@AutoConfiguration` 进 `infra`/`jdbc`；starter 只装配能力（运行时、HTTP 面、策略），
+宿主不出现业务装配代码。
 
 ## 启动一个宿主
 

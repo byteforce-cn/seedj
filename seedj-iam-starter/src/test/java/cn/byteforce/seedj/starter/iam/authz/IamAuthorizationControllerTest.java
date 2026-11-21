@@ -161,7 +161,7 @@ class IamAuthorizationControllerTest {
     void attributesMissingIs409() throws Exception {
         mvc.perform(get("/principals/missing/attributes").param("as_of", "2026-10-15T12:00:00Z"))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.reason_code").value("ATTRIBUTE_MISSING"));
+                .andExpect(jsonPath("$.details.reason_code").value("ATTRIBUTE_MISSING"));
     }
 
     @Test
@@ -171,7 +171,7 @@ class IamAuthorizationControllerTest {
 
         mvc.perform(get("/principals/outage/attributes").param("as_of", "2026-10-15T12:00:00Z"))
                 .andExpect(status().isServiceUnavailable())
-                .andExpect(jsonPath("$.reason_code").value("ATTRIBUTE_SOURCE_UNAVAILABLE"));
+                .andExpect(jsonPath("$.details.reason_code").value("ATTRIBUTE_SOURCE_UNAVAILABLE"));
     }
 
     @Test
@@ -184,7 +184,7 @@ class IamAuthorizationControllerTest {
 
         denied.perform(get("/principals/worker/attributes").param("as_of", "2026-10-15T12:00:00Z"))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.reason_code").value("ATTRIBUTE_CALLER_VIOLATION"));
+                .andExpect(jsonPath("$.details.reason_code").value("ATTRIBUTE_CALLER_VIOLATION"));
     }
 
     @Test
@@ -373,7 +373,7 @@ class IamAuthorizationControllerTest {
                             get("/principals/worker/attributes")
                                     .param("as_of", "2026-10-15T12:00:00Z"))
                     .andExpect(status().isConflict())
-                    .andExpect(jsonPath("$.reason_code").value("ATTRIBUTE_MISSING"));
+                    .andExpect(jsonPath("$.details.reason_code").value("ATTRIBUTE_MISSING"));
         } catch (Exception error) {
             throw new AssertionError(error);
         }

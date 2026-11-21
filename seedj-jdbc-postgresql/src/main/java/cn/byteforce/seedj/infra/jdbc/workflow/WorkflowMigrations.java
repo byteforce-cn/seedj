@@ -1,5 +1,8 @@
 package cn.byteforce.seedj.infra.jdbc.workflow;
 
+import cn.byteforce.seedj.core.Migration;
+import cn.byteforce.seedj.infra.jdbc.MigrationSet;
+
 /**
  * 工作流持久化表的冻结 DDL。
  *
@@ -15,6 +18,19 @@ public final class WorkflowMigrations {
     public static final String SCOPE = "workflow";
 
     private WorkflowMigrations() {}
+
+    /**
+     * 迁移声明。
+     *
+     * @return 能力名、scope、顺序与迁移列表
+     */
+    static MigrationSet migrationSet() {
+        return new MigrationSet(
+                SCOPE,
+                SCOPE,
+                210,
+                java.util.List.of(new Migration(1, "create workflow tables", v1())));
+    }
 
     /**
      * 第一版工作流 schema。

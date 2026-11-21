@@ -1,17 +1,14 @@
 package cn.byteforce.seedj.infra.coord;
 
-import cn.byteforce.seedj.pki.PkiErrorCode;
-import cn.byteforce.seedj.pki.PkiException;
+import cn.byteforce.seedj.provider.pki.PkiErrorCode;
+import cn.byteforce.seedj.provider.pki.PkiException;
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
-import java.security.KeyFactory;
 import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
-import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.List;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
@@ -20,8 +17,8 @@ import javax.net.ssl.TrustManagerFactory;
 /**
  * coord PKI 的 PEM 材料到 JSSE 对象的转换。
  *
- * <p>coord 返回的是 PEM 文本（证书链只有叶子 + CA，私钥为 PKCS#8），seedj 的 {@code PkiProvider} 承诺的是 {@link
- * X509Certificate} / {@link PrivateKey} / {@link SSLContext}。转换只做格式解析，不做信任判断。
+ * <p>coord 返回的是 PEM 文本（叶子 + 自签 CA）。0.4.4 起托管私钥不再随响应返回，因此这里只解析证书； 私钥只有在调用方自持（{@code
+ * KeyMaterial.External}）时才会传入。
  */
 final class CoordPkiCertificates {
 
@@ -41,25 +38,11 @@ final class CoordPkiCertificates {
         }
     }
 
-    static PrivateKey privateKey(String pem, X509Certificate certificate) {
-        try {
-            String base64 =
-                    pem.replaceAll("-----BEGIN (.*)-----", "")
-                            .replaceAll("-----END (.*)-----", "")
-                            .replaceAll("\\s", "");
-            byte[] der = Base64.getDecoder().decode(base64);
-            String algorithm = certificate.getPublicKey().getAlgorithm();
-            return KeyFactory.getInstance(algorithm).generatePrivate(new PKCS8EncodedKeySpec(der));
-        } catch (Exception e) {
-            throw new PkiException(
-                    PkiErrorCode.INTERNAL_ERROR, "cannot parse PKCS#8 private key", e);
-        }
-    }
-
     /**
      * 双向身份的 {@link SSLContext}。
      *
      * @param chain 叶子到 CA 的证书链；{@code null} 表示匿名客户端
+     * @param key 调用方自持的私钥；{@code null} 表示匿名客户端
      * @param ca 信任根
      */
     static SSLContext sslContext(

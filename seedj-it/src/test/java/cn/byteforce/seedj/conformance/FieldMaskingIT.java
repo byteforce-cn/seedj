@@ -14,7 +14,6 @@ import cn.byteforce.seedj.domain.Privacy;
 import cn.byteforce.seedj.domain.ScopePredicate;
 import cn.byteforce.seedj.domain.TemporalQuery;
 import cn.byteforce.seedj.domain.TemporalRow;
-import cn.byteforce.seedj.iam.IamAuthorizationDecision;
 import cn.byteforce.seedj.iam.spi.IamPolicyDecisionPoint;
 import cn.byteforce.seedj.infra.local.domain.InMemoryTemporalStore;
 import cn.byteforce.seedj.module.ObjectModuleRegistry;
@@ -98,12 +97,13 @@ class FieldMaskingIT {
                 request -> {
                     boolean contact = "contact".equals(request.resourceId());
                     if (request.action().equals("read") && !contact) {
-                        return IamAuthorizationDecision.allow("allow-read");
+                        return AuthorizationDecision.allow("allow-read");
                     }
                     if (allowMasked && contact && request.action().equals("read.masked")) {
-                        return IamAuthorizationDecision.allow("allow-masked");
+                        return AuthorizationDecision.allow("allow-masked");
                     }
-                    return IamAuthorizationDecision.deny("no matching allow policy");
+                    return AuthorizationDecision.deny(
+                            "no matching allow policy", "no matching allow policy", null);
                 };
         CompositeAuthorizationDecisionPoint decisions =
                 new CompositeAuthorizationDecisionPoint(

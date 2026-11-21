@@ -1,50 +1,68 @@
 package cn.byteforce.seedj.infra.coord;
 
-import cn.byteforce.coord.sdk.CoordException;
+import cn.byteforce.coord.contracts.transit.v1.TransitSignRequest;
+import cn.byteforce.coord.contracts.transit.v1.TransitVerifyRequest;
 import cn.byteforce.coord.sdk.pki.PkiCertInfo;
+import cn.byteforce.coord.sdk.pki.PkiCertStatus;
+import cn.byteforce.coord.sdk.pki.PkiCertSummary;
+import cn.byteforce.coord.sdk.pki.PkiCertUsage;
 import cn.byteforce.coord.sdk.pki.PkiClient;
-import cn.byteforce.seedj.pki.PkiErrorCode;
-import cn.byteforce.seedj.pki.PkiException;
-import cn.byteforce.seedj.pki.PkiProvider;
-import java.security.PrivateKey;
+import cn.byteforce.coord.sdk.pki.PkiCrlFormat;
+import cn.byteforce.coord.sdk.pki.PkiRevocationReason;
+import cn.byteforce.coord.sdk.transit.TransitClient;
+import cn.byteforce.seedj.observability.HealthStatus;
+import cn.byteforce.seedj.provider.pki.CertificateRequest;
+import cn.byteforce.seedj.provider.pki.CertificateRevokedException;
+import cn.byteforce.seedj.provider.pki.CertificateUsage;
+import cn.byteforce.seedj.provider.pki.ClientAuth;
+import cn.byteforce.seedj.provider.pki.IssuedCertificate;
+import cn.byteforce.seedj.provider.pki.KeyMaterial;
+import cn.byteforce.seedj.provider.pki.PkiClosedException;
+import cn.byteforce.seedj.provider.pki.PkiErrorCode;
+import cn.byteforce.seedj.provider.pki.PkiException;
+import cn.byteforce.seedj.provider.pki.PkiInfo;
+import cn.byteforce.seedj.provider.pki.PkiProvider;
+import cn.byteforce.seedj.provider.pki.RevocationReason;
+import cn.byteforce.seedj.provider.pki.SslConfig;
+import cn.byteforce.seedj.provider.pki.TidyRequest;
+import com.google.protobuf.ByteString;
+import java.math.BigInteger;
 import java.security.cert.X509Certificate;
 import java.time.Clock;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.regex.Pattern;
-import javax.naming.ldap.LdapName;
-import javax.naming.ldap.Rdn;
+import java.util.function.Supplier;
 import javax.net.ssl.SSLContext;
 
 /**
- * coord PKI 适配器：coord 负责签发/轮换，吊销与 alias → 身份的稳定映射由 {@link CoordPkiState} 在 coord KV 上补齐。
+ * coord 0.4.4 PKI + Transit 适配器。
+ *
+ * <p>能力映射：
+ *
+ * <ul>
+ *   <li>{@code issue} / {@code signCsr} / {@code revoke} / {@code getCrl} / {@code rotateCrl} /
+ *       {@code tidy} / {@code readCertificate} 直连 {@code coord.pki.v1}；
+ *   <li>{@code sign} / {@code verify} 直连 {@code coord.transit.v1}；
+ *   <li>alias → 身份的稳定映射是 seedj 在 coord KV 上补的层（{@link CoordPkiState}），不是 coord 原生概念。
+ * </ul>
  *
  * <p>已知偏差（见 {@code docs/guide/known-limitations.md}）：
  *
  * <ul>
- *   <li>coord 没有吊销列表，{@link #revoke} 只对 seedj 自己的 {@code signingIdentity}/{@link #status} 生效：
- *       调用方不会再拿到被吊销的身份，但 TLS 对端不认。
- *   <li>证书 profile 由 coord 固定（ECDSA P-256、KU {@code digitalSignature+keyEncipherment}、EKU {@code
- *       clientAuth+serverAuth}）：{@link CertificateUsage#SERVER}/{@link CertificateUsage#CLIENT}
- *       拿到的是请求的超集，不是精确匹配。
- *   <li>coord 要求 CN 全局唯一且 {@code GetCertByCN} 返回私钥，所以 CN 带实例前缀（{@code <prefix>:<alias>}）； 签出来的
- *       subject 因此与调用方传入的 subject 不完全一致。
- *   <li>{@link CertificateRequest#keyPair} 无法使用：coord 自己生成密钥（「密钥交付持有方」模型）。
+ *   <li>coord 没有 role/issuer：单 CA。{@code roleName} 降级为 CN 命名空间前缀 {@code <role>:<cn>}；{@code
+ *       signCsr} 的 CN 来自 CSR，role 只做格式校验。
+ *   <li>托管私钥不可导出：{@link #sslContext} 只接受 {@link KeyMaterial.External}；托管身份用 {@link #sslConfig} 自行委托
+ *       {@link #sign}。
+ *   <li>签发 profile 由 coord 的 usage 决定；自定义 DN 只保留 CN。
  * </ul>
  */
 final class CoordPkiProvider implements PkiProvider {
 
-    private static final Pattern ALIAS = Pattern.compile("[A-Za-z0-9][A-Za-z0-9._-]*");
-
-    private static final Pattern DNS_SAFE = Pattern.compile("[^a-z0-9.-]");
-
-    private static final int RETRY_ATTEMPTS = 3;
-
     private final PkiClient pki;
+
+    private final TransitClient transit;
 
     private final CoordPkiState state;
 
@@ -56,23 +74,28 @@ final class CoordPkiProvider implements PkiProvider {
 
     private final Clock clock;
 
+    private final CoordPkiCalls calls;
+
     private volatile X509Certificate ca;
 
     private volatile boolean closed;
 
     CoordPkiProvider(
             PkiClient pki,
+            TransitClient transit,
             CoordPkiState state,
             CoordEndpoint endpoint,
             String identityPrefix,
             Duration identityTtl,
             Clock clock) {
         this.pki = Objects.requireNonNull(pki, "pki");
+        this.transit = Objects.requireNonNull(transit, "transit");
         this.state = Objects.requireNonNull(state, "state");
         this.endpoint = Objects.requireNonNull(endpoint, "endpoint");
-        if (identityPrefix == null || !ALIAS.matcher(identityPrefix).matches()) {
+        this.calls = new CoordPkiCalls(endpoint);
+        if (identityPrefix == null || !CoordPkiNames.NAME.matcher(identityPrefix).matches()) {
             throw new IllegalArgumentException(
-                    "coord pki identity-prefix must match " + ALIAS.pattern());
+                    "coord pki identity-prefix must match " + CoordPkiNames.NAME.pattern());
         }
         this.identityPrefix = identityPrefix;
         if (identityTtl == null || identityTtl.isZero() || identityTtl.isNegative()) {
@@ -82,42 +105,198 @@ final class CoordPkiProvider implements PkiProvider {
         this.clock = Objects.requireNonNull(clock, "clock");
     }
 
+    // ==================== 签发 ====================
+
     @Override
-    public IssuedCertificate issue(CertificateRequest request) {
+    public IssuedCertificate issue(String roleName, CertificateRequest request) {
         ensureOpen();
+        CoordPkiNames.requireName(roleName, "roleName");
         Objects.requireNonNull(request, "request");
-        if (request.keyPair() != null) {
-            throw new PkiException(
-                    PkiErrorCode.INVALID_REQUEST,
-                    "coord PKI generates key material itself; CertificateRequest.keyPair is not supported");
-        }
-        String cn = cn(subjectCommonName(request.subject()));
+        String cn = roleName + ":" + CoordPkiNames.commonName(request.requireSubject());
         long ttl = ttlSeconds(request.validity());
-        List<String> dns = request.dnsNames().isEmpty() ? List.of(dnsName(cn)) : request.dnsNames();
+        List<String> dns =
+                request.dnsNames().isEmpty()
+                        ? List.of(CoordPkiNames.dnsName(cn))
+                        : request.dnsNames();
         PkiCertInfo info =
-                call("issue " + cn, () -> pki.issueCert(cn, ttl, dns, request.ipAddresses()));
-        record(info, null, ttl);
-        return toIssued(info);
+                call(
+                        "issue " + cn,
+                        () ->
+                                pki.issueCert(
+                                        cn,
+                                        ttl,
+                                        dns,
+                                        request.ipAddresses(),
+                                        usage(request.usage())));
+        return issued(info);
     }
+
+    @Override
+    public IssuedCertificate signCsr(String roleName, byte[] csrDer, CertificateRequest request) {
+        ensureOpen();
+        CoordPkiNames.requireName(roleName, "roleName");
+        if (csrDer == null || csrDer.length == 0) {
+            throw new PkiException(PkiErrorCode.INVALID_REQUEST, "csrDer 不能为空");
+        }
+        CertificateRequest effective =
+                request == null ? CertificateRequest.csr(null, CertificateUsage.BOTH) : request;
+        PkiCertInfo info =
+                call(
+                        "sign csr in role " + roleName,
+                        () ->
+                                pki.signCsr(
+                                        csrDer,
+                                        ttlSeconds(effective.validity()),
+                                        usage(effective.usage())));
+        return issued(info);
+    }
+
+    // ==================== 签名 / 验签 ====================
+
+    @Override
+    public byte[] sign(
+            String keyName,
+            String hashAlgorithm,
+            boolean prehashed,
+            String signatureAlgorithm,
+            byte[] data) {
+        ensureOpen();
+        CoordPkiNames.requireName(keyName, "keyName");
+        if (data == null) {
+            throw new PkiException(PkiErrorCode.INVALID_REQUEST, "data 不能为空");
+        }
+        TransitSignRequest request =
+                TransitSignRequest.newBuilder()
+                        .setName(keyName)
+                        .setInput(ByteString.copyFrom(data))
+                        .setPrehashed(prehashed)
+                        .setHashAlgorithm(CoordPkiNames.emptyIfNull(hashAlgorithm))
+                        .setSignatureAlgorithm(CoordPkiNames.emptyIfNull(signatureAlgorithm))
+                        .build();
+        return call(
+                "sign with " + keyName, () -> transit.sign(request).getSignature().toByteArray());
+    }
+
+    @Override
+    public boolean verify(
+            String keyName,
+            String hashAlgorithm,
+            boolean prehashed,
+            String signatureAlgorithm,
+            byte[] data,
+            byte[] signature) {
+        ensureOpen();
+        CoordPkiNames.requireName(keyName, "keyName");
+        if (data == null || signature == null || signature.length == 0) {
+            throw new PkiException(PkiErrorCode.INVALID_REQUEST, "data 与 signature 不能为空");
+        }
+        TransitVerifyRequest request =
+                TransitVerifyRequest.newBuilder()
+                        .setName(keyName)
+                        .setInput(ByteString.copyFrom(data))
+                        .setSignature(ByteString.copyFrom(signature))
+                        .setPrehashed(prehashed)
+                        .setHashAlgorithm(CoordPkiNames.emptyIfNull(hashAlgorithm))
+                        .setSignatureAlgorithm(CoordPkiNames.emptyIfNull(signatureAlgorithm))
+                        .build();
+        return call("verify with " + keyName, () -> transit.verify(request));
+    }
+
+    // ==================== 吊销与 CRL ====================
+
+    @Override
+    public void revoke(BigInteger serialNumber, RevocationReason reason) {
+        ensureOpen();
+        String serial = CoordPkiNames.requireSerial(serialNumber);
+        RevocationReason effective = reason == null ? RevocationReason.UNSPECIFIED : reason;
+        call(
+                "revoke " + serial,
+                () -> pki.revokeCert(serial, PkiRevocationReason.valueOf(effective.name())));
+    }
+
+    @Override
+    public byte[] getCrl() {
+        ensureOpen();
+        return call("read CRL", () -> pki.getCrl(PkiCrlFormat.DER).crl()).clone();
+    }
+
+    @Override
+    public void rotateCrl() {
+        ensureOpen();
+        call("rotate CRL", () -> pki.rotateCrl(PkiCrlFormat.DER));
+    }
+
+    @Override
+    public void tidy(TidyRequest request) {
+        ensureOpen();
+        long retentionSeconds = request == null ? 0L : request.retentionSeconds(0L);
+        call("tidy PKI records", () -> pki.tidy(retentionSeconds));
+    }
+
+    // ==================== 证书 / CA 查询 ====================
+
+    @Override
+    public Optional<X509Certificate> readCertificate(BigInteger serialNumber) {
+        ensureOpen();
+        String serial = CoordPkiNames.requireSerial(serialNumber);
+        try {
+            PkiCertSummary summary =
+                    call("read certificate " + serial, () -> pki.getCertBySerial(serial));
+            return Optional.of(CoordPkiCertificates.certificate(summary.certPem()));
+        } catch (PkiException e) {
+            if (e.getErrorCode() == PkiErrorCode.NOT_FOUND) {
+                return Optional.empty();
+            }
+            throw e;
+        }
+    }
+
+    @Override
+    public X509Certificate issuerCertificate(String issuerRef) {
+        ensureOpen();
+        CoordPkiNames.requireDefaultIssuer(issuerRef);
+        return caCertificate();
+    }
+
+    @Override
+    public List<X509Certificate> caChain(String issuerRef) {
+        ensureOpen();
+        CoordPkiNames.requireDefaultIssuer(issuerRef);
+        return List.of(caCertificate());
+    }
+
+    // ==================== 身份映射 ====================
 
     @Override
     public IssuedCertificate signingIdentity(String alias) {
         ensureOpen();
-        requireAlias(alias);
+        CoordPkiNames.requireName(alias, "alias");
         String cn = cn(alias);
-        // 账本键用 CN 而不是裸 alias：CN 带实例前缀，同一 agent 上的不同部署/测试互不可见。
         Optional<CoordPkiState.AliasRecord> current = state.readAlias(cn);
-        if (current.isPresent() && isRevoked(current.get().currentSerial())) {
-            throw new PkiException(
-                    PkiErrorCode.REVOKED,
-                    "signing identity "
-                            + alias
-                            + " was revoked (serial "
-                            + current.get().currentSerial()
-                            + "); call rotateSigningIdentity to replace it");
+        if (current.isPresent()) {
+            CoordPkiState.AliasRecord record = current.get();
+            Optional<PkiCertStatus> status = status(record.currentSerial());
+            if (status.isPresent() && status.get().revoked()) {
+                throw new CertificateRevokedException(
+                        alias, CoordPkiNames.parseSerial(record.currentSerial()));
+            }
+            if (status.isPresent() && !"expired".equalsIgnoreCase(status.get().status())) {
+                // active 或 retired：CN 的当前 active 证书就是新身份。retired 说明轮换已完成，
+                // 以 coord 的 active 为准并把 alias 挪过去。
+                PkiCertInfo active =
+                        call("read signing identity " + alias, () -> pki.getCertByCN(cn));
+                if (!active.serial().equals(record.currentSerial())) {
+                    state.replaceAlias(
+                            cn,
+                            record.currentSerial(),
+                            new CoordPkiState.AliasRecord(
+                                    alias, cn, active.serial(), ttlSeconds(null)));
+                }
+                return issued(active);
+            }
         }
 
-        PkiCertInfo info = call("signing identity " + alias, () -> issue(cn));
+        PkiCertInfo info = call("issue signing identity " + alias, () -> issue(cn));
         CoordPkiState.AliasRecord next =
                 new CoordPkiState.AliasRecord(alias, cn, info.serial(), ttlSeconds(null));
         if (current.isEmpty()) {
@@ -128,79 +307,167 @@ final class CoordPkiProvider implements PkiProvider {
                 && !state.replaceAlias(cn, current.get().currentSerial(), next)) {
             return reconcile(alias, cn, info);
         }
-        record(info, alias, ttlSeconds(null));
-        return toIssued(info);
+        return issued(info);
     }
 
     @Override
     public IssuedCertificate rotateSigningIdentity(String alias, RevocationReason reason) {
         ensureOpen();
-        requireAlias(alias);
-        // 账本键用 CN 而不是裸 alias：CN 带实例前缀，同一 agent 上的不同部署/测试互不可见。
+        CoordPkiNames.requireName(alias, "alias");
+        if (reason == null) {
+            throw new PkiException(PkiErrorCode.INVALID_REQUEST, "reason 不能为空");
+        }
         String cn = cn(alias);
         Optional<CoordPkiState.AliasRecord> current = state.readAlias(cn);
         if (current.isEmpty()) {
             return signingIdentity(alias);
         }
-        long ttl = ttlSeconds(null);
-        PkiCertInfo info =
+        String oldSerial = current.get().currentSerial();
+        // rotateCert 不是幂等的：只调用一次，失败由调用方决定是否重试。
+        PkiCertInfo rotated =
                 call(
                         "rotate signing identity " + alias,
                         false,
-                        () -> pki.rotateCert(cn, ttl, List.of(dnsName(cn)), List.of()));
+                        () ->
+                                pki.rotateCert(
+                                        cn,
+                                        ttlSeconds(null),
+                                        List.of(CoordPkiNames.dnsName(cn)),
+                                        List.of(),
+                                        null));
         boolean moved =
                 state.replaceAlias(
                         cn,
-                        current.get().currentSerial(),
-                        new CoordPkiState.AliasRecord(alias, cn, info.serial(), ttl));
+                        oldSerial,
+                        new CoordPkiState.AliasRecord(
+                                alias, cn, rotated.serial(), ttlSeconds(null)));
         if (!moved) {
-            // alias 没挪到新身份：不要把旧 serial 吊销掉，否则调用方会失去一切可用身份。
+            Optional<CoordPkiState.AliasRecord> winner = state.readAlias(cn);
+            if (winner.isEmpty() || !winner.get().currentSerial().equals(rotated.serial())) {
+                // 另一个实例先完成了轮换：以 coord 的 active 为准，返回可用的新身份。
+                rotated = call("read signing identity " + alias, () -> pki.getCertByCN(cn));
+            }
+        }
+        // 旧 serial 永久 REVOKED；重复吊销幂等。
+        call(
+                "revoke rotated serial " + oldSerial,
+                () -> pki.revokeCert(oldSerial, PkiRevocationReason.valueOf(reason.name())));
+        return issued(rotated);
+    }
+
+    // ==================== TLS ====================
+
+    @Override
+    public SSLContext sslContext(IssuedCertificate identity) {
+        ensureOpen();
+        X509Certificate authority = caCertificate();
+        if (identity == null) {
+            return CoordPkiCertificates.sslContext(null, null, null, authority);
+        }
+        if (!(identity.keyMaterial() instanceof KeyMaterial.External external)) {
+            throw new IllegalStateException(
+                    "coord-managed keys cannot build a standard SSLContext; use sslConfig and delegate engineSign to sign()");
+        }
+        if (!external.attached()) {
+            throw new IllegalStateException(
+                    "external private key is not attached; call IssuedCertificate.withPrivateKey first");
+        }
+        List<X509Certificate> chain =
+                identity.chain().isEmpty()
+                        ? CoordPkiCertificates.chain(identity.certificate(), authority)
+                        : identity.chain();
+        return CoordPkiCertificates.sslContext(
+                identity.certificate(), external.privateKey(), chain, authority);
+    }
+
+    @Override
+    public SslConfig sslConfig(IssuedCertificate identity, ClientAuth clientAuth) {
+        ensureOpen();
+        if (identity == null) {
             throw new PkiException(
-                    PkiErrorCode.STATE_UNAVAILABLE,
-                    "coord rotated the certificate but the alias "
-                            + alias
-                            + " still points at "
-                            + current.get().currentSerial()
-                            + "; retry rotateSigningIdentity");
+                    PkiErrorCode.INVALID_REQUEST, "sslConfig requires a non-null identity");
         }
-        record(info, alias, ttl);
-        // 先把 alias 挪到新身份再吊销旧 serial：轮换失败时不会留下「已吊销但没有替身」的身份。
-        state.revoke(current.get().currentSerial(), reason, clock.instant());
-        return toIssued(info);
+        return new SslConfig(
+                identity.chain(),
+                identity.keyMaterial(),
+                clientAuth == null ? ClientAuth.NONE : clientAuth,
+                List.of(caCertificate()));
+    }
+
+    // ==================== 生命周期 ====================
+
+    @Override
+    public PkiInfo info() {
+        ensureOpen();
+        X509Certificate authority = caCertificate();
+        return new PkiInfo(
+                "coord",
+                "default",
+                authority.getSubjectX500Principal().getName(),
+                authority.getNotAfter().toInstant(),
+                true);
     }
 
     @Override
-    public void revoke(String serialNumber, RevocationReason reason) {
-        ensureOpen();
-        Objects.requireNonNull(serialNumber, "serialNumber");
-        Objects.requireNonNull(reason, "reason");
-        if (!state.hasSerial(serialNumber)) {
-            state.putSerialIfAbsent(state.unknownSerial(serialNumber, reason, clock.instant()));
-            return;
+    public HealthStatus health() {
+        if (closed) {
+            return HealthStatus.unknown("coord pki provider is closed");
         }
-        state.revoke(serialNumber, reason, clock.instant());
+        if (ca != null) {
+            return HealthStatus.up("coord CA cached from " + endpoint);
+        }
+        try {
+            caCertificate();
+            return HealthStatus.up("coord CA " + endpoint);
+        } catch (RuntimeException e) {
+            return HealthStatus.down(
+                    "coord PKI unavailable at " + endpoint + ": " + e.getMessage(), e);
+        }
     }
 
     @Override
-    public CertificateStatus status(String serialNumber) {
-        ensureOpen();
-        Optional<CoordPkiState.SerialRecord> record = state.serial(serialNumber);
-        if (record.isEmpty()) {
-            return CertificateStatus.UNKNOWN;
-        }
-        CoordPkiState.SerialRecord value = record.get();
-        if (value.revoked()) {
-            return CertificateStatus.REVOKED;
-        }
-        if (value.notAfterMs() > 0 && value.notAfterMs() <= clock.millis()) {
-            return CertificateStatus.EXPIRED;
-        }
-        return CertificateStatus.VALID;
+    public void close() {
+        closed = true;
     }
 
-    @Override
-    public X509Certificate caCertificate() {
-        ensureOpen();
+    // ==================== 内部工具 ====================
+
+    private PkiCertInfo issue(String cn) {
+        return pki.issueCert(cn, ttlSeconds(null), List.of(CoordPkiNames.dnsName(cn)), List.of());
+    }
+
+    /** CAS 竞争失败后以账本为准：另一个实例可能已经写入同一张证书。 */
+    private IssuedCertificate reconcile(String alias, String cn, PkiCertInfo mine) {
+        Optional<CoordPkiState.AliasRecord> winner = state.readAlias(cn);
+        if (winner.isEmpty() || winner.get().currentSerial().equals(mine.serial())) {
+            return issued(mine);
+        }
+        PkiCertInfo current = call("read signing identity " + alias, () -> pki.getCertByCN(cn));
+        return issued(current);
+    }
+
+    private Optional<PkiCertStatus> status(String serial) {
+        try {
+            return Optional.of(call("cert status " + serial, () -> pki.getCertStatus(serial)));
+        } catch (PkiException e) {
+            if (e.getErrorCode() == PkiErrorCode.NOT_FOUND) {
+                return Optional.empty();
+            }
+            throw e;
+        }
+    }
+
+    private IssuedCertificate issued(PkiCertInfo info) {
+        X509Certificate leaf = CoordPkiCertificates.certificate(info.certPem());
+        X509Certificate authority = caCertificate();
+        KeyMaterial material =
+                info.keyName() == null || info.keyName().isBlank()
+                        ? new KeyMaterial.External()
+                        : new KeyMaterial.CoordManaged(info.keyName(), info.keyVersion());
+        return new IssuedCertificate(leaf, CoordPkiCertificates.chain(leaf, authority), material);
+    }
+
+    private X509Certificate caCertificate() {
         X509Certificate cached = ca;
         if (cached != null) {
             return cached;
@@ -224,106 +491,8 @@ final class CoordPkiProvider implements PkiProvider {
         return parsed;
     }
 
-    @Override
-    public SSLContext sslContext(IssuedCertificate identity) {
-        ensureOpen();
-        X509Certificate authority = caCertificate();
-        if (identity == null) {
-            return CoordPkiCertificates.sslContext(null, null, null, authority);
-        }
-        List<X509Certificate> chain =
-                identity.chain() == null || identity.chain().isEmpty()
-                        ? CoordPkiCertificates.chain(identity.certificate(), authority)
-                        : identity.chain();
-        return CoordPkiCertificates.sslContext(
-                identity.certificate(), identity.privateKey(), chain, authority);
-    }
-
-    @Override
-    public void close() {
-        closed = true;
-    }
-
-    private PkiCertInfo issue(String cn) {
-        return pki.issueCert(cn, ttlSeconds(null), List.of(dnsName(cn)), List.of());
-    }
-
-    /** CAS 竞争失败后以账本为准：另一个实例可能已经写入同一张证书。 */
-    private IssuedCertificate reconcile(String alias, String cn, PkiCertInfo mine) {
-        Optional<CoordPkiState.AliasRecord> winner = state.readAlias(cn);
-        if (winner.isEmpty() || winner.get().currentSerial().equals(mine.serial())) {
-            record(mine, alias, ttlSeconds(null));
-            return toIssued(mine);
-        }
-        PkiCertInfo current = call("read signing identity " + alias, () -> pki.getCertByCN(cn));
-        record(current, alias, ttlSeconds(null));
-        return toIssued(current);
-    }
-
-    private void record(PkiCertInfo info, String alias, long ttlSeconds) {
-        state.putSerialIfAbsent(
-                new CoordPkiState.SerialRecord(
-                        info.serial(),
-                        alias,
-                        info.commonName(),
-                        info.notBeforeEpochSec() * 1000L,
-                        info.notAfterEpochSec() * 1000L,
-                        false,
-                        null,
-                        0L));
-    }
-
-    private boolean isRevoked(String serial) {
-        return state.serial(serial).map(CoordPkiState.SerialRecord::revoked).orElse(false);
-    }
-
-    private IssuedCertificate toIssued(PkiCertInfo info) {
-        X509Certificate leaf = CoordPkiCertificates.certificate(info.certPem());
-        PrivateKey key = CoordPkiCertificates.privateKey(info.keyPem(), leaf);
-        X509Certificate authority = caCertificate();
-        return new IssuedCertificate(
-                leaf,
-                CoordPkiCertificates.chain(leaf, authority),
-                key,
-                info.serial(),
-                Instant.ofEpochSecond(info.notBeforeEpochSec()),
-                Instant.ofEpochSecond(info.notAfterEpochSec()));
-    }
-
-    private String cn(String name) {
-        return identityPrefix + ":" + name;
-    }
-
-    private static String subjectCommonName(String subject) {
-        if (subject == null || subject.isBlank()) {
-            throw new PkiException(PkiErrorCode.INVALID_REQUEST, "subject must not be blank");
-        }
-        if (!subject.contains("=")) {
-            return subject;
-        }
-        try {
-            for (Rdn rdn : new LdapName(subject).getRdns()) {
-                if ("CN".equalsIgnoreCase(rdn.getType())) {
-                    String value = String.valueOf(rdn.getValue());
-                    if (value.isBlank()) {
-                        break;
-                    }
-                    return value;
-                }
-            }
-        } catch (Exception e) {
-            throw new PkiException(
-                    PkiErrorCode.INVALID_REQUEST, "cannot parse subject: " + subject, e);
-        }
-        throw new PkiException(
-                PkiErrorCode.INVALID_REQUEST, "subject has no CN component: " + subject);
-    }
-
-    private static void requireAlias(String alias) {
-        if (alias == null || !ALIAS.matcher(alias).matches()) {
-            throw new PkiException(
-                    PkiErrorCode.INVALID_REQUEST, "illegal signing identity alias: " + alias);
-        }
+    private String cn(String alias) {
+        return identityPrefix + ":" + alias;
     }
 
     private long ttlSeconds(Duration validity) {
@@ -335,74 +504,25 @@ final class CoordPkiProvider implements PkiProvider {
         return Math.max(1L, effective.toSeconds());
     }
 
-    /**
-     * coord 在未显式传 SAN 时会把 CN 派生为 DNS SAN，CN 不是合法 DNS 名就拒绝签发。适配器永远显式传 SAN， 所以任意 alias 都能签出来；这里只负责把
-     * CN 归一化成合法的 DNS 标签。
-     */
-    static String dnsName(String cn) {
-        String normalized = DNS_SAFE.matcher(cn.toLowerCase(Locale.ROOT)).replaceAll("-");
-        normalized = normalized.replaceAll("^-+", "").replaceAll("-+$", "").replaceAll("\\.+$", "");
-        if (normalized.isEmpty()) {
-            normalized = "seedj-identity";
-        }
-        return normalized.length() > 63 ? normalized.substring(0, 63) : normalized;
-    }
-
-    /**
-     * 调 coord 并统一映射错误。
-     *
-     * <p>coord 的 PKI 存储建在 KV 上，刚写完就回读会撞上 {@code read_ts exceeds safe_ts}（agent 自己在 消息里写 {@code
-     * retry later}）。这里对<b>幂等</b>调用做有限重试；{@code rotateCert} 不是幂等的， 重试会多转一次，所以只调用一次。
-     */
-    private <T> T call(String action, java.util.function.Supplier<T> body) {
-        return call(action, true, body);
-    }
-
-    private <T> T call(String action, boolean idempotent, java.util.function.Supplier<T> body) {
-        for (int attempt = 1; ; attempt++) {
-            try {
-                return body.get();
-            } catch (CoordException e) {
-                if (idempotent && attempt < RETRY_ATTEMPTS && transientFailure(e)) {
-                    sleepBeforeRetry(attempt);
-                    continue;
-                }
-                throw CoordErrors.pki(e, endpoint, action);
-            }
-        }
-    }
-
-    /** 可重试的传输/时序失败。{@code INTERNAL} 只在消息点名 safe_ts 回读滞后时重试。 */
-    private static boolean transientFailure(CoordException e) {
-        return switch (e.getErrorCode()) {
-            case UNAVAILABLE,
-                            DEADLINE_EXCEEDED,
-                            NOT_LEADER,
-                            SAFE_TS_LAG,
-                            EPOCH_STALE,
-                            TXN_CONFLICT,
-                            COMMIT_REJECTED ->
-                    true;
-            case INTERNAL -> {
-                String message = e.getMessage();
-                yield message != null
-                        && (message.contains("safe_ts") || message.contains("retry later"));
-            }
-            default -> false;
+    private static PkiCertUsage usage(CertificateUsage usage) {
+        return switch (usage) {
+            case SERVER -> PkiCertUsage.SERVER;
+            case CLIENT -> PkiCertUsage.CLIENT;
+            case BOTH -> PkiCertUsage.BOTH;
         };
     }
 
-    private static void sleepBeforeRetry(int attempt) {
-        try {
-            Thread.sleep(200L * attempt);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+    private <T> T call(String action, Supplier<T> body) {
+        return calls.call(action, body);
+    }
+
+    private <T> T call(String action, boolean idempotent, Supplier<T> body) {
+        return calls.call(action, idempotent, body);
     }
 
     private void ensureOpen() {
         if (closed) {
-            throw new PkiException(PkiErrorCode.PROVIDER_CLOSED, "coord pki provider is closed");
+            throw new PkiClosedException("coord");
         }
     }
 }

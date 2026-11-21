@@ -18,7 +18,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * @since 1.0.0
  */
 @AutoConfiguration(after = TemporalCommandAutoConfiguration.class)
-@ConditionalOnBean(CommandStore.class)
+@ConditionalOnBean({CommandStore.class, Clock.class})
 @EnableScheduling
 public class CommandReaperAutoConfiguration {
 

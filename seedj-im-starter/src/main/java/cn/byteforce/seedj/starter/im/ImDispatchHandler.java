@@ -3,6 +3,7 @@ package cn.byteforce.seedj.starter.im;
 import cn.byteforce.seedj.core.exception.ContractException;
 import cn.byteforce.seedj.core.security.Caller;
 import cn.byteforce.seedj.starter.im.protocol.Cmd;
+import cn.byteforce.seedj.starter.im.protocol.ImCodec;
 import cn.byteforce.seedj.starter.im.protocol.ImFrame;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;

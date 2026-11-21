@@ -1,13 +1,9 @@
 package cn.byteforce.seedj.starter.iam.abac;
 
-import cn.byteforce.seedj.iam.IamAuthorizationDecision;
-import cn.byteforce.seedj.iam.IamAuthorizationRequest;
-import cn.byteforce.seedj.iam.IamSubject;
 import cn.byteforce.seedj.iam.spi.IamPolicyDecisionPoint;
 import cn.byteforce.seedj.security.AuthorizationDecision;
 import cn.byteforce.seedj.security.AuthorizationDecisionPoint;
 import cn.byteforce.seedj.security.AuthorizationRequest;
-import cn.byteforce.seedj.security.AuthorizationSubject;
 import java.util.Objects;
 
 /**
@@ -47,47 +43,14 @@ public final class CompositeAuthorizationDecisionPoint implements AuthorizationD
             return contract.decide(request);
         }
         if (fieldRead) {
-            return fromPolicy(policies.decide(policyRequest(request)));
+            return policies.decide(request);
         }
         AuthorizationDecision contractDecision = contract.decide(request);
         if (!contractDecision.allowed()
                 || !request.resourceAttributes().containsKey("classification")) {
             return contractDecision;
         }
-        AuthorizationDecision policyDecision = fromPolicy(policies.decide(policyRequest(request)));
+        AuthorizationDecision policyDecision = policies.decide(request);
         return policyDecision.allowed() ? contractDecision : policyDecision;
-    }
-
-    private static IamAuthorizationRequest policyRequest(AuthorizationRequest request) {
-        AuthorizationSubject subject = request.subject();
-        IamSubject iamSubject =
-                new IamSubject(
-                        subject.id(),
-                        subject.username(),
-                        subject.tenantId(),
-                        subject.roles(),
-                        subject.permissions(),
-                        subject.groups(),
-                        subject.amr(),
-                        subject.acr(),
-                        subject.attributes());
-        return new IamAuthorizationRequest(
-                iamSubject,
-                request.action(),
-                request.resourceType(),
-                request.resourceId(),
-                request.resourceAttributes(),
-                request.context());
-    }
-
-    private static AuthorizationDecision fromPolicy(IamAuthorizationDecision decision) {
-        if (decision == null) {
-            return AuthorizationDecision.deny("POLICY_ERROR", "policy returned no decision", null);
-        }
-        if (decision.allowed()) {
-            return AuthorizationDecision.allow(decision.policyId());
-        }
-        return AuthorizationDecision.deny(
-                decision.reason(), decision.reason(), decision.policyId());
     }
 }

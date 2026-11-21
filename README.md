@@ -152,17 +152,28 @@ assertThat(harness.object("employee", receipt.locator()).fields())
 
 | 模块 | 作用 |
 |---|---|
-| `core` | 契约：错误码、时间轴、命令、IAM、工作流、SPI、`@SeedjObject` |
+| `core` | 内核契约：错误码、时间轴、命令、读模型、安全、SPI、`@SeedjObject` |
+| `seedj-workflow-contract` | 工作流契约：定义、实例、任务与动作（零外部依赖） |
+| `seedj-transit-contract` | 传输/加密契约：密钥、签名、HMAC、批量加解密 |
+| `seedj-pki-contract` | PKI 契约：证书/CSR 签发、Transit 签名、吊销与 CRL、身份映射、TLS 配置 |
+| `seedj-ai-contract` | AI 契约：命令指纹、动作分类、策略与账本值类型 |
+| `seedj-im-contract` | IM 契约：会话、成员、消息与存储端口 |
+| `seedj-im-protocol` | IM 线路协议：命令字、帧、27 个 body 与 JSON 编解码（无 Spring/Netty） |
+| `seedj-iam-contract` | IAM 契约：用户/组/角色/策略、SCIM 模型与授权值类型 |
 | `seedj-codegen` | 构建期注解处理器：schema / OpenAPI / 迁移候选 / 读视图（不进运行时） |
 | `seedj-infra-local` | 内存、文件、BouncyCastle 适配器 |
+| `seedj-infra-coord` | 分布式协调适配器：ID、编号、锁、EventBus、PKI、KV |
 | `seedj-workflow-local` | 工作流 SPI 的本地实现（库模块，不启动 server） |
 | `seedj-jdbc-postgresql` | PostgreSQL 适配器、DDL、版本化迁移、生产事件存储 |
 | `seedj-biz-starter` | 业务装配：认证 / 命令 / 查询 / 审计 / 事件总线 |
-| `seedj-iam-starter` | IAM 装配：OIDC / SCIM / RBAC / ABAC |
-| `seedj-server/{hr,iam,im}` | 可运行宿主 |
+| `seedj-iam-starter` | IAM 装配：OIDC / SCIM / RBAC / ABAC（生产边界见[已知限制](docs/guide/known-limitations.md)） |
+| `seedj-im-starter` | IM 服务端：协议、Netty 传输、会话与消息、推送 |
+| `seedj-ai-starter` | AI 能力：决策面、审批、准入与外部副作用（生产边界见[已知限制](docs/guide/known-limitations.md)） |
+| `seedj-server/{hr,iam,im,ai}` | 可运行宿主（生产可用性见[已知限制](docs/guide/known-limitations.md)） |
 | `seedj-it` | 契约对照、并发与端到端测试 |
 
-依赖方向：`server → starter → infra/jdbc → core`。
+依赖方向：`server → starter → infra/jdbc → *-contract → core`；能力之间是
+`ai-starter → im-starter → biz-starter`（只允许单向）。契约模块之间不互相依赖。
 
 ## 文档
 

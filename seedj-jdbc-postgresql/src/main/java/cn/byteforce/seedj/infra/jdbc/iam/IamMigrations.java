@@ -1,12 +1,22 @@
 package cn.byteforce.seedj.infra.jdbc.iam;
 
 import cn.byteforce.seedj.core.Migration;
+import cn.byteforce.seedj.infra.jdbc.MigrationSet;
 import java.util.List;
 
 /** Versioned IAM schema. Never edit an applied migration; add a new version. */
 public final class IamMigrations {
 
     private IamMigrations() {}
+
+    /**
+     * 迁移声明。
+     *
+     * @return 能力名、scope、顺序与迁移列表
+     */
+    static MigrationSet migrationSet() {
+        return new MigrationSet("postgres-iam-schema", "iam", 200, all());
+    }
 
     public static List<Migration> all() {
         return List.of(

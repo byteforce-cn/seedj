@@ -1,6 +1,7 @@
 package cn.byteforce.seedj.infra.jdbc.cqrs;
 
 import cn.byteforce.seedj.core.Migration;
+import cn.byteforce.seedj.infra.jdbc.MigrationSet;
 import java.util.List;
 
 /**
@@ -15,6 +16,15 @@ import java.util.List;
 final class EventMigrations {
 
     private EventMigrations() {}
+
+    /**
+     * 迁移声明。
+     *
+     * @return 能力名、scope、顺序与迁移列表
+     */
+    static MigrationSet migrationSet() {
+        return new MigrationSet("postgres-event-store", "event", 140, all());
+    }
 
     static List<Migration> all() {
         return List.of(v1());

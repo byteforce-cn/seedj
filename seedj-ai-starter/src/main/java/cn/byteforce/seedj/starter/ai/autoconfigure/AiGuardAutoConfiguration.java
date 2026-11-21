@@ -8,7 +8,6 @@ import cn.byteforce.seedj.core.security.CallerIdCodec;
 import cn.byteforce.seedj.core.security.CallerProvider;
 import cn.byteforce.seedj.cqrs.CommandCatalog;
 import cn.byteforce.seedj.cqrs.spi.TransactionRunner;
-import cn.byteforce.seedj.infra.local.ai.InMemoryDecisionAdmissionStore;
 import cn.byteforce.seedj.starter.ai.AiEnabledMarker;
 import cn.byteforce.seedj.starter.ai.AiProperties;
 import cn.byteforce.seedj.starter.ai.guard.AdmissionSweeper;
@@ -117,17 +116,6 @@ public class AiGuardAutoConfiguration {
      * @param properties AI 配置
      * @return 签发方
      */
-    /**
-     * 无 DataSource 的内存准入存储；有 DataSource 时由 PostgreSQL 配置提供。
-     *
-     * @return 准入存储
-     */
-    @Bean
-    @ConditionalOnMissingBean({DecisionAdmissionStore.class, DataSource.class})
-    public DecisionAdmissionStore inMemoryDecisionAdmissionStore() {
-        return new InMemoryDecisionAdmissionStore();
-    }
-
     /**
      * 命令事务的 GUC 设置器；只有有 DataSource 且准入开启时才装配。
      *

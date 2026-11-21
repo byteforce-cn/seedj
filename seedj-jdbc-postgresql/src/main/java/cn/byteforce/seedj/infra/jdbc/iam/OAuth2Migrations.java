@@ -1,12 +1,22 @@
 package cn.byteforce.seedj.infra.jdbc.iam;
 
 import cn.byteforce.seedj.core.Migration;
+import cn.byteforce.seedj.infra.jdbc.MigrationSet;
 import java.util.List;
 
 /** SAS 7.1.1 JDBC schema, adapted for PostgreSQL (text + timestamptz). */
 public final class OAuth2Migrations {
 
     private OAuth2Migrations() {}
+
+    /**
+     * 迁移声明。
+     *
+     * @return 能力名、scope、顺序与迁移列表
+     */
+    static MigrationSet migrationSet() {
+        return new MigrationSet("postgres-oauth2-schema", "oauth2", 210, all());
+    }
 
     public static List<Migration> all() {
         return List.of(new Migration(1, "oauth2 registered client, authorization, consent", V1));

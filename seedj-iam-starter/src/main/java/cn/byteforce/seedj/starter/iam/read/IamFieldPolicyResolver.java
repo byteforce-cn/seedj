@@ -5,9 +5,6 @@ import cn.byteforce.seedj.core.clock.Clocks;
 import cn.byteforce.seedj.core.security.Caller;
 import cn.byteforce.seedj.core.security.ScopeContext;
 import cn.byteforce.seedj.domain.FieldDefinition;
-import cn.byteforce.seedj.iam.IamAuthorizationDecision;
-import cn.byteforce.seedj.iam.IamAuthorizationRequest;
-import cn.byteforce.seedj.iam.IamSubject;
 import cn.byteforce.seedj.iam.spi.IamPolicyDecisionPoint;
 import cn.byteforce.seedj.module.ObjectModuleRegistry;
 import cn.byteforce.seedj.read.FieldAccess;
@@ -78,34 +75,7 @@ public final class IamFieldPolicyResolver implements FieldPolicyResolver {
     }
 
     private static AuthorizationDecisionPoint policyAdapter(IamPolicyDecisionPoint pdp) {
-        return request -> {
-            IamAuthorizationDecision decision = pdp.decide(toIamRequest(request));
-            if (decision.allowed()) {
-                return AuthorizationDecision.allow(decision.policyId());
-            }
-            return AuthorizationDecision.deny(
-                    decision.reason(), decision.reason(), decision.policyId());
-        };
-    }
-
-    private static IamAuthorizationRequest toIamRequest(AuthorizationRequest request) {
-        AuthorizationSubject subject = request.subject();
-        return new IamAuthorizationRequest(
-                new IamSubject(
-                        subject.id(),
-                        subject.username(),
-                        subject.tenantId(),
-                        subject.roles(),
-                        subject.permissions(),
-                        subject.groups(),
-                        subject.amr(),
-                        subject.acr(),
-                        subject.attributes()),
-                request.action(),
-                request.resourceType(),
-                request.resourceId(),
-                request.resourceAttributes(),
-                request.context());
+        return pdp::decide;
     }
 
     @Override

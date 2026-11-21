@@ -2,7 +2,6 @@ package cn.byteforce.seedj.starter.iam.abac;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import cn.byteforce.seedj.iam.IamAuthorizationDecision;
 import cn.byteforce.seedj.iam.IamRole;
 import cn.byteforce.seedj.iam.authz.IamBinding;
 import cn.byteforce.seedj.iam.authz.SodRuleSet;
@@ -92,7 +91,7 @@ class CompositeAuthorizationDecisionPointTest {
     void sodConflictDeniesCommandPermission() {
         CompositeAuthorizationDecisionPoint composite =
                 new CompositeAuthorizationDecisionPoint(
-                        contract, request -> IamAuthorizationDecision.allow("unused"));
+                        contract::decide, request -> AuthorizationDecision.allow("unused"));
 
         AuthorizationDecision decision =
                 composite.decide(request("purchase.request.approve", Map.of()));
@@ -104,9 +103,9 @@ class CompositeAuthorizationDecisionPointTest {
     @Test
     @DisplayName("字段读取带 classification 时走策略引擎")
     void fieldReadWithClassificationGoesToPolicyEngine() {
-        IamPolicyDecisionPoint policies = request -> IamAuthorizationDecision.allow("abac-field");
+        IamPolicyDecisionPoint policies = request -> AuthorizationDecision.allow("abac-field");
         CompositeAuthorizationDecisionPoint composite =
-                new CompositeAuthorizationDecisionPoint(contract, policies);
+                new CompositeAuthorizationDecisionPoint(contract::decide, policies);
 
         AuthorizationDecision decision =
                 composite.decide(
@@ -128,8 +127,12 @@ class CompositeAuthorizationDecisionPointTest {
     void deniedPolicyDeniesFieldRead() {
         CompositeAuthorizationDecisionPoint composite =
                 new CompositeAuthorizationDecisionPoint(
-                        contract,
-                        request -> IamAuthorizationDecision.deny("no matching allow policy"));
+                        contract::decide,
+                        request ->
+                                AuthorizationDecision.deny(
+                                        "no matching allow policy",
+                                        "no matching allow policy",
+                                        null));
 
         AuthorizationDecision decision =
                 composite.decide(
@@ -151,7 +154,10 @@ class CompositeAuthorizationDecisionPointTest {
     void commandWithResourceAttributesRequiresBothEngines() {
         CompositeAuthorizationDecisionPoint composite =
                 new CompositeAuthorizationDecisionPoint(
-                        contract, request -> IamAuthorizationDecision.deny("attribute mismatch"));
+                        contract::decide,
+                        request ->
+                                AuthorizationDecision.deny(
+                                        "attribute mismatch", "attribute mismatch", null));
 
         AuthorizationDecision decision =
                 composite.decide(
@@ -165,7 +171,7 @@ class CompositeAuthorizationDecisionPointTest {
     @DisplayName("未启用 ABAC 时仍执行契约检查（SoD 不放行）")
     void withoutPolicyEngineFallsBackToContract() {
         CompositeAuthorizationDecisionPoint composite =
-                new CompositeAuthorizationDecisionPoint(contract, null);
+                new CompositeAuthorizationDecisionPoint(contract::decide, null);
 
         AuthorizationDecision decision =
                 composite.decide(request("purchase.request.create", Map.of()));
