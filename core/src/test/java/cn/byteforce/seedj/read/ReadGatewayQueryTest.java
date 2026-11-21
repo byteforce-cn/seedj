@@ -210,24 +210,6 @@ class ReadGatewayQueryTest {
                         error -> assertThat(error.code()).isEqualTo(ContractErrorCode.UNAVAILABLE));
     }
 
-    @Test
-    @DisplayName("单表仓储走同一网关，返回类型化页")
-    void temporalQueryRepositoryMapsRows() {
-        ReadGateway gateway = gateway(new ScopePredicate.All(), true, FieldPolicy.defaults(SCHEMA));
-        TemporalQueryRepository<String> repository =
-                new TemporalQueryRepository<>(
-                        gateway,
-                        "employee",
-                        "employee_no",
-                        SortDirection.ASC,
-                        fields -> String.valueOf(fields.get("employee_no")));
-
-        Page<String> page = repository.find(Map.of("org_unit_id", "D01"), CALLER);
-
-        assertThat(page.items()).containsExactly("E-1");
-        assertThat(page.total()).isEqualTo(1);
-    }
-
     private ReadGateway gateway(ScopePredicate scope, boolean withExecutor, FieldPolicy policy) {
         DataScopeResolver scopes =
                 new DataScopeResolver() {

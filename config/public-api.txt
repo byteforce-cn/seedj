@@ -56,7 +56,6 @@ core|cn.byteforce.seedj.core.clock.spi|HybridStateStore
 core|cn.byteforce.seedj.core.clock|Clock
 core|cn.byteforce.seedj.core.clock|ClockFactory
 core|cn.byteforce.seedj.core.clock|ClockGuarantee
-core|cn.byteforce.seedj.core.clock|ClockTck
 core|cn.byteforce.seedj.core.clock|Clocks
 core|cn.byteforce.seedj.core.clock|HybridClock
 core|cn.byteforce.seedj.core.clock|HybridTimestamp
@@ -142,7 +141,6 @@ core|cn.byteforce.seedj.domain.event|EventDispatch
 core|cn.byteforce.seedj.domain.event|EventType
 core|cn.byteforce.seedj.domain.event|EventTypeRegistry
 core|cn.byteforce.seedj.domain.exception|AggregateNotFoundException
-core|cn.byteforce.seedj.domain.support|AggregateAssertions
 core|cn.byteforce.seedj.domain|AbstractAggregateRoot
 core|cn.byteforce.seedj.domain|AbstractEntity
 core|cn.byteforce.seedj.domain|AppendKind
@@ -305,7 +303,6 @@ core|cn.byteforce.seedj.read|ReadGateway
 core|cn.byteforce.seedj.read|ReadModel
 core|cn.byteforce.seedj.read|ReadModelRegistry
 core|cn.byteforce.seedj.read|ScopeResolvers
-core|cn.byteforce.seedj.read|TemporalQueryRepository
 core|cn.byteforce.seedj.security|AuthorizationDecision
 core|cn.byteforce.seedj.security|AuthorizationDecisionPoint
 core|cn.byteforce.seedj.security|AuthorizationRequest
