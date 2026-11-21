@@ -20,7 +20,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
@@ -101,15 +100,12 @@ public class IamAuthzConfiguration {
      * @return 组合决策点
      */
     @Bean
-    @Primary
-    @ConditionalOnMissingBean(
-            value = AuthorizationDecisionPoint.class,
-            ignored = IamContractAuthorizationService.class)
+    @ConditionalOnMissingBean
     public AuthorizationDecisionPoint authorizationDecisionPoint(
             IamContractAuthorizationService contract,
             @org.springframework.beans.factory.annotation.Qualifier("iamPolicyDecisionPoint")
                     ObjectProvider<IamPolicyDecisionPoint> policies) {
-        return new CompositeAuthorizationDecisionPoint(contract, policies.getIfAvailable());
+        return new CompositeAuthorizationDecisionPoint(contract::decide, policies.getIfAvailable());
     }
 
     @Bean

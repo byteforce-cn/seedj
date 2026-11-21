@@ -4,15 +4,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import cn.byteforce.seedj.core.security.SecurityAuditEvent;
 import cn.byteforce.seedj.core.security.SecurityAuditSink;
-import cn.byteforce.seedj.iam.IamAuthorizationDecision;
-import cn.byteforce.seedj.iam.IamAuthorizationRequest;
 import cn.byteforce.seedj.iam.IamPolicy;
 import cn.byteforce.seedj.iam.IamPolicyEffect;
-import cn.byteforce.seedj.iam.IamSubject;
 import cn.byteforce.seedj.iam.PolicyComparisonOperator;
 import cn.byteforce.seedj.iam.PolicyCondition;
 import cn.byteforce.seedj.iam.PolicyOperand;
 import cn.byteforce.seedj.iam.spi.IamPolicyRepository;
+import cn.byteforce.seedj.security.AuthorizationDecision;
+import cn.byteforce.seedj.security.AuthorizationRequest;
+import cn.byteforce.seedj.security.AuthorizationSubject;
 import cn.byteforce.seedj.iam.spi.IamResourceAttributeResolver;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -25,6 +25,9 @@ import org.junit.jupiter.api.Test;
 
 /** 默认 PDP 的条件求值与审计语义：运算符、操作数来源、资源模式、审计失败不影响判定。 */
 class DefaultIamPolicyDecisionPointOperatorsTest {
+
+    private static final java.time.Instant AS_OF =
+            java.time.Instant.parse("2026-11-21T00:00:00Z");
 
     private final Map<String, IamPolicy> policies = new LinkedHashMap<>();
     private final List<SecurityAuditEvent> audited = new ArrayList<>();
@@ -65,8 +68,8 @@ class DefaultIamPolicyDecisionPointOperatorsTest {
                 public void bumpEpoch(String tenantId) {}
             };
 
-    private final IamSubject subject =
-            new IamSubject(
+    private final AuthorizationSubject subject =
+            new AuthorizationSubject(
                     "u-1",
                     "alice",
                     "default",
@@ -86,7 +89,7 @@ class DefaultIamPolicyDecisionPointOperatorsTest {
 
                 @Override
                 public Map<String, Object> resolve(
-                        String resourceType, String resourceId, IamSubject subject) {
+                        String resourceType, String resourceId, AuthorizationSubject subject) {
                     return Map.of("ownerId", "u-1", "status", "OPEN", "amount", 120);
                 }
             };
@@ -344,14 +347,15 @@ class DefaultIamPolicyDecisionPointOperatorsTest {
                 "override",
                 compare(PolicyOperand.resource("status"), PolicyComparisonOperator.EQ, "CLOSED"));
 
-        IamAuthorizationDecision decision =
+        AuthorizationDecision decision =
                 pdp().decide(
-                                new IamAuthorizationRequest(
+                                new AuthorizationRequest(
                                         subject,
                                         "order:read",
                                         "order",
                                         "o-1",
                                         Map.of("status", "CLOSED"),
+                                        AS_OF,
                                         Map.of()));
 
         assertThat(decision.allowed()).isTrue();
@@ -378,12 +382,13 @@ class DefaultIamPolicyDecisionPointOperatorsTest {
         assertThat(
                         withoutResolvers
                                 .decide(
-                                        new IamAuthorizationRequest(
+                                        new AuthorizationRequest(
                                                 subject,
                                                 "order:read",
                                                 "order",
                                                 "o-1",
                                                 Map.of(),
+                                                AS_OF,
                                                 Map.of()))
                                 .allowed())
                 .isTrue();
@@ -391,10 +396,16 @@ class DefaultIamPolicyDecisionPointOperatorsTest {
 
     @Test
     void deniesAndAuditsWhenNoPolicyMatches() {
-        IamAuthorizationDecision decision =
+        AuthorizationDecision decision =
                 pdp().decide(
-                                new IamAuthorizationRequest(
-                                        subject, "order:read", "order", "o-1", Map.of(), Map.of()));
+                                new AuthorizationRequest(
+                                        subject,
+                                        "order:read",
+                                        "order",
+                                        "o-1",
+                                        Map.of(),
+                                        AS_OF,
+                                        Map.of()));
 
         assertThat(decision.allowed()).isFalse();
         assertThat(decision.reason()).isEqualTo("no matching allow policy");
@@ -441,10 +452,16 @@ class DefaultIamPolicyDecisionPointOperatorsTest {
                                 },
                         () -> "audit-1");
 
-        IamAuthorizationDecision decision =
+        AuthorizationDecision decision =
                 failing.decide(
-                        new IamAuthorizationRequest(
-                                subject, "order:read", "order", "o-1", Map.of(), Map.of()));
+                        new AuthorizationRequest(
+                                subject,
+                                "order:read",
+                                "order",
+                                "o-1",
+                                Map.of(),
+                                AS_OF,
+                                Map.of()));
 
         assertThat(decision.allowed()).isFalse();
         assertThat(decision.reason()).isEqualTo("no matching allow policy");
@@ -491,14 +508,15 @@ class DefaultIamPolicyDecisionPointOperatorsTest {
                 repository, List.of(resolver), audited::add, () -> "audit-1");
     }
 
-    private IamAuthorizationDecision decide() {
+    private AuthorizationDecision decide() {
         return pdp().decide(
-                        new IamAuthorizationRequest(
+                        new AuthorizationRequest(
                                 subject,
                                 "order:read",
                                 "order",
                                 "o-1",
                                 Map.of(),
+                                AS_OF,
                                 Map.of("ip", "10.0.0.1")));
     }
 

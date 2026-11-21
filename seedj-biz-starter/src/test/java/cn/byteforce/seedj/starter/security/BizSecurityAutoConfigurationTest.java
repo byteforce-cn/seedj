@@ -4,9 +4,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 import cn.byteforce.seedj.core.security.CallerProvider;
+import cn.byteforce.seedj.security.AuthorizationDecision;
+import cn.byteforce.seedj.security.AuthorizationDecisionPoint;
+import cn.byteforce.seedj.security.AuthorizationRequest;
+import cn.byteforce.seedj.security.AuthorizationSubject;
 import cn.byteforce.seedj.starter.autoconfigure.BizEnabledMarker;
 import java.lang.reflect.Method;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -167,5 +173,66 @@ class BizSecurityAutoConfigurationTest {
                         context ->
                                 assertThat(context.getStartupFailure())
                                         .hasMessageContaining("dev-auth"));
+    }
+
+    @Test
+    @DisplayName("local 兜底决策点：没有其它决策点时注册，有则让位")
+    void localDecisionPointBacksOff() {
+        new WebApplicationContextRunner()
+                .withConfiguration(
+                        AutoConfigurations.of(
+                                LocalAuthorizationDecisionPointAutoConfiguration.class))
+                .withPropertyValues("spring.profiles.active=local")
+                .run(
+                        context -> {
+                            assertThat(context).hasSingleBean(AuthorizationDecisionPoint.class);
+                            AuthorizationDecision allowed =
+                                    context.getBean(AuthorizationDecisionPoint.class)
+                                            .decide(
+                                                    new AuthorizationRequest(
+                                                            new AuthorizationSubject(
+                                                                    "u",
+                                                                    "u",
+                                                                    "default",
+                                                                    Set.of(),
+                                                                    Set.of("x"),
+                                                                    Set.of(),
+                                                                    Set.of(),
+                                                                    "",
+                                                                    Map.of()),
+                                                            "x",
+                                                            "t",
+                                                            null,
+                                                            Map.of(),
+                                                            java.time.Instant.EPOCH,
+                                                            Map.of()));
+                            assertThat(allowed.allowed()).isTrue();
+                        });
+
+        AuthorizationDecisionPoint iam = request -> AuthorizationDecision.allow("iam");
+        new WebApplicationContextRunner()
+                .withConfiguration(
+                        AutoConfigurations.of(
+                                LocalAuthorizationDecisionPointAutoConfiguration.class))
+                .withBean(AuthorizationDecisionPoint.class, () -> iam)
+                .withPropertyValues("spring.profiles.active=local")
+                .run(
+                        context ->
+                                assertThat(context.getBean(AuthorizationDecisionPoint.class))
+                                        .isSameAs(iam));
+    }
+
+    @Test
+    @DisplayName("兜底决策点显式排在 IAM 之后，避免抢占 IAM 的组合决策点")
+    void localDecisionPointIsOrderedAfterIam() {
+        org.springframework.boot.autoconfigure.AutoConfiguration annotation =
+                org.springframework.core.annotation.AnnotationUtils.findAnnotation(
+                        LocalAuthorizationDecisionPointAutoConfiguration.class,
+                        org.springframework.boot.autoconfigure.AutoConfiguration.class);
+
+        assertThat(annotation).isNotNull();
+        assertThat(annotation.afterName())
+                .contains(
+                        "cn.byteforce.seedj.starter.iam.autoconfigure.IamAutoConfiguration");
     }
 }

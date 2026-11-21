@@ -8,7 +8,6 @@ import cn.byteforce.seedj.iam.IamException;
 import cn.byteforce.seedj.iam.authz.AttributeLookup;
 import cn.byteforce.seedj.iam.authz.AttributeSnapshot;
 import cn.byteforce.seedj.iam.authz.AttributeState;
-import cn.byteforce.seedj.iam.authz.IamCheckResult;
 import cn.byteforce.seedj.iam.authz.IamResolution;
 import cn.byteforce.seedj.security.AuthorizationDecision;
 import cn.byteforce.seedj.security.AuthorizationDecisionPoint;
@@ -56,7 +55,7 @@ public class IamAuthorizationController {
      */
     public IamAuthorizationController(
             IamContractAuthorizationService service, ObjectProvider<CallerProvider> callers) {
-        this(service, service, callers);
+        this(service, service::decide, callers);
     }
 
     /**

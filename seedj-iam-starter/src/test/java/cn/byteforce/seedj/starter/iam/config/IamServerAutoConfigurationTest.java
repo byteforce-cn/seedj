@@ -10,6 +10,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import cn.byteforce.seedj.id.IdGenerator;
+import cn.byteforce.seedj.security.AuthorizationDecisionPoint;
+import cn.byteforce.seedj.starter.iam.abac.CompositeAuthorizationDecisionPoint;
 import cn.byteforce.seedj.starter.iam.TestIdGenerators;
 import cn.byteforce.seedj.starter.iam.annotation.EnableIamServer;
 import cn.byteforce.seedj.starter.iam.autoconfigure.IamAutoConfiguration;
@@ -323,5 +325,15 @@ class IamServerAutoConfigurationTest {
         IdGenerator<String> idGenerator() {
             return TestIdGenerators.sequential();
         }
+    }
+
+    @Test
+    void singleAuthorizationDecisionPoint() {
+        runner.run(
+                context -> {
+                    assertThat(context).hasSingleBean(AuthorizationDecisionPoint.class);
+                    assertThat(context.getBean(AuthorizationDecisionPoint.class))
+                            .isInstanceOf(CompositeAuthorizationDecisionPoint.class);
+                });
     }
 }

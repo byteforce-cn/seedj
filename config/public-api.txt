@@ -190,7 +190,6 @@ core|cn.byteforce.seedj.iam.authz|ConditionOutcome
 core|cn.byteforce.seedj.iam.authz|IamAttributeSource
 core|cn.byteforce.seedj.iam.authz|IamBinding
 core|cn.byteforce.seedj.iam.authz|IamBindingStore
-core|cn.byteforce.seedj.iam.authz|IamCheckResult
 core|cn.byteforce.seedj.iam.authz|IamCondition
 core|cn.byteforce.seedj.iam.authz|IamConditionEvaluator
 core|cn.byteforce.seedj.iam.authz|IamConditionOperator
@@ -224,8 +223,6 @@ core|cn.byteforce.seedj.iam.totp|Base32
 core|cn.byteforce.seedj.iam.totp|TotpAlgorithm
 core|cn.byteforce.seedj.iam.totp|TotpEnrollment
 core|cn.byteforce.seedj.iam.totp|TotpGenerator
-core|cn.byteforce.seedj.iam|IamAuthorizationDecision
-core|cn.byteforce.seedj.iam|IamAuthorizationRequest
 core|cn.byteforce.seedj.iam|IamErrorCode
 core|cn.byteforce.seedj.iam|IamException
 core|cn.byteforce.seedj.iam|IamGroup
@@ -533,6 +530,7 @@ seedj-biz-starter|cn.byteforce.seedj.starter.security|JsonAccessDeniedHandler
 seedj-biz-starter|cn.byteforce.seedj.starter.security|JsonAuthenticationEntryPoint
 seedj-biz-starter|cn.byteforce.seedj.starter.security|JwtCallerProvider
 seedj-biz-starter|cn.byteforce.seedj.starter.security|JwtClaimsMapper
+seedj-biz-starter|cn.byteforce.seedj.starter.security|LocalAuthorizationDecisionPointAutoConfiguration
 seedj-biz-starter|cn.byteforce.seedj.starter.security|RequestContextDecorator
 seedj-biz-starter|cn.byteforce.seedj.starter.security|SecurityDenialAudit
 seedj-biz-starter|cn.byteforce.seedj.starter.security|ThreadLocalCallerPropagation

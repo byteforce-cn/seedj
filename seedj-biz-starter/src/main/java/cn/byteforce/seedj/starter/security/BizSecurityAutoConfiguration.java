@@ -4,8 +4,6 @@ import cn.byteforce.seedj.core.security.AccessTokenRules;
 import cn.byteforce.seedj.core.security.CallerProvider;
 import cn.byteforce.seedj.core.security.SecurityAuditSink;
 import cn.byteforce.seedj.id.IdGenerator;
-import cn.byteforce.seedj.security.AuthorizationDecision;
-import cn.byteforce.seedj.security.AuthorizationDecisionPoint;
 import cn.byteforce.seedj.starter.autoconfigure.BizEnabledMarker;
 import cn.byteforce.seedj.starter.web.ContractErrorHandler;
 import java.util.ArrayList;
@@ -23,7 +21,6 @@ import org.springframework.boot.security.oauth2.server.resource.autoconfigure.OA
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
-import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.env.Environment;
 import org.springframework.core.task.TaskDecorator;
@@ -89,26 +86,6 @@ public class BizSecurityAutoConfiguration {
     @ConditionalOnMissingBean
     public ContractErrorHandler contractErrorHandler() {
         return new ContractErrorHandler();
-    }
-
-    /**
-     * local/test 的本地决策点：按调用方权限声明判定，保留“无权限 403”的测试语义。
-     *
-     * <p>生产 profile 没有 IAM 决策点时启动失败；本地开发使用 dev-auth 时，调用方 权限来自配置，因此这里不需要无条件放行。
-     *
-     * @return 决策点
-     */
-    @Bean
-    @ConditionalOnMissingBean
-    @Profile({"local", "test"})
-    public AuthorizationDecisionPoint localAuthorizationDecisionPoint() {
-        return request ->
-                request.subject().permissions().contains(request.action())
-                        ? AuthorizationDecision.allow("local-caller-permissions")
-                        : AuthorizationDecision.deny(
-                                "NO_PERMISSION",
-                                "missing permission: " + request.action(),
-                                "local-caller-permissions");
     }
 
     @Bean

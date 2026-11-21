@@ -2,15 +2,15 @@ package cn.byteforce.seedj.iam.policy;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import cn.byteforce.seedj.iam.IamAuthorizationDecision;
-import cn.byteforce.seedj.iam.IamAuthorizationRequest;
 import cn.byteforce.seedj.iam.IamPolicy;
 import cn.byteforce.seedj.iam.IamPolicyEffect;
-import cn.byteforce.seedj.iam.IamSubject;
 import cn.byteforce.seedj.iam.PolicyComparisonOperator;
 import cn.byteforce.seedj.iam.PolicyCondition;
 import cn.byteforce.seedj.iam.PolicyOperand;
 import cn.byteforce.seedj.iam.spi.IamPolicyRepository;
+import cn.byteforce.seedj.security.AuthorizationDecision;
+import cn.byteforce.seedj.security.AuthorizationRequest;
+import cn.byteforce.seedj.security.AuthorizationSubject;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -22,6 +22,9 @@ import org.junit.jupiter.api.Test;
 
 /** 默认 PDP 的剩余求值分支：username 路径、非集合 IN、数值相等、集合相等与 跨类型排序比较。 */
 class DefaultIamPolicyDecisionPointBranchTest {
+
+    private static final java.time.Instant AS_OF =
+            java.time.Instant.parse("2026-11-21T00:00:00Z");
 
     private final Map<String, IamPolicy> policies = new LinkedHashMap<>();
 
@@ -62,8 +65,8 @@ class DefaultIamPolicyDecisionPointBranchTest {
                 public void bumpEpoch(String tenantId) {}
             };
 
-    private final IamSubject subject =
-            new IamSubject(
+    private final AuthorizationSubject subject =
+            new AuthorizationSubject(
                     "u-1",
                     "alice",
                     "default",
@@ -294,11 +297,11 @@ class DefaultIamPolicyDecisionPointBranchTest {
                         condition,
                         true,
                         0));
-        IamAuthorizationDecision decision =
+        AuthorizationDecision decision =
                 new DefaultIamPolicyDecisionPoint(repository, List.of(), null, () -> "audit-1")
                         .decide(
-                                new IamAuthorizationRequest(
-                                        subject, "order:read", "order", "o-1", Map.of(), Map.of()));
+                                new AuthorizationRequest(
+                                        subject, "order:read", "order", "o-1", Map.of(), AS_OF, Map.of()));
         return decision.allowed();
     }
 

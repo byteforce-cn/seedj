@@ -129,7 +129,7 @@ class CommandAuthorizationIT {
                         SodRuleSet.defaults());
         policy =
                 CommandPolicy.decisionPoint(
-                        new CompositeAuthorizationDecisionPoint(contract, null),
+                        new CompositeAuthorizationDecisionPoint(contract::decide, null),
                         CLOCK,
                         audits::add);
     }

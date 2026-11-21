@@ -1,11 +1,11 @@
 package cn.byteforce.seedj.starter.iam.abac;
 
+import cn.byteforce.seedj.security.AuthorizationRequest;
+import cn.byteforce.seedj.security.AuthorizationDecision;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import cn.byteforce.seedj.core.security.Caller;
-import cn.byteforce.seedj.iam.IamAuthorizationDecision;
-import cn.byteforce.seedj.iam.IamAuthorizationRequest;
 import cn.byteforce.seedj.iam.IamErrorCode;
 import cn.byteforce.seedj.iam.IamException;
 import cn.byteforce.seedj.iam.IamRole;
@@ -74,13 +74,13 @@ class IamAuthorizationFacadeTest {
                                         "Alice", "alice@example.com", Map.of("department", "D01")),
                         "hash");
         roles.assignRoleToUser(user.id(), "r-ops", Instant.now(), "test");
-        pdp.decision = IamAuthorizationDecision.allow("allow-ops");
+        pdp.decision = AuthorizationDecision.allow("allow-ops");
 
         boolean allowed = facade.authorize(authentication("alice", "n/a"), "order", "o-1", "read");
 
         assertThat(allowed).isTrue();
-        IamAuthorizationRequest request = pdp.only();
-        assertThat(request.subject().userId()).isEqualTo("u-1");
+        AuthorizationRequest request = pdp.only();
+        assertThat(request.subject().id()).isEqualTo("u-1");
         assertThat(request.subject().username()).isEqualTo("alice");
         assertThat(request.subject().tenantId()).isEqualTo("default");
         assertThat(request.subject().roles()).containsExactly("ops");
@@ -92,25 +92,25 @@ class IamAuthorizationFacadeTest {
         assertThat(request.resourceType()).isEqualTo("order");
         assertThat(request.resourceId()).isEqualTo("o-1");
         assertThat(request.resourceAttributes()).isEmpty();
-        assertThat(request.environment()).isEmpty();
+        assertThat(request.context()).isEmpty();
     }
 
     @Test
     @DisplayName("登录名查不到时按主体 id 回落用户库")
     void fallsBackToFindById() {
         users.create(IamUser.create("u-2", "default", "bob", "Bob", null, true), "hash");
-        pdp.decision = IamAuthorizationDecision.allow("allow-any");
+        pdp.decision = AuthorizationDecision.allow("allow-any");
 
         facade.authorize(authentication("u-2", "n/a"), "order", "o-2", "read");
 
-        assertThat(pdp.only().subject().userId()).isEqualTo("u-2");
+        assertThat(pdp.only().subject().id()).isEqualTo("u-2");
         assertThat(pdp.only().subject().username()).isEqualTo("bob");
     }
 
     @Test
     @DisplayName("未知用户按 GrantedAuthority 前缀构造主体")
     void unknownUserFallsBackToAuthorities() {
-        pdp.decision = IamAuthorizationDecision.allow("allow-any");
+        pdp.decision = AuthorizationDecision.allow("allow-any");
 
         facade.authorize(
                 new UsernamePasswordAuthenticationToken(
@@ -126,8 +126,8 @@ class IamAuthorizationFacadeTest {
                 "o-3",
                 "read");
 
-        IamAuthorizationRequest request = pdp.only();
-        assertThat(request.subject().userId()).isEqualTo("svc");
+        AuthorizationRequest request = pdp.only();
+        assertThat(request.subject().id()).isEqualTo("svc");
         assertThat(request.subject().username()).isEqualTo("svc");
         assertThat(request.subject().tenantId()).isEqualTo("default");
         assertThat(request.subject().roles()).containsExactly("integration");
@@ -141,7 +141,7 @@ class IamAuthorizationFacadeTest {
     @Test
     @DisplayName("未知用户 + JWT：user_id 覆盖主体，声明并入角色/权限/组/属性")
     void jwtClaimsExtendSubject() {
-        pdp.decision = IamAuthorizationDecision.allow("allow-any");
+        pdp.decision = AuthorizationDecision.allow("allow-any");
         Jwt jwt =
                 Jwt.withTokenValue("jwt-value")
                         .header("alg", "none")
@@ -163,8 +163,8 @@ class IamAuthorizationFacadeTest {
                 "o-4",
                 "read");
 
-        IamAuthorizationRequest request = pdp.only();
-        assertThat(request.subject().userId()).isEqualTo("u-9");
+        AuthorizationRequest request = pdp.only();
+        assertThat(request.subject().id()).isEqualTo("u-9");
         assertThat(request.subject().username()).isEqualTo("bob");
         assertThat(request.subject().roles()).containsExactlyInAnyOrder("reader", "auditor");
         assertThat(request.subject().permissions()).containsExactly("audit.read");
@@ -183,7 +183,7 @@ class IamAuthorizationFacadeTest {
                 IamUser.create("u-3", "default", "carol", "Carol", null, true)
                         .withProfile("Carol", null, Map.of("department", "D02")),
                 "hash");
-        pdp.decision = IamAuthorizationDecision.allow("allow-any");
+        pdp.decision = AuthorizationDecision.allow("allow-any");
         Jwt jwt =
                 Jwt.withTokenValue("jwt-value")
                         .header("alg", "none")
@@ -195,7 +195,7 @@ class IamAuthorizationFacadeTest {
 
         facade.authorize(new JwtAuthenticationToken(jwt), "order", "o-5", "read");
 
-        assertThat(pdp.only().subject().userId()).isEqualTo("u-3");
+        assertThat(pdp.only().subject().id()).isEqualTo("u-3");
         assertThat(pdp.only().subject().attributes())
                 .containsEntry("department", "D02")
                 .containsEntry("scope", "openid");
@@ -204,7 +204,7 @@ class IamAuthorizationFacadeTest {
     @Test
     @DisplayName("require 拒绝时抛 FORBIDDEN，允许时静默")
     void requireThrowsOnlyWhenDenied() {
-        pdp.decision = IamAuthorizationDecision.deny("no matching allow policy");
+        pdp.decision = AuthorizationDecision.deny("no matching allow policy", "no matching allow policy", null);
 
         assertThatThrownBy(
                         () ->
@@ -221,7 +221,7 @@ class IamAuthorizationFacadeTest {
                                     .isEqualTo("not authorized for approve on invoice/inv-1");
                         });
 
-        pdp.decision = IamAuthorizationDecision.allow("allow-invoice");
+        pdp.decision = AuthorizationDecision.allow("allow-invoice");
         facade.require(authentication("svc", "n/a"), "invoice", "inv-1", "approve");
         assertThat(pdp.requests).hasSize(2);
     }
@@ -232,18 +232,18 @@ class IamAuthorizationFacadeTest {
 
     private static final class RecordingPdp implements IamPolicyDecisionPoint {
 
-        private final List<IamAuthorizationRequest> requests = new ArrayList<>();
+        private final List<AuthorizationRequest> requests = new ArrayList<>();
 
-        private IamAuthorizationDecision decision =
-                IamAuthorizationDecision.deny("no matching allow policy");
+        private AuthorizationDecision decision =
+                AuthorizationDecision.deny("no matching allow policy", "no matching allow policy", null);
 
         @Override
-        public IamAuthorizationDecision decide(IamAuthorizationRequest request) {
+        public AuthorizationDecision decide(AuthorizationRequest request) {
             requests.add(request);
             return decision;
         }
 
-        private IamAuthorizationRequest only() {
+        private AuthorizationRequest only() {
             assertThat(requests).hasSize(1);
             return requests.get(0);
         }

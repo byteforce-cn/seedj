@@ -2,17 +2,17 @@ package cn.byteforce.seedj.iam.policy;
 
 import cn.byteforce.seedj.core.security.SecurityAuditEvent;
 import cn.byteforce.seedj.core.security.SecurityAuditSink;
-import cn.byteforce.seedj.iam.IamAuthorizationDecision;
-import cn.byteforce.seedj.iam.IamAuthorizationRequest;
 import cn.byteforce.seedj.iam.IamPolicy;
 import cn.byteforce.seedj.iam.IamPolicyEffect;
-import cn.byteforce.seedj.iam.IamSubject;
 import cn.byteforce.seedj.iam.PolicyComparisonOperator;
 import cn.byteforce.seedj.iam.PolicyCondition;
 import cn.byteforce.seedj.iam.PolicyOperand;
 import cn.byteforce.seedj.iam.spi.IamPolicyDecisionPoint;
 import cn.byteforce.seedj.iam.spi.IamPolicyRepository;
 import cn.byteforce.seedj.iam.spi.IamResourceAttributeResolver;
+import cn.byteforce.seedj.security.AuthorizationDecision;
+import cn.byteforce.seedj.security.AuthorizationRequest;
+import cn.byteforce.seedj.security.AuthorizationSubject;
 import cn.byteforce.seedj.id.IdGenerator;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -46,9 +46,17 @@ public class DefaultIamPolicyDecisionPoint implements IamPolicyDecisionPoint {
     }
 
     @Override
-    public IamAuthorizationDecision decide(IamAuthorizationRequest request) {
+    public AuthorizationDecision decide(AuthorizationRequest request) {
         Map<String, Object> resourceAttributes = resolveResource(request);
-        IamAuthorizationRequest resolved = request.withResourceAttributes(resourceAttributes);
+        AuthorizationRequest resolved =
+                new AuthorizationRequest(
+                        request.subject(),
+                        request.action(),
+                        request.resourceType(),
+                        request.resourceId(),
+                        resourceAttributes,
+                        request.asOf(),
+                        request.context());
 
         List<IamPolicy> ordered =
                 new ArrayList<>(policies.findEnabled(request.subject().tenantId()));
@@ -81,16 +89,18 @@ public class DefaultIamPolicyDecisionPoint implements IamPolicyDecisionPoint {
 
         if (deniedBy != null) {
             audit(request, "DENY", deniedBy);
-            return IamAuthorizationDecision.deny("denied by policy", deniedBy);
+            return AuthorizationDecision.deny(
+                    "POLICY_DENIED", "denied by policy", deniedBy);
         }
         if (allowedBy != null) {
-            return IamAuthorizationDecision.allow(allowedBy);
+            return AuthorizationDecision.allow(allowedBy);
         }
         audit(request, "DENY", null);
-        return IamAuthorizationDecision.deny("no matching allow policy");
+        return AuthorizationDecision.deny(
+                "NO_MATCHING_POLICY", "no matching allow policy", null);
     }
 
-    private Map<String, Object> resolveResource(IamAuthorizationRequest request) {
+    private Map<String, Object> resolveResource(AuthorizationRequest request) {
         Map<String, Object> attributes = new LinkedHashMap<>();
         attributes.put("type", request.resourceType());
         attributes.put("id", request.resourceId());
@@ -110,7 +120,7 @@ public class DefaultIamPolicyDecisionPoint implements IamPolicyDecisionPoint {
         return attributes;
     }
 
-    private boolean evaluate(PolicyCondition condition, IamAuthorizationRequest request) {
+    private boolean evaluate(PolicyCondition condition, AuthorizationRequest request) {
         if (condition == PolicyCondition.Always.INSTANCE) {
             return true;
         }
@@ -134,16 +144,16 @@ public class DefaultIamPolicyDecisionPoint implements IamPolicyDecisionPoint {
         return false;
     }
 
-    private Object resolve(PolicyOperand operand, IamAuthorizationRequest request) {
-        IamSubject subject = request.subject();
+    private Object resolve(PolicyOperand operand, AuthorizationRequest request) {
+        AuthorizationSubject subject = request.subject();
         return switch (operand.source()) {
             case LITERAL -> operand.literal();
             case ACTION -> request.action();
             case RESOURCE -> request.resourceAttributes().get(operand.path());
-            case ENVIRONMENT -> request.environment().get(operand.path());
+            case ENVIRONMENT -> request.context().get(operand.path());
             case SUBJECT ->
                     switch (operand.path()) {
-                        case "userId", "sub" -> subject.userId();
+                        case "userId", "sub" -> subject.id();
                         case "username" -> subject.username();
                         case "tenantId", "tenant_id" -> subject.tenantId();
                         case "roles" -> subject.roles();
@@ -228,7 +238,7 @@ public class DefaultIamPolicyDecisionPoint implements IamPolicyDecisionPoint {
         return String.valueOf(left).compareTo(String.valueOf(right));
     }
 
-    private void audit(IamAuthorizationRequest request, String outcome, String policyId) {
+    private void audit(AuthorizationRequest request, String outcome, String policyId) {
         if (auditSink == null) {
             return;
         }
@@ -237,7 +247,7 @@ public class DefaultIamPolicyDecisionPoint implements IamPolicyDecisionPoint {
                     new SecurityAuditEvent(
                             idGenerator.id(),
                             request.subject().tenantId(),
-                            request.subject().userId(),
+                            request.subject().id(),
                             "abac." + request.action(),
                             request.resourceType(),
                             request.resourceId(),

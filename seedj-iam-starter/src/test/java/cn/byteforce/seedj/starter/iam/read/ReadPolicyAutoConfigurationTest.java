@@ -3,7 +3,6 @@ package cn.byteforce.seedj.starter.iam.read;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import cn.byteforce.seedj.domain.FieldType;
-import cn.byteforce.seedj.iam.IamAuthorizationDecision;
 import cn.byteforce.seedj.iam.IamPolicy;
 import cn.byteforce.seedj.iam.PolicyComparisonOperator;
 import cn.byteforce.seedj.iam.PolicyCondition;
@@ -115,7 +114,7 @@ class ReadPolicyAutoConfigurationTest {
     }
 
     private static IamPolicyDecisionPoint denyAll() {
-        return request -> IamAuthorizationDecision.deny("no matching allow policy");
+        return request -> AuthorizationDecision.deny("no matching allow policy", "no matching allow policy", null);
     }
 
     @Configuration(proxyBeanMethods = false)

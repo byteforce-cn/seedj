@@ -15,29 +15,6 @@ class IamAuthzValueTypesTest {
     private static final Instant NOW = Instant.parse("2026-01-01T00:00:00Z");
 
     @Test
-    @DisplayName("IamCheckResult：默认 NOT_REQUIRED，reason/reasonCode 必填")
-    void checkResult() {
-        IamCheckResult result = new IamCheckResult(true, "ok", "ALLOWED", null);
-
-        assertThat(result.allowed()).isTrue();
-        assertThat(result.reason()).isEqualTo("ok");
-        assertThat(result.reasonCode()).isEqualTo("ALLOWED");
-        assertThat(result.attributeState()).isEqualTo(AttributeState.NOT_REQUIRED);
-
-        assertThat(
-                        new IamCheckResult(false, "stale", "ATTRIBUTE_STALE", AttributeState.STALE)
-                                .attributeState())
-                .isEqualTo(AttributeState.STALE);
-
-        assertThatThrownBy(() -> new IamCheckResult(true, null, "ALLOWED", null))
-                .isInstanceOf(NullPointerException.class)
-                .hasMessageContaining("reason");
-        assertThatThrownBy(() -> new IamCheckResult(true, "ok", null, null))
-                .isInstanceOf(NullPointerException.class)
-                .hasMessageContaining("reasonCode");
-    }
-
-    @Test
     @DisplayName("IamResolution：三个列表归一化为空")
     void resolution() {
         IamResolution empty = new IamResolution(null, null, null);

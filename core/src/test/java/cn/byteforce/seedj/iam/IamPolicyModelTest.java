@@ -3,6 +3,9 @@ package cn.byteforce.seedj.iam;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import cn.byteforce.seedj.security.AuthorizationRequest;
+import cn.byteforce.seedj.security.AuthorizationSubject;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -259,10 +262,10 @@ class IamPolicyModelTest {
     }
 
     @Test
-    @DisplayName("IamAuthorizationRequest：resourceId/attributes/environment 归一化并可替换")
+    @DisplayName("AuthorizationRequest：resourceId/attributes/context 归一化")
     void authorizationRequest() {
-        IamSubject subject =
-                new IamSubject(
+        AuthorizationSubject subject =
+                new AuthorizationSubject(
                         "u-1",
                         "alice",
                         "default",
@@ -273,28 +276,55 @@ class IamPolicyModelTest {
                         "urn:seedj:acr:pwd",
                         Map.of());
 
-        IamAuthorizationRequest request =
-                new IamAuthorizationRequest(subject, "order:read", "order", null, null, null);
+        AuthorizationRequest request =
+                new AuthorizationRequest(
+                        subject,
+                        "order:read",
+                        "order",
+                        null,
+                        null,
+                        Instant.parse("2026-11-21T00:00:00Z"),
+                        null);
 
         assertThat(request.subject()).isSameAs(subject);
         assertThat(request.action()).isEqualTo("order:read");
         assertThat(request.resourceType()).isEqualTo("order");
-        assertThat(request.resourceId()).isEmpty();
+        assertThat(request.resourceId()).isNull();
         assertThat(request.resourceAttributes()).isEmpty();
-        assertThat(request.environment()).isEmpty();
+        assertThat(request.context()).isEmpty();
 
-        IamAuthorizationRequest replaced = request.withResourceAttributes(Map.of("ownerId", "u-1"));
-        assertThat(replaced.resourceAttributes()).containsEntry("ownerId", "u-1");
-        assertThat(replaced.subject()).isSameAs(subject);
-        assertThat(replaced.action()).isEqualTo("order:read");
-        assertThat(replaced.resourceId()).isEmpty();
-        assertThat(request.resourceAttributes()).isEmpty();
-
-        assertThatThrownBy(() -> new IamAuthorizationRequest(null, "a", "t", null, null, null))
+        assertThatThrownBy(
+                        () ->
+                                new AuthorizationRequest(
+                                        null,
+                                        "a",
+                                        "t",
+                                        null,
+                                        null,
+                                        Instant.EPOCH,
+                                        null))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new IamAuthorizationRequest(subject, null, "t", null, null, null))
-                .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new IamAuthorizationRequest(subject, "a", null, null, null, null))
-                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(
+                        () ->
+                                new AuthorizationRequest(
+                                        subject,
+                                        null,
+                                        "t",
+                                        null,
+                                        null,
+                                        Instant.EPOCH,
+                                        null))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(
+                        () ->
+                                new AuthorizationRequest(
+                                        subject,
+                                        "a",
+                                        null,
+                                        null,
+                                        null,
+                                        Instant.EPOCH,
+                                        null))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

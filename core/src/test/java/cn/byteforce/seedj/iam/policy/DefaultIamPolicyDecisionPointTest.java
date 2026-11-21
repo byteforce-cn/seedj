@@ -2,15 +2,15 @@ package cn.byteforce.seedj.iam.policy;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import cn.byteforce.seedj.iam.IamAuthorizationDecision;
-import cn.byteforce.seedj.iam.IamAuthorizationRequest;
 import cn.byteforce.seedj.iam.IamPolicy;
 import cn.byteforce.seedj.iam.IamPolicyEffect;
-import cn.byteforce.seedj.iam.IamSubject;
 import cn.byteforce.seedj.iam.PolicyComparisonOperator;
 import cn.byteforce.seedj.iam.PolicyCondition;
 import cn.byteforce.seedj.iam.PolicyOperand;
 import cn.byteforce.seedj.iam.spi.IamPolicyRepository;
+import cn.byteforce.seedj.security.AuthorizationDecision;
+import cn.byteforce.seedj.security.AuthorizationRequest;
+import cn.byteforce.seedj.security.AuthorizationSubject;
 import cn.byteforce.seedj.iam.spi.IamResourceAttributeResolver;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -22,13 +22,16 @@ import org.junit.jupiter.api.Test;
 
 class DefaultIamPolicyDecisionPointTest {
 
+    private static final java.time.Instant AS_OF =
+            java.time.Instant.parse("2026-11-21T00:00:00Z");
+
     private final InMemoryPolicyRepository repository = new InMemoryPolicyRepository();
     private final DefaultIamPolicyDecisionPoint pdp =
             new DefaultIamPolicyDecisionPoint(
                     repository, List.of(new OwnerResolver()), null, () -> "audit-1");
 
-    private final IamSubject subject =
-            new IamSubject(
+    private final AuthorizationSubject subject =
+            new AuthorizationSubject(
                     "u-1",
                     "alice",
                     "default",
@@ -57,7 +60,7 @@ class DefaultIamPolicyDecisionPointTest {
                         true,
                         0));
 
-        IamAuthorizationDecision decision = pdp.decide(request("order", "o-1"));
+        AuthorizationDecision decision = pdp.decide(request("order", "o-1"));
 
         assertThat(decision.allowed()).isTrue();
         assertThat(decision.policyId()).isEqualTo("p1");
@@ -95,7 +98,7 @@ class DefaultIamPolicyDecisionPointTest {
                         true,
                         0));
 
-        IamAuthorizationDecision decision = pdp.decide(request("order", "o-1"));
+        AuthorizationDecision decision = pdp.decide(request("order", "o-1"));
 
         assertThat(decision.allowed()).isFalse();
         assertThat(decision.policyId()).isEqualTo("deny");
@@ -128,19 +131,21 @@ class DefaultIamPolicyDecisionPointTest {
         assertThat(pdp.decide(request("order", "o-1")).allowed()).isTrue();
         assertThat(
                         pdp.decide(
-                                        new IamAuthorizationRequest(
+                                        new AuthorizationRequest(
                                                 subject,
                                                 "order:read",
                                                 "order",
                                                 "o-1",
                                                 Map.of("status", "CLOSED"),
+                                                AS_OF,
                                                 Map.of()))
                                 .allowed())
                 .isFalse();
     }
 
-    private IamAuthorizationRequest request(String type, String id) {
-        return new IamAuthorizationRequest(subject, "order:read", type, id, Map.of(), Map.of());
+    private AuthorizationRequest request(String type, String id) {
+        return new AuthorizationRequest(
+                subject, "order:read", type, id, Map.of(), AS_OF, Map.of());
     }
 
     private static final class OwnerResolver implements IamResourceAttributeResolver {
@@ -151,7 +156,7 @@ class DefaultIamPolicyDecisionPointTest {
 
         @Override
         public Map<String, Object> resolve(
-                String resourceType, String resourceId, IamSubject subject) {
+                String resourceType, String resourceId, AuthorizationSubject subject) {
             return Map.of("ownerId", "u-1", "status", "OPEN");
         }
     }

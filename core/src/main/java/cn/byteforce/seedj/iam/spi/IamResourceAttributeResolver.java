@@ -1,6 +1,6 @@
 package cn.byteforce.seedj.iam.spi;
 
-import cn.byteforce.seedj.iam.IamSubject;
+import cn.byteforce.seedj.security.AuthorizationSubject;
 import java.util.Map;
 
 /**
@@ -11,5 +11,6 @@ public interface IamResourceAttributeResolver {
 
     boolean supports(String resourceType);
 
-    Map<String, Object> resolve(String resourceType, String resourceId, IamSubject subject);
+    Map<String, Object> resolve(
+            String resourceType, String resourceId, AuthorizationSubject subject);
 }

@@ -1,10 +1,10 @@
 package cn.byteforce.seedj.starter.iam.abac;
 
+import cn.byteforce.seedj.security.AuthorizationSubject;
+import cn.byteforce.seedj.security.AuthorizationRequest;
+import cn.byteforce.seedj.security.AuthorizationDecision;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import cn.byteforce.seedj.iam.IamAuthorizationDecision;
-import cn.byteforce.seedj.iam.IamAuthorizationRequest;
-import cn.byteforce.seedj.iam.IamSubject;
 import cn.byteforce.seedj.iam.spi.IamPolicyDecisionPoint;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamPolicyRepository;
 import java.time.Duration;
@@ -90,9 +90,9 @@ class CachingIamPolicyDecisionPointTest {
         assertThat(delegate.calls.get()).isEqualTo(afterClear + 1);
     }
 
-    private static IamAuthorizationRequest request(String userId, String resourceId) {
-        IamSubject subject =
-                new IamSubject(
+    private static AuthorizationRequest request(String userId, String resourceId) {
+        AuthorizationSubject subject =
+                new AuthorizationSubject(
                         userId,
                         "alice",
                         "default",
@@ -102,8 +102,14 @@ class CachingIamPolicyDecisionPointTest {
                         Set.of("pwd"),
                         "urn:seedj:acr:pwd",
                         Map.of());
-        return new IamAuthorizationRequest(
-                subject, "read", "order", resourceId, Map.of(), Map.of());
+        return new AuthorizationRequest(
+                subject,
+                "read",
+                "order",
+                resourceId,
+                Map.of(),
+                java.time.Instant.parse("2026-11-21T00:00:00Z"),
+                Map.of());
     }
 
     private static final class CountingPdp implements IamPolicyDecisionPoint {
@@ -111,9 +117,9 @@ class CachingIamPolicyDecisionPointTest {
         private final AtomicInteger calls = new AtomicInteger();
 
         @Override
-        public IamAuthorizationDecision decide(IamAuthorizationRequest request) {
+        public AuthorizationDecision decide(AuthorizationRequest request) {
             calls.incrementAndGet();
-            return IamAuthorizationDecision.allow("allow-1");
+            return AuthorizationDecision.allow("allow-1");
         }
     }
 }
