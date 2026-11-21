@@ -37,7 +37,8 @@ Caller caller = callers.find().orElseThrow()     // 当前调用方（未认证�
 
 | 模块 | 提供 | 不该出现 |
 |---|---|---|
-| `core` | 契约（接口 + 请求/结果 + 错误码）、迁移原语、契约测试 TCK（test-jar）、`core/security`（`Caller` / `CallerProvider` / `SecurityAudit*` / `AccessTokenRules`）、`outbox` / `outbox/spi` 契约、`workflow/spi` 工作流契约 | Spring、BouncyCastle、任何存储机制 |
+| `core` | 内核契约（错误码、时间轴、命令、读模型、安全、`observability` 健康面）、迁移原语、契约测试 TCK（test-jar）、`core/security`（`Caller` / `CallerProvider` / `SecurityAudit*` / `AccessTokenRules`）、`outbox` / `outbox/spi` 契约、`workflow/spi` 工作流契约 | Spring、BouncyCastle、任何存储机制 |
+| `seedj-pki-contract` | PKI 契约：证书/CSR 签发、Transit 签名、吊销/CRL/tidy、按 serial 读证书、alias 映射、TLS 配置描述 | Spring、Coord SDK、任何存储机制 |
 | `seedj-infra-local` | 本地实现：PKI（BC + 状态文件）、Transit（JCE + 状态文件）、EventBus 本地队列（file / memory，含消费者组）、雪花 + 字符串 ID、Lock、Audit memory、IAM memory、本地工作流引擎（v2.4） | outbox、relay、PostgreSQL 存储 |
 | `seedj-jdbc-postgresql` | PostgreSQL 实现：Outbox 存储 + 投递装配（`OutboxWriter` / `OutboxRelay` / `OutboxMetrics` / `OutboxInfrastructureInitializer`）、Audit 存储、IAM 存储、版本化迁移 + `InfrastructureCapability`；**允许**自带条件化 `@AutoConfiguration` | 队列 transport、业务逻辑、无条件的 Spring 装配 |
 | `seedj-biz-starter` | 业务服务开箱即用：资源服务器安全（`CallerProvider`、401/403 JSON、拒绝审计）、`CommandAgents`、`EventPublisher`、`EventConsumerContainer`、`EventTopicCapability`、`InfrastructureInitializer`、审计/指标/追踪适配 | 业务逻辑；**不得依赖 `seedj-iam-starter`**（`BizStarterPackageIndependenceTest` 门禁） |
@@ -56,7 +57,8 @@ Caller caller = callers.find().orElseThrow()     // 当前调用方（未认证�
 
 | 能力 | 多服务共享方式 | 默认路径 |
 |---|---|---|
-| PKI | 状态文件（签发 + 吊销 + 签名身份） | `${java.io.tmpdir}/seedj-pki-state.properties` |
+| PKI（`provider=local`） | 状态文件（签发 + 吊销 + 签名身份） | `${java.io.tmpdir}/seedj-pki-state.properties` |
+| PKI（`provider=coord`） | CA/吊销/CRL 在 coord；alias → CN/serial 在 coord KV | coord agent + `seedj.coord.pki.identity-prefix` |
 | Transit | 状态文件（密钥 + 版本历史） | `${java.io.tmpdir}/seedj-transit-state.properties` |
 | EventBus 队列 | 目录（每条消息 `.payload` + `.meta`） | `${java.io.tmpdir}/seedj-eventbus` |
 | Outbox | PostgreSQL 单表 | `outbox` / `outbox_audit`（scope `outbox`） |
@@ -69,7 +71,15 @@ Caller caller = callers.find().orElseThrow()     // 当前调用方（未认证�
 
 ```yaml
 seedj:
-  pki:      { enabled: true, ca-resource: classpath:certs/pki-test-ca.p12, ca-password: ..., ca-alias: pki-test-ca, revocation-store: ... }
+  pki:
+    enabled: true
+    provider: local          # local | coord
+    ca-resource: classpath:certs/pki-test-ca.p12   # 仅 local
+    ca-password: ...
+    ca-alias: pki-test-ca
+    revocation-store: ...     # 仅 local
+  coord:
+    pki: { identity-prefix: seedj, identity-ttl: 720h, init-ca: false, ca-common-name: seedj-ca }
   transit:  { enabled: true, persist: true, state-file: ... }
   id:       { enabled: true, node-id: 3, epoch-millis: 1704067200000, node-state-file: ... }
   eventbus:
@@ -191,7 +201,7 @@ public void cancel(OrderId id) {
 
 ## 5. 新增一个适配器（例如 Vault）
 
-1. 实现 `core` 的入口接口（如 `TransitProvider`）；
+1. 实现对应 contract 模块的入口接口（如 `TransitProvider` / `PkiProvider`）；
 2. 在实现模块里加 `@AutoConfiguration` + `@Bean`，并声明 `@ConditionalOnMissingBean`；
 3. 若同能力已有多个实现，加 `seedj.<cap>.provider` 选择；
 4. `extends` 对应的契约测试类（`core` test-jar），一行即可；
@@ -199,7 +209,7 @@ public void cancel(OrderId id) {
 
 | 能力 | 内置适配器 | 契约测试 |
 |---|---|---|
-| PKI | `BcPkiProvider`（BC + 状态文件） | `PkiProviderContractTest` |
+| PKI | `BcPkiProvider`（BC + 状态文件）/ `CoordPkiProvider`（coord 0.4.4 PKI + Transit） | `seedj-pki-contract` 的 `PkiProviderContractTest` |
 | Transit | `BcTransitProvider`（JCE + 状态文件） | `TransitProviderContractTest` |
 | EventBus 队列（发布） | `FileEventBusTransport` / `MemoryEventBusTransport` | `EventBusTransportContractTest` |
 | EventBus 队列（消费组） | `FileEventBusTransport` / `MemoryEventBusTransport` | `EventConsumerStoreContractTest` |
@@ -208,6 +218,18 @@ public void cancel(OrderId id) {
 | Outbox 迁移 | `JdbcMigrationRunner` | `JdbcMigrationRunnerTest` |
 | ID | `SnowflakeIdGenerator` / `StringIdGenerator` | `IdGeneratorContractTest` |
 | Workflow | `InMemoryWorkflowProvider` | `WorkflowProviderContractTest` |
+
+### 5.1 PKI 的两个 provider 不是等价实现
+
+- `provider=local`：单 CA 从 p12 加载；`roleName` 只做非空校验；私钥可导出
+  （`KeyMaterial.External`）；`sign`/`verify` 委托本地 Transit，**不支持** `prehashed` 与
+  RSA-PSS；CRL 每次读取重新签名，编号单调。
+- `provider=coord`：单 CA、无 role/issuer。`issue` 把 `roleName` 当 CN 命名空间前缀
+  （`<role>:<cn>`），`signCsr` 的 CN/SAN 来自 CSR、role 只做格式校验。托管私钥不可导出
+  （`KeyMaterial.CoordManaged`），`sslContext` 只接受 `External`；托管身份用 `sslConfig` 自行
+  实现委托签名的 `KeyManager`。吊销/CRL 以 coord 为权威事实。
+- `seedj.iam.jwk.provider=pki` 需要可导出的 RSA 私钥，因此只支持 `provider=local` 或
+  `signCsr` 自持钥；coord 托管钥请改用默认 JDBC/memory JWK。
 
 ## 6. 验收命令
 

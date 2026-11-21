@@ -28,6 +28,7 @@ AI 这一支的单向性由 ArchUnit 规则守着：`seedj-ai-starter` 依赖 `s
 | `core` | 内核契约：错误码、时间轴、命令、读模型、安全、SPI、`@SeedjObject` 注解 | ✅ |
 | `seedj-workflow-contract` | 工作流契约（零外部依赖） | ✅ |
 | `seedj-transit-contract` | 传输/加密契约 | ✅ |
+| `seedj-pki-contract` | PKI 契约：证书/CSR、Transit 签名、吊销与 CRL、alias 映射、TLS 配置 | ✅ |
 | `seedj-ai-contract` | AI 契约：命令指纹、动作分类、策略与账本值类型 | ✅ |
 | `seedj-im-contract` | IM 契约：会话、成员、消息与存储端口 | ✅ |
 | `seedj-iam-contract` | IAM 契约：用户/组/角色/策略、SCIM 与授权值类型 | ✅ |
@@ -35,7 +36,7 @@ AI 这一支的单向性由 ArchUnit 规则守着：`seedj-ai-starter` 依赖 `s
 | `seedj-infra-local` | 内存、文件、BouncyCastle 适配器 | ✅ |
 | `seedj-workflow-local` | 工作流 SPI 的本地内存实现 | ✅ |
 | `seedj-jdbc-postgresql` | PostgreSQL 适配器、DDL、版本化迁移、生产事件存储 | ✅ |
-| `seedj-infra-coord` | coord 适配器（组合 coord 原语）：ID、编号、全局序列、EventBus 发布/消费、分布式锁 | ✅ |
+| `seedj-infra-coord` | coord 适配器（组合 coord 原语）：ID、编号、全局序列、EventBus 发布/消费、分布式锁、PKI/Transit | ✅ |
 | `seedj-biz-starter` | 业务装配：本地开发认证、命令、查询、审计、事件总线 | ✅ |
 | `seedj-im-starter` | IM 长连接装配：帧协议、Netty TCP/WebSocket、JWT 握手、连接注册表 | ✅ |
 | `seedj-iam-starter` | IAM 装配：OIDC、SCIM、RBAC、ABAC | ✅ |

@@ -5,8 +5,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
 import cn.byteforce.seedj.iam.IamSigningKey;
-import cn.byteforce.seedj.pki.PkiProvider;
-import cn.byteforce.seedj.pki.PkiProvider.IssuedCertificate;
+import cn.byteforce.seedj.provider.pki.IssuedCertificate;
+import cn.byteforce.seedj.provider.pki.KeyMaterial;
+import cn.byteforce.seedj.provider.pki.PkiProvider;
 import java.math.BigInteger;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -48,6 +49,23 @@ class PkiIamSigningKeyStoreTest {
     }
 
     @Test
+    void coordinatorManagedKeysCannotBackIamJwks() throws Exception {
+        IssuedCertificate issued = issuedCertificate("1");
+        IssuedCertificate managed =
+                new IssuedCertificate(
+                        issued.certificate(),
+                        issued.chain(),
+                        new KeyMaterial.CoordManaged("pki-key", 1));
+        PkiProvider pki = Mockito.mock(PkiProvider.class);
+        when(pki.signingIdentity("iam-jwt-signer")).thenReturn(managed);
+
+        assertThatThrownBy(() -> new PkiIamSigningKeyStore(pki, "iam-jwt-signer"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("coord-managed")
+                .hasMessageContaining("JDBC/memory");
+    }
+
+    @Test
     void rotationIsOwnedByThePkiProvider() throws Exception {
         PkiProvider pki = Mockito.mock(PkiProvider.class);
         when(pki.signingIdentity("iam-jwt-signer")).thenReturn(issuedCertificate("1"));
@@ -70,7 +88,7 @@ class PkiIamSigningKeyStoreTest {
                         .getCertificate(
                                 new JcaX509v3CertificateBuilder(
                                                 subject,
-                                                new BigInteger(serial),
+                                                new BigInteger(serial, 16),
                                                 Date.from(notBefore),
                                                 Date.from(notAfter),
                                                 subject,
@@ -81,9 +99,6 @@ class PkiIamSigningKeyStoreTest {
         return new IssuedCertificate(
                 certificate,
                 List.of(certificate),
-                keyPair.getPrivate(),
-                serial,
-                notBefore,
-                notAfter);
+                new KeyMaterial.External(keyPair.getPrivate()));
     }
 }

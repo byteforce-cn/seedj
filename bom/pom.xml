@@ -17,8 +17,8 @@
 
     <properties>
         <!-- spring-boot.version 由根 POM 统一定义（随父链继承解析，单一维护点） -->
-        <!-- 0.4.2+ 未发布到 Maven Central（Central 停在 0.4.1）：本地先 mvn install coord-java-sdk 0.4.3 -->
-        <coord-java-sdk.version>0.4.3</coord-java-sdk.version>
+        <!-- 0.4.2+ 未发布到 Maven Central（Central 停在 0.4.2）：CI 用 config/ci/install-coord-sdk.sh 从源码安装 -->
+        <coord-java-sdk.version>0.4.4</coord-java-sdk.version>
         <mybatis-plus.version>3.5.18.1</mybatis-plus.version>
         <compile-testing.version>0.24.0</compile-testing.version>
         <nimbus-jose-jwt.version>10.10</nimbus-jose-jwt.version>
@@ -69,6 +69,13 @@
 
             <dependency>
                 <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>seedj-pki-contract</artifactId>
+                <version>${revision}</version>
+                <type>test-jar</type>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
                 <artifactId>seedj-ai-contract</artifactId>
                 <version>${revision}</version>
                 <type>test-jar</type>
@@ -98,6 +105,12 @@
             <dependency>
                 <groupId>cn.byteforce.seedj</groupId>
                 <artifactId>seedj-transit-contract</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>seedj-pki-contract</artifactId>
                 <version>${revision}</version>
             </dependency>
 

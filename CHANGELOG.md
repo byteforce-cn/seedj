@@ -7,6 +7,19 @@
 
 ### Added
 
+- `seedj-pki-contract`：PKI 契约 v2（包 `cn.byteforce.seedj.provider.pki`）。覆盖
+  `issue` / `signCsr`、Transit `sign` / `verify`、`revoke` / CRL / `tidy`、按 serial 读证书、
+  `issuer` 查询、alias → 身份映射与 `sslConfig`；`IssuedCertificate` 用
+  `KeyMaterial.CoordManaged|External` 表达私钥归属，不再强制携带 `PrivateKey`。
+- `core` 新增 `cn.byteforce.seedj.observability`：`HealthStatus` / `ObservableProvider`，作为
+  所有 provider 的统一健康面。
+- `seedj-infra-coord` 升级 coord-java-sdk 0.4.4 并全量适配 PKI：`IssueCert` / `SignCsr` /
+  `RevokeCert` / `GetCertStatus` / `GetCrl` / `RotateCrl` / `Tidy` / `GetCertBySerial` /
+  `Transit.Sign|Verify`；alias 账本收缩为 `alias → CN + serial`，吊销状态以 coord 为权威。
+- `seedj-infra-local` 的 BC PKI 全量实现：CSR 签发、CRL（含吊销原因）、tidy、按 serial 读
+  证书、issuer 查询、`sslConfig`；`sign` / `verify` 委托本地 Transit（不支持 prehashed/PSS）。
+- `seedj-it`：`ClusterPki` / `OidcIT` 适配新契约；`CoordPkiProviderIT` 跑 coord 0.4.4 真集群
+  契约套件；coord 测试镜像固定 `v0.4.4`。
 - `seedj-infra-coord`（P0）：coord 0.4.3 的 ID、编号、全局序列与 EventBus 发布适配器；
   provider 显式选择，失败消息点名 agent 地址；测试含真集群夹具（Testcontainers）。
 - `seedj-infra-coord` 分布式锁：用 coord KV + OCC 事务组合出毫秒级租约（`TxnClient` 读集
@@ -91,6 +104,10 @@
   避免 Spring 构造器绑定静默放弃整个 message 配置块。
 - `README` 改为公开仓门面：可复制的快速开始、业务改动示例与模块表。
 - 源码树中的文档引用全部指向仓内 `docs/`；架构决策不再出现在公开树。
+- `seedj.iam.jwk.provider=pki` 只接受可导出的 RSA 私钥（`KeyMaterial.External`）。coord
+  托管私钥不能当 IAM RS256 JWK，启动期给出明确错误；默认 JDBC/memory JWK 不受影响。
+- `seedj.pki.provider=coord` 的 PKI 现在把 role 当 CN 命名空间前缀，`issuerRef` 只接受
+  `default`；已知偏差登记在 `docs/guide/known-limitations.md`。
 
 ### Fixed
 
@@ -100,6 +117,12 @@
 - `search` 的当前视图快路径补上 `valid_to IS NULL`，与 `find` 共用同一口径：关闭业务时间轴（软删/归档）的对象不再在列表里复活，`find` 与 `search` 结论一致；`uq_*_current` 仍只约束未封口行，重新打开通过先封口再追加实现。
 - IAM `store=jdbc` 的 refresh_token 交换不再 500：claims/attributes 里的集合改用 `ArrayList`，不再把 JDK 内部 `ImmutableCollections` 类型 id 写进 `oauth2_authorization`；授权行编解码器同时兼容升级前已写入的旧类型 id，已签发的 refresh token 无需重新登录。
 - 快速开始示例的 `org_unit_id` 改为真实 UUID，`page` 从 1 开始。
+
+### Removed
+
+- `core` 的 `cn.byteforce.seedj.pki` 包（`PkiProvider` / `PkiErrorCode` / `PkiException`）。
+  契约与异常迁入 `seedj-pki-contract`，包名改为 `cn.byteforce.seedj.provider.pki`；不保留
+  双契约。
 
 ## [1.0.0] - 未发布
 

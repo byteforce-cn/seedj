@@ -3,8 +3,10 @@ package cn.byteforce.seedj.it.extension;
 import cn.byteforce.coord.sdk.CoordClient;
 import cn.byteforce.seedj.infra.coord.fixture.CoordCluster;
 import cn.byteforce.seedj.infra.local.pki.BcPkiProvider;
-import cn.byteforce.seedj.pki.PkiProvider;
-import cn.byteforce.seedj.pki.PkiProvider.IssuedCertificate;
+import cn.byteforce.seedj.provider.pki.CertificateRequest;
+import cn.byteforce.seedj.provider.pki.IssuedCertificate;
+import cn.byteforce.seedj.provider.pki.KeyMaterial;
+import cn.byteforce.seedj.provider.pki.PkiProvider;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.math.BigInteger;
@@ -156,13 +158,15 @@ public class ClusterExtension implements BeforeAllCallback, AfterAllCallback, Pa
             // 4. IAM server cert + test client cert
             IssuedCertificate iamServerCert =
                     pkiProvider.issue(
-                            PkiProvider.CertificateRequest.server(
+                            "server",
+                            CertificateRequest.server(
                                     "CN=localhost, O=Byteforce",
                                     List.of("localhost"),
                                     List.of("127.0.0.1")));
             IssuedCertificate testClientCert =
                     pkiProvider.issue(
-                            PkiProvider.CertificateRequest.client("CN=test-client, O=Byteforce"));
+                            "client",
+                            CertificateRequest.client("CN=test-client, O=Byteforce"));
             log.info(
                     "IAM server cert serial={}, test client cert serial={}",
                     iamServerCert.serialNumber(),
@@ -175,7 +179,8 @@ public class ClusterExtension implements BeforeAllCallback, AfterAllCallback, Pa
                 }
                 IssuedCertificate cert =
                         pkiProvider.issue(
-                                PkiProvider.CertificateRequest.client(
+                                "client",
+                                CertificateRequest.client(
                                         "CN=" + svc.appName() + ", O=Byteforce"));
                 backendClientSslContexts.put(svc.name(), pkiProvider.sslContext(cert));
                 log.info("服务 {} 客户端证书 serial={}", svc.name(), cert.serialNumber());
@@ -187,7 +192,7 @@ public class ClusterExtension implements BeforeAllCallback, AfterAllCallback, Pa
             this.iamTrustStore =
                     writeTrustStore(
                             tempDir.resolve("iam-test-truststore.p12"),
-                            pkiProvider.caCertificate());
+                            pkiProvider.issuerCertificate("default"));
 
             // 6. 测试客户端 SSLContext
             this.testClientSslContext = pkiProvider.sslContext(testClientCert);
@@ -203,7 +208,7 @@ public class ClusterExtension implements BeforeAllCallback, AfterAllCallback, Pa
                             tempDir.resolve("untrusted-pki-state.properties"));
             IssuedCertificate untrustedClientCert =
                     untrustedPki.issue(
-                            PkiProvider.CertificateRequest.client("CN=untrusted-client"));
+                            "client", CertificateRequest.client("CN=untrusted-client"));
             this.untrustedClientSslContext = pkiProvider.sslContext(untrustedClientCert);
 
             // 8. Postgres
@@ -560,7 +565,11 @@ public class ClusterExtension implements BeforeAllCallback, AfterAllCallback, Pa
         KeyStore ks = KeyStore.getInstance("PKCS12");
         ks.load(null, null);
         Certificate[] chain = cert.chain().toArray(new Certificate[0]);
-        ks.setKeyEntry(TLS_ALIAS, cert.privateKey(), PASSWORD, chain);
+        KeyMaterial keyMaterial = cert.keyMaterial();
+        if (!(keyMaterial instanceof KeyMaterial.External external) || !external.attached()) {
+            throw new IllegalStateException("IAM test keystore needs an exportable private key");
+        }
+        ks.setKeyEntry(TLS_ALIAS, external.privateKey(), PASSWORD, chain);
         try (OutputStream out = Files.newOutputStream(path)) {
             ks.store(out, PASSWORD);
         }

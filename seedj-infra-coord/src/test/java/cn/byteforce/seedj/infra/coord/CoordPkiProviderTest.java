@@ -2,31 +2,45 @@ package cn.byteforce.seedj.infra.coord;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+import cn.byteforce.coord.contracts.transit.v1.TransitSignRequest;
+import cn.byteforce.coord.contracts.transit.v1.TransitSignResponse;
+import cn.byteforce.coord.contracts.transit.v1.TransitVerifyRequest;
+import cn.byteforce.coord.sdk.transit.TransitClient;
 import cn.byteforce.seedj.infra.coord.fixture.FakeCoordBackend;
 import cn.byteforce.seedj.infra.coord.fixture.FakePkiClient;
-import cn.byteforce.seedj.pki.PkiErrorCode;
-import cn.byteforce.seedj.pki.PkiException;
-import cn.byteforce.seedj.pki.PkiProvider;
-import cn.byteforce.seedj.pki.PkiProvider.RevocationReason;
-import java.net.InetAddress;
-import java.security.cert.X509Certificate;
+import cn.byteforce.seedj.provider.pki.CertificateRequest;
+import cn.byteforce.seedj.provider.pki.CertificateUsage;
+import cn.byteforce.seedj.provider.pki.IssuedCertificate;
+import cn.byteforce.seedj.provider.pki.KeyMaterial;
+import cn.byteforce.seedj.provider.pki.PkiErrorCode;
+import cn.byteforce.seedj.provider.pki.PkiException;
+import cn.byteforce.seedj.provider.pki.RevocationReason;
+import cn.byteforce.seedj.provider.pki.TidyRequest;
+import com.google.protobuf.ByteString;
+import java.math.BigInteger;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
 import java.time.Clock;
 import java.time.Duration;
-import java.time.Instant;
-import java.time.ZoneOffset;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLServerSocket;
-import javax.net.ssl.SSLSocket;
+import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers;
+import org.bouncycastle.asn1.x500.X500Name;
+import org.bouncycastle.asn1.x509.Extension;
+import org.bouncycastle.asn1.x509.Extensions;
+import org.bouncycastle.asn1.x509.GeneralName;
+import org.bouncycastle.asn1.x509.GeneralNames;
+import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
+import org.bouncycastle.pkcs.PKCS10CertificationRequest;
+import org.bouncycastle.pkcs.jcajce.JcaPKCS10CertificationRequestBuilder;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.function.Executable;
+import org.mockito.ArgumentCaptor;
 
 class CoordPkiProviderTest {
 
@@ -34,315 +48,229 @@ class CoordPkiProviderTest {
 
     private final FakePkiClient pki = new FakePkiClient();
 
-    private final Clock clock = Clock.fixed(Instant.parse("2026-11-15T00:00:00Z"), ZoneOffset.UTC);
+    private final TransitClient transit = mock(TransitClient.class);
 
     private CoordPkiProvider provider;
 
     @BeforeEach
     void setUp() {
-        provider =
-                new CoordPkiProvider(
-                        pki,
-                        new CoordPkiState(
-                                new CoordKvStore(backend.kv(), backend.txn()),
-                                CoordKeySpace.of("seedj:test", "pki")),
-                        new CoordEndpoint("127.0.0.1:19527"),
-                        "test",
-                        Duration.ofHours(24),
-                        clock);
+        provider = newProvider("test");
     }
 
     @Test
-    @DisplayName("signingIdentity 幂等：同一 alias 复用同一 serial，CN 带实例前缀")
-    void signingIdentityIsIdempotent() {
-        PkiProvider.IssuedCertificate first = provider.signingIdentity("iam");
-        PkiProvider.IssuedCertificate second = provider.signingIdentity("iam");
+    @DisplayName("issue 以 role 为 CN 前缀，返回 CoordManaged 的 transit key")
+    void issueUsesRolePrefixAndManagedKey() {
+        IssuedCertificate issued =
+                provider.issue(
+                        "server",
+                        CertificateRequest.server(
+                                "CN=orders-api", List.of("orders-api.local"), List.of()));
 
-        assertThat(second.serialNumber()).isEqualTo(first.serialNumber());
-        assertThat(pki.currentSerial("test:iam")).isEqualTo(first.serialNumber());
-        assertThat(provider.status(first.serialNumber()))
-                .isEqualTo(PkiProvider.CertificateStatus.VALID);
+        assertThat(pki.currentSerial("server:orders-api"))
+                .isEqualTo(issued.serialNumber().toString(16));
+        assertThat(issued.keyMaterial()).isInstanceOf(KeyMaterial.CoordManaged.class);
+        assertThat(((KeyMaterial.CoordManaged) issued.keyMaterial()).transitKeyName())
+                .isEqualTo("pki-server-orders-api");
+        assertThat(issued.certificate().getSubjectX500Principal().getName())
+                .contains("CN=server:orders-api");
     }
 
     @Test
-    @DisplayName("吊销后 signingIdentity 抛 REVOKED，不静默恢复")
-    void revokedIdentityIsNotResurrected() {
-        PkiProvider.IssuedCertificate issued = provider.signingIdentity("iam");
+    @DisplayName("issue 从 DN 中取 CN，并在未传 SAN 时派生 DNS SAN")
+    void issueDerivesDnsNameFromCn() throws Exception {
+        IssuedCertificate issued =
+                provider.issue(
+                        "client",
+                        new CertificateRequest(
+                                "CN=payments,O=Byteforce",
+                                List.of(),
+                                List.of(),
+                                Duration.ofDays(1),
+                                CertificateUsage.CLIENT));
+
+        assertThat(issued.certificate().getSubjectAlternativeNames())
+                .anySatisfy(
+                        entry -> {
+                            assertThat(entry.get(0)).isEqualTo(2);
+                            assertThat(entry.get(1)).isEqualTo("client-payments");
+                        });
+    }
+
+    @Test
+    @DisplayName("signCsr 返回 External 未绑定钥，withPrivateKey 后可建 SSLContext")
+    void signCsrReturnsExternalKey() throws Exception {
+        KeyPair keyPair = keyPair();
+        PKCS10CertificationRequest csr = csr("CN=csr-svc", keyPair, "csr.local");
+
+        IssuedCertificate issued =
+                provider.signCsr(
+                        "client",
+                        csr.getEncoded(),
+                        CertificateRequest.csr(Duration.ofDays(1), CertificateUsage.CLIENT));
+
+        assertThat(issued.keyMaterial()).isInstanceOf(KeyMaterial.External.class);
+        assertThat(((KeyMaterial.External) issued.keyMaterial()).attached()).isFalse();
+        assertThat(issued.certificate().getSubjectAlternativeNames())
+                .anySatisfy(entry -> assertThat(entry.get(1)).isEqualTo("csr.local"));
+        assertThat(provider.sslContext(issued.withPrivateKey(keyPair.getPrivate()))).isNotNull();
+    }
+
+    @Test
+    @DisplayName("sslContext 拒绝 CoordManaged 身份")
+    void sslContextRejectsManagedKey() {
+        IssuedCertificate issued =
+                provider.issue("server", CertificateRequest.server("CN=managed", List.of(), List.of()));
+
+        assertThatThrownBy(() -> provider.sslContext(issued))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("sslConfig");
+    }
+
+    @Test
+    @DisplayName("sign/verify 原样透传 hash/prehashed/signatureAlgorithm")
+    void signVerifyPassThrough() {
+        byte[] signature = {1, 2, 3};
+        when(transit.sign(any()))
+                .thenReturn(
+                        TransitSignResponse.newBuilder()
+                                .setSignature(ByteString.copyFrom(signature))
+                                .build());
+        when(transit.verify(any())).thenReturn(true);
+
+        byte[] data = {9, 8, 7};
+        assertThat(provider.sign("pki-key", "sha2-256", true, "pkcs1v15", data))
+                .containsExactly(signature);
+
+        ArgumentCaptor<TransitSignRequest> sign = ArgumentCaptor.forClass(TransitSignRequest.class);
+        verify(transit).sign(sign.capture());
+        assertThat(sign.getValue().getName()).isEqualTo("pki-key");
+        assertThat(sign.getValue().getPrehashed()).isTrue();
+        assertThat(sign.getValue().getHashAlgorithm()).isEqualTo("sha2-256");
+        assertThat(sign.getValue().getSignatureAlgorithm()).isEqualTo("pkcs1v15");
+
+        assertThat(provider.verify("pki-key", "sha2-256", true, "pkcs1v15", data, signature))
+                .isTrue();
+        ArgumentCaptor<TransitVerifyRequest> verify =
+                ArgumentCaptor.forClass(TransitVerifyRequest.class);
+        verify(transit).verify(verify.capture());
+        assertThat(verify.getValue().getSignature().toByteArray()).containsExactly(signature);
+    }
+
+    @Test
+    @DisplayName("revoke 用证书内嵌 serial 的十六进制，CRL 可解析")
+    void revokeAndCrl() {
+        IssuedCertificate issued =
+                provider.issue("client", CertificateRequest.client("CN=revoke-me"));
         provider.revoke(issued.serialNumber(), RevocationReason.KEY_COMPROMISE);
 
-        assertThat(provider.status(issued.serialNumber()))
-                .isEqualTo(PkiProvider.CertificateStatus.REVOKED);
-        assertThat(
-                        org.assertj.core.api.Assertions.catchThrowable(
-                                () -> provider.signingIdentity("iam")))
-                .isInstanceOf(PkiException.class)
-                .extracting(e -> ((PkiException) e).getErrorCode())
-                .isEqualTo(PkiErrorCode.REVOKED);
+        assertThat(provider.readCertificate(issued.serialNumber())).isPresent();
+        assertThat(provider.getCrl()).isNotEmpty();
+        assertThat(provider.readCertificate(new BigInteger("deadbeef", 16))).isEmpty();
     }
 
     @Test
-    @DisplayName("重复吊销幂等，且首个原因不会被覆盖")
-    void revokeIsIdempotentAndKeepsFirstReason() {
-        PkiProvider.IssuedCertificate issued = provider.signingIdentity("svc");
-        provider.revoke(issued.serialNumber(), RevocationReason.KEY_COMPROMISE);
-        provider.revoke(issued.serialNumber(), RevocationReason.SUPERSEDED);
+    @DisplayName("tidy / rotateCrl 直连 coord")
+    void tidyAndRotateCrl() {
+        provider.tidy(TidyRequest.retainFor(Duration.ofHours(1)));
+        provider.rotateCrl();
 
-        assertThat(provider.status(issued.serialNumber()))
-                .isEqualTo(PkiProvider.CertificateStatus.REVOKED);
-        assertThat(backendRead(issued.serialNumber())).contains("KEY_COMPROMISE");
+        assertThat(provider.getCrl()).isNotEmpty();
     }
 
     @Test
-    @DisplayName("rotate 换 serial，旧 serial 永久 REVOKED")
-    void rotateRetiresOldSerial() {
-        PkiProvider.IssuedCertificate before = provider.signingIdentity("iam");
-        PkiProvider.IssuedCertificate after =
-                provider.rotateSigningIdentity("iam", RevocationReason.SUPERSEDED);
-
-        assertThat(after.serialNumber()).isNotEqualTo(before.serialNumber());
-        assertThat(provider.status(before.serialNumber()))
-                .isEqualTo(PkiProvider.CertificateStatus.REVOKED);
-        assertThat(provider.signingIdentity("iam").serialNumber()).isEqualTo(after.serialNumber());
-    }
-
-    @Test
-    @DisplayName("rotate 一个不存在的 alias 等价于 signingIdentity")
-    void rotateWithoutExistingIdentity() {
-        PkiProvider.IssuedCertificate issued =
-                provider.rotateSigningIdentity("fresh", RevocationReason.SUPERSEDED);
-
-        assertThat(provider.status(issued.serialNumber()))
-                .isEqualTo(PkiProvider.CertificateStatus.VALID);
-    }
-
-    @Test
-    @DisplayName("过期证书报 EXPIRED，未知 serial 报 UNKNOWN")
-    void statusDistinguishesExpiredAndUnknown() {
-        PkiProvider.IssuedCertificate issued = provider.signingIdentity("iam");
-        CoordPkiProvider later =
-                new CoordPkiProvider(
-                        pki,
-                        new CoordPkiState(
-                                new CoordKvStore(backend.kv(), backend.txn()),
-                                CoordKeySpace.of("seedj:test", "pki")),
-                        new CoordEndpoint("127.0.0.1:19527"),
-                        "test",
-                        Duration.ofHours(24),
-                        Clock.offset(clock, Duration.ofDays(3650)));
-
-        assertThat(later.status(issued.serialNumber()))
-                .isEqualTo(PkiProvider.CertificateStatus.EXPIRED);
-        assertThat(later.status("does-not-exist")).isEqualTo(PkiProvider.CertificateStatus.UNKNOWN);
-    }
-
-    @Test
-    @DisplayName("keyPair 交付被拒绝：coord 自己生成密钥")
-    void callerSuppliedKeyPairIsRejected() {
-        PkiProvider.CertificateRequest request =
-                new PkiProvider.CertificateRequest(
-                        "CN=svc",
-                        java.util.List.of("svc.local"),
-                        java.util.List.of(),
-                        Duration.ofDays(1),
-                        new java.security.KeyPair(null, null),
-                        PkiProvider.CertificateUsage.BOTH);
-
-        assertThat(org.assertj.core.api.Assertions.catchThrowable(() -> provider.issue(request)))
+    @DisplayName("issuerRef 只接受单 CA 的 default")
+    void issuerRejectsUnknownRef() {
+        assertThat(provider.issuerCertificate("default")).isNotNull();
+        assertThatThrownBy(() -> provider.issuerCertificate("other"))
                 .isInstanceOf(PkiException.class)
                 .extracting(e -> ((PkiException) e).getErrorCode())
                 .isEqualTo(PkiErrorCode.INVALID_REQUEST);
     }
 
     @Test
-    @DisplayName("CA 未初始化时点名初始化方式")
-    void missingCaIsNamed() {
-        pki.caInitialized(false);
-
-        assertThat(org.assertj.core.api.Assertions.catchThrowable(() -> provider.caCertificate()))
-                .isInstanceOf(PkiException.class)
-                .hasMessageContaining("seedj.coord.pki.init-ca");
-    }
-
-    @Test
-    @DisplayName("agent 不可达映射为可重试的 STATE_UNAVAILABLE")
-    void unreachableMapsToRetryableError() {
+    @DisplayName("health 在 agent 不可达时返回 down，不抛异常")
+    void healthReportsDown() {
         pki.down(true);
 
-        assertThat(
-                        org.assertj.core.api.Assertions.catchThrowable(
-                                () -> provider.signingIdentity("iam")))
-                .isInstanceOf(PkiException.class)
-                .extracting(e -> ((PkiException) e).getErrorCode())
-                .isEqualTo(PkiErrorCode.STATE_UNAVAILABLE);
+        assertThat(provider.health().healthy()).isFalse();
     }
 
     @Test
-    @DisplayName("close 幂等，之后抛 PROVIDER_CLOSED")
+    @DisplayName("info 点名 coord 与单 CA，托管私钥为 true")
+    void info() {
+        assertThat(provider.info().provider()).isEqualTo("coord");
+        assertThat(provider.info().issuerRef()).isEqualTo("default");
+        assertThat(provider.info().managedPrivateKeys()).isTrue();
+    }
+
+    @Test
+    @DisplayName("close 幂等，之后抛 PkiClosedException")
     void closeSemantics() {
         provider.close();
         provider.close();
 
-        assertThat(
-                        org.assertj.core.api.Assertions.catchThrowable(
-                                () -> provider.signingIdentity("iam")))
+        assertThat(provider.health().healthy()).isFalse();
+        assertThatThrownBy(() -> provider.signingIdentity("iam"))
+                .isInstanceOf(cn.byteforce.seedj.provider.pki.PkiClosedException.class);
+    }
+
+    @Test
+    @DisplayName("非法 role / alias 统一 INVALID_REQUEST")
+    void invalidNames() {
+        assertThatThrownBy(
+                        () -> provider.issue("bad role", CertificateRequest.client("CN=x")))
                 .isInstanceOf(PkiException.class)
                 .extracting(e -> ((PkiException) e).getErrorCode())
-                .isEqualTo(PkiErrorCode.PROVIDER_CLOSED);
+                .isEqualTo(PkiErrorCode.INVALID_REQUEST);
+        assertThatThrownBy(() -> provider.signingIdentity("bad alias"))
+                .isInstanceOf(PkiException.class)
+                .extracting(e -> ((PkiException) e).getErrorCode())
+                .isEqualTo(PkiErrorCode.INVALID_REQUEST);
     }
 
     @Test
     @DisplayName("DNS 名归一化：非法字符替换，空值兜底，超长截断")
     void dnsNameSanitization() {
-        assertThat(CoordPkiProvider.dnsName("seedj:iam")).isEqualTo("seedj-iam");
-        assertThat(CoordPkiProvider.dnsName("IAM")).isEqualTo("iam");
-        assertThat(CoordPkiProvider.dnsName("---")).isEqualTo("seedj-identity");
-        assertThat(CoordPkiProvider.dnsName("svc.")).isEqualTo("svc");
-        assertThat(CoordPkiProvider.dnsName("A".repeat(80))).hasSize(63);
+        assertThat(CoordPkiNames.dnsName("seedj:iam")).isEqualTo("seedj-iam");
+        assertThat(CoordPkiNames.dnsName("IAM")).isEqualTo("iam");
+        assertThat(CoordPkiNames.dnsName("---")).isEqualTo("seedj-identity");
+        assertThat(CoordPkiNames.dnsName("svc.")).isEqualTo("svc");
+        assertThat(CoordPkiNames.dnsName("A".repeat(80))).hasSize(63);
     }
 
-    @Test
-    @DisplayName("issue 按 DN 里的 CN 签发，显式与派生 SAN 都记账")
-    void issueUsesCnFromSubjectDn() {
-        PkiProvider.IssuedCertificate explicit =
-                provider.issue(
-                        new PkiProvider.CertificateRequest(
-                                "CN=svc-issue,O=byteforce",
-                                List.of("svc-issue.local"),
-                                List.of("127.0.0.1"),
-                                Duration.ofDays(2),
-                                null,
-                                PkiProvider.CertificateUsage.SERVER));
-        PkiProvider.IssuedCertificate derived =
-                provider.issue(
-                        new PkiProvider.CertificateRequest(
-                                "svc-derived",
-                                List.of(),
-                                List.of(),
-                                Duration.ofHours(6),
-                                null,
-                                PkiProvider.CertificateUsage.CLIENT));
-
-        assertThat(pki.currentSerial("test:svc-issue")).isEqualTo(explicit.serialNumber());
-        assertThat(pki.currentSerial("test:svc-derived")).isEqualTo(derived.serialNumber());
-        assertThat(explicit.privateKey()).isNotNull();
-        assertThat(explicit.notAfter()).isAfter(explicit.notBefore());
-        assertThat(provider.status(explicit.serialNumber()))
-                .isEqualTo(PkiProvider.CertificateStatus.VALID);
+    private CoordPkiProvider newProvider(String prefix) {
+        return new CoordPkiProvider(
+                pki,
+                transit,
+                new CoordPkiState(
+                        new CoordKvStore(backend.kv(), backend.txn()),
+                        CoordKeySpace.of("seedj:test", "pki")),
+                new CoordEndpoint("127.0.0.1:19527"),
+                prefix,
+                Duration.ofHours(24),
+                Clock.systemUTC());
     }
 
-    @Test
-    @DisplayName("issue 校验 subject 与 validity：非法输入统一 INVALID_REQUEST")
-    void issueRejectsInvalidRequests() {
-        assertInvalidRequest(() -> provider.issue(PkiProvider.CertificateRequest.of("   ")));
-        assertInvalidRequest(() -> provider.issue(PkiProvider.CertificateRequest.of("OU=no-cn")));
-        assertInvalidRequest(
-                () -> provider.issue(PkiProvider.CertificateRequest.of("CN=\"unclosed")));
-        assertInvalidRequest(
-                () ->
-                        provider.issue(
-                                new PkiProvider.CertificateRequest(
-                                        "CN=svc",
-                                        List.of(),
-                                        List.of(),
-                                        Duration.ZERO,
-                                        null,
-                                        PkiProvider.CertificateUsage.BOTH)));
+    private static KeyPair keyPair() throws Exception {
+        KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
+        generator.initialize(2048);
+        return generator.generateKeyPair();
     }
 
-    @Test
-    @DisplayName("alias 必须匹配 [A-Za-z0-9][A-Za-z0-9._-]*")
-    void illegalAliasIsRejected() {
-        assertInvalidRequest(() -> provider.signingIdentity(null));
-        assertInvalidRequest(() -> provider.signingIdentity(""));
-        assertInvalidRequest(() -> provider.signingIdentity("bad alias"));
-        assertInvalidRequest(() -> provider.signingIdentity("a/b"));
-        assertInvalidRequest(
-                () -> provider.rotateSigningIdentity("-leading", RevocationReason.SUPERSEDED));
-    }
-
-    @Test
-    @DisplayName("吊销未知 serial：写占位记录，status 报 REVOKED")
-    void revokeUnknownSerialWritesPlaceholder() {
-        provider.revoke("not-issued", RevocationReason.CESSATION);
-
-        assertThat(provider.status("not-issued")).isEqualTo(PkiProvider.CertificateStatus.REVOKED);
-        assertThat(backendRead("not-issued")).contains("CESSATION");
-    }
-
-    @Test
-    @DisplayName("CA 证书解析一次后缓存，不重复回读")
-    void caCertificateIsCached() {
-        X509Certificate first = provider.caCertificate();
-        X509Certificate second = provider.caCertificate();
-
-        assertThat(second).isSameAs(first);
-        assertThat(first.getSubjectX500Principal().getName()).contains("seedj-test");
-    }
-
-    @Test
-    @DisplayName("SSLContext 携带身份并信任 CA：本机双向 TLS 握手成功")
-    void sslContextCarriesIdentityAndTrust() throws Exception {
-        PkiProvider.IssuedCertificate issued = provider.signingIdentity("tls");
-        // toIssued 总是补全 chain；这里显式传空 chain，钉住 sslContext 的兜底分支。
-        PkiProvider.IssuedCertificate withoutChain =
-                new PkiProvider.IssuedCertificate(
-                        issued.certificate(),
-                        List.of(),
-                        issued.privateKey(),
-                        issued.serialNumber(),
-                        issued.notBefore(),
-                        issued.notAfter());
-
-        SSLContext serverContext = provider.sslContext(issued);
-        SSLContext clientContext = provider.sslContext(withoutChain);
-        assertThat(provider.sslContext(null)).isNotNull();
-
-        ExecutorService executor = Executors.newSingleThreadExecutor();
-        try (SSLServerSocket server =
-                (SSLServerSocket)
-                        serverContext
-                                .getServerSocketFactory()
-                                .createServerSocket(0, 1, InetAddress.getLoopbackAddress())) {
-            server.setNeedClientAuth(true);
-            server.setSoTimeout(15_000);
-            Future<X509Certificate> peer =
-                    executor.submit(
-                            () -> {
-                                try (SSLSocket socket = (SSLSocket) server.accept()) {
-                                    socket.setSoTimeout(15_000);
-                                    socket.startHandshake();
-                                    return (X509Certificate)
-                                            socket.getSession().getPeerCertificates()[0];
-                                }
-                            });
-
-            try (SSLSocket client =
-                    (SSLSocket)
-                            clientContext
-                                    .getSocketFactory()
-                                    .createSocket(
-                                            InetAddress.getLoopbackAddress(),
-                                            server.getLocalPort())) {
-                client.setSoTimeout(15_000);
-                client.startHandshake();
-                assertThat(client.getSession().getCipherSuite()).isNotBlank();
-            }
-
-            assertThat(peer.get(20, TimeUnit.SECONDS).getSubjectX500Principal().getName())
-                    .contains("seedj-test");
-        } finally {
-            executor.shutdownNow();
-        }
-    }
-
-    private static void assertInvalidRequest(Executable call) {
-        assertThatThrownBy(call::execute)
-                .isInstanceOf(PkiException.class)
-                .extracting(e -> ((PkiException) e).getErrorCode())
-                .isEqualTo(PkiErrorCode.INVALID_REQUEST);
-    }
-
-    private String backendRead(String serial) {
-        return backend.read("seedj:test:coord:pki:serial:" + serial);
+    private static PKCS10CertificationRequest csr(
+            String subject, KeyPair keyPair, String dnsName) throws Exception {
+        Extensions extensions =
+                new Extensions(
+                        new Extension(
+                                Extension.subjectAlternativeName,
+                                false,
+                                new GeneralNames(new GeneralName(GeneralName.dNSName, dnsName))
+                                        .getEncoded()));
+        return new JcaPKCS10CertificationRequestBuilder(
+                        new X500Name(subject), keyPair.getPublic())
+                .addAttribute(PKCSObjectIdentifiers.pkcs_9_at_extensionRequest, extensions)
+                .build(
+                        new JcaContentSignerBuilder("SHA256withRSA")
+                                .build(keyPair.getPrivate()));
     }
 }

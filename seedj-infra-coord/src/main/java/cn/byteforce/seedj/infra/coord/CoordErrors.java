@@ -7,8 +7,8 @@ import cn.byteforce.seedj.id.IdErrorCode;
 import cn.byteforce.seedj.id.IdException;
 import cn.byteforce.seedj.lock.LockErrorCode;
 import cn.byteforce.seedj.lock.LockException;
-import cn.byteforce.seedj.pki.PkiErrorCode;
-import cn.byteforce.seedj.pki.PkiException;
+import cn.byteforce.seedj.provider.pki.PkiErrorCode;
+import cn.byteforce.seedj.provider.pki.PkiException;
 
 /** coord 错误码到 seedj 能力错误码的唯一映射点。 */
 final class CoordErrors {
@@ -56,7 +56,10 @@ final class CoordErrors {
                             PkiErrorCode.STATE_UNAVAILABLE;
                     case NOT_FOUND -> PkiErrorCode.NOT_FOUND;
                     case INVALID_ARGUMENT, OUT_OF_RANGE -> PkiErrorCode.INVALID_REQUEST;
-                    case FAILED_PRECONDITION -> PkiErrorCode.CA_UNAVAILABLE;
+                    case FAILED_PRECONDITION ->
+                            e.getMessage() != null && e.getMessage().contains("revok")
+                                    ? PkiErrorCode.REVOKED
+                                    : PkiErrorCode.CA_UNAVAILABLE;
                     case INTERNAL ->
                             e.getMessage() != null
                                             && (e.getMessage().contains("safe_ts")

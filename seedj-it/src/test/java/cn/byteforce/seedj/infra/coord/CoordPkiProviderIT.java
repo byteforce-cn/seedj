@@ -1,8 +1,8 @@
 package cn.byteforce.seedj.infra.coord;
 
 import cn.byteforce.seedj.infra.coord.fixture.CoordCluster;
-import cn.byteforce.seedj.pki.PkiProvider;
-import cn.byteforce.seedj.pki.PkiProviderContractTest;
+import cn.byteforce.seedj.provider.pki.PkiProvider;
+import cn.byteforce.seedj.provider.pki.PkiProviderContractTest;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.UUID;
@@ -43,6 +43,7 @@ class CoordPkiProviderIT extends PkiProviderContractTest {
         String prefix = "t" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
         return new CoordPkiProvider(
                 cluster.client().pki(),
+                cluster.client().transit(),
                 new CoordPkiState(
                         new CoordKvStore(cluster.client().kv(), cluster.client().tx()),
                         CoordKeySpace.of("seedj:it", "pki")),

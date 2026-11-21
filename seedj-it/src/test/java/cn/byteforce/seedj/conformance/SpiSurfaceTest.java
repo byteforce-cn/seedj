@@ -8,7 +8,7 @@ import cn.byteforce.seedj.eventbus.EventPublisher;
 import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.outbox.OutboxWriter;
 import cn.byteforce.seedj.outbox.spi.OutboxStore;
-import cn.byteforce.seedj.pki.PkiProvider;
+import cn.byteforce.seedj.provider.pki.PkiProvider;
 import cn.byteforce.seedj.transit.TransitProvider;
 import cn.byteforce.seedj.workflow.spi.WorkflowProvider;
 import java.lang.reflect.Modifier;
@@ -31,7 +31,7 @@ class SpiSurfaceTest {
     /** 用主代码里的类型定位 {@code target/classes}，避免误扫到测试类目录。 */
     private static final Map<String, Class<?>> MARKERS =
             Map.of(
-                    "cn.byteforce.seedj.pki", PkiProvider.class,
+                    "cn.byteforce.seedj.provider.pki", PkiProvider.class,
                     "cn.byteforce.seedj.transit", TransitProvider.class,
                     "cn.byteforce.seedj.eventbus", EventPublisher.class,
                     "cn.byteforce.seedj.eventbus.spi",
@@ -50,10 +50,14 @@ class SpiSurfaceTest {
                     "cn.byteforce.seedj.lock", cn.byteforce.seedj.lock.LockProvider.class,
                     "cn.byteforce.seedj.core.security", CallerProvider.class,
                     "cn.byteforce.seedj.ai", cn.byteforce.seedj.ai.ActionClass.class,
-                    "cn.byteforce.seedj.ai.spi", cn.byteforce.seedj.ai.spi.DecisionLedger.class);
+                    "cn.byteforce.seedj.ai.spi", cn.byteforce.seedj.ai.spi.DecisionLedger.class,
+                    "cn.byteforce.seedj.observability",
+                            cn.byteforce.seedj.observability.ObservableProvider.class);
 
     private static final Map<String, List<String>> EXTRA_ALLOWED =
             Map.of(
+                    "cn.byteforce.seedj.observability",
+                    List.of("HealthStatus", "ObservableProvider"),
                     "cn.byteforce.seedj.core.security",
                     List.of(
                             "AccessTokenRules",
@@ -162,8 +166,22 @@ class SpiSurfaceTest {
 
     private static final Map<String, List<String>> ALLOWED =
             Map.of(
-                    "cn.byteforce.seedj.pki",
-                    List.of("PkiErrorCode", "PkiException", "PkiProvider"),
+                    "cn.byteforce.seedj.provider.pki",
+                    List.of(
+                            "CertificateRequest",
+                            "CertificateRevokedException",
+                            "CertificateUsage",
+                            "ClientAuth",
+                            "IssuedCertificate",
+                            "KeyMaterial",
+                            "PkiClosedException",
+                            "PkiErrorCode",
+                            "PkiException",
+                            "PkiInfo",
+                            "PkiProvider",
+                            "RevocationReason",
+                            "SslConfig",
+                            "TidyRequest"),
                     "cn.byteforce.seedj.transit",
                     List.of(
                             "BatchDecryptRequest",
@@ -319,7 +337,8 @@ class SpiSurfaceTest {
     @ParameterizedTest
     @ValueSource(
             strings = {
-                "cn.byteforce.seedj.pki",
+                "cn.byteforce.seedj.provider.pki",
+                "cn.byteforce.seedj.observability",
                 "cn.byteforce.seedj.transit",
                 "cn.byteforce.seedj.eventbus",
                 "cn.byteforce.seedj.eventbus.spi",

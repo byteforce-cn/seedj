@@ -1,4 +1,4 @@
-package cn.byteforce.seedj.pki;
+package cn.byteforce.seedj.provider.pki;
 
 import cn.byteforce.seedj.core.ErrorCategory;
 import cn.byteforce.seedj.core.ErrorDescriptor;
@@ -22,10 +22,13 @@ public enum PkiErrorCode implements ErrorDescriptor {
     /** 证书已过期且无法自动续期。 */
     EXPIRED(ErrorCategory.CLIENT_ERROR, false),
 
-    /** CA 密钥库不可用（文件缺失、口令错误）。 */
+    /** provider 不支持该操作或该参数组合（例如本地实现不支持 prehashed 签名）。 */
+    UNSUPPORTED(ErrorCategory.CLIENT_ERROR, false),
+
+    /** CA 密钥库或 CA 状态不可用（文件缺失、口令错误、CA 未初始化）。 */
     CA_UNAVAILABLE(ErrorCategory.BACKEND_ERROR, false),
 
-    /** 状态存储（签发/吊销账本）暂时不可读写。 */
+    /** 状态存储（alias 映射/签发记录）暂时不可读写。 */
     STATE_UNAVAILABLE(ErrorCategory.BACKEND_ERROR, true),
 
     /** provider 已关闭。 */

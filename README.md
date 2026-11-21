@@ -155,6 +155,7 @@ assertThat(harness.object("employee", receipt.locator()).fields())
 | `core` | 内核契约：错误码、时间轴、命令、读模型、安全、SPI、`@SeedjObject` |
 | `seedj-workflow-contract` | 工作流契约：定义、实例、任务与动作（零外部依赖） |
 | `seedj-transit-contract` | 传输/加密契约：密钥、签名、HMAC、批量加解密 |
+| `seedj-pki-contract` | PKI 契约：证书/CSR 签发、Transit 签名、吊销与 CRL、身份映射、TLS 配置 |
 | `seedj-ai-contract` | AI 契约：命令指纹、动作分类、策略与账本值类型 |
 | `seedj-im-contract` | IM 契约：会话、成员、消息与存储端口 |
 | `seedj-im-protocol` | IM 线路协议：命令字、帧、27 个 body 与 JSON 编解码（无 Spring/Netty） |

@@ -43,6 +43,10 @@
     "branch": 0.75,
     "line": 0.88
   },
+  "seedj-pki-contract": {
+    "branch": 0.85,
+    "line": 0.95
+  },
   "seedj-transit-contract": {
     "branch": 1.0,
     "line": 1.0

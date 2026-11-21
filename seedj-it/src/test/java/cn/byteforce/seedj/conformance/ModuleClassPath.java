@@ -26,6 +26,7 @@ final class ModuleClassPath {
                     "core",
                     "seedj-workflow-contract",
                     "seedj-transit-contract",
+                    "seedj-pki-contract",
                     "seedj-ai-contract",
                     "seedj-im-contract",
                     "seedj-iam-contract",

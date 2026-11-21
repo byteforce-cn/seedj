@@ -1,4 +1,4 @@
-package cn.byteforce.seedj.pki;
+package cn.byteforce.seedj.provider.pki;
 
 import cn.byteforce.seedj.core.InfrastructureException;
 

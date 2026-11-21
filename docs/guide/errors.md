@@ -58,7 +58,6 @@ IAM 管理端点（`/authz/**`、`/api/iam/**`、`/iam/**`）返回同一信封�
 SCIM 与 OAuth2 token 端点是上文的协议例外：`ScimExceptionHandler` 与
 `NativeAuthErrorResponseHandler` 各自输出 RFC 形状，不经过 `IamExceptionHandler`。
 
-
 ## 命令边界的三条硬规则
 
 1. **未授权是 403，不是 401/500**：身份已认证但缺少 `descriptor.permission()`。

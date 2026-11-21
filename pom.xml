@@ -47,6 +47,7 @@
         <module>core</module>
         <module>seedj-workflow-contract</module>
         <module>seedj-transit-contract</module>
+        <module>seedj-pki-contract</module>
         <module>seedj-ai-contract</module>
         <module>seedj-im-contract</module>
         <module>seedj-iam-contract</module>

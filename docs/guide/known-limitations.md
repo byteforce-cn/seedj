@@ -39,6 +39,23 @@ IAM 的退出标准与当前状态见 [IAM 装配 §生产可用性边界](iam-s
 缩短或延长互斥窗口；对强一致有要求的场景，仍要在存储侧用唯一约束/条件更新兜底。释放
 使用事务读集校验，过期持有者不会误删新持有者的记录。
 
+## coord PKI 的单 CA / 无 role 边界
+
+coord 0.4.4 只有一张 CA、没有 Vault 式 role/issuer 抽象。`PkiProvider` 的 `roleName` 在 coord
+适配里降级为 **CN 命名空间前缀**（`<role>:<cn>`）；`issuerRef` 只接受 `default`。`signCsr` 的
+CN/SAN 来自 CSR，role 只做格式校验——不要指望它按 role 施加 TTL/域名策略。
+
+吊销与 CRL 是 CA 侧的权威事实：`revoke` 之后同 CN 的 `issue` 会失败，恢复只能走
+`rotateSigningIdentity`。但 coord 没有 HTTP CRL 端点，也没有后台发布任务；**吊销生效延迟 =
+消费方的 CRL/缓存刷新窗口**，不查 CRL 的第三方 TrustManager 仍会接受旧证书。
+
+## coord 托管私钥不能当 IAM JWT 签名钥
+
+`seedj.iam.jwk.provider=pki` 需要把私钥导出成 RS256 JWK。coord 0.4.4 的 `IssueCert` /
+`RotateCert` 只返回 `keyName`/`keyVersion`，私钥留在 Transit，因此 coord 托管身份会在
+`PkiIamSigningKeyStore` 构造期失败。IAM 的 PKI 签名请用 `provider=local`，或改用自持钥的
+`signCsr`；默认 JDBC/memory JWK 不受影响。
+
 ## coord 消费账本的边界
 
 `seedj.eventbus.transport=coord` 的消费状态在 coord KV 的投递账本里：每次 poll 只扫描前

@@ -2,7 +2,7 @@ package cn.byteforce.seedj.starter.iam.autoconfigure;
 
 import cn.byteforce.seedj.core.InfrastructureCapability;
 import cn.byteforce.seedj.iam.spi.IamSigningKeyStore;
-import cn.byteforce.seedj.pki.PkiProvider;
+import cn.byteforce.seedj.provider.pki.PkiProvider;
 import cn.byteforce.seedj.starter.iam.IamProperties;
 import cn.byteforce.seedj.starter.iam.authz.IamAuthzConfiguration;
 import cn.byteforce.seedj.starter.iam.config.IamServerAutoConfiguration;
