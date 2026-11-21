@@ -23,7 +23,6 @@ import cn.byteforce.seedj.domain.TemporalRow;
 import cn.byteforce.seedj.domain.TemporalSearch;
 import cn.byteforce.seedj.domain.TemporalStore;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,7 +32,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/** 自定义查询：行范围谓词到 SQL 的编译、字段白名单与投影校验。 */
+/** 自定义查询：网关注入行范围与字段策略，SQL 生成留在适配器。 */
 class ReadGatewayQueryScopeTest {
 
     private static final UUID ACTOR = UUID.fromString("018f2e3a-0000-7000-8000-000000000001");
@@ -70,21 +69,18 @@ class ReadGatewayQueryScopeTest {
     private final RecordingExecutor executor = new RecordingExecutor();
 
     @Test
-    @DisplayName("In 谓词编译为占位符列表并按类型转换常量")
-    void compilesInPredicate() {
-        Page<Map<String, Object>> page =
-                query(ScopePredicate.in("org_unit_id", List.of("D01", "D02")));
+    @DisplayName("行范围谓词原样进入执行计划，不在网关里编译成 SQL")
+    void passesScopeToPlan() {
+        ScopePredicate predicate = ScopePredicate.in("org_unit_id", List.of("D01", "D02"));
 
-        assertThat(executor.pageSql).contains("seedj_q.\"org_unit_id\" IN (?,?)");
-        assertThat(executor.pageArguments).containsExactly("E-1", "D01", "D02", 20, 0L);
-        assertThat(page.items())
-                .singleElement()
-                .satisfies(row -> assertThat(row).containsEntry("employee_no", "E-1"));
+        query(predicate);
+
+        assertThat(executor.plan.scope()).isEqualTo(predicate);
     }
 
     @Test
-    @DisplayName("Not/Or/And/NotNull 谓词编译为嵌套条件")
-    void compilesCompositePredicates() {
+    @DisplayName("复合谓词只做规范化，不改变语义")
+    void passesCompositePredicate() {
         ScopePredicate predicate =
                 ScopePredicates.and(
                         List.of(
@@ -96,49 +92,7 @@ class ReadGatewayQueryScopeTest {
 
         query(predicate);
 
-        assertThat(executor.pageSql)
-                .contains(
-                        "(NOT (seedj_q.\"status\" = ?)"
-                                + " AND (seedj_q.\"org_unit_id\" IS NOT NULL"
-                                + " OR seedj_q.\"status\" IN (?,?)))");
-        assertThat(executor.pageArguments)
-                .containsExactly("E-1", "LEFT", "ACTIVE", "PENDING", 20, 0L);
-    }
-
-    @Test
-    @DisplayName("空 In 列表退化为恒假，不绑定任何常量")
-    void emptyInBecomesFalse() {
-        query(new ScopePredicate.In("org_unit_id", List.of()));
-
-        assertThat(executor.pageSql).contains("WHERE 1=0");
-        assertThat(executor.pageArguments).containsExactly("E-1", 20, 0L);
-    }
-
-    @Test
-    @DisplayName("行范围引用未投影字段时失败关闭")
-    void scopeFieldMustBeProjected() {
-        QuerySpec narrow =
-                new QuerySpec(
-                        "employee",
-                        "SELECT employee_no FROM hr_employee",
-                        Set.of("employee_no"),
-                        Set.of(),
-                        List.of("employee_no"),
-                        "employee_no");
-        ReadGateway gateway = gateway(ScopePredicate.eq("org_unit_id", "D01"), narrow);
-
-        assertThatThrownBy(
-                        () ->
-                                gateway.query(
-                                        narrow,
-                                        Map.of(),
-                                        null,
-                                        null,
-                                        PageRequest.defaults(),
-                                        CALLER))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("row scope uses field org_unit_id");
-        assertThat(executor.calls).isEmpty();
+        assertThat(executor.plan.scope()).isEqualTo(predicate);
     }
 
     @Test
@@ -217,6 +171,34 @@ class ReadGatewayQueryScopeTest {
     }
 
     @Test
+    @DisplayName("未声明的参数键返回 400；声明但缺值也返回 400")
+    void rejectsParameters() {
+        ReadGateway gateway = gateway(ScopePredicate.all(), SPEC);
+
+        assertThatThrownBy(
+                        () ->
+                                gateway.query(
+                                        SPEC,
+                                        Map.of("number", "E-1", "extra", "x"),
+                                        null,
+                                        null,
+                                        PageRequest.defaults(),
+                                        CALLER))
+                .isInstanceOfSatisfying(
+                        ContractException.class,
+                        error ->
+                                assertThat(error.code())
+                                        .isEqualTo(ContractErrorCode.INVALID_PAYLOAD));
+        assertThatThrownBy(
+                        () ->
+                                gateway.query(
+                                        SPEC, Map.of(), null, null, PageRequest.defaults(), CALLER))
+                .isInstanceOfSatisfying(
+                        ContractException.class,
+                        error -> assertThat(error.reason()).contains("missing parameter value"));
+    }
+
+    @Test
     @DisplayName("无参数查询接受 null 参数映射")
     void acceptsNullParameters() {
         QuerySpec spec =
@@ -232,67 +214,19 @@ class ReadGatewayQueryScopeTest {
         Page<Map<String, Object>> page = gateway.query(spec, null, null, null, null, CALLER);
 
         assertThat(page.items()).hasSize(1);
-        assertThat(executor.pageArguments)
-                .containsExactly(PageRequest.defaults().size(), PageRequest.defaults().offset());
+        assertThat(executor.plan.parameters()).isEmpty();
+        assertThat(executor.plan.page()).isEqualTo(PageRequest.defaults());
     }
 
     @Test
-    @DisplayName("行范围常量可空：摘要按 null 字面量记录")
-    void nullScopeValueIsDigested() {
-        Page<Map<String, Object>> page = query(new ScopePredicate.Eq("org_unit_id", null));
+    @DisplayName("行范围常量可空：null 依旧进入计划，由适配器编译为恒假")
+    void nullScopeValueIsPassedThrough() {
+        ScopePredicate predicate = new ScopePredicate.Eq("org_unit_id", null);
 
-        assertThat(executor.pageArguments).containsExactly("E-1", null, 20, 0L);
+        Page<Map<String, Object>> page = query(predicate);
+
+        assertThat(executor.plan.scope()).isEqualTo(predicate);
         assertThat(page.total()).isEqualTo(1);
-    }
-
-    @Test
-    @DisplayName("SQL 含位置占位符时拒绝执行")
-    void rejectsPositionalPlaceholders() {
-        QuerySpec spec =
-                new QuerySpec(
-                        "employee",
-                        "SELECT employee_no, org_unit_id, status FROM hr_employee WHERE status = ?",
-                        Set.of("employee_no", "org_unit_id", "status"),
-                        Set.of(),
-                        List.of("employee_no"),
-                        "employee_no");
-        ReadGateway gateway = gateway(ScopePredicate.all(), spec);
-
-        assertThatThrownBy(
-                        () ->
-                                gateway.query(
-                                        spec, Map.of(), null, null, PageRequest.defaults(), CALLER))
-                .isInstanceOfSatisfying(
-                        ContractException.class,
-                        error -> {
-                            assertThat(error.code()).isEqualTo(ContractErrorCode.INVALID_PAYLOAD);
-                            assertThat(error.reason()).contains("named parameters");
-                        });
-    }
-
-    @Test
-    @DisplayName("SQL 引用未声明的命名参数时失败")
-    void rejectsUndeclaredNamedParameter() {
-        QuerySpec spec =
-                new QuerySpec(
-                        "employee",
-                        "SELECT employee_no, org_unit_id, status FROM hr_employee"
-                                + " WHERE status = :state",
-                        Set.of("employee_no", "org_unit_id", "status"),
-                        Set.of(),
-                        List.of("employee_no"),
-                        "employee_no");
-        ReadGateway gateway = gateway(ScopePredicate.all(), spec);
-
-        assertThatThrownBy(
-                        () ->
-                                gateway.query(
-                                        spec, Map.of(), null, null, PageRequest.defaults(), CALLER))
-                .isInstanceOfSatisfying(
-                        ContractException.class,
-                        error ->
-                                assertThat(error.reason())
-                                        .contains("undeclared parameter in query: state"));
     }
 
     @Test
@@ -319,11 +253,9 @@ class ReadGatewayQueryScopeTest {
     void defaultsPagingAndDirection() {
         Page<Map<String, Object>> page = query(ScopePredicate.all());
 
-        assertThat(executor.pageSql)
-                .endsWith("ORDER BY seedj_q.\"employee_no\" ASC" + " LIMIT ? OFFSET ?");
-        assertThat(executor.pageArguments)
-                .containsExactly(
-                        "E-1", PageRequest.defaults().size(), PageRequest.defaults().offset());
+        assertThat(executor.plan.sortField()).isEqualTo("employee_no");
+        assertThat(executor.plan.direction()).isEqualTo(SortDirection.ASC);
+        assertThat(executor.plan.page()).isEqualTo(PageRequest.defaults());
         assertThat(page.page()).isEqualTo(PageRequest.defaults().page());
     }
 
@@ -340,9 +272,8 @@ class ReadGatewayQueryScopeTest {
                 new PageRequest(3, 5),
                 CALLER);
 
-        assertThat(executor.pageSql)
-                .endsWith("ORDER BY seedj_q.\"employee_no\" DESC" + " LIMIT ? OFFSET ?");
-        assertThat(executor.pageArguments).containsExactly("E-1", 5, 10L);
+        assertThat(executor.plan.direction()).isEqualTo(SortDirection.DESC);
+        assertThat(executor.plan.page()).isEqualTo(new PageRequest(3, 5));
     }
 
     @Test
@@ -438,32 +369,23 @@ class ReadGatewayQueryScopeTest {
 
     private static final class RecordingExecutor implements QueryExecutor {
 
-        private final List<String> calls = new ArrayList<>();
+        private int calls;
 
-        private String pageSql;
-
-        private List<Object> pageArguments;
+        private QueryPlan plan;
 
         private boolean omitStatus;
 
         @Override
-        public List<Map<String, Object>> page(String sql, List<Object> parameters) {
-            calls.add("page");
-            pageSql = sql;
-            pageArguments = parameters;
+        public Page<Map<String, Object>> execute(QueryPlan plan) {
+            calls++;
+            this.plan = plan;
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("employee_no", "E-1");
             row.put("org_unit_id", "D01");
             if (!omitStatus) {
                 row.put("status", "ACTIVE");
             }
-            return List.of(row);
-        }
-
-        @Override
-        public long count(String sql, List<Object> parameters) {
-            calls.add("count");
-            return 1;
+            return new Page<>(List.of(row), 1, plan.page().page(), plan.page().size());
         }
     }
 

@@ -66,9 +66,6 @@ public final class ReadGateway {
 
     private final AuthorizationDecisionPoint decisions;
 
-    private static final java.util.regex.Pattern NAMED_PARAMETER =
-            java.util.regex.Pattern.compile(":([a-z][a-z0-9_]*)");
-
     /**
      * 构造网关。
      *
@@ -304,6 +301,11 @@ public final class ReadGateway {
                 throw invalidQuery("unknown parameter: " + name);
             }
         }
+        for (String name : spec.parameters()) {
+            if (!values.containsKey(name)) {
+                throw invalidQuery("missing parameter value: " + name);
+            }
+        }
         String sortField = sort == null || sort.isBlank() ? spec.defaultSort() : sort;
         if (!spec.sortableFields().contains(sortField)) {
             throw invalidQuery("sort field is not allowed: " + sortField);
@@ -325,67 +327,26 @@ public final class ReadGateway {
             return new Page<>(List.of(), 0, pageRequest.page(), pageRequest.size());
         }
 
-        List<Object> innerArguments = new ArrayList<>();
-        String inner = bind(spec, values, innerArguments);
-        List<Object> scopeArguments = new ArrayList<>();
-        String scopeSql = scopeSql(scope, model.schema(), scopeArguments, spec.fields());
-        String from = "(" + inner + ") seedj_q WHERE " + scopeSql;
-        List<Object> pageArguments = new ArrayList<>(innerArguments);
-        pageArguments.addAll(scopeArguments);
-        pageArguments.add(pageRequest.size());
-        pageArguments.add(pageRequest.offset());
-        String pageSql =
-                "SELECT * FROM "
-                        + from
-                        + " ORDER BY seedj_q.\""
-                        + sortField
-                        + "\" "
-                        + sortDirection
-                        + " LIMIT ? OFFSET ?";
-
-        List<Map<String, Object>> rows = executor.page(pageSql, pageArguments);
-        long total =
-                executor.count(
-                        "SELECT count(*) FROM " + from, concat(innerArguments, scopeArguments));
+        Page<Map<String, Object>> result =
+                executor.execute(
+                        new QueryPlan(
+                                spec,
+                                values,
+                                sortField,
+                                sortDirection,
+                                pageRequest,
+                                scope,
+                                model.schema()));
         List<Map<String, Object>> rendered =
-                rows.stream()
+                result.items().stream()
                         .map(row -> renderQueryRow(row, policy, model.schema(), spec.fields()))
                         .toList();
         audit(ReadAccessEvent.Operation.SEARCH, model, caller, values, List.of(), scope, policy);
-        return new Page<>(rendered, total, pageRequest.page(), pageRequest.size());
+        return new Page<>(rendered, result.total(), pageRequest.page(), pageRequest.size());
     }
 
     private static ContractException invalidQuery(String message) {
         return new ContractException(ContractErrorCode.INVALID_PAYLOAD, message);
-    }
-
-    private static List<Object> concat(List<Object> first, List<Object> second) {
-        List<Object> all = new ArrayList<>(first.size() + second.size());
-        all.addAll(first);
-        all.addAll(second);
-        return all;
-    }
-
-    private static String bind(QuerySpec spec, Map<String, Object> values, List<Object> arguments) {
-        String sql = spec.sql();
-        if (sql.contains("?")) {
-            throw invalidQuery("custom query must use named parameters, not '?'");
-        }
-        java.util.regex.Matcher matcher = NAMED_PARAMETER.matcher(sql);
-        StringBuilder out = new StringBuilder(sql.length() + 32);
-        while (matcher.find()) {
-            String name = matcher.group(1);
-            if (!spec.parameters().contains(name)) {
-                throw invalidQuery("undeclared parameter in query: " + name);
-            }
-            if (!values.containsKey(name)) {
-                throw invalidQuery("missing parameter value: " + name);
-            }
-            arguments.add(values.get(name));
-            matcher.appendReplacement(out, "?");
-        }
-        matcher.appendTail(out);
-        return out.toString();
     }
 
     private static Map<String, Object> renderQueryRow(
@@ -411,75 +372,6 @@ public final class ReadGateway {
             }
         }
         return rendered;
-    }
-
-    private static String scopeSql(
-            ScopePredicate predicate,
-            ObjectSchema schema,
-            List<Object> arguments,
-            Set<String> projected) {
-        return switch (predicate) {
-            case ScopePredicate.All ignored -> "1=1";
-            case ScopePredicate.None ignored -> "1=0";
-            case ScopePredicate.Eq eq -> {
-                requireProjected(eq.field(), projected);
-                arguments.add(schema.requireField(eq.field()).type().coerce(eq.value()));
-                yield column(eq.field()) + " = ?";
-            }
-            case ScopePredicate.In in -> {
-                requireProjected(in.field(), projected);
-                List<?> values = in.values();
-                if (values.isEmpty()) {
-                    yield "1=0";
-                }
-                StringBuilder sql = new StringBuilder(column(in.field())).append(" IN (");
-                for (int i = 0; i < values.size(); i++) {
-                    if (i > 0) {
-                        sql.append(',');
-                    }
-                    sql.append('?');
-                    arguments.add(schema.requireField(in.field()).type().coerce(values.get(i)));
-                }
-                yield sql.append(')').toString();
-            }
-            case ScopePredicate.NotNull notNull -> {
-                requireProjected(notNull.field(), projected);
-                yield column(notNull.field()) + " IS NOT NULL";
-            }
-            case ScopePredicate.And and -> {
-                StringBuilder sql = new StringBuilder("(");
-                for (int i = 0; i < and.parts().size(); i++) {
-                    if (i > 0) {
-                        sql.append(" AND ");
-                    }
-                    sql.append(scopeSql(and.parts().get(i), schema, arguments, projected));
-                }
-                yield sql.append(')').toString();
-            }
-            case ScopePredicate.Or or -> {
-                StringBuilder sql = new StringBuilder("(");
-                for (int i = 0; i < or.parts().size(); i++) {
-                    if (i > 0) {
-                        sql.append(" OR ");
-                    }
-                    sql.append(scopeSql(or.parts().get(i), schema, arguments, projected));
-                }
-                yield sql.append(')').toString();
-            }
-            case ScopePredicate.Not not ->
-                    "NOT (" + scopeSql(not.part(), schema, arguments, projected) + ")";
-        };
-    }
-
-    private static void requireProjected(String field, Set<String> projected) {
-        if (!projected.contains(field)) {
-            throw new IllegalStateException(
-                    "row scope uses field " + field + " but the custom query does not project it");
-        }
-    }
-
-    private static String column(String field) {
-        return "seedj_q.\"" + field + "\"";
     }
 
     private ReadModel requireReadable(String objectType, Caller caller, String resourceId) {

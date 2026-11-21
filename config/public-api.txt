@@ -296,6 +296,7 @@ core|cn.byteforce.seedj.read|FieldAccess
 core|cn.byteforce.seedj.read|FieldPolicy
 core|cn.byteforce.seedj.read|FieldPolicyResolver
 core|cn.byteforce.seedj.read|QueryExecutor
+core|cn.byteforce.seedj.read|QueryPlan
 core|cn.byteforce.seedj.read|QuerySpec
 core|cn.byteforce.seedj.read|ReadAccessEvent
 core|cn.byteforce.seedj.read|ReadAuditSink
@@ -728,6 +729,7 @@ seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.cqrs|PostgresCommandStore
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.cqrs|PostgresEventStore
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.domain|ObjectSchemaCapability
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.domain|PostgresTemporalStore
+seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.domain|ScopeSql
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.domain|TemporalDdl
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.domain|TemporalSchemaCapability
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.domain|TemporalTable
