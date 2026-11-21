@@ -157,6 +157,7 @@ assertThat(harness.object("employee", receipt.locator()).fields())
 | `seedj-transit-contract` | 传输/加密契约：密钥、签名、HMAC、批量加解密 |
 | `seedj-ai-contract` | AI 契约：命令指纹、动作分类、策略与账本值类型 |
 | `seedj-im-contract` | IM 契约：会话、成员、消息与存储端口 |
+| `seedj-im-protocol` | IM 线路协议：命令字、帧、27 个 body 与 JSON 编解码（无 Spring/Netty） |
 | `seedj-iam-contract` | IAM 契约：用户/组/角色/策略、SCIM 模型与授权值类型 |
 | `seedj-codegen` | 构建期注解处理器：schema / OpenAPI / 迁移候选 / 读视图（不进运行时） |
 | `seedj-infra-local` | 内存、文件、BouncyCastle 适配器 |

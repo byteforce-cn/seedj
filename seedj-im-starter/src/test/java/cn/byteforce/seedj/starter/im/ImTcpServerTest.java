@@ -1,9 +1,10 @@
 package cn.byteforce.seedj.starter.im;
 
+import cn.byteforce.seedj.starter.im.transport.ImFrames;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import cn.byteforce.seedj.starter.im.protocol.ImFrames;
+import cn.byteforce.seedj.starter.im.transport.ImFrames;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;

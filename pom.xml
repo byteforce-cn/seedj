@@ -50,6 +50,7 @@
         <module>seedj-ai-contract</module>
         <module>seedj-im-contract</module>
         <module>seedj-iam-contract</module>
+        <module>seedj-im-protocol</module>
         <module>seedj-codegen</module>
         <module>seedj-infra-local</module>
         <module>seedj-infra-coord</module>

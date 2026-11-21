@@ -1,5 +1,6 @@
-package cn.byteforce.seedj.starter.im.protocol;
+package cn.byteforce.seedj.starter.im.transport;
 
+import cn.byteforce.seedj.starter.im.protocol.ImFrame;
 import io.netty.buffer.ByteBuf;
 
 /**
@@ -14,7 +15,7 @@ public final class ImFrames {
     public static final int HEADER_LENGTH = 16;
 
     /** 协议魔数。 */
-    public static final int MAGIC = 0xCAFEBABE;
+    public static final int MAGIC = ImFrame.MAGIC;
 
     private ImFrames() {}
 

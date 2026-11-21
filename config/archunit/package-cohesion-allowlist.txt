@@ -8,4 +8,4 @@ seedj-workflow-contract/src/main/java/cn/byteforce/seedj/workflow/spi
 seedj-transit-contract/src/main/java/cn/byteforce/seedj/transit
 seedj-ai-contract/src/main/java/cn/byteforce/seedj/ai
 seedj-im-starter/src/main/java/cn/byteforce/seedj/starter/im
-seedj-im-starter/src/main/java/cn/byteforce/seedj/starter/im/protocol/body
+seedj-im-protocol/src/main/java/cn/byteforce/seedj/starter/im/protocol/body

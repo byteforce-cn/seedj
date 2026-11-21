@@ -1,11 +1,12 @@
 package cn.byteforce.seedj.starter.im;
 
+import cn.byteforce.seedj.starter.im.transport.ImFrames;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import cn.byteforce.seedj.starter.im.protocol.Cmd;
 import cn.byteforce.seedj.starter.im.protocol.ImFrame;
-import cn.byteforce.seedj.starter.im.protocol.ImFrames;
+import cn.byteforce.seedj.starter.im.transport.ImFrames;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;

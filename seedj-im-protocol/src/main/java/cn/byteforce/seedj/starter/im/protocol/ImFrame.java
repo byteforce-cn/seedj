@@ -24,6 +24,10 @@ public record ImFrame(
         int sequenceId,
         byte[] body) {
 
+    /** 帧魔数。 */
+    public static final int MAGIC = 0xCAFEBABE;
+
+
     public ImFrame {
         body = body == null ? new byte[0] : body;
     }

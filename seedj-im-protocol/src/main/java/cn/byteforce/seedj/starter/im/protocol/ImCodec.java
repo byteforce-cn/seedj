@@ -1,8 +1,5 @@
-package cn.byteforce.seedj.starter.im;
+package cn.byteforce.seedj.starter.im.protocol;
 
-import cn.byteforce.seedj.starter.im.protocol.Cmd;
-import cn.byteforce.seedj.starter.im.protocol.ImFrame;
-import cn.byteforce.seedj.starter.im.protocol.ImFrames;
 import cn.byteforce.seedj.starter.im.protocol.body.ErrorResp;
 import java.util.Objects;
 import tools.jackson.databind.json.JsonMapper;
@@ -10,9 +7,9 @@ import tools.jackson.databind.json.JsonMapper;
 /**
  * 帧 body 与 Java 对象之间的 JSON 编解码。
  *
- * <p>只服务本 starter 的传输层，因此保持包私有；协议类型本身在 {@code protocol} 包公开。
+ * <p>只依赖 Jackson：服务端传输层与未来的 Java 客户端共用同一份编解码，不引入 Netty 或 Spring。
  */
-final class ImCodec {
+public final class ImCodec {
 
     private static final byte VERSION = 1;
     private static final byte SERIALIZE_TYPE_JSON = 1;
@@ -22,15 +19,15 @@ final class ImCodec {
 
     private final JsonMapper mapper;
 
-    ImCodec() {
+    public ImCodec() {
         this(JsonMapper.builder().build());
     }
 
-    ImCodec(JsonMapper mapper) {
+    public ImCodec(JsonMapper mapper) {
         this.mapper = Objects.requireNonNull(mapper, "mapper");
     }
 
-    <T> T decode(ImFrame frame, Class<T> type) {
+    public <T> T decode(ImFrame frame, Class<T> type) {
         try {
             return mapper.readValue(frame.body(), type);
         } catch (RuntimeException error) {
@@ -38,9 +35,9 @@ final class ImCodec {
         }
     }
 
-    ImFrame resp(byte cmd, int sequenceId, Object body) {
+    public ImFrame resp(byte cmd, int sequenceId, Object body) {
         return new ImFrame(
-                ImFrames.MAGIC,
+                ImFrame.MAGIC,
                 VERSION,
                 SERIALIZE_TYPE_JSON,
                 cmd,
@@ -49,12 +46,12 @@ final class ImCodec {
                 write(body));
     }
 
-    ImFrame notify(byte cmd, Object body) {
+    public ImFrame notify(byte cmd, Object body) {
         return new ImFrame(
-                ImFrames.MAGIC, VERSION, SERIALIZE_TYPE_JSON, cmd, MSG_TYPE_NOTIFY, 0, write(body));
+                ImFrame.MAGIC, VERSION, SERIALIZE_TYPE_JSON, cmd, MSG_TYPE_NOTIFY, 0, write(body));
     }
 
-    ImFrame error(int sequenceId, int code, String message) {
+    public ImFrame error(int sequenceId, int code, String message) {
         return resp(Cmd.ERROR, sequenceId, new ErrorResp(code, message));
     }
 

@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import cn.byteforce.seedj.starter.im.protocol.Cmd;
 import cn.byteforce.seedj.starter.im.protocol.ImFrame;
-import cn.byteforce.seedj.starter.im.protocol.ImFrames;
+import cn.byteforce.seedj.starter.im.transport.ImFrames;
 import cn.byteforce.seedj.starter.im.protocol.body.ChatSendReq;
 import cn.byteforce.seedj.starter.im.protocol.body.ChatSendResp;
 import cn.byteforce.seedj.starter.im.protocol.body.ErrorResp;

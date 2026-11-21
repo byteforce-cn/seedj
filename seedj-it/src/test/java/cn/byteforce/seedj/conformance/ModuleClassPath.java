@@ -29,6 +29,7 @@ final class ModuleClassPath {
                     "seedj-ai-contract",
                     "seedj-im-contract",
                     "seedj-iam-contract",
+                    "seedj-im-protocol",
                     "seedj-infra-coord",
                     "seedj-infra-local",
                     "seedj-workflow-local",

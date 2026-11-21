@@ -1,6 +1,6 @@
 package cn.byteforce.seedj.starter.im;
 
-import cn.byteforce.seedj.starter.im.protocol.ImFrames;
+import cn.byteforce.seedj.starter.im.transport.ImFrames;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;

@@ -1,5 +1,6 @@
 package cn.byteforce.seedj.starter.im;
 
+import cn.byteforce.seedj.starter.im.protocol.ImCodec;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import cn.byteforce.seedj.cqrs.spi.TransactionRunner;

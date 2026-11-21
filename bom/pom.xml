@@ -158,6 +158,12 @@
 
             <dependency>
                 <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>seedj-im-protocol</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
                 <artifactId>seedj-im-starter</artifactId>
                 <version>${revision}</version>
             </dependency>

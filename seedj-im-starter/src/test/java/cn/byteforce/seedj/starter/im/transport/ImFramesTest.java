@@ -1,5 +1,7 @@
-package cn.byteforce.seedj.starter.im.protocol;
+package cn.byteforce.seedj.starter.im.transport;
 
+import cn.byteforce.seedj.starter.im.protocol.Cmd;
+import cn.byteforce.seedj.starter.im.protocol.ImFrame;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
