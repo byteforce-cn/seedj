@@ -1,6 +1,7 @@
 package cn.byteforce.seedj.infra.jdbc.im;
 
 import cn.byteforce.seedj.core.Migration;
+import cn.byteforce.seedj.infra.jdbc.MigrationSet;
 import java.util.List;
 
 /**
@@ -14,6 +15,15 @@ import java.util.List;
 public final class ImMigrations {
 
     private ImMigrations() {}
+
+    /**
+     * 迁移声明。
+     *
+     * @return 能力名、scope、顺序与迁移列表
+     */
+    static MigrationSet migrationSet() {
+        return new MigrationSet("postgres-im", "im", 220, all());
+    }
 
     /**
      * 全部迁移。

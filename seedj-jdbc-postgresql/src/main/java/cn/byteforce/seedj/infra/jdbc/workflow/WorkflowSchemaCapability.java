@@ -1,22 +1,17 @@
 package cn.byteforce.seedj.infra.jdbc.workflow;
 
-import cn.byteforce.seedj.core.InfrastructureCapability;
-import cn.byteforce.seedj.core.Migration;
 import cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner;
-import java.util.List;
+import cn.byteforce.seedj.infra.jdbc.JdbcSchemaCapability;
 
 /**
- * 工作流表迁移能力：只在显式装配时执行，启动期不按运行期状态生成 DDL。
+ * WorkflowMigrations 的 schema 能力：迁移数据在 {@link WorkflowMigrations}，模板逻辑在 {@link JdbcSchemaCapability}。
+ *
+ * <p>本类只保留公开常量与构造器，供既有装配与测试继续引用。
  *
  * @author ByteForce
  * @since 1.0.0
  */
-public final class WorkflowSchemaCapability implements InfrastructureCapability {
-
-    private final JdbcMigrationRunner runner;
-
-    private final List<Migration> migrations =
-            List.of(new Migration(1, "create workflow tables", WorkflowMigrations.v1()));
+public final class WorkflowSchemaCapability extends JdbcSchemaCapability {
 
     /**
      * 构造能力。
@@ -24,31 +19,6 @@ public final class WorkflowSchemaCapability implements InfrastructureCapability 
      * @param runner 迁移执行器
      */
     public WorkflowSchemaCapability(JdbcMigrationRunner runner) {
-        this.runner = runner;
-    }
-
-    @Override
-    public String getName() {
-        return WorkflowMigrations.SCOPE;
-    }
-
-    @Override
-    public boolean isReady() {
-        return runner.isUpToDate(getName(), migrations);
-    }
-
-    @Override
-    public void initialize() {
-        runner.migrate(getName(), migrations);
-    }
-
-    @Override
-    public void validate() {
-        runner.validate(getName(), migrations);
-    }
-
-    @Override
-    public int getOrder() {
-        return 210;
+        super(WorkflowMigrations.migrationSet(), runner);
     }
 }

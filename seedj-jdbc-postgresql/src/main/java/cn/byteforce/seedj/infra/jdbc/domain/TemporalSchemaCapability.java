@@ -1,57 +1,30 @@
 package cn.byteforce.seedj.infra.jdbc.domain;
 
-import cn.byteforce.seedj.core.InfrastructureCapability;
-import cn.byteforce.seedj.core.Migration;
 import cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner;
-import java.util.List;
+import cn.byteforce.seedj.infra.jdbc.JdbcSchemaCapability;
 
 /**
- * 保证双时间轴共享对象（扩展、域类型、时点函数）一定存在。
+ * TemporalMigrations 的 schema 能力：迁移数据在 {@link TemporalMigrations}，模板逻辑在 {@link JdbcSchemaCapability}。
+ *
+ * <p>本类只保留公开常量与构造器，供既有装配与测试继续引用。
  *
  * @author ByteForce
  * @since 1.0.0
  */
-public class TemporalSchemaCapability implements InfrastructureCapability {
+public class TemporalSchemaCapability extends JdbcSchemaCapability {
 
+    /** 能力名称。 */
     public static final String NAME = "postgres-temporal";
 
+    /** 迁移 scope。 */
     public static final String MIGRATION_SCOPE = "temporal";
 
-    private final JdbcMigrationRunner runner;
-
-    private final List<Migration> migrations;
-
+    /**
+     * 构造能力。
+     *
+     * @param runner 迁移执行器
+     */
     public TemporalSchemaCapability(JdbcMigrationRunner runner) {
-        this(runner, TemporalMigrations.all());
-    }
-
-    TemporalSchemaCapability(JdbcMigrationRunner runner, List<Migration> migrations) {
-        this.runner = runner;
-        this.migrations = List.copyOf(migrations);
-    }
-
-    @Override
-    public String getName() {
-        return NAME;
-    }
-
-    @Override
-    public boolean isReady() {
-        return runner.isUpToDate(MIGRATION_SCOPE, migrations);
-    }
-
-    @Override
-    public void initialize() {
-        runner.migrate(MIGRATION_SCOPE, migrations);
-    }
-
-    @Override
-    public void validate() {
-        runner.validate(MIGRATION_SCOPE, migrations);
-    }
-
-    @Override
-    public int getOrder() {
-        return 120;
+        super(TemporalMigrations.migrationSet(), runner);
     }
 }

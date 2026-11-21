@@ -2,12 +2,22 @@ package cn.byteforce.seedj.infra.jdbc.audit;
 
 import cn.byteforce.seedj.audit.CanonicalHasher;
 import cn.byteforce.seedj.core.Migration;
+import cn.byteforce.seedj.infra.jdbc.MigrationSet;
 import java.util.List;
 
 /** 审计链的版本化迁移。 */
 final class AuditMigrations {
 
     private AuditMigrations() {}
+
+    /**
+     * 迁移声明。
+     *
+     * @return 能力名、scope、顺序与迁移列表
+     */
+    static MigrationSet migrationSet() {
+        return new MigrationSet("postgres-audit", "audit", 110, all());
+    }
 
     static List<Migration> all() {
         return List.of(

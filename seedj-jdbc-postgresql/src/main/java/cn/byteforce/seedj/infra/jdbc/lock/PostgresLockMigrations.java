@@ -1,6 +1,7 @@
 package cn.byteforce.seedj.infra.jdbc.lock;
 
 import cn.byteforce.seedj.core.Migration;
+import cn.byteforce.seedj.infra.jdbc.MigrationSet;
 import java.util.List;
 
 /**
@@ -12,6 +13,15 @@ import java.util.List;
 public final class PostgresLockMigrations {
 
     private PostgresLockMigrations() {}
+
+    /**
+     * 迁移声明。
+     *
+     * @return 能力名、scope、顺序与迁移列表
+     */
+    static MigrationSet migrationSet() {
+        return new MigrationSet("lock", "lock", 150, all());
+    }
 
     /**
      * 全部迁移。
