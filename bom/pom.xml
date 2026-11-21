@@ -55,6 +55,72 @@
 
             <dependency>
                 <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>seedj-workflow-contract</artifactId>
+                <version>${revision}</version>
+                <type>test-jar</type>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>seedj-transit-contract</artifactId>
+                <version>${revision}</version>
+                <type>test-jar</type>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>seedj-ai-contract</artifactId>
+                <version>${revision}</version>
+                <type>test-jar</type>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>seedj-im-contract</artifactId>
+                <version>${revision}</version>
+                <type>test-jar</type>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>seedj-iam-contract</artifactId>
+                <version>${revision}</version>
+                <type>test-jar</type>
+            </dependency>
+
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>seedj-workflow-contract</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>seedj-transit-contract</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>seedj-ai-contract</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>seedj-im-contract</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>seedj-iam-contract</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
                 <artifactId>seedj-infra-local</artifactId>
                 <version>${revision}</version>
             </dependency>

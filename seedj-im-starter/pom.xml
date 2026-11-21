@@ -22,6 +22,10 @@
         </dependency>
         <dependency>
             <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>seedj-im-contract</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cn.byteforce.seedj</groupId>
             <artifactId>seedj-biz-starter</artifactId>
         </dependency>
         <!-- IM 存储装配仍未归位到适配器（F1 剩余项），显式声明而不是吃 biz-starter 的传递依赖。 -->

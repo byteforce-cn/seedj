@@ -152,7 +152,12 @@ assertThat(harness.object("employee", receipt.locator()).fields())
 
 | 模块 | 作用 |
 |---|---|
-| `core` | 契约：错误码、时间轴、命令、IAM、工作流、SPI、`@SeedjObject` |
+| `core` | 内核契约：错误码、时间轴、命令、读模型、安全、SPI、`@SeedjObject` |
+| `seedj-workflow-contract` | 工作流契约：定义、实例、任务与动作（零外部依赖） |
+| `seedj-transit-contract` | 传输/加密契约：密钥、签名、HMAC、批量加解密 |
+| `seedj-ai-contract` | AI 契约：命令指纹、动作分类、策略与账本值类型 |
+| `seedj-im-contract` | IM 契约：会话、成员、消息与存储端口 |
+| `seedj-iam-contract` | IAM 契约：用户/组/角色/策略、SCIM 模型与授权值类型 |
 | `seedj-codegen` | 构建期注解处理器：schema / OpenAPI / 迁移候选 / 读视图（不进运行时） |
 | `seedj-infra-local` | 内存、文件、BouncyCastle 适配器 |
 | `seedj-infra-coord` | 分布式协调适配器：ID、编号、锁、EventBus、PKI、KV |
@@ -165,7 +170,8 @@ assertThat(harness.object("employee", receipt.locator()).fields())
 | `seedj-server/{hr,iam,im,ai}` | 可运行宿主（生产可用性见[已知限制](docs/guide/known-limitations.md)） |
 | `seedj-it` | 契约对照、并发与端到端测试 |
 
-依赖方向：`server → starter → infra/jdbc → core`；能力之间是 `ai-starter → im-starter → biz-starter`（只允许单向）。
+依赖方向：`server → starter → infra/jdbc → *-contract → core`；能力之间是
+`ai-starter → im-starter → biz-starter`（只允许单向）。契约模块之间不互相依赖。
 
 ## 文档
 

@@ -28,6 +28,18 @@
         </dependency>
         <dependency>
             <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>seedj-workflow-contract</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>seedj-ai-contract</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>seedj-im-contract</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cn.byteforce.seedj</groupId>
             <artifactId>seedj-biz-starter</artifactId>
         </dependency>
         <dependency>

@@ -1,4 +1,4 @@
-package cn.byteforce.seedj;
+package cn.byteforce.seedj.conformance;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -336,10 +336,7 @@ class SpiSurfaceTest {
                 "cn.byteforce.seedj.ai.spi"
             })
     void packageExposesOnlyWhitelistedPublicTypes(String packageName) throws Exception {
-        Class<?> marker = markerOf(packageName);
-        Path dir =
-                Path.of(marker.getProtectionDomain().getCodeSource().getLocation().toURI())
-                        .resolve(packageName.replace('.', '/'));
+        Path dir = packageDirectory(packageName);
 
         List<String> publicTypes;
         try (Stream<Path> files = Files.list(dir)) {
@@ -356,6 +353,25 @@ class SpiSurfaceTest {
         assertThat(publicTypes)
                 .as("public surface of %s", packageName)
                 .containsExactlyInAnyOrderElementsOf(allowedTypes(packageName));
+    }
+
+    private static Path packageDirectory(String packageName) {
+        String relative = packageName.replace('.', '/');
+        for (String module : ModuleClassPath.MODULES) {
+            Path candidate = ModuleClassPath.classesDir(module).resolve(relative);
+            if (Files.isDirectory(candidate) && hasClasses(candidate)) {
+                return candidate;
+            }
+        }
+        throw new IllegalStateException("package not found in any module: " + packageName);
+    }
+
+    private static boolean hasClasses(Path directory) {
+        try (Stream<Path> files = Files.list(directory)) {
+            return files.anyMatch(path -> path.toString().endsWith(".class"));
+        } catch (java.io.IOException error) {
+            throw new java.io.UncheckedIOException(error);
+        }
     }
 
     private static Class<?> markerOf(String packageName) {

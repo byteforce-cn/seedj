@@ -38,7 +38,7 @@ class ArchitectureTest {
     void aiContractsAreFrameworkFree() {
         assertNoDependencies(
                 "ai-contracts-framework-free",
-                ModuleClassPath.classesOf("core"),
+                ModuleClassPath.classesOf("seedj-ai-contract"),
                 clazz -> clazz.getPackageName().startsWith("cn.byteforce.seedj.ai"),
                 dependency ->
                         dependency.getPackageName().startsWith("org.springframework")

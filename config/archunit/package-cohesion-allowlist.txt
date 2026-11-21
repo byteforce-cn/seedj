@@ -1,12 +1,11 @@
 # 单包 >25 个主源码文件的已知违规。只减不增。
 # 格式：相对仓库根的目录
-# F6 把能力契约搬出 core 后，workflow/transit/ai/iam 四个条目应消失；
-# F7 拆分 IM starter 根包与 protocol/body 后，对应两条应消失。
-core/src/main/java/cn/byteforce/seedj/ai
+# F6 把能力契约搬出 core 后，条目随包一起移到 -contract 模块；
+# 后续按关注点拆分后逐条删除。
 core/src/main/java/cn/byteforce/seedj/cqrs
 core/src/main/java/cn/byteforce/seedj/domain
-core/src/main/java/cn/byteforce/seedj/iam
-core/src/main/java/cn/byteforce/seedj/transit
-core/src/main/java/cn/byteforce/seedj/workflow/spi
+seedj-workflow-contract/src/main/java/cn/byteforce/seedj/workflow/spi
+seedj-transit-contract/src/main/java/cn/byteforce/seedj/transit
+seedj-ai-contract/src/main/java/cn/byteforce/seedj/ai
 seedj-im-starter/src/main/java/cn/byteforce/seedj/starter/im
 seedj-im-starter/src/main/java/cn/byteforce/seedj/starter/im/protocol/body

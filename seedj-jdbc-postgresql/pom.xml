@@ -23,7 +23,40 @@
     <dependencies>
         <dependency>
             <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>seedj-ai-contract</artifactId>
+            <version>${revision}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>seedj-im-contract</artifactId>
+            <version>${revision}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>seedj-iam-contract</artifactId>
+            <version>${revision}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>cn.byteforce.seedj</groupId>
             <artifactId>core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>seedj-ai-contract</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>seedj-im-contract</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>seedj-iam-contract</artifactId>
         </dependency>
         <dependency>
             <groupId>cn.byteforce.seedj</groupId>
