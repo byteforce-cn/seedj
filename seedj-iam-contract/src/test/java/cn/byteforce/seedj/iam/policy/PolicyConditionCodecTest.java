@@ -1,4 +1,4 @@
-package cn.byteforce.seedj.infra.jdbc.iam;
+package cn.byteforce.seedj.iam.policy;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

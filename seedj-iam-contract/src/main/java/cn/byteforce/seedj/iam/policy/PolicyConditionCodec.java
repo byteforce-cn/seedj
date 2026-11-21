@@ -1,4 +1,4 @@
-package cn.byteforce.seedj.infra.jdbc.iam;
+package cn.byteforce.seedj.iam.policy;
 
 import cn.byteforce.seedj.iam.PolicyComparisonOperator;
 import cn.byteforce.seedj.iam.PolicyCondition;

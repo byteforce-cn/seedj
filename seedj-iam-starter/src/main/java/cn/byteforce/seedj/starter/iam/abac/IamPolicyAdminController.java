@@ -7,7 +7,7 @@ import cn.byteforce.seedj.iam.IamPolicyEffect;
 import cn.byteforce.seedj.iam.PolicyCondition;
 import cn.byteforce.seedj.iam.spi.IamPolicyRepository;
 import cn.byteforce.seedj.id.IdGenerator;
-import cn.byteforce.seedj.infra.jdbc.iam.PolicyConditionCodec;
+import cn.byteforce.seedj.iam.policy.PolicyConditionCodec;
 import cn.byteforce.seedj.starter.iam.IamProperties;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;

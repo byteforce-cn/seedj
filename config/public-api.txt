@@ -383,6 +383,7 @@ seedj-iam-contract|cn.byteforce.seedj.iam.authz|SodRule
 seedj-iam-contract|cn.byteforce.seedj.iam.authz|SodRuleSet
 seedj-iam-contract|cn.byteforce.seedj.iam.authz|SodScope
 seedj-iam-contract|cn.byteforce.seedj.iam.policy|DefaultIamPolicyDecisionPoint
+seedj-iam-contract|cn.byteforce.seedj.iam.policy|PolicyConditionCodec
 seedj-iam-contract|cn.byteforce.seedj.iam.scim|ScimFilterParser
 seedj-iam-contract|cn.byteforce.seedj.iam.scim|ScimPatchOperation
 seedj-iam-contract|cn.byteforce.seedj.iam.scim|ScimPatchParser
@@ -651,7 +652,6 @@ seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.iam|JdbcIamTotpRepository
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.iam|JdbcIamUserRepository
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.iam|OAuth2Migrations
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.iam|OAuth2SchemaCapability
-seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.iam|PolicyConditionCodec
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.im|ImMigrations
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.im|ImSchemaCapability
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.im|JdbcImCardActionStore
