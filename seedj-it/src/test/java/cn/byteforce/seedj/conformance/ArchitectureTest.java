@@ -87,6 +87,44 @@ class ArchitectureTest {
     }
 
     @Test
+    @DisplayName("starter 不依赖具体适配器（换存储的 seam 必须真实存在）")
+    void startersDoNotDependOnAdapters() {
+        Set<String> allowed = ModuleClassPath.readLines(ALLOWLIST);
+        Set<String> violations = new java.util.TreeSet<>();
+        for (String module :
+                List.of(
+                        "seedj-biz-starter",
+                        "seedj-iam-starter",
+                        "seedj-im-starter",
+                        "seedj-ai-starter")) {
+            List<JavaClass> origins =
+                    ModuleClassPath.classesOf(module).stream()
+                            .filter(
+                                    clazz ->
+                                            clazz.getPackageName()
+                                                    .startsWith("cn.byteforce.seedj.starter"))
+                            .toList();
+            violations.addAll(
+                    violations(
+                            origins,
+                            dependency ->
+                                    dependency
+                                            .getPackageName()
+                                            .startsWith("cn.byteforce.seedj.infra")));
+        }
+        violations.removeIf(
+                violation ->
+                        allowed.contains(
+                                "starter-does-not-depend-on-adapters|" + violation));
+        assertThat(violations)
+                .as(
+                        "规则 starter-does-not-depend-on-adapters 存在未登记违规；修掉依赖，或在 %s 记录 "
+                                + "`starter-does-not-depend-on-adapters|<origin> -> <target>`",
+                        ALLOWLIST)
+                .isEmpty();
+    }
+
+    @Test
     @DisplayName("本地内存实现不依赖 JDBC 实现")
     void infraLocalDoesNotDependOnJdbc() {
         assertNoDependencies(
@@ -135,12 +173,7 @@ class ArchitectureTest {
                 continue;
             }
             matched++;
-            for (Dependency dependency : clazz.getDirectDependenciesFromSelf()) {
-                JavaClass target = dependency.getTargetClass();
-                if (!forbiddenTarget.test(target)) {
-                    continue;
-                }
-                String violation = clazz.getName() + " -> " + target.getName();
+            for (String violation : violations(clazz, forbiddenTarget)) {
                 if (!allowed.contains(rule + "|" + violation)) {
                     violations.add(violation);
                 }
@@ -153,5 +186,27 @@ class ArchitectureTest {
                         "规则 %s 存在未登记违规；修掉依赖，或在 %s 记录 " + "`%s|<origin> -> <target>`",
                         rule, ALLOWLIST, rule)
                 .isEmpty();
+    }
+
+    /** 返回一组类里命中的违规，格式 {@code origin -> target}。 */
+    private static Set<String> violations(
+            List<JavaClass> classes, Predicate<JavaClass> forbiddenTarget) {
+        Set<String> violations = new java.util.TreeSet<>();
+        for (JavaClass clazz : classes) {
+            violations.addAll(violations(clazz, forbiddenTarget));
+        }
+        return violations;
+    }
+
+    private static Set<String> violations(
+            JavaClass clazz, Predicate<JavaClass> forbiddenTarget) {
+        Set<String> violations = new java.util.TreeSet<>();
+        for (Dependency dependency : clazz.getDirectDependenciesFromSelf()) {
+            JavaClass target = dependency.getTargetClass();
+            if (forbiddenTarget.test(target)) {
+                violations.add(clazz.getName() + " -> " + target.getName());
+            }
+        }
+        return violations;
     }
 }

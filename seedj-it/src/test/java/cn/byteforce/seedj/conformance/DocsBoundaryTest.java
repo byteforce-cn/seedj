@@ -78,6 +78,68 @@ class DocsBoundaryTest {
     }
 
     @Test
+    @DisplayName("README 模块表覆盖根 POM 的全部制品")
+    void readmeListsEveryModule() throws IOException {
+        List<String> artifacts = moduleArtifacts(ROOT.resolve("pom.xml"));
+        assertThat(artifacts).as("根 POM 应至少列出 core").contains("core");
+        String readme = Files.readString(ROOT.resolve("README.md"));
+        List<String> missing =
+                artifacts.stream()
+                        .filter(artifact -> !documented(readme, artifact))
+                        .toList();
+        assertThat(missing)
+                .as("README 模块表未覆盖这些制品（模块增删时同步文档）")
+                .isEmpty();
+    }
+
+    /** README 可直接写制品名，也可以用 {@code seedj-server/{hr,iam}} 这种宿主列表。 */
+    private static boolean documented(String readme, String artifact) {
+        if (readme.contains("`" + artifact + "`")) {
+            return true;
+        }
+        if (!artifact.startsWith("seedj-server-")) {
+            return false;
+        }
+        String host = artifact.substring("seedj-server-".length());
+        java.util.regex.Matcher list =
+                Pattern.compile("seedj-server/\\{([^}]*)\\}").matcher(readme);
+        while (list.find()) {
+            for (String entry : list.group(1).split(",")) {
+                if (entry.trim().equals(host)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /** 从 POM 的 {@code <modules>} 递归得到全部制品名；聚合 POM（packaging=pom）不是制品。 */
+    private static List<String> moduleArtifacts(Path pom) throws IOException {
+        String text = Files.readString(pom);
+        List<String> artifacts = new ArrayList<>();
+        java.util.regex.Matcher packing =
+                Pattern.compile("<packaging>([^<]+)</packaging>").matcher(text);
+        boolean aggregator = packing.find() && packing.group(1).trim().equals("pom");
+        java.util.regex.Matcher id =
+                Pattern.compile("<artifactId>([^<]+)</artifactId>")
+                        .matcher(text.replaceAll("(?s)<parent>.*?</parent>", ""));
+        if (!aggregator && id.find()) {
+            artifacts.add(id.group(1));
+        }
+        java.util.regex.Matcher modules =
+                Pattern.compile("(?s)<modules>(.*?)</modules>").matcher(text);
+        if (modules.find()) {
+            java.util.regex.Matcher module =
+                    Pattern.compile("<module>([^<]+)</module>").matcher(modules.group(1));
+            while (module.find()) {
+                Path child = pom.getParent().resolve(module.group(1)).normalize();
+                artifacts.addAll(moduleArtifacts(child.resolve("pom.xml")));
+            }
+        }
+        return artifacts;
+    }
+
+    @Test
     @DisplayName("规则能抓住植入的违规")
     void rulesCatchPlantedViolations(@TempDir Path tmp) throws IOException {
         Files.createDirectories(tmp.resolve("config"));

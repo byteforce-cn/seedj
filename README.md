@@ -155,14 +155,17 @@ assertThat(harness.object("employee", receipt.locator()).fields())
 | `core` | 契约：错误码、时间轴、命令、IAM、工作流、SPI、`@SeedjObject` |
 | `seedj-codegen` | 构建期注解处理器：schema / OpenAPI / 迁移候选 / 读视图（不进运行时） |
 | `seedj-infra-local` | 内存、文件、BouncyCastle 适配器 |
+| `seedj-infra-coord` | 分布式协调适配器：ID、编号、锁、EventBus、PKI、KV |
 | `seedj-workflow-local` | 工作流 SPI 的本地实现（库模块，不启动 server） |
 | `seedj-jdbc-postgresql` | PostgreSQL 适配器、DDL、版本化迁移、生产事件存储 |
 | `seedj-biz-starter` | 业务装配：认证 / 命令 / 查询 / 审计 / 事件总线 |
-| `seedj-iam-starter` | IAM 装配：OIDC / SCIM / RBAC / ABAC |
-| `seedj-server/{hr,iam,im}` | 可运行宿主 |
+| `seedj-iam-starter` | IAM 装配：OIDC / SCIM / RBAC / ABAC（生产边界见[已知限制](docs/guide/known-limitations.md)） |
+| `seedj-im-starter` | IM 服务端：协议、Netty 传输、会话与消息、推送 |
+| `seedj-ai-starter` | AI 能力：决策面、审批、准入与外部副作用（生产边界见[已知限制](docs/guide/known-limitations.md)） |
+| `seedj-server/{hr,iam,im,ai}` | 可运行宿主（生产可用性见[已知限制](docs/guide/known-limitations.md)） |
 | `seedj-it` | 契约对照、并发与端到端测试 |
 
-依赖方向：`server → starter → infra/jdbc → core`。
+依赖方向：`server → starter → infra/jdbc → core`；能力之间是 `ai-starter → im-starter → biz-starter`（只允许单向）。
 
 ## 文档
 
