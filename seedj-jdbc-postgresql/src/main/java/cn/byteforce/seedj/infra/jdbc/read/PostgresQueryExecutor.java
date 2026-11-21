@@ -19,8 +19,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * PostgreSQL 的自定义查询执行器：SQL 生成与执行都在适配器内。
  *
  * <p>网关只交来已校验的 {@link QueryPlan}；这里把命名参数绑定为位置参数，用 {@link ScopeSql}
- * 编译行范围（与对象表查询共用同一份谓词编译器），再套上排序与分页。范围字段必须出现在查询
- * 投影里，否则拒绝执行。
+ * 编译行范围（与对象表查询共用同一份谓词编译器），再套上排序与分页。范围字段必须出现在查询 投影里，否则拒绝执行。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -49,7 +48,10 @@ public final class PostgresQueryExecutor implements QueryExecutor {
      * @param countArguments 计数参数
      */
     record CompiledQuery(
-            String pageSql, List<Object> pageArguments, String countSql, List<Object> countArguments) {
+            String pageSql,
+            List<Object> pageArguments,
+            String countSql,
+            List<Object> countArguments) {
 
         CompiledQuery {
             Objects.requireNonNull(pageSql, "pageSql");
@@ -68,11 +70,7 @@ public final class PostgresQueryExecutor implements QueryExecutor {
         Long total =
                 jdbc.queryForObject(
                         compiled.countSql(), Long.class, compiled.countArguments().toArray());
-        return new Page<>(
-                rows,
-                total == null ? 0 : total,
-                plan.page().page(),
-                plan.page().size());
+        return new Page<>(rows, total == null ? 0 : total, plan.page().page(), plan.page().size());
     }
 
     /**
@@ -106,8 +104,7 @@ public final class PostgresQueryExecutor implements QueryExecutor {
                 pageSql, pageArguments, "SELECT count(*) FROM " + from, scopeArguments);
     }
 
-    private static String bind(
-            QuerySpec spec, Map<String, Object> values, List<Object> arguments) {
+    private static String bind(QuerySpec spec, Map<String, Object> values, List<Object> arguments) {
         String sql = spec.sql();
         if (sql.contains("?")) {
             throw invalidQuery("custom query must use named parameters, not '?'");

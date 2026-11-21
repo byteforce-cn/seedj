@@ -13,9 +13,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 /**
  * IAM 管理端点的错误映射：与冻结信封一致，固定 {@code {code,message,details}}。
  *
- * <p>{@code code} 是稳定的 {@code IAM-<枚举名>}，{@code details.reason_code} 保留枚举名供
- * 调用方分支。SCIM 与 OAuth2 token 端点例外，分别使用 RFC 7644 与 RFC 6749 的错误形状，见
- * {@code docs/guide/errors.md}。
+ * <p>{@code code} 是稳定的 {@code IAM-<枚举名>}，{@code details.reason_code} 保留枚举名供 调用方分支。SCIM 与 OAuth2
+ * token 端点例外，分别使用 RFC 7644 与 RFC 6749 的错误形状，见 {@code docs/guide/errors.md}。
  *
  * @author ByteForce
  * @since 1.0.0

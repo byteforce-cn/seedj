@@ -53,5 +53,4 @@ public final class CompositeAuthorizationDecisionPoint implements AuthorizationD
         AuthorizationDecision policyDecision = policies.decide(request);
         return policyDecision.allowed() ? contractDecision : policyDecision;
     }
-
 }

@@ -6,11 +6,7 @@
  *
  * @author ByteForce
  * @since 1.0.0
-
- * <p><b>职责</b>：本模块是 {@code im} 能力的跨模块契约，服务实现方与消费方
- * 以它为准，不再依赖 {@code core} 的发布节奏。
- *
- * <p><b>依赖方向</b>：只允许 {@code core} 的值类型与 JDK；不依赖 Spring、JDBC 或任何
- * 实现模块。
+ *     <p><b>职责</b>：本模块是 {@code im} 能力的跨模块契约，服务实现方与消费方 以它为准，不再依赖 {@code core} 的发布节奏。
+ *     <p><b>依赖方向</b>：只允许 {@code core} 的值类型与 JDK；不依赖 Spring、JDBC 或任何 实现模块。
  */
 package cn.byteforce.seedj.im;

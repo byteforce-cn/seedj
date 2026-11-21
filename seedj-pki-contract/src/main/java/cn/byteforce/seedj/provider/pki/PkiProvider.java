@@ -10,14 +10,14 @@ import java.util.Optional;
 /**
  * 基于 Coord PKI + Transit 引擎的 PKI 契约。
  *
- * <p><b>核心约束：</b>私钥默认不出 Coord。需要签名时走 {@link #sign}， 不要试图从 {@link IssuedCertificate} 拿
- * {@code PrivateKey}。
+ * <p><b>核心约束：</b>私钥默认不出 Coord。需要签名时走 {@link #sign}， 不要试图从 {@link IssuedCertificate} 拿 {@code
+ * PrivateKey}。
  *
  * <p><b>状态归属：</b>证书、吊销列表、CRL 全部由 Coord 维护； 本接口不提供本地状态存储。
  *
- * <p><b>alias 映射：</b>Coord 原生没有 alias 概念。 {@link #signingIdentity} 和 {@link
- * #rotateSigningIdentity} 的幂等性 由实现侧在 Coord KV 中维护的映射表保证，不是 Coord 本身的行为。
- * 如果不需要 alias 层，业务方可以直接使用 {@link #issue} / {@link #signCsr}。
+ * <p><b>alias 映射：</b>Coord 原生没有 alias 概念。 {@link #signingIdentity} 和 {@link #rotateSigningIdentity}
+ * 的幂等性 由实现侧在 Coord KV 中维护的映射表保证，不是 Coord 本身的行为。 如果不需要 alias 层，业务方可以直接使用 {@link #issue} / {@link
+ * #signCsr}。
  */
 public interface PkiProvider extends ObservableProvider, AutoCloseable {
 
@@ -34,9 +34,9 @@ public interface PkiProvider extends ObservableProvider, AutoCloseable {
     /**
      * 签发 CSR（对应 {@code POST /pki/sign/:role}）。
      *
-     * <p>调用方自行生成密钥对并构造 CSR。返回的 {@link IssuedCertificate} 不包含私钥——私钥在调用方自己手里，因此
-     * {@code keyMaterial} 是 {@link KeyMaterial.External}。调用方拿到证书后可用 {@link
-     * IssuedCertificate#withPrivateKey} 绑定自己的私钥，再交给 {@link #sslContext}。
+     * <p>调用方自行生成密钥对并构造 CSR。返回的 {@link IssuedCertificate} 不包含私钥——私钥在调用方自己手里，因此 {@code keyMaterial} 是
+     * {@link KeyMaterial.External}。调用方拿到证书后可用 {@link IssuedCertificate#withPrivateKey} 绑定自己的私钥，再交给
+     * {@link #sslContext}。
      */
     IssuedCertificate signCsr(String roleName, byte[] csrDer, CertificateRequest request);
 
@@ -46,8 +46,8 @@ public interface PkiProvider extends ObservableProvider, AutoCloseable {
      * 用 Transit 密钥签名（对应 {@code POST /transit/sign/:name}）。
      *
      * <p>如果调用方传的是 hash 值而非原文，{@code prehashed} 必须为 {@code true}， 并同时指定 {@code
-     * signatureAlgorithm}（例如 {@code pkcs1v15}、{@code pss}、{@code ed25519}）。Transit 的密钥默认
-     * {@code exportable=false}，私钥永不离开 Coord。
+     * signatureAlgorithm}（例如 {@code pkcs1v15}、{@code pss}、{@code ed25519}）。Transit 的密钥默认 {@code
+     * exportable=false}，私钥永不离开 Coord。
      */
     byte[] sign(
             String keyName,
@@ -85,14 +85,12 @@ public interface PkiProvider extends ObservableProvider, AutoCloseable {
 
     // ==================== 4. 证书 / CA 查询 ====================
 
-    /**
-     * 按 serial 读取证书。Coord 不直接提供“证书状态查询”API， 状态由调用方结合 CRL 和过期时间自行推导。
-     */
+    /** 按 serial 读取证书。Coord 不直接提供“证书状态查询”API， 状态由调用方结合 CRL 和过期时间自行推导。 */
     Optional<X509Certificate> readCertificate(BigInteger serialNumber);
 
     /**
-     * 获取指定 issuer 的 CA 证书（对应 {@code GET /pki/issuer/:issuer_ref}）。 {@code issuerRef} 可以是
-     * Coord 生成的 ID、字面量 {@code "default"}， 或 issuer 的 name。
+     * 获取指定 issuer 的 CA 证书（对应 {@code GET /pki/issuer/:issuer_ref}）。 {@code issuerRef} 可以是 Coord 生成的
+     * ID、字面量 {@code "default"}， 或 issuer 的 name。
      */
     X509Certificate issuerCertificate(String issuerRef);
 
@@ -123,8 +121,8 @@ public interface PkiProvider extends ObservableProvider, AutoCloseable {
      * 仅当 {@code identity.keyMaterial()} 是 {@link KeyMaterial.External} 时才可直接构建标准 {@code
      * SSLContext}。
      *
-     * <p>如果私钥在 Coord 内部不可导出（{@link KeyMaterial.CoordManaged}）， 标准 JDK 的 {@code
-     * KeyManager} 无法使用，必须改用 {@link #sslConfig} 并自行实现委托签名的 {@code KeyManager}。
+     * <p>如果私钥在 Coord 内部不可导出（{@link KeyMaterial.CoordManaged}）， 标准 JDK 的 {@code KeyManager}
+     * 无法使用，必须改用 {@link #sslConfig} 并自行实现委托签名的 {@code KeyManager}。
      *
      * <p>{@code identity == null} 表示匿名客户端：只信任本 PKI 的 CA，不出示身份。
      *
@@ -133,9 +131,8 @@ public interface PkiProvider extends ObservableProvider, AutoCloseable {
     javax.net.ssl.SSLContext sslContext(IssuedCertificate identity);
 
     /**
-     * 返回 TLS 配置描述，不直接构建 SSLContext。 私钥不可导出时，调用方根据 {@link
-     * KeyMaterial.CoordManaged#transitKeyName()} 在 {@code KeyManager.engineSign} 中调用 {@link
-     * #sign}。
+     * 返回 TLS 配置描述，不直接构建 SSLContext。 私钥不可导出时，调用方根据 {@link KeyMaterial.CoordManaged#transitKeyName()}
+     * 在 {@code KeyManager.engineSign} 中调用 {@link #sign}。
      */
     SslConfig sslConfig(IssuedCertificate identity, ClientAuth clientAuth);
 
@@ -143,15 +140,11 @@ public interface PkiProvider extends ObservableProvider, AutoCloseable {
 
     PkiInfo info();
 
-    /**
-     * 健康检查，不得抛出；无法判定返回 {@link HealthStatus#unknown(String)}。
-     */
+    /** 健康检查，不得抛出；无法判定返回 {@link HealthStatus#unknown(String)}。 */
     @Override
     HealthStatus health();
 
-    /**
-     * 幂等且不抛。close 后调用其他方法应抛 {@link PkiClosedException}。
-     */
+    /** 幂等且不抛。close 后调用其他方法应抛 {@link PkiClosedException}。 */
     @Override
     void close();
 }

@@ -8,10 +8,10 @@ import cn.byteforce.seedj.iam.PolicyComparisonOperator;
 import cn.byteforce.seedj.iam.PolicyCondition;
 import cn.byteforce.seedj.iam.PolicyOperand;
 import cn.byteforce.seedj.iam.spi.IamPolicyRepository;
+import cn.byteforce.seedj.iam.spi.IamResourceAttributeResolver;
 import cn.byteforce.seedj.security.AuthorizationDecision;
 import cn.byteforce.seedj.security.AuthorizationRequest;
 import cn.byteforce.seedj.security.AuthorizationSubject;
-import cn.byteforce.seedj.iam.spi.IamResourceAttributeResolver;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -22,8 +22,7 @@ import org.junit.jupiter.api.Test;
 
 class DefaultIamPolicyDecisionPointTest {
 
-    private static final java.time.Instant AS_OF =
-            java.time.Instant.parse("2026-11-21T00:00:00Z");
+    private static final java.time.Instant AS_OF = java.time.Instant.parse("2026-11-21T00:00:00Z");
 
     private final InMemoryPolicyRepository repository = new InMemoryPolicyRepository();
     private final DefaultIamPolicyDecisionPoint pdp =
@@ -144,8 +143,7 @@ class DefaultIamPolicyDecisionPointTest {
     }
 
     private AuthorizationRequest request(String type, String id) {
-        return new AuthorizationRequest(
-                subject, "order:read", type, id, Map.of(), AS_OF, Map.of());
+        return new AuthorizationRequest(subject, "order:read", type, id, Map.of(), AS_OF, Map.of());
     }
 
     private static final class OwnerResolver implements IamResourceAttributeResolver {

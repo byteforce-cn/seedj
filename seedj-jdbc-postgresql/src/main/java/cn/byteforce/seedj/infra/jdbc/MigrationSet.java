@@ -7,8 +7,8 @@ import java.util.Objects;
 /**
  * 一个能力的 schema 迁移声明：能力名、迁移 scope、执行顺序与迁移列表。
  *
- * <p>迁移是数据，不是类：新增能力只需要声明一份 {@code MigrationSet}，由 {@link
- * JdbcSchemaCapability} 统一接入启动期能力链。已应用的迁移不得修改，只追加新版本。
+ * <p>迁移是数据，不是类：新增能力只需要声明一份 {@code MigrationSet}，由 {@link JdbcSchemaCapability}
+ * 统一接入启动期能力链。已应用的迁移不得修改，只追加新版本。
  *
  * @param name 能力名（{@code InfrastructureCapability#getName()}）
  * @param scope 迁移 scope（{@code seedj_schema_history} 的分组键）

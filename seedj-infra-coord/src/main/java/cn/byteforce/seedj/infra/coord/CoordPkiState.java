@@ -6,12 +6,11 @@ import java.util.Optional;
 /**
  * PKI alias 账本：{@code CN -> 当前 serial}。
  *
- * <p>键是<b>带实例前缀的 CN</b>（{@code <prefix>:<alias>}），不是裸 alias：CN 全局唯一，裸 alias 会让同一
- * agent 上的不同部署共用一条记录。
+ * <p>键是<b>带实例前缀的 CN</b>（{@code <prefix>:<alias>}），不是裸 alias：CN 全局唯一，裸 alias 会让同一 agent
+ * 上的不同部署共用一条记录。
  *
- * <p>coord 0.4.4 起吊销/状态/CRL 都是 CA 侧的权威事实，这里只保留契约承诺的「alias → 身份」稳定映射。
- * 写走事务读集校验（{@link CoordKvStore#replaceIf} / {@link CoordKvStore#putIfAbsent}），多实例下移动
- * alias 不会互相覆盖。
+ * <p>coord 0.4.4 起吊销/状态/CRL 都是 CA 侧的权威事实，这里只保留契约承诺的「alias → 身份」稳定映射。 写走事务读集校验（{@link
+ * CoordKvStore#replaceIf} / {@link CoordKvStore#putIfAbsent}），多实例下移动 alias 不会互相覆盖。
  *
  * <p>记录不是领域事件，字段随模块版本走（见 {@link CoordJson}）。
  */
@@ -60,8 +59,7 @@ final class CoordPkiState {
         // CAS 冲突在并发/滞后时是常态，不是异常：重新读当前值再试。目标状态已达成也算成功。
         for (int attempt = 0; attempt < CAS_ATTEMPTS; attempt++) {
             Optional<AliasRecord> current = readAlias(alias);
-            if (current.isPresent()
-                    && current.get().currentSerial().equals(next.currentSerial())) {
+            if (current.isPresent() && current.get().currentSerial().equals(next.currentSerial())) {
                 return true;
             }
             if (expectedSerial != null
@@ -95,9 +93,9 @@ final class CoordPkiState {
     /**
      * 重试 agent 的时序失败。
      *
-     * <p>coord 的 KV 读建在 {@code safe_ts} 上：刚提交的写要等 apply 追上才可读，期间 {@code TxnClient.begin()}
-     * 直接抛 {@code read_ts exceeds safe_ts}（消息里就是 {@code retry later}）。账本的所有读写都是幂等的
-     * （CAS / putIfAbsent），重试不会改变语义。
+     * <p>coord 的 KV 读建在 {@code safe_ts} 上：刚提交的写要等 apply 追上才可读，期间 {@code TxnClient.begin()} 直接抛
+     * {@code read_ts exceeds safe_ts}（消息里就是 {@code retry later}）。账本的所有读写都是幂等的 （CAS /
+     * putIfAbsent），重试不会改变语义。
      */
     private <T> Retried<T> retry(java.util.function.Supplier<T> body) {
         CoordException last = null;

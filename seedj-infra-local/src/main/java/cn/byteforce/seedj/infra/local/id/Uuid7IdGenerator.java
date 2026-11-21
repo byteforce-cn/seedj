@@ -5,8 +5,7 @@ import cn.byteforce.seedj.core.clock.Clock;
 /**
  * 兼容入口：UUIDv7 实现已上移到 {@link cn.byteforce.seedj.id.Uuid7IdGenerator}。
  *
- * <p>契约层的命令/事件标识生成器不应依赖适配器模块，因此实现放在 {@code core}；本类保留给
- * 既有装配与测试引用。
+ * <p>契约层的命令/事件标识生成器不应依赖适配器模块，因此实现放在 {@code core}；本类保留给 既有装配与测试引用。
  *
  * @author ByteForce
  * @since 1.0.0

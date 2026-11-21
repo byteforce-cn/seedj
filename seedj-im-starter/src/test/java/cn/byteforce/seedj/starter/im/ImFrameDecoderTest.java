@@ -1,6 +1,5 @@
 package cn.byteforce.seedj.starter.im;
 
-import cn.byteforce.seedj.starter.im.transport.ImFrames;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 

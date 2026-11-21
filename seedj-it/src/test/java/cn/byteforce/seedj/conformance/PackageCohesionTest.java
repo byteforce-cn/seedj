@@ -17,9 +17,8 @@ import org.junit.jupiter.api.Test;
 /**
  * 包内聚门禁：单个包的主源码文件数不得超过 25。
  *
- * <p>文件大小门禁只能约束“一个类写太多”，抓不住“一个包什么都有”。包内聚规则把 F8 的
- * 单包堆积（IM starter 根包、coord 单包、协议体目录）变成可执行断言；拆分或登记到 {@code
- * config/archunit/package-cohesion-allowlist.txt}，每行一个相对仓库根的目录。
+ * <p>文件大小门禁只能约束“一个类写太多”，抓不住“一个包什么都有”。包内聚规则把 F8 的 单包堆积（IM starter 根包、coord 单包、协议体目录）变成可执行断言；拆分或登记到
+ * {@code config/archunit/package-cohesion-allowlist.txt}，每行一个相对仓库根的目录。
  */
 class PackageCohesionTest {
 
@@ -43,8 +42,7 @@ class PackageCohesionTest {
                 for (Path directory : directories.filter(Files::isDirectory).toList()) {
                     long files;
                     try (Stream<Path> children = Files.list(directory)) {
-                        files =
-                                children.filter(path -> path.toString().endsWith(".java")).count();
+                        files = children.filter(path -> path.toString().endsWith(".java")).count();
                     }
                     if (files <= MAX_FILES) {
                         continue;

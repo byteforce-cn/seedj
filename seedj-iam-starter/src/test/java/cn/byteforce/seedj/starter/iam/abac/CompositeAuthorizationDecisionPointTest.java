@@ -105,8 +105,7 @@ class CompositeAuthorizationDecisionPointTest {
     void fieldReadWithClassificationGoesToPolicyEngine() {
         IamPolicyDecisionPoint policies = request -> AuthorizationDecision.allow("abac-field");
         CompositeAuthorizationDecisionPoint composite =
-                new CompositeAuthorizationDecisionPoint(
-                        contract::decide, policies);
+                new CompositeAuthorizationDecisionPoint(contract::decide, policies);
 
         AuthorizationDecision decision =
                 composite.decide(
@@ -172,8 +171,7 @@ class CompositeAuthorizationDecisionPointTest {
     @DisplayName("未启用 ABAC 时仍执行契约检查（SoD 不放行）")
     void withoutPolicyEngineFallsBackToContract() {
         CompositeAuthorizationDecisionPoint composite =
-                new CompositeAuthorizationDecisionPoint(
-                        contract::decide, null);
+                new CompositeAuthorizationDecisionPoint(contract::decide, null);
 
         AuthorizationDecision decision =
                 composite.decide(request("purchase.request.create", Map.of()));

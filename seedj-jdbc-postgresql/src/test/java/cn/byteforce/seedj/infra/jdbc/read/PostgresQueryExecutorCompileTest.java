@@ -48,8 +48,12 @@ class PostgresQueryExecutorCompileTest {
 
         assertThat(query.pageSql()).contains("seedj_q.\"org_unit_id\" IN (?, ?)");
         assertThat(query.pageArguments()).containsExactly("E-1", "D01", "D02", 20, 0L);
-        assertThat(query.countSql()).isEqualTo("SELECT count(*) FROM (" + inner() + ") seedj_q"
-                + " WHERE seedj_q.\"org_unit_id\" IN (?, ?)");
+        assertThat(query.countSql())
+                .isEqualTo(
+                        "SELECT count(*) FROM ("
+                                + inner()
+                                + ") seedj_q"
+                                + " WHERE seedj_q.\"org_unit_id\" IN (?, ?)");
         assertThat(query.countArguments()).containsExactly("E-1", "D01", "D02");
     }
 
@@ -119,12 +123,7 @@ class PostgresQueryExecutorCompileTest {
                         List.of("employee_no"),
                         "employee_no");
 
-        assertThatThrownBy(
-                        () ->
-                                compile(
-                                        ScopePredicate.eq("org_unit_id", "D01"),
-                                        narrow,
-                                        Map.of()))
+        assertThatThrownBy(() -> compile(ScopePredicate.eq("org_unit_id", "D01"), narrow, Map.of()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("row scope uses field org_unit_id");
     }
@@ -184,8 +183,8 @@ class PostgresQueryExecutorCompileTest {
 
     private static PostgresQueryExecutor.CompiledQuery compile(
             ScopePredicate scope, QuerySpec spec, Map<String, Object> values) {
-        return compile(scope, spec, values, spec.defaultSort(), SortDirection.ASC,
-                PageRequest.defaults());
+        return compile(
+                scope, spec, values, spec.defaultSort(), SortDirection.ASC, PageRequest.defaults());
     }
 
     private static PostgresQueryExecutor.CompiledQuery compile(

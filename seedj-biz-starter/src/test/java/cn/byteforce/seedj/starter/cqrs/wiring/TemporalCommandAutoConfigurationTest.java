@@ -15,8 +15,8 @@ import cn.byteforce.seedj.domain.ObjectSchema;
 import cn.byteforce.seedj.domain.TemporalStore;
 import cn.byteforce.seedj.infra.jdbc.domain.TemporalTable;
 import cn.byteforce.seedj.infra.jdbc.domain.TemporalTables;
-import cn.byteforce.seedj.infra.local.InMemoryStoreAutoConfiguration;
 import cn.byteforce.seedj.infra.jdbc.store.PostgresStoreAutoConfiguration;
+import cn.byteforce.seedj.infra.local.InMemoryStoreAutoConfiguration;
 import cn.byteforce.seedj.infra.local.cqrs.InMemoryCommandStore;
 import cn.byteforce.seedj.infra.local.domain.InMemoryTemporalStore;
 import cn.byteforce.seedj.lock.LockProvider;
@@ -127,9 +127,10 @@ class TemporalCommandAutoConfigurationTest {
     @DisplayName("缺事务/锁/outbox 默认启动失败，消息指向 degraded-mode")
     void missingDependenciesFailFastByDefault() {
         new ApplicationContextRunner()
-                .withConfiguration(AutoConfigurations.of(
-                                    TemporalCommandAutoConfiguration.class,
-                                    InMemoryStoreAutoConfiguration.class))
+                .withConfiguration(
+                        AutoConfigurations.of(
+                                TemporalCommandAutoConfiguration.class,
+                                InMemoryStoreAutoConfiguration.class))
                 .withBean(BizEnabledMarker.class)
                 .withBean(
                         AuthorizationDecisionPoint.class,
@@ -157,9 +158,10 @@ class TemporalCommandAutoConfigurationTest {
     @DisplayName("缺 AuthorizationDecisionPoint：启动失败，不静默回退")
     void missingDecisionPointFailsStartup() {
         new ApplicationContextRunner()
-                .withConfiguration(AutoConfigurations.of(
-                                    TemporalCommandAutoConfiguration.class,
-                                    InMemoryStoreAutoConfiguration.class))
+                .withConfiguration(
+                        AutoConfigurations.of(
+                                TemporalCommandAutoConfiguration.class,
+                                InMemoryStoreAutoConfiguration.class))
                 .withBean(BizEnabledMarker.class)
                 .withPropertyValues(
                         "spring.profiles.active=local", "seedj.command.degraded-mode=true")
@@ -173,9 +175,10 @@ class TemporalCommandAutoConfigurationTest {
     @DisplayName("require-outbox=false：允许无 outbox，但仍要求锁与事务")
     void requireOutboxFalseAllowsMissingOutbox() {
         new ApplicationContextRunner()
-                .withConfiguration(AutoConfigurations.of(
-                                    TemporalCommandAutoConfiguration.class,
-                                    InMemoryStoreAutoConfiguration.class))
+                .withConfiguration(
+                        AutoConfigurations.of(
+                                TemporalCommandAutoConfiguration.class,
+                                InMemoryStoreAutoConfiguration.class))
                 .withBean(BizEnabledMarker.class)
                 .withBean(TransactionRunner.class, TransactionRunner::direct)
                 .withBean(LockProvider.class, LockProvider::disabled)

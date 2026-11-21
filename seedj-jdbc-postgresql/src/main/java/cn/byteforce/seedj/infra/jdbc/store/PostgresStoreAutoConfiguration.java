@@ -28,18 +28,15 @@ import org.springframework.jdbc.core.JdbcTemplate;
 /**
  * PostgreSQL 的命令/对象存储与迁移：provider 选择归适配器所有。
  *
- * <p>starter 不再在编译期依赖本模块：能力装配只暴露 SPI bean，这里用
- * {@code seedj.command.provider} / {@code seedj.object.provider} 与 {@link JdbcTemplate} 的
- * 存在性竞争。{@code matchIfMissing=true} 保持原有“有 JDBC 就默认 PostgreSQL”的行为；
- * 显式 {@code provider=memory} 时本配置整体退出，由内存适配器接管。
+ * <p>starter 不再在编译期依赖本模块：能力装配只暴露 SPI bean，这里用 {@code seedj.command.provider} / {@code
+ * seedj.object.provider} 与 {@link JdbcTemplate} 的 存在性竞争。{@code matchIfMissing=true} 保持原有“有 JDBC 就默认
+ * PostgreSQL”的行为； 显式 {@code provider=memory} 时本配置整体退出，由内存适配器接管。
  *
  * @author ByteForce
  * @since 1.0.0
  */
 @AutoConfiguration(
-        afterName = {
-            "cn.byteforce.seedj.starter.cqrs.wiring.TemporalCommandAutoConfiguration"
-        },
+        afterName = {"cn.byteforce.seedj.starter.cqrs.wiring.TemporalCommandAutoConfiguration"},
         after = {DataSourceAutoConfiguration.class, JdbcTemplateAutoConfiguration.class})
 @ConditionalOnBean(JdbcTemplate.class)
 public class PostgresStoreAutoConfiguration {
@@ -112,10 +109,7 @@ public class PostgresStoreAutoConfiguration {
             name = "provider",
             havingValue = "postgres",
             matchIfMissing = true)
-    public TemporalStore temporalStore(
-            JdbcTemplate jdbc,
-            Clock clock,
-            TemporalTables tables) {
+    public TemporalStore temporalStore(JdbcTemplate jdbc, Clock clock, TemporalTables tables) {
         return new PostgresTemporalStore(jdbc, clock, tables);
     }
 

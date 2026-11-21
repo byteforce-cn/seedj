@@ -1,6 +1,5 @@
 package cn.byteforce.seedj.starter.im;
 
-import cn.byteforce.seedj.starter.im.transport.ImFrames;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 

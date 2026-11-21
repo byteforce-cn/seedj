@@ -113,8 +113,7 @@ class BcPkiProviderTest {
     @Test
     @DisplayName("客户端证书带 clientAuth EKU 且无 SAN")
     void issueClientHasClientAuthEku() throws Exception {
-        IssuedCertificate issued =
-                pki.issue("client", CertificateRequest.client("CN=im-node-1"));
+        IssuedCertificate issued = pki.issue("client", CertificateRequest.client("CN=im-node-1"));
         X509Certificate cert = issued.certificate();
         cert.verify(pki.issuerCertificate("default").getPublicKey());
         assertThat(cert.getExtendedKeyUsage()).contains("1.3.6.1.5.5.7.3.2");
@@ -242,8 +241,7 @@ class BcPkiProviderTest {
     @Test
     @DisplayName("两个实例共享状态文件时签发/吊销一致")
     void stateSharedBetweenInstances() {
-        BcPkiProvider other =
-                new BcPkiProvider(caP12.toString(), PASSWORD, CA_ALIAS, stateFile);
+        BcPkiProvider other = new BcPkiProvider(caP12.toString(), PASSWORD, CA_ALIAS, stateFile);
 
         IssuedCertificate issued = pki.issue("client", CertificateRequest.client("CN=shared-1"));
         assertThat(other.readCertificate(issued.serialNumber())).isPresent();
@@ -282,8 +280,7 @@ class BcPkiProviderTest {
     void signingIdentitySharedAcrossInstances() {
         IssuedCertificate first = pki.signingIdentity("shared-signer");
 
-        BcPkiProvider other =
-                new BcPkiProvider(caP12.toString(), PASSWORD, CA_ALIAS, stateFile);
+        BcPkiProvider other = new BcPkiProvider(caP12.toString(), PASSWORD, CA_ALIAS, stateFile);
         IssuedCertificate second = other.signingIdentity("shared-signer");
 
         assertThat(second.serialNumber()).isEqualTo(first.serialNumber());
@@ -294,8 +291,7 @@ class BcPkiProviderTest {
     @Test
     @DisplayName("并发首次使用收敛到同一 serial")
     void signingIdentityConvergesUnderConcurrency() throws Exception {
-        BcPkiProvider other =
-                new BcPkiProvider(caP12.toString(), PASSWORD, CA_ALIAS, stateFile);
+        BcPkiProvider other = new BcPkiProvider(caP12.toString(), PASSWORD, CA_ALIAS, stateFile);
         ExecutorService pool = Executors.newFixedThreadPool(4);
         try {
             List<Future<BigInteger>> futures = new ArrayList<>();
@@ -489,22 +485,18 @@ class BcPkiProviderTest {
         return generator.generateKeyPair();
     }
 
-    private static PKCS10CertificationRequest csr(
-            String subject, KeyPair keyPair, String dnsName) throws Exception {
+    private static PKCS10CertificationRequest csr(String subject, KeyPair keyPair, String dnsName)
+            throws Exception {
         Extensions extensions =
                 new Extensions(
                         new Extension(
                                 Extension.subjectAlternativeName,
                                 false,
-                                new GeneralNames(
-                                                new GeneralName(GeneralName.dNSName, dnsName))
+                                new GeneralNames(new GeneralName(GeneralName.dNSName, dnsName))
                                         .getEncoded()));
-        return new JcaPKCS10CertificationRequestBuilder(
-                        new X500Name(subject), keyPair.getPublic())
+        return new JcaPKCS10CertificationRequestBuilder(new X500Name(subject), keyPair.getPublic())
                 .addAttribute(PKCSObjectIdentifiers.pkcs_9_at_extensionRequest, extensions)
-                .build(
-                        new JcaContentSignerBuilder("SHA256withRSA")
-                                .build(keyPair.getPrivate()));
+                .build(new JcaContentSignerBuilder("SHA256withRSA").build(keyPair.getPrivate()));
     }
 
     static Path createCaP12(Path dir) throws Exception {
@@ -536,10 +528,7 @@ class BcPkiProviderTest {
         KeyStore keyStore = KeyStore.getInstance("PKCS12");
         keyStore.load(null, null);
         keyStore.setKeyEntry(
-                CA_ALIAS,
-                keyPair.getPrivate(),
-                PASSWORD,
-                new Certificate[] {certificate});
+                CA_ALIAS, keyPair.getPrivate(), PASSWORD, new Certificate[] {certificate});
         Path file = dir.resolve("ca-" + UUID.randomUUID() + ".p12");
         try (OutputStream out = Files.newOutputStream(file)) {
             keyStore.store(out, PASSWORD);

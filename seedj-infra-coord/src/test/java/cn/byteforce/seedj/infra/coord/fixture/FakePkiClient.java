@@ -47,9 +47,8 @@ import org.bouncycastle.pkcs.jcajce.JcaPKCS10CertificationRequest;
 /**
  * 内存版 coord PKI 0.4.4：只为适配器的单元测试服务。
  *
- * <p>行为对齐真实 agent 的契约面：按 CN get-or-create、轮换换新 serial、吊销永久且幂等、
- * {@code GetCertByCN} 对已吊销的当前证书返回 NOT_FOUND、CRL 带吊销条目。证书由测试内的自签 CA
- * 真实签发，所以 PEM 解析、TLS 与 CRL 路径都被覆盖。
+ * <p>行为对齐真实 agent 的契约面：按 CN get-or-create、轮换换新 serial、吊销永久且幂等、 {@code GetCertByCN} 对已吊销的当前证书返回
+ * NOT_FOUND、CRL 带吊销条目。证书由测试内的自签 CA 真实签发，所以 PEM 解析、TLS 与 CRL 路径都被覆盖。
  */
 public final class FakePkiClient implements PkiClient {
 
@@ -158,8 +157,7 @@ public final class FakePkiClient implements PkiClient {
     @Override
     public PkiCertInfo issueCert(
             String commonName, long ttlSeconds, List<String> dnsNames, List<String> ipAddresses) {
-        return issueCert(
-                commonName, ttlSeconds, dnsNames, ipAddresses, PkiCertUsage.BOTH);
+        return issueCert(commonName, ttlSeconds, dnsNames, ipAddresses, PkiCertUsage.BOTH);
     }
 
     @Override
@@ -187,7 +185,8 @@ public final class FakePkiClient implements PkiClient {
         check();
         CertRecord record =
                 Optional.ofNullable(bySerial.get(serial))
-                        .orElseThrow(() -> new CoordException(ErrorCode.NOT_FOUND, "no such serial"));
+                        .orElseThrow(
+                                () -> new CoordException(ErrorCode.NOT_FOUND, "no such serial"));
         return rotate(record.cn(), ttlSeconds, List.of(), List.of(), PkiCertUsage.BOTH);
     }
 
@@ -242,7 +241,8 @@ public final class FakePkiClient implements PkiClient {
         check();
         return summary(
                 Optional.ofNullable(bySerial.get(serial))
-                        .orElseThrow(() -> new CoordException(ErrorCode.NOT_FOUND, "no such serial")));
+                        .orElseThrow(
+                                () -> new CoordException(ErrorCode.NOT_FOUND, "no such serial")));
     }
 
     @Override
@@ -271,16 +271,7 @@ public final class FakePkiClient implements PkiClient {
                             sans);
             CertRecord record =
                     new CertRecord(
-                            cn,
-                            serial,
-                            null,
-                            certificate,
-                            "",
-                            0,
-                            "active",
-                            false,
-                            null,
-                            null);
+                            cn, serial, null, certificate, "", 0, "active", false, null, null);
             bySerial.put(serial, record);
             return info(record);
         } catch (CoordException e) {
@@ -307,9 +298,7 @@ public final class FakePkiClient implements PkiClient {
                                                     certPem.getBytes(StandardCharsets.UTF_8)));
             certificate.verify(caCertificate.getPublicKey());
             CertRecord record = bySerial.get(certificate.getSerialNumber().toString(16));
-            return record != null
-                    && !record.revoked()
-                    && !record.expired(Instant.now());
+            return record != null && !record.revoked() && !record.expired(Instant.now());
         } catch (Exception e) {
             return false;
         }
@@ -345,7 +334,8 @@ public final class FakePkiClient implements PkiClient {
                         Instant.now());
         bySerial.put(serialNumber, revoked);
         activeByCn.computeIfPresent(
-                revoked.cn(), (cn, current) -> current.serial().equals(serialNumber) ? revoked : current);
+                revoked.cn(),
+                (cn, current) -> current.serial().equals(serialNumber) ? revoked : current);
         return revocation(revoked);
     }
 
@@ -354,7 +344,8 @@ public final class FakePkiClient implements PkiClient {
         check();
         CertRecord record =
                 Optional.ofNullable(bySerial.get(serialNumber))
-                        .orElseThrow(() -> new CoordException(ErrorCode.NOT_FOUND, "no such serial"));
+                        .orElseThrow(
+                                () -> new CoordException(ErrorCode.NOT_FOUND, "no such serial"));
         long revokedAt =
                 record.revoked() && record.revokedAt() != null
                         ? record.revokedAt().getEpochSecond()
@@ -410,13 +401,12 @@ public final class FakePkiClient implements PkiClient {
         String serial = nextSerial();
         try {
             List<GeneralName> names = new ArrayList<>();
-            List<String> dns = dnsNames.isEmpty() ? List.of(commonName.replace(':', '-')) : dnsNames;
+            List<String> dns =
+                    dnsNames.isEmpty() ? List.of(commonName.replace(':', '-')) : dnsNames;
             dns.forEach(name -> names.add(new GeneralName(GeneralName.dNSName, name)));
             ipAddresses.forEach(ip -> names.add(new GeneralName(GeneralName.iPAddress, ip)));
             GeneralNames sans =
-                    names.isEmpty()
-                            ? null
-                            : new GeneralNames(names.toArray(GeneralName[]::new));
+                    names.isEmpty() ? null : new GeneralNames(names.toArray(GeneralName[]::new));
             KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
             generator.initialize(2048);
             X509Certificate certificate =
@@ -473,13 +463,7 @@ public final class FakePkiClient implements PkiClient {
         Date now = new Date();
         Date notAfter = new Date(now.getTime() + Math.max(1L, ttlSeconds) * 1000L);
         JcaX509v3CertificateBuilder builder =
-                new JcaX509v3CertificateBuilder(
-                        caName,
-                        serial,
-                        now,
-                        notAfter,
-                        subject,
-                        publicKey);
+                new JcaX509v3CertificateBuilder(caName, serial, now, notAfter, subject, publicKey);
         builder.addExtension(Extension.basicConstraints, true, new BasicConstraints(false));
         int bits = KeyUsage.digitalSignature;
         if (usage != PkiCertUsage.CLIENT) {

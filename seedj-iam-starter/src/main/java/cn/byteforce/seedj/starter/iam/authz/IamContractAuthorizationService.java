@@ -86,8 +86,8 @@ public final class IamContractAuthorizationService {
     /**
      * 决策入口：把授权请求映射为 04 授权契约检查。
      *
-     * <p>本类不是 {@code AuthorizationDecisionPoint} bean：容器里只能有一个决策点生产
-     * 者（{@code CompositeAuthorizationDecisionPoint}），这里由组合点以方法引用调用。
+     * <p>本类不是 {@code AuthorizationDecisionPoint} bean：容器里只能有一个决策点生产 者（{@code
+     * CompositeAuthorizationDecisionPoint}），这里由组合点以方法引用调用。
      *
      * @param request 授权请求
      * @return 决策

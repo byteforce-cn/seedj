@@ -118,9 +118,7 @@ final class PkiStateFile {
                                     new ByteArrayInputStream(Base64.getDecoder().decode(encoded))));
         } catch (Exception e) {
             throw new PkiException(
-                    PkiErrorCode.STATE_UNAVAILABLE,
-                    "解码已签发证书失败: " + hex(serialNumber),
-                    e);
+                    PkiErrorCode.STATE_UNAVAILABLE, "解码已签发证书失败: " + hex(serialNumber), e);
         }
     }
 
@@ -133,8 +131,7 @@ final class PkiStateFile {
         update(
                 props -> {
                     if (!props.containsKey(ISSUED_PREFIX + hex)) {
-                        throw new PkiException(
-                                PkiErrorCode.NOT_FOUND, "未签发的序列号: " + hex);
+                        throw new PkiException(PkiErrorCode.NOT_FOUND, "未签发的序列号: " + hex);
                     }
                     // 重复吊销幂等：保留首次的 reason 与时间。
                     if (props.containsKey(REVOKED_PREFIX + hex)) {
@@ -174,8 +171,7 @@ final class PkiStateFile {
                                     RevocationReason.valueOf(parts[0])));
                 }
             } catch (RuntimeException e) {
-                throw new PkiException(
-                        PkiErrorCode.STATE_UNAVAILABLE, "解析吊销记录失败: " + key, e);
+                throw new PkiException(PkiErrorCode.STATE_UNAVAILABLE, "解析吊销记录失败: " + key, e);
             }
         }
         return List.copyOf(entries);
@@ -319,8 +315,7 @@ final class PkiStateFile {
         try (FileChannel channel = FileChannel.open(file, StandardOpenOption.READ)) {
             return readChannel(channel);
         } catch (IOException e) {
-            throw new PkiException(
-                    PkiErrorCode.STATE_UNAVAILABLE, "读取 PKI 状态文件失败: " + file, e);
+            throw new PkiException(PkiErrorCode.STATE_UNAVAILABLE, "读取 PKI 状态文件失败: " + file, e);
         } finally {
             localLock.unlock();
         }
@@ -343,8 +338,7 @@ final class PkiStateFile {
             mutator.accept(props);
             writeChannel(channel, props);
         } catch (IOException e) {
-            throw new PkiException(
-                    PkiErrorCode.STATE_UNAVAILABLE, "更新 PKI 状态文件失败: " + file, e);
+            throw new PkiException(PkiErrorCode.STATE_UNAVAILABLE, "更新 PKI 状态文件失败: " + file, e);
         } finally {
             localLock.unlock();
         }
@@ -358,8 +352,7 @@ final class PkiStateFile {
         try {
             Files.createDirectories(parent);
         } catch (IOException e) {
-            throw new PkiException(
-                    PkiErrorCode.STATE_UNAVAILABLE, "创建 PKI 状态目录失败: " + parent, e);
+            throw new PkiException(PkiErrorCode.STATE_UNAVAILABLE, "创建 PKI 状态目录失败: " + parent, e);
         }
     }
 

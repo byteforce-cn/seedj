@@ -1,7 +1,5 @@
 package cn.byteforce.seedj.starter.iam.abac;
 
-import cn.byteforce.seedj.security.AuthorizationRequest;
-import cn.byteforce.seedj.security.AuthorizationDecision;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -14,6 +12,8 @@ import cn.byteforce.seedj.iam.spi.IamPolicyDecisionPoint;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamAuthorizationRepository;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamGroupRepository;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamUserRepository;
+import cn.byteforce.seedj.security.AuthorizationDecision;
+import cn.byteforce.seedj.security.AuthorizationRequest;
 import cn.byteforce.seedj.starter.iam.IamProperties;
 import cn.byteforce.seedj.starter.iam.identity.IamAuthorizationService;
 import java.time.Instant;
@@ -204,7 +204,9 @@ class IamAuthorizationFacadeTest {
     @Test
     @DisplayName("require 拒绝时抛 FORBIDDEN，允许时静默")
     void requireThrowsOnlyWhenDenied() {
-        pdp.decision = AuthorizationDecision.deny("no matching allow policy", "no matching allow policy", null);
+        pdp.decision =
+                AuthorizationDecision.deny(
+                        "no matching allow policy", "no matching allow policy", null);
 
         assertThatThrownBy(
                         () ->
@@ -235,7 +237,8 @@ class IamAuthorizationFacadeTest {
         private final List<AuthorizationRequest> requests = new ArrayList<>();
 
         private AuthorizationDecision decision =
-                AuthorizationDecision.deny("no matching allow policy", "no matching allow policy", null);
+                AuthorizationDecision.deny(
+                        "no matching allow policy", "no matching allow policy", null);
 
         @Override
         public AuthorizationDecision decide(AuthorizationRequest request) {

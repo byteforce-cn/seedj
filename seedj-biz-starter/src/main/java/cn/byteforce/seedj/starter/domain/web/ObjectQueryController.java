@@ -20,8 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 通用对象查询 HTTP 面（internal surface，默认关闭）。
  *
- * <p>参数解析与声明式查询面共用 {@link ObjectQueryParameters}；所有读取都经 {@link
- * ReadGateway}，对象权限、行范围、字段策略与审计不降级。
+ * <p>参数解析与声明式查询面共用 {@link ObjectQueryParameters}；所有读取都经 {@link ReadGateway}，对象权限、行范围、字段策略与审计不降级。
  *
  * @author ByteForce
  * @since 1.0.0

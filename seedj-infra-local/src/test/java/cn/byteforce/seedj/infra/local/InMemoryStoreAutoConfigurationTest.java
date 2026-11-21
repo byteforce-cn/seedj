@@ -21,8 +21,7 @@ class InMemoryStoreAutoConfigurationTest {
 
     private final ApplicationContextRunner runner =
             new ApplicationContextRunner()
-                    .withConfiguration(
-                            AutoConfigurations.of(InMemoryStoreAutoConfiguration.class))
+                    .withConfiguration(AutoConfigurations.of(InMemoryStoreAutoConfiguration.class))
                     .withBean(Clock.class, Clocks::system)
                     .withBean(ObjectSchemaRegistry.class, ObjectSchemaRegistry::empty);
 
@@ -45,7 +44,8 @@ class InMemoryStoreAutoConfigurationTest {
     @DisplayName("已有存储 bean 时不覆盖（PostgreSQL 适配器先注册）")
     void existingBeansWin() {
         CommandStore commands = new InMemoryCommandStore();
-        TemporalStore objects = new InMemoryTemporalStore(Clocks.system(), ObjectSchemaRegistry.empty());
+        TemporalStore objects =
+                new InMemoryTemporalStore(Clocks.system(), ObjectSchemaRegistry.empty());
 
         runner.withBean(CommandStore.class, () -> commands)
                 .withBean(TemporalStore.class, () -> objects)
@@ -59,8 +59,7 @@ class InMemoryStoreAutoConfigurationTest {
     @Test
     @DisplayName("显式 provider=memory 时生效；enabled=false 时退出")
     void switchesAreHonoured() {
-        runner.withPropertyValues(
-                        "seedj.command.provider=memory", "seedj.object.provider=memory")
+        runner.withPropertyValues("seedj.command.provider=memory", "seedj.object.provider=memory")
                 .run(context -> assertThat(context).hasSingleBean(CommandStore.class));
 
         runner.withPropertyValues("seedj.object.enabled=false", "seedj.command.enabled=false")

@@ -10,10 +10,10 @@ import cn.byteforce.seedj.iam.PolicyOperand;
 import cn.byteforce.seedj.iam.spi.IamPolicyDecisionPoint;
 import cn.byteforce.seedj.iam.spi.IamPolicyRepository;
 import cn.byteforce.seedj.iam.spi.IamResourceAttributeResolver;
+import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.security.AuthorizationDecision;
 import cn.byteforce.seedj.security.AuthorizationRequest;
 import cn.byteforce.seedj.security.AuthorizationSubject;
-import cn.byteforce.seedj.id.IdGenerator;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -89,15 +89,13 @@ public class DefaultIamPolicyDecisionPoint implements IamPolicyDecisionPoint {
 
         if (deniedBy != null) {
             audit(request, "DENY", deniedBy);
-            return AuthorizationDecision.deny(
-                    "POLICY_DENIED", "denied by policy", deniedBy);
+            return AuthorizationDecision.deny("POLICY_DENIED", "denied by policy", deniedBy);
         }
         if (allowedBy != null) {
             return AuthorizationDecision.allow(allowedBy);
         }
         audit(request, "DENY", null);
-        return AuthorizationDecision.deny(
-                "NO_MATCHING_POLICY", "no matching allow policy", null);
+        return AuthorizationDecision.deny("NO_MATCHING_POLICY", "no matching allow policy", null);
     }
 
     private Map<String, Object> resolveResource(AuthorizationRequest request) {

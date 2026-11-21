@@ -11,8 +11,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.security.AuthorizationDecisionPoint;
-import cn.byteforce.seedj.starter.iam.abac.CompositeAuthorizationDecisionPoint;
 import cn.byteforce.seedj.starter.iam.TestIdGenerators;
+import cn.byteforce.seedj.starter.iam.abac.CompositeAuthorizationDecisionPoint;
 import cn.byteforce.seedj.starter.iam.annotation.EnableIamServer;
 import cn.byteforce.seedj.starter.iam.autoconfigure.IamAutoConfiguration;
 import java.util.Base64;

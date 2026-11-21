@@ -59,11 +59,9 @@
  * <h2>编码与校验规则</h2>
  *
  * 所有 context、signature、hmac 必须是标准 Base64（RFC 4648 带填充），严格拒绝空白字符。keyName 与 reference 拒绝首尾空白。
-
- * <p><b>职责</b>：本模块是 {@code transit} 能力的跨模块契约，服务实现方与消费方
- * 以它为准，不再依赖 {@code core} 的发布节奏。
  *
- * <p><b>依赖方向</b>：只允许 {@code core} 的值类型与 JDK；不依赖 Spring、JDBC 或任何
- * 实现模块。
+ * <p><b>职责</b>：本模块是 {@code transit} 能力的跨模块契约，服务实现方与消费方 以它为准，不再依赖 {@code core} 的发布节奏。
+ *
+ * <p><b>依赖方向</b>：只允许 {@code core} 的值类型与 JDK；不依赖 Spring、JDBC 或任何 实现模块。
  */
 package cn.byteforce.seedj.transit;

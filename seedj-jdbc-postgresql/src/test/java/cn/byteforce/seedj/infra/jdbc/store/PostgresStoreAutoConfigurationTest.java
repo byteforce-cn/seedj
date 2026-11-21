@@ -34,11 +34,12 @@ class PostgresStoreAutoConfigurationTest {
 
     private final ApplicationContextRunner runner =
             new ApplicationContextRunner()
-                    .withConfiguration(
-                            AutoConfigurations.of(PostgresStoreAutoConfiguration.class))
+                    .withConfiguration(AutoConfigurations.of(PostgresStoreAutoConfiguration.class))
                     .withBean(JdbcTemplate.class, () -> mock(JdbcTemplate.class))
                     .withBean(Clock.class, Clocks::system)
-                    .withBean(ObjectSchemaRegistry.class, () -> new ObjectSchemaRegistry(List.of(SCHEMA)));
+                    .withBean(
+                            ObjectSchemaRegistry.class,
+                            () -> new ObjectSchemaRegistry(List.of(SCHEMA)));
 
     @Test
     @DisplayName("有 JDBC 且未显式指定 provider 时装配 PostgreSQL 存储与查询执行器")
@@ -60,8 +61,7 @@ class PostgresStoreAutoConfigurationTest {
     @Test
     @DisplayName("显式 provider=memory 时适配器整体让位，由内存实现接管")
     void memoryProviderBacksOff() {
-        runner.withPropertyValues(
-                        "seedj.command.provider=memory", "seedj.object.provider=memory")
+        runner.withPropertyValues("seedj.command.provider=memory", "seedj.object.provider=memory")
                 .run(
                         context -> {
                             assertThat(context).hasNotFailed();

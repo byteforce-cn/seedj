@@ -49,8 +49,7 @@ final class BcPkiCertificates {
         try {
             PKCS10CertificationRequest csr = new PKCS10CertificationRequest(csrDer);
             if (!csr.isSignatureValid(
-                    new JcaContentVerifierProviderBuilder()
-                            .build(csr.getSubjectPublicKeyInfo()))) {
+                    new JcaContentVerifierProviderBuilder().build(csr.getSubjectPublicKeyInfo()))) {
                 throw new PkiException(PkiErrorCode.INVALID_REQUEST, "CSR 的持有证明签名不合法");
             }
             PublicKey publicKey = new JcaPKCS10CertificationRequest(csr).getPublicKey();
@@ -113,15 +112,13 @@ final class BcPkiCertificates {
             }
 
             if (subjectAltNames != null) {
-                builder.addExtension(
-                        Extension.subjectAlternativeName, false, subjectAltNames);
+                builder.addExtension(Extension.subjectAlternativeName, false, subjectAltNames);
             }
 
             return new JcaX509CertificateConverter()
                     .getCertificate(
                             builder.build(
-                                    new JcaContentSignerBuilder(SIGNATURE_ALGORITHM)
-                                            .build(caKey)));
+                                    new JcaContentSignerBuilder(SIGNATURE_ALGORITHM).build(caKey)));
         } catch (Exception e) {
             throw new PkiException(PkiErrorCode.INTERNAL_ERROR, "签发证书失败: " + subject, e);
         }

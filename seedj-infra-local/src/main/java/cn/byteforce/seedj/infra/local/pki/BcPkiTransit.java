@@ -83,8 +83,7 @@ final class BcPkiTransit {
     private static SignatureAlgorithm signatureAlgorithm(
             String hashAlgorithm, String signatureAlgorithm) {
         String hash = normalize(hashAlgorithm == null ? "sha256" : hashAlgorithm);
-        String signature =
-                normalize(signatureAlgorithm == null ? "pkcs1v15" : signatureAlgorithm);
+        String signature = normalize(signatureAlgorithm == null ? "pkcs1v15" : signatureAlgorithm);
         if (signature.contains("pss")) {
             throw new PkiException(
                     PkiErrorCode.UNSUPPORTED,

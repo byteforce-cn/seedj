@@ -15,7 +15,12 @@ class ImCodecTest {
     @Test
     @DisplayName("响应帧带上协议魔数与 JSON 序列化标记")
     void responseFrameCarriesProtocolHeader() {
-        ImFrame frame = codec.resp(Cmd.CHAT_SINGLE_REQ, 7, new ChatSendReq("m-1", "c-1", "u-2", "text", java.util.Map.of("text", "hi")));
+        ImFrame frame =
+                codec.resp(
+                        Cmd.CHAT_SINGLE_REQ,
+                        7,
+                        new ChatSendReq(
+                                "m-1", "c-1", "u-2", "text", java.util.Map.of("text", "hi")));
 
         assertThat(frame.magic()).isEqualTo(ImFrame.MAGIC);
         assertThat(frame.cmd()).isEqualTo(Cmd.CHAT_SINGLE_REQ);
@@ -26,7 +31,12 @@ class ImCodecTest {
     @Test
     @DisplayName("body 可往返编解码")
     void bodyRoundTrips() {
-        ImFrame frame = codec.resp(Cmd.CHAT_SINGLE_REQ, 1, new ChatSendReq("m-1", "c-1", "u-2", "text", java.util.Map.of("text", "hi")));
+        ImFrame frame =
+                codec.resp(
+                        Cmd.CHAT_SINGLE_REQ,
+                        1,
+                        new ChatSendReq(
+                                "m-1", "c-1", "u-2", "text", java.util.Map.of("text", "hi")));
 
         ChatSendReq decoded = codec.decode(frame, ChatSendReq.class);
 

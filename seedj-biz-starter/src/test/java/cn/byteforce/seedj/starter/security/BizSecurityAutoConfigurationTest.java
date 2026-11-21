@@ -232,7 +232,6 @@ class BizSecurityAutoConfigurationTest {
 
         assertThat(annotation).isNotNull();
         assertThat(annotation.afterName())
-                .contains(
-                        "cn.byteforce.seedj.starter.iam.autoconfigure.IamAutoConfiguration");
+                .contains("cn.byteforce.seedj.starter.iam.autoconfigure.IamAutoConfiguration");
     }
 }

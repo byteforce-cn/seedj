@@ -6,8 +6,7 @@ import cn.byteforce.seedj.infra.jdbc.JdbcSchemaCapability;
 import java.util.List;
 
 /**
- * 命令记录表的 schema 能力：迁移数据在 {@link CommandMigrations}，模板逻辑在 {@link
- * JdbcSchemaCapability}。
+ * 命令记录表的 schema 能力：迁移数据在 {@link CommandMigrations}，模板逻辑在 {@link JdbcSchemaCapability}。
  *
  * <p>本类只保留公开常量与构造器；2 参构造器供升级测试替换迁移列表。
  *

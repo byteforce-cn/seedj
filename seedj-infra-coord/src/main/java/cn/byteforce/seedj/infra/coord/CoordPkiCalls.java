@@ -6,9 +6,9 @@ import java.util.function.Supplier;
 /**
  * coord PKI 调用的统一重试与错误映射。
  *
- * <p>coord 的 PKI 存储建在 KV 上，刚写完就回读会撞上 {@code read_ts exceeds safe_ts}（agent
- * 在消息里写 {@code retry later}）。这里对<b>幂等</b>调用做有限重试；{@code rotateCert} 不是幂等的，
- * 重试会多转一次，所以调用方必须显式传 {@code idempotent=false}。
+ * <p>coord 的 PKI 存储建在 KV 上，刚写完就回读会撞上 {@code read_ts exceeds safe_ts}（agent 在消息里写 {@code retry
+ * later}）。这里对<b>幂等</b>调用做有限重试；{@code rotateCert} 不是幂等的， 重试会多转一次，所以调用方必须显式传 {@code
+ * idempotent=false}。
  */
 final class CoordPkiCalls {
 

@@ -19,9 +19,8 @@ import org.junit.jupiter.api.Test;
 /**
  * PKI 契约测试套件。新 provider 只需 {@code extends} 本类并实现 {@link #newProvider()}。
  *
- * <p>覆盖契约承诺的语义：签发/读取、signingIdentity 幂等、吊销不复活、rotate 换钥、CRL 可解析、
- * issuer 查询、TLS 配置描述与关闭语义。provider 特有的能力（托管密钥、CSR、Transit 签名）由各自的
- * 适配器测试覆盖。
+ * <p>覆盖契约承诺的语义：签发/读取、signingIdentity 幂等、吊销不复活、rotate 换钥、CRL 可解析、 issuer 查询、TLS 配置描述与关闭语义。provider
+ * 特有的能力（托管密钥、CSR、Transit 签名）由各自的 适配器测试覆盖。
  */
 public abstract class PkiProviderContractTest {
 

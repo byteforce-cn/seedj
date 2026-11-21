@@ -84,12 +84,8 @@ class DocsBoundaryTest {
         assertThat(artifacts).as("根 POM 应至少列出 core").contains("core");
         String readme = Files.readString(ROOT.resolve("README.md"));
         List<String> missing =
-                artifacts.stream()
-                        .filter(artifact -> !documented(readme, artifact))
-                        .toList();
-        assertThat(missing)
-                .as("README 模块表未覆盖这些制品（模块增删时同步文档）")
-                .isEmpty();
+                artifacts.stream().filter(artifact -> !documented(readme, artifact)).toList();
+        assertThat(missing).as("README 模块表未覆盖这些制品（模块增删时同步文档）").isEmpty();
     }
 
     /** README 可直接写制品名，也可以用 {@code seedj-server/{hr,iam}} 这种宿主列表。 */

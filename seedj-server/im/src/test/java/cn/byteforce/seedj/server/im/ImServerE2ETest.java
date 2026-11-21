@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import cn.byteforce.seedj.starter.im.protocol.Cmd;
 import cn.byteforce.seedj.starter.im.protocol.ImFrame;
-import cn.byteforce.seedj.starter.im.transport.ImFrames;
 import cn.byteforce.seedj.starter.im.protocol.body.ChatSendReq;
 import cn.byteforce.seedj.starter.im.protocol.body.ChatSendResp;
 import cn.byteforce.seedj.starter.im.protocol.body.ErrorResp;
@@ -13,6 +12,7 @@ import cn.byteforce.seedj.starter.im.protocol.body.LoginReq;
 import cn.byteforce.seedj.starter.im.protocol.body.LoginResp;
 import cn.byteforce.seedj.starter.im.protocol.body.MemberListReq;
 import cn.byteforce.seedj.starter.im.protocol.body.MemberListResp;
+import cn.byteforce.seedj.starter.im.transport.ImFrames;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;

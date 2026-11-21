@@ -19,10 +19,7 @@ public record IssuedCertificate(
     public IssuedCertificate {
         Objects.requireNonNull(certificate, "certificate");
         Objects.requireNonNull(keyMaterial, "keyMaterial");
-        chain =
-                chain == null || chain.isEmpty()
-                        ? List.of(certificate)
-                        : List.copyOf(chain);
+        chain = chain == null || chain.isEmpty() ? List.of(certificate) : List.copyOf(chain);
     }
 
     public BigInteger serialNumber() {

@@ -296,35 +296,17 @@ class IamPolicyModelTest {
         assertThatThrownBy(
                         () ->
                                 new AuthorizationRequest(
-                                        null,
-                                        "a",
-                                        "t",
-                                        null,
-                                        null,
-                                        Instant.EPOCH,
-                                        null))
+                                        null, "a", "t", null, null, Instant.EPOCH, null))
                 .isInstanceOf(NullPointerException.class);
         assertThatThrownBy(
                         () ->
                                 new AuthorizationRequest(
-                                        subject,
-                                        null,
-                                        "t",
-                                        null,
-                                        null,
-                                        Instant.EPOCH,
-                                        null))
+                                        subject, null, "t", null, null, Instant.EPOCH, null))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(
                         () ->
                                 new AuthorizationRequest(
-                                        subject,
-                                        "a",
-                                        null,
-                                        null,
-                                        null,
-                                        Instant.EPOCH,
-                                        null))
+                                        subject, "a", null, null, null, Instant.EPOCH, null))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 }

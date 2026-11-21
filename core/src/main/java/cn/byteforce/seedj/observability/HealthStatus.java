@@ -3,8 +3,8 @@ package cn.byteforce.seedj.observability;
 /**
  * 能力 provider 的健康状态。
  *
- * <p>契约：{@code health()} 不得抛异常；无法判定时返回 {@link #unknown(String)}。健康探针只回答「这个
- * provider 现在能不能用」，不做重试、不缓存失败结论；调用方负责节奏。
+ * <p>契约：{@code health()} 不得抛异常；无法判定时返回 {@link #unknown(String)}。健康探针只回答「这个 provider
+ * 现在能不能用」，不做重试、不缓存失败结论；调用方负责节奏。
  */
 public sealed interface HealthStatus
         permits HealthStatus.Up, HealthStatus.Down, HealthStatus.Unknown {

@@ -26,7 +26,10 @@ public final class WorkflowMigrations {
      */
     static MigrationSet migrationSet() {
         return new MigrationSet(
-                SCOPE, SCOPE, 210, java.util.List.of(new Migration(1, "create workflow tables", v1())));
+                SCOPE,
+                SCOPE,
+                210,
+                java.util.List.of(new Migration(1, "create workflow tables", v1())));
     }
 
     /**

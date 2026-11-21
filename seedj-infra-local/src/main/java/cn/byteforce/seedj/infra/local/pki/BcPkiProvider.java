@@ -44,13 +44,12 @@ import org.bouncycastle.asn1.x500.X500Name;
 /**
  * 基于 Bouncy Castle 的 PKI 提供者（内置/快速启动实现）。
  *
- * <p>确定性签发：CA 从 p12 固定加载、序列号由请求内容 + 公钥派生、notBefore 截断到秒。相同请求与相同
- * keyPair 在所有实例上产生相同序列号与公钥 + EKU；配合共享的状态文件（{@link PkiStateFile}）交换签发、
- * 吊销与签名身份，多服务天然一致。
+ * <p>确定性签发：CA 从 p12 固定加载、序列号由请求内容 + 公钥派生、notBefore 截断到秒。相同请求与相同 keyPair 在所有实例上产生相同序列号与公钥 +
+ * EKU；配合共享的状态文件（{@link PkiStateFile}）交换签发、 吊销与签名身份，多服务天然一致。
  *
  * <p>与 coord 适配的差异（见 {@code docs/guide/spi.md}）：本地实现没有 role/issuer 策略，{@code roleName}
- * 只做非空校验；{@code sign}/{@code verify} 委托本地 Transit（不支持 prehashed 与 PSS）；私钥可以导出，所以
- * keyMaterial 永远是 {@link KeyMaterial.External}。
+ * 只做非空校验；{@code sign}/{@code verify} 委托本地 Transit（不支持 prehashed 与 PSS）；私钥可以导出，所以 keyMaterial 永远是
+ * {@link KeyMaterial.External}。
  */
 public class BcPkiProvider implements PkiProvider {
 
@@ -113,8 +112,7 @@ public class BcPkiProvider implements PkiProvider {
             }
             this.caCertificate = (X509Certificate) ks.getCertificate(alias);
             if (caCertificate == null) {
-                throw new PkiException(
-                        PkiErrorCode.CA_UNAVAILABLE, "CA keystore 中找不到别名: " + alias);
+                throw new PkiException(PkiErrorCode.CA_UNAVAILABLE, "CA keystore 中找不到别名: " + alias);
             }
             this.caKeyPair =
                     new KeyPair(
@@ -157,8 +155,7 @@ public class BcPkiProvider implements PkiProvider {
     }
 
     @Override
-    public IssuedCertificate signCsr(
-            String roleName, byte[] csrDer, CertificateRequest request) {
+    public IssuedCertificate signCsr(String roleName, byte[] csrDer, CertificateRequest request) {
         ensureOpen();
         requireRole(roleName);
         if (csrDer == null || csrDer.length == 0) {
@@ -166,9 +163,7 @@ public class BcPkiProvider implements PkiProvider {
         }
         BcPkiCertificates.Csr csr = BcPkiCertificates.parseCsr(csrDer);
         CertificateRequest effective =
-                request == null
-                        ? CertificateRequest.csr(null, CertificateUsage.BOTH)
-                        : request;
+                request == null ? CertificateRequest.csr(null, CertificateUsage.BOTH) : request;
         X509Certificate certificate =
                 BcPkiCertificates.issue(
                         caName,
@@ -178,8 +173,7 @@ public class BcPkiProvider implements PkiProvider {
                         csr.altNames(),
                         effective.validity(),
                         effective.usage(),
-                        deterministicSerial(
-                                csr.subject().toString(), effective, csr.publicKey()),
+                        deterministicSerial(csr.subject().toString(), effective, csr.publicKey()),
                         clock.instant());
         stateFile.recordIssued(certificate);
         return new IssuedCertificate(

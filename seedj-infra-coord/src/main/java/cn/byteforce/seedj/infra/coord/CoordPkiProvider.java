@@ -45,17 +45,16 @@ import javax.net.ssl.SSLContext;
  *   <li>{@code issue} / {@code signCsr} / {@code revoke} / {@code getCrl} / {@code rotateCrl} /
  *       {@code tidy} / {@code readCertificate} 直连 {@code coord.pki.v1}；
  *   <li>{@code sign} / {@code verify} 直连 {@code coord.transit.v1}；
- *   <li>alias → 身份的稳定映射是 seedj 在 coord KV 上补的层（{@link CoordPkiState}），不是 coord
- *       原生概念。
+ *   <li>alias → 身份的稳定映射是 seedj 在 coord KV 上补的层（{@link CoordPkiState}），不是 coord 原生概念。
  * </ul>
  *
  * <p>已知偏差（见 {@code docs/guide/known-limitations.md}）：
  *
  * <ul>
- *   <li>coord 没有 role/issuer：单 CA。{@code roleName} 降级为 CN 命名空间前缀
- *       {@code <role>:<cn>}；{@code signCsr} 的 CN 来自 CSR，role 只做格式校验。
- *   <li>托管私钥不可导出：{@link #sslContext} 只接受 {@link KeyMaterial.External}；托管身份用
- *       {@link #sslConfig} 自行委托 {@link #sign}。
+ *   <li>coord 没有 role/issuer：单 CA。{@code roleName} 降级为 CN 命名空间前缀 {@code <role>:<cn>}；{@code
+ *       signCsr} 的 CN 来自 CSR，role 只做格式校验。
+ *   <li>托管私钥不可导出：{@link #sslContext} 只接受 {@link KeyMaterial.External}；托管身份用 {@link #sslConfig} 自行委托
+ *       {@link #sign}。
  *   <li>签发 profile 由 coord 的 usage 决定；自定义 DN 只保留 CN。
  * </ul>
  */
@@ -115,7 +114,10 @@ final class CoordPkiProvider implements PkiProvider {
         Objects.requireNonNull(request, "request");
         String cn = roleName + ":" + CoordPkiNames.commonName(request.requireSubject());
         long ttl = ttlSeconds(request.validity());
-        List<String> dns = request.dnsNames().isEmpty() ? List.of(CoordPkiNames.dnsName(cn)) : request.dnsNames();
+        List<String> dns =
+                request.dnsNames().isEmpty()
+                        ? List.of(CoordPkiNames.dnsName(cn))
+                        : request.dnsNames();
         PkiCertInfo info =
                 call(
                         "issue " + cn,
@@ -130,17 +132,14 @@ final class CoordPkiProvider implements PkiProvider {
     }
 
     @Override
-    public IssuedCertificate signCsr(
-            String roleName, byte[] csrDer, CertificateRequest request) {
+    public IssuedCertificate signCsr(String roleName, byte[] csrDer, CertificateRequest request) {
         ensureOpen();
         CoordPkiNames.requireName(roleName, "roleName");
         if (csrDer == null || csrDer.length == 0) {
             throw new PkiException(PkiErrorCode.INVALID_REQUEST, "csrDer 不能为空");
         }
         CertificateRequest effective =
-                request == null
-                        ? CertificateRequest.csr(null, CertificateUsage.BOTH)
-                        : request;
+                request == null ? CertificateRequest.csr(null, CertificateUsage.BOTH) : request;
         PkiCertInfo info =
                 call(
                         "sign csr in role " + roleName,
@@ -174,7 +173,8 @@ final class CoordPkiProvider implements PkiProvider {
                         .setHashAlgorithm(CoordPkiNames.emptyIfNull(hashAlgorithm))
                         .setSignatureAlgorithm(CoordPkiNames.emptyIfNull(signatureAlgorithm))
                         .build();
-        return call("sign with " + keyName, () -> transit.sign(request).getSignature().toByteArray());
+        return call(
+                "sign with " + keyName, () -> transit.sign(request).getSignature().toByteArray());
     }
 
     @Override
@@ -188,8 +188,7 @@ final class CoordPkiProvider implements PkiProvider {
         ensureOpen();
         CoordPkiNames.requireName(keyName, "keyName");
         if (data == null || signature == null || signature.length == 0) {
-            throw new PkiException(
-                    PkiErrorCode.INVALID_REQUEST, "data 与 signature 不能为空");
+            throw new PkiException(PkiErrorCode.INVALID_REQUEST, "data 与 signature 不能为空");
         }
         TransitVerifyRequest request =
                 TransitVerifyRequest.newBuilder()
@@ -230,8 +229,7 @@ final class CoordPkiProvider implements PkiProvider {
     @Override
     public void tidy(TidyRequest request) {
         ensureOpen();
-        long retentionSeconds =
-                request == null ? 0L : request.retentionSeconds(0L);
+        long retentionSeconds = request == null ? 0L : request.retentionSeconds(0L);
         call("tidy PKI records", () -> pki.tidy(retentionSeconds));
     }
 
@@ -279,15 +277,14 @@ final class CoordPkiProvider implements PkiProvider {
             CoordPkiState.AliasRecord record = current.get();
             Optional<PkiCertStatus> status = status(record.currentSerial());
             if (status.isPresent() && status.get().revoked()) {
-                throw new CertificateRevokedException(alias, CoordPkiNames.parseSerial(record.currentSerial()));
+                throw new CertificateRevokedException(
+                        alias, CoordPkiNames.parseSerial(record.currentSerial()));
             }
             if (status.isPresent() && !"expired".equalsIgnoreCase(status.get().status())) {
                 // active 或 retired：CN 的当前 active 证书就是新身份。retired 说明轮换已完成，
                 // 以 coord 的 active 为准并把 alias 挪过去。
                 PkiCertInfo active =
-                        call(
-                                "read signing identity " + alias,
-                                () -> pki.getCertByCN(cn));
+                        call("read signing identity " + alias, () -> pki.getCertByCN(cn));
                 if (!active.serial().equals(record.currentSerial())) {
                     state.replaceAlias(
                             cn,
@@ -299,8 +296,7 @@ final class CoordPkiProvider implements PkiProvider {
             }
         }
 
-        PkiCertInfo info =
-                call("issue signing identity " + alias, () -> issue(cn));
+        PkiCertInfo info = call("issue signing identity " + alias, () -> issue(cn));
         CoordPkiState.AliasRecord next =
                 new CoordPkiState.AliasRecord(alias, cn, info.serial(), ttlSeconds(null));
         if (current.isEmpty()) {
@@ -347,8 +343,7 @@ final class CoordPkiProvider implements PkiProvider {
                                 alias, cn, rotated.serial(), ttlSeconds(null)));
         if (!moved) {
             Optional<CoordPkiState.AliasRecord> winner = state.readAlias(cn);
-            if (winner.isEmpty()
-                    || !winner.get().currentSerial().equals(rotated.serial())) {
+            if (winner.isEmpty() || !winner.get().currentSerial().equals(rotated.serial())) {
                 // 另一个实例先完成了轮换：以 coord 的 active 为准，返回可用的新身份。
                 rotated = call("read signing identity " + alias, () -> pki.getCertByCN(cn));
             }
@@ -425,7 +420,8 @@ final class CoordPkiProvider implements PkiProvider {
             caCertificate();
             return HealthStatus.up("coord CA " + endpoint);
         } catch (RuntimeException e) {
-            return HealthStatus.down("coord PKI unavailable at " + endpoint + ": " + e.getMessage(), e);
+            return HealthStatus.down(
+                    "coord PKI unavailable at " + endpoint + ": " + e.getMessage(), e);
         }
     }
 
@@ -468,8 +464,7 @@ final class CoordPkiProvider implements PkiProvider {
                 info.keyName() == null || info.keyName().isBlank()
                         ? new KeyMaterial.External()
                         : new KeyMaterial.CoordManaged(info.keyName(), info.keyVersion());
-        return new IssuedCertificate(
-                leaf, CoordPkiCertificates.chain(leaf, authority), material);
+        return new IssuedCertificate(leaf, CoordPkiCertificates.chain(leaf, authority), material);
     }
 
     private X509Certificate caCertificate() {

@@ -60,8 +60,7 @@ final class CoordPkiNames {
     static void requireName(String value, String field) {
         if (value == null || !NAME.matcher(value).matches()) {
             throw new PkiException(
-                    PkiErrorCode.INVALID_REQUEST,
-                    field + " 必须匹配 " + NAME.pattern() + ": " + value);
+                    PkiErrorCode.INVALID_REQUEST, field + " 必须匹配 " + NAME.pattern() + ": " + value);
         }
     }
 
@@ -78,8 +77,8 @@ final class CoordPkiNames {
     }
 
     /**
-     * coord 在未显式传 SAN 时会把 CN 派生为 DNS SAN，CN 不是合法 DNS 名就拒绝签发。适配器永远显式传
-     * SAN，所以任意 alias 都能签出来；这里只负责把 CN 归一化成合法的 DNS 标签。
+     * coord 在未显式传 SAN 时会把 CN 派生为 DNS SAN，CN 不是合法 DNS 名就拒绝签发。适配器永远显式传 SAN，所以任意 alias 都能签出来；这里只负责把 CN
+     * 归一化成合法的 DNS 标签。
      */
     static String dnsName(String cn) {
         String normalized = DNS_SAFE.matcher(cn.toLowerCase(Locale.ROOT)).replaceAll("-");

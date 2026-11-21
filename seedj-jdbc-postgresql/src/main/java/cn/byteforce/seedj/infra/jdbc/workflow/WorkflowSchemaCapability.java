@@ -4,7 +4,8 @@ import cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner;
 import cn.byteforce.seedj.infra.jdbc.JdbcSchemaCapability;
 
 /**
- * WorkflowMigrations 的 schema 能力：迁移数据在 {@link WorkflowMigrations}，模板逻辑在 {@link JdbcSchemaCapability}。
+ * WorkflowMigrations 的 schema 能力：迁移数据在 {@link WorkflowMigrations}，模板逻辑在 {@link
+ * JdbcSchemaCapability}。
  *
  * <p>本类只保留公开常量与构造器，供既有装配与测试继续引用。
  *

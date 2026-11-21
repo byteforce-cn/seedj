@@ -271,8 +271,7 @@ public class CoordProperties {
         /**
          * 证书 CN 的实例前缀：CN = {@code <prefix>:<alias>}。
          *
-         * <p>coord 的 PKI 按 CN 全局唯一。不加前缀，同一 agent 上的两个应用会共用一张证书；契约测试也靠它
-         * 隔离状态。
+         * <p>coord 的 PKI 按 CN 全局唯一。不加前缀，同一 agent 上的两个应用会共用一张证书；契约测试也靠它 隔离状态。
          */
         private String identityPrefix = "seedj";
 

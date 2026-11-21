@@ -165,8 +165,7 @@ public class ClusterExtension implements BeforeAllCallback, AfterAllCallback, Pa
                                     List.of("127.0.0.1")));
             IssuedCertificate testClientCert =
                     pkiProvider.issue(
-                            "client",
-                            CertificateRequest.client("CN=test-client, O=Byteforce"));
+                            "client", CertificateRequest.client("CN=test-client, O=Byteforce"));
             log.info(
                     "IAM server cert serial={}, test client cert serial={}",
                     iamServerCert.serialNumber(),
@@ -180,8 +179,7 @@ public class ClusterExtension implements BeforeAllCallback, AfterAllCallback, Pa
                 IssuedCertificate cert =
                         pkiProvider.issue(
                                 "client",
-                                CertificateRequest.client(
-                                        "CN=" + svc.appName() + ", O=Byteforce"));
+                                CertificateRequest.client("CN=" + svc.appName() + ", O=Byteforce"));
                 backendClientSslContexts.put(svc.name(), pkiProvider.sslContext(cert));
                 log.info("服务 {} 客户端证书 serial={}", svc.name(), cert.serialNumber());
             }
@@ -207,8 +205,7 @@ public class ClusterExtension implements BeforeAllCallback, AfterAllCallback, Pa
                             CA_ALIAS,
                             tempDir.resolve("untrusted-pki-state.properties"));
             IssuedCertificate untrustedClientCert =
-                    untrustedPki.issue(
-                            "client", CertificateRequest.client("CN=untrusted-client"));
+                    untrustedPki.issue("client", CertificateRequest.client("CN=untrusted-client"));
             this.untrustedClientSslContext = pkiProvider.sslContext(untrustedClientCert);
 
             // 8. Postgres

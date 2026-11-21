@@ -74,8 +74,7 @@ class PkiContractValuesTest {
     @DisplayName("RevocationReason 与 RFC 5280 数值互转")
     void revocationReasonCodes() {
         assertThat(RevocationReason.KEY_COMPROMISE.rfcCode()).isEqualTo(1);
-        assertThat(RevocationReason.fromRfcCode(6))
-                .isEqualTo(RevocationReason.CERTIFICATE_HOLD);
+        assertThat(RevocationReason.fromRfcCode(6)).isEqualTo(RevocationReason.CERTIFICATE_HOLD);
         assertThat(RevocationReason.fromRfcCode(99)).isEqualTo(RevocationReason.UNSPECIFIED);
         assertThat(RevocationReason.AA_COMPROMISE.rfcCode()).isEqualTo(10);
     }
@@ -117,8 +116,7 @@ class PkiContractValuesTest {
                         certificate, List.of(certificate), new KeyMaterial.CoordManaged("key", 1));
         assertThatThrownBy(() -> managed.withPrivateKey(keyPair.getPrivate()))
                 .isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(
-                        () -> new IssuedCertificate(certificate, List.of(), null))
+        assertThatThrownBy(() -> new IssuedCertificate(certificate, List.of(), null))
                 .isInstanceOf(NullPointerException.class);
     }
 
@@ -151,8 +149,7 @@ class PkiContractValuesTest {
     @Test
     @DisplayName("PkiInfo 拒绝缺失字段")
     void pkiInfoValidation() {
-        PkiInfo info =
-                new PkiInfo("local", "default", "CN=ca", Instant.EPOCH, false);
+        PkiInfo info = new PkiInfo("local", "default", "CN=ca", Instant.EPOCH, false);
         assertThat(info.managedPrivateKeys()).isFalse();
         assertThatThrownBy(() -> new PkiInfo(null, "default", "CN=ca", Instant.EPOCH, false))
                 .isInstanceOf(NullPointerException.class);
@@ -165,9 +162,7 @@ class PkiContractValuesTest {
         assertThat(((HealthStatus.Up) HealthStatus.up("detail")).detail()).isEqualTo("detail");
         assertThat(HealthStatus.down("boom").healthy()).isFalse();
         assertThat(
-                        ((HealthStatus.Down)
-                                        HealthStatus.down(
-                                                "boom", new IllegalStateException()))
+                        ((HealthStatus.Down) HealthStatus.down("boom", new IllegalStateException()))
                                 .cause())
                 .isInstanceOf(IllegalStateException.class);
         assertThat(HealthStatus.unknown("not configured").healthy()).isFalse();
@@ -188,8 +183,7 @@ class PkiContractValuesTest {
                 .hasMessageContaining("coord")
                 .extracting(e -> ((PkiException) e).getErrorCode())
                 .isEqualTo(PkiErrorCode.PROVIDER_CLOSED);
-        assertThat(new PkiException("boom").getErrorCode())
-                .isEqualTo(PkiErrorCode.INTERNAL_ERROR);
+        assertThat(new PkiException("boom").getErrorCode()).isEqualTo(PkiErrorCode.INTERNAL_ERROR);
         assertThat(new PkiException(PkiErrorCode.NOT_FOUND, "missing", null).getErrorCode())
                 .isEqualTo(PkiErrorCode.NOT_FOUND);
     }

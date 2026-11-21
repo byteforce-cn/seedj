@@ -4,7 +4,8 @@ import cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner;
 import cn.byteforce.seedj.infra.jdbc.JdbcSchemaCapability;
 
 /**
- * PostgresOutboxMigrations 的 schema 能力：迁移数据在 {@link PostgresOutboxMigrations}，模板逻辑在 {@link JdbcSchemaCapability}。
+ * PostgresOutboxMigrations 的 schema 能力：迁移数据在 {@link PostgresOutboxMigrations}，模板逻辑在 {@link
+ * JdbcSchemaCapability}。
  *
  * <p>本类只保留公开常量与构造器，供既有装配与测试继续引用。
  *

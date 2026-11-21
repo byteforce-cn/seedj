@@ -119,7 +119,8 @@ class CoordPkiProviderTest {
     @DisplayName("sslContext 拒绝 CoordManaged 身份")
     void sslContextRejectsManagedKey() {
         IssuedCertificate issued =
-                provider.issue("server", CertificateRequest.server("CN=managed", List.of(), List.of()));
+                provider.issue(
+                        "server", CertificateRequest.server("CN=managed", List.of(), List.of()));
 
         assertThatThrownBy(() -> provider.sslContext(issued))
                 .isInstanceOf(IllegalStateException.class)
@@ -217,8 +218,7 @@ class CoordPkiProviderTest {
     @Test
     @DisplayName("非法 role / alias 统一 INVALID_REQUEST")
     void invalidNames() {
-        assertThatThrownBy(
-                        () -> provider.issue("bad role", CertificateRequest.client("CN=x")))
+        assertThatThrownBy(() -> provider.issue("bad role", CertificateRequest.client("CN=x")))
                 .isInstanceOf(PkiException.class)
                 .extracting(e -> ((PkiException) e).getErrorCode())
                 .isEqualTo(PkiErrorCode.INVALID_REQUEST);
@@ -257,8 +257,8 @@ class CoordPkiProviderTest {
         return generator.generateKeyPair();
     }
 
-    private static PKCS10CertificationRequest csr(
-            String subject, KeyPair keyPair, String dnsName) throws Exception {
+    private static PKCS10CertificationRequest csr(String subject, KeyPair keyPair, String dnsName)
+            throws Exception {
         Extensions extensions =
                 new Extensions(
                         new Extension(
@@ -266,11 +266,8 @@ class CoordPkiProviderTest {
                                 false,
                                 new GeneralNames(new GeneralName(GeneralName.dNSName, dnsName))
                                         .getEncoded()));
-        return new JcaPKCS10CertificationRequestBuilder(
-                        new X500Name(subject), keyPair.getPublic())
+        return new JcaPKCS10CertificationRequestBuilder(new X500Name(subject), keyPair.getPublic())
                 .addAttribute(PKCSObjectIdentifiers.pkcs_9_at_extensionRequest, extensions)
-                .build(
-                        new JcaContentSignerBuilder("SHA256withRSA")
-                                .build(keyPair.getPrivate()));
+                .build(new JcaContentSignerBuilder("SHA256withRSA").build(keyPair.getPrivate()));
     }
 }

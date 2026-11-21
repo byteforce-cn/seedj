@@ -6,9 +6,8 @@ import java.util.Objects;
 /**
  * 通用 schema 能力：把一份 {@link MigrationSet} 接入启动期能力链。
  *
- * <p>各能力不再复制 {@code isReady/initialize/validate} 模板，只声明迁移数据。能力名与迁移
- * scope 分离：能力名面向 {@code InfrastructureInitializer} 诊断，scope 面向 {@code
- * seedj_schema_history} 分组。
+ * <p>各能力不再复制 {@code isReady/initialize/validate} 模板，只声明迁移数据。能力名与迁移 scope 分离：能力名面向 {@code
+ * InfrastructureInitializer} 诊断，scope 面向 {@code seedj_schema_history} 分组。
  *
  * @author ByteForce
  * @since 1.0.0

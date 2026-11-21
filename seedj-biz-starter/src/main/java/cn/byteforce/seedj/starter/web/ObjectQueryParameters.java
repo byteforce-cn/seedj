@@ -38,8 +38,7 @@ public final class ObjectQueryParameters {
                     "cursor",
                     "min_version");
 
-    private static final List<String> INJECTION_MARKERS =
-            List.of("'", "\"", ";", "--", "/*", "*/");
+    private static final List<String> INJECTION_MARKERS = List.of("'", "\"", ";", "--", "/*", "*/");
 
     private ObjectQueryParameters() {}
 
@@ -118,10 +117,15 @@ public final class ObjectQueryParameters {
                         equals.put(name, value);
                         return;
                     }
-                    filters.add(filter(name.substring(0, separator), name.substring(separator + 2), value));
+                    filters.add(
+                            filter(
+                                    name.substring(0, separator),
+                                    name.substring(separator + 2),
+                                    value));
                 });
         rejectListMinVersion(values.get("min_version"));
-        PageRequest page = new PageRequest(intParam(values, "page", 1), intParam(values, "size", 20));
+        PageRequest page =
+                new PageRequest(intParam(values, "page", 1), intParam(values, "size", 20));
         PageCursor cursor =
                 values.containsKey("cursor") ? PageCursor.parse(values.get("cursor")) : null;
         String sort = values.get("sort");

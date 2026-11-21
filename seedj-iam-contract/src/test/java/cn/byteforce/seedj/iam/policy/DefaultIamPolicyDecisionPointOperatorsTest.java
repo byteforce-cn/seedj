@@ -10,10 +10,10 @@ import cn.byteforce.seedj.iam.PolicyComparisonOperator;
 import cn.byteforce.seedj.iam.PolicyCondition;
 import cn.byteforce.seedj.iam.PolicyOperand;
 import cn.byteforce.seedj.iam.spi.IamPolicyRepository;
+import cn.byteforce.seedj.iam.spi.IamResourceAttributeResolver;
 import cn.byteforce.seedj.security.AuthorizationDecision;
 import cn.byteforce.seedj.security.AuthorizationRequest;
 import cn.byteforce.seedj.security.AuthorizationSubject;
-import cn.byteforce.seedj.iam.spi.IamResourceAttributeResolver;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -26,8 +26,7 @@ import org.junit.jupiter.api.Test;
 /** 默认 PDP 的条件求值与审计语义：运算符、操作数来源、资源模式、审计失败不影响判定。 */
 class DefaultIamPolicyDecisionPointOperatorsTest {
 
-    private static final java.time.Instant AS_OF =
-            java.time.Instant.parse("2026-11-21T00:00:00Z");
+    private static final java.time.Instant AS_OF = java.time.Instant.parse("2026-11-21T00:00:00Z");
 
     private final Map<String, IamPolicy> policies = new LinkedHashMap<>();
     private final List<SecurityAuditEvent> audited = new ArrayList<>();
@@ -455,13 +454,7 @@ class DefaultIamPolicyDecisionPointOperatorsTest {
         AuthorizationDecision decision =
                 failing.decide(
                         new AuthorizationRequest(
-                                subject,
-                                "order:read",
-                                "order",
-                                "o-1",
-                                Map.of(),
-                                AS_OF,
-                                Map.of()));
+                                subject, "order:read", "order", "o-1", Map.of(), AS_OF, Map.of()));
 
         assertThat(decision.allowed()).isFalse();
         assertThat(decision.reason()).isEqualTo("no matching allow policy");

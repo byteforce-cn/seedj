@@ -1,11 +1,11 @@
 package cn.byteforce.seedj.starter.im;
 
-import cn.byteforce.seedj.starter.im.protocol.ImCodec;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import cn.byteforce.seedj.core.security.Caller;
 import cn.byteforce.seedj.starter.im.protocol.Cmd;
+import cn.byteforce.seedj.starter.im.protocol.ImCodec;
 import cn.byteforce.seedj.starter.im.protocol.ImFrame;
 import cn.byteforce.seedj.starter.im.protocol.body.AckReq;
 import cn.byteforce.seedj.starter.im.protocol.body.ErrorResp;

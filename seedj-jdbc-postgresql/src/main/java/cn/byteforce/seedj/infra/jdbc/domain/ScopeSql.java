@@ -97,8 +97,7 @@ public final class ScopeSql {
             case ScopePredicate.Or or ->
                     join(or.parts(), known, type, column, unknownFieldMessage, " OR ", "FALSE");
             case ScopePredicate.Not not -> {
-                Clause inner =
-                        compile(not.part(), known, type, column, unknownFieldMessage);
+                Clause inner = compile(not.part(), known, type, column, unknownFieldMessage);
                 yield new Clause("(" + inner.sql() + ") IS NOT TRUE", inner.args());
             }
         };

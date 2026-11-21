@@ -6,8 +6,8 @@ import java.util.Objects;
 /**
  * 已签发证书的密钥归属。
  *
- * <p>两种形态对应两套 TLS 路径：{@link External} 可以直接喂给 JDK 的 {@code KeyManager}；{@link
- * CoordManaged} 只能通过 {@link PkiProvider#sslConfig} + 委托签名使用。
+ * <p>两种形态对应两套 TLS 路径：{@link External} 可以直接喂给 JDK 的 {@code KeyManager}；{@link CoordManaged} 只能通过
+ * {@link PkiProvider#sslConfig} + 委托签名使用。
  */
 public sealed interface KeyMaterial permits KeyMaterial.CoordManaged, KeyMaterial.External {
 
@@ -36,9 +36,8 @@ public sealed interface KeyMaterial permits KeyMaterial.CoordManaged, KeyMateria
     /**
      * 私钥在调用方手里。
      *
-     * <p>{@code privateKey == null} 表示「私钥确实在调用方手里，但没有随 {@link IssuedCertificate}
-     * 一起返回」——典型场景是 {@link PkiProvider#signCsr}。调用方用 {@link
-     * IssuedCertificate#withPrivateKey} 绑定后再构建 TLS 身份。
+     * <p>{@code privateKey == null} 表示「私钥确实在调用方手里，但没有随 {@link IssuedCertificate} 一起返回」——典型场景是
+     * {@link PkiProvider#signCsr}。调用方用 {@link IssuedCertificate#withPrivateKey} 绑定后再构建 TLS 身份。
      */
     record External(PrivateKey privateKey) implements KeyMaterial {
 

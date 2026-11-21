@@ -8,18 +8,18 @@ import cn.byteforce.seedj.domain.TemporalStore;
 import cn.byteforce.seedj.infra.local.ai.InMemoryDecisionAdmissionStore;
 import cn.byteforce.seedj.infra.local.cqrs.InMemoryCommandStore;
 import cn.byteforce.seedj.infra.local.domain.InMemoryTemporalStore;
+import javax.sql.DataSource;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import javax.sql.DataSource;
 import org.springframework.context.annotation.Bean;
 
 /**
  * 内存命令/对象存储：provider 缺省且没有 JDBC 时的默认实现。
  *
- * <p>排在 PostgreSQL 适配器之后装配：两个适配器同时在 classpath 时，JDBC 先注册， 这里靠 {@link
- * ConditionalOnMissingBean} 让位；只有显式 {@code provider=memory} 或没有 JDBC 时才生效。
+ * <p>排在 PostgreSQL 适配器之后装配：两个适配器同时在 classpath 时，JDBC 先注册， 这里靠 {@link ConditionalOnMissingBean}
+ * 让位；只有显式 {@code provider=memory} 或没有 JDBC 时才生效。
  *
  * @author ByteForce
  * @since 1.0.0

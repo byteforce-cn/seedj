@@ -17,8 +17,8 @@ import javax.net.ssl.TrustManagerFactory;
 /**
  * coord PKI 的 PEM 材料到 JSSE 对象的转换。
  *
- * <p>coord 返回的是 PEM 文本（叶子 + 自签 CA）。0.4.4 起托管私钥不再随响应返回，因此这里只解析证书；
- * 私钥只有在调用方自持（{@code KeyMaterial.External}）时才会传入。
+ * <p>coord 返回的是 PEM 文本（叶子 + 自签 CA）。0.4.4 起托管私钥不再随响应返回，因此这里只解析证书； 私钥只有在调用方自持（{@code
+ * KeyMaterial.External}）时才会传入。
  */
 final class CoordPkiCertificates {
 

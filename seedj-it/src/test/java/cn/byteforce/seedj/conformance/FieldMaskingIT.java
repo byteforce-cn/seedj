@@ -102,7 +102,8 @@ class FieldMaskingIT {
                     if (allowMasked && contact && request.action().equals("read.masked")) {
                         return AuthorizationDecision.allow("allow-masked");
                     }
-                    return AuthorizationDecision.deny("no matching allow policy", "no matching allow policy", null);
+                    return AuthorizationDecision.deny(
+                            "no matching allow policy", "no matching allow policy", null);
                 };
         CompositeAuthorizationDecisionPoint decisions =
                 new CompositeAuthorizationDecisionPoint(

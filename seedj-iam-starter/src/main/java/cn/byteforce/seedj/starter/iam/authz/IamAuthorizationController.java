@@ -209,9 +209,12 @@ public class IamAuthorizationController {
                                     "IAM-ATTRIBUTE_SOURCE_UNAVAILABLE",
                                     "attribute source unavailable",
                                     Map.of(
-                                            "reason_code", "ATTRIBUTE_SOURCE_UNAVAILABLE",
-                                            "principal", principalId,
-                                            "as_of", asOf.toString())));
+                                            "reason_code",
+                                            "ATTRIBUTE_SOURCE_UNAVAILABLE",
+                                            "principal",
+                                            principalId,
+                                            "as_of",
+                                            asOf.toString())));
         }
         AttributeSnapshot snapshot = lookup.snapshot();
         if (snapshot == null) {
@@ -234,9 +237,12 @@ public class IamAuthorizationController {
                 "IAM-ATTRIBUTE_MISSING",
                 "attribute snapshot is missing",
                 Map.of(
-                        "reason_code", "ATTRIBUTE_MISSING",
-                        "principal", principalId,
-                        "as_of", asOf.toString()));
+                        "reason_code",
+                        "ATTRIBUTE_MISSING",
+                        "principal",
+                        principalId,
+                        "as_of",
+                        asOf.toString()));
     }
 
     private boolean trustedService() {

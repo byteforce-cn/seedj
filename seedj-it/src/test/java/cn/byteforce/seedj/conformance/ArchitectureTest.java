@@ -113,9 +113,7 @@ class ArchitectureTest {
                                             .startsWith("cn.byteforce.seedj.infra")));
         }
         violations.removeIf(
-                violation ->
-                        allowed.contains(
-                                "starter-does-not-depend-on-adapters|" + violation));
+                violation -> allowed.contains("starter-does-not-depend-on-adapters|" + violation));
         assertThat(violations)
                 .as(
                         "规则 starter-does-not-depend-on-adapters 存在未登记违规；修掉依赖，或在 %s 记录 "
@@ -198,8 +196,7 @@ class ArchitectureTest {
         return violations;
     }
 
-    private static Set<String> violations(
-            JavaClass clazz, Predicate<JavaClass> forbiddenTarget) {
+    private static Set<String> violations(JavaClass clazz, Predicate<JavaClass> forbiddenTarget) {
         Set<String> violations = new java.util.TreeSet<>();
         for (Dependency dependency : clazz.getDirectDependenciesFromSelf()) {
             JavaClass target = dependency.getTargetClass();

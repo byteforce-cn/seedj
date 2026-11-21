@@ -5,8 +5,8 @@ import java.time.Duration;
 /**
  * tidy 请求。
  *
- * <p>{@code retention == null} 表示 provider/CA 的默认保留期；{@code Duration.ZERO} 表示立即回收已过期
- * 记录。coord 侧的吊销账本永不被 tidy 回收。
+ * <p>{@code retention == null} 表示 provider/CA 的默认保留期；{@code Duration.ZERO} 表示立即回收已过期 记录。coord
+ * 侧的吊销账本永不被 tidy 回收。
  */
 public record TidyRequest(Duration retention) {
 

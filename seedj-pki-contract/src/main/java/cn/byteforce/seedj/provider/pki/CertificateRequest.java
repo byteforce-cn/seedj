@@ -6,9 +6,9 @@ import java.util.List;
 /**
  * 签发请求。
  *
- * <p>{@code subject} 可以是完整 DN（{@code CN=svc,O=Byteforce}）或裸 CN；provider 只承诺使用其中的
- * CN。{@link PkiProvider#signCsr} 的 subject/SAN 来自 CSR，此处的 {@code subject} 会被忽略，因此可用
- * {@link #csr} 构造一个只带有效期与用途的请求。
+ * <p>{@code subject} 可以是完整 DN（{@code CN=svc,O=Byteforce}）或裸 CN；provider 只承诺使用其中的 CN。{@link
+ * PkiProvider#signCsr} 的 subject/SAN 来自 CSR，此处的 {@code subject} 会被忽略，因此可用 {@link #csr}
+ * 构造一个只带有效期与用途的请求。
  *
  * <p>列表字段永远非 null；{@code validity == null} 表示 provider 默认有效期。
  */

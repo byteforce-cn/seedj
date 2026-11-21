@@ -68,8 +68,9 @@ class AuthorizationWiringTest {
     void iamHasSingleDecisionPointProducer() {
         assertThat(AuthorizationDecisionPoint.class)
                 .isAssignableFrom(CompositeAuthorizationDecisionPoint.class);
-        assertThat(AuthorizationDecisionPoint.class.isAssignableFrom(
-                        IamContractAuthorizationService.class))
+        assertThat(
+                        AuthorizationDecisionPoint.class.isAssignableFrom(
+                                IamContractAuthorizationService.class))
                 .isFalse();
     }
 

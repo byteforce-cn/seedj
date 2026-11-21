@@ -23,8 +23,7 @@ import org.junit.jupiter.api.Test;
 /** 默认 PDP 的剩余求值分支：username 路径、非集合 IN、数值相等、集合相等与 跨类型排序比较。 */
 class DefaultIamPolicyDecisionPointBranchTest {
 
-    private static final java.time.Instant AS_OF =
-            java.time.Instant.parse("2026-11-21T00:00:00Z");
+    private static final java.time.Instant AS_OF = java.time.Instant.parse("2026-11-21T00:00:00Z");
 
     private final Map<String, IamPolicy> policies = new LinkedHashMap<>();
 
@@ -301,7 +300,13 @@ class DefaultIamPolicyDecisionPointBranchTest {
                 new DefaultIamPolicyDecisionPoint(repository, List.of(), null, () -> "audit-1")
                         .decide(
                                 new AuthorizationRequest(
-                                        subject, "order:read", "order", "o-1", Map.of(), AS_OF, Map.of()));
+                                        subject,
+                                        "order:read",
+                                        "order",
+                                        "o-1",
+                                        Map.of(),
+                                        AS_OF,
+                                        Map.of()));
         return decision.allowed();
     }
 

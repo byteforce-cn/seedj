@@ -114,7 +114,9 @@ class ReadPolicyAutoConfigurationTest {
     }
 
     private static IamPolicyDecisionPoint denyAll() {
-        return request -> AuthorizationDecision.deny("no matching allow policy", "no matching allow policy", null);
+        return request ->
+                AuthorizationDecision.deny(
+                        "no matching allow policy", "no matching allow policy", null);
     }
 
     @Configuration(proxyBeanMethods = false)

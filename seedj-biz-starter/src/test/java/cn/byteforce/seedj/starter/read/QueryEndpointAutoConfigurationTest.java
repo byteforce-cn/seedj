@@ -18,9 +18,9 @@ import cn.byteforce.seedj.module.ObjectModuleConfigurer;
 import cn.byteforce.seedj.module.ObjectModuleRegistry;
 import cn.byteforce.seedj.module.ObjectModules;
 import cn.byteforce.seedj.read.DataScopeResolver;
-import cn.byteforce.seedj.starter.domain.web.ObjectPageResponse;
 import cn.byteforce.seedj.security.AuthorizationDecision;
 import cn.byteforce.seedj.security.AuthorizationDecisionPoint;
+import cn.byteforce.seedj.starter.domain.web.ObjectPageResponse;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -237,7 +237,8 @@ class QueryEndpointAutoConfigurationTest {
                                                         .isEqualTo(genericError.code()));
                         return;
                     }
-                    assertThat(declarative).isInstanceOf(QueryEndpointAutoConfiguration.QueryPageResponse.class);
+                    assertThat(declarative)
+                            .isInstanceOf(QueryEndpointAutoConfiguration.QueryPageResponse.class);
                     ObjectPageResponse genericPage = (ObjectPageResponse) generic;
                     QueryEndpointAutoConfiguration.QueryPageResponse declarativePage =
                             (QueryEndpointAutoConfiguration.QueryPageResponse) declarative;

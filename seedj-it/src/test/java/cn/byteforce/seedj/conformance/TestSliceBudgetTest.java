@@ -36,8 +36,7 @@ class TestSliceBudgetTest {
                         "seedj-ai-contract",
                         "seedj-im-contract",
                         "seedj-iam-contract")) {
-            testFiles.addAll(
-                    CognitiveLoadBaseline.javaFiles(ROOT, contract + "/src/test/java"));
+            testFiles.addAll(CognitiveLoadBaseline.javaFiles(ROOT, contract + "/src/test/java"));
         }
         testFiles.addAll(
                 CognitiveLoadBaseline.javaFiles(ROOT, "seedj-jdbc-postgresql/src/test/java"));

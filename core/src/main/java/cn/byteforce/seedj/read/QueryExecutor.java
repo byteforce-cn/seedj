@@ -6,9 +6,8 @@ import java.util.Map;
 /**
  * 自定义查询的执行出口：适配器负责 SQL 生成与执行。
  *
- * <p>{@link ReadGateway} 只做校验、对象权限、行范围解析、字段策略与审计，然后把 {@link
- * QueryPlan} 交给实现。行范围谓词必须由实现编译成 SQL（列名限定为 {@code seedj_q}），
- * 不得忽略或放宽。
+ * <p>{@link ReadGateway} 只做校验、对象权限、行范围解析、字段策略与审计，然后把 {@link QueryPlan} 交给实现。行范围谓词必须由实现编译成 SQL（列名限定为
+ * {@code seedj_q}）， 不得忽略或放宽。
  *
  * @author ByteForce
  * @since 1.0.0

@@ -26,8 +26,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 /**
  * 谓词契约：同一组用例在内存求值与 PostgreSQL 编译器上必须得到相同的行集合。
  *
- * <p>重点锁定 {@code Not} 对 {@code NULL} 的二值语义：字段为 {@code NULL} 时 {@code
- * Not(Eq(...))} 为真。两套实现分叉过一次（{@code NOT (p)} vs {@code IS NOT TRUE}）， 这组用例防止回潮。
+ * <p>重点锁定 {@code Not} 对 {@code NULL} 的二值语义：字段为 {@code NULL} 时 {@code Not(Eq(...))}
+ * 为真。两套实现分叉过一次（{@code NOT (p)} vs {@code IS NOT TRUE}）， 这组用例防止回潮。
  */
 @Testcontainers
 class ScopePredicateContractTest {
@@ -62,8 +62,7 @@ class ScopePredicateContractTest {
                 new DriverManagerDataSource(
                         POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
         jdbc = new JdbcTemplate(dataSource);
-        jdbc.execute(
-                "CREATE TABLE scope_row (id INT PRIMARY KEY, org_unit_id TEXT, status TEXT)");
+        jdbc.execute("CREATE TABLE scope_row (id INT PRIMARY KEY, org_unit_id TEXT, status TEXT)");
         for (Row row : ROWS) {
             jdbc.update(
                     "INSERT INTO scope_row (id, org_unit_id, status) VALUES (?, ?, ?)",

@@ -15,10 +15,7 @@ class JdbcSchemaCapabilityTest {
 
     private static final MigrationSet SET =
             new MigrationSet(
-                    "postgres-test",
-                    "test",
-                    42,
-                    List.of(new Migration(1, "first", "SELECT 1")));
+                    "postgres-test", "test", 42, List.of(new Migration(1, "first", "SELECT 1")));
 
     private final JdbcMigrationRunner runner = mock(JdbcMigrationRunner.class);
 
@@ -85,11 +82,13 @@ class JdbcSchemaCapabilityTest {
                         new cn.byteforce.seedj.infra.jdbc.workflow.WorkflowSchemaCapability(
                                 runner));
 
-        List<MigrationSet> sets = capabilities.stream().map(JdbcSchemaCapability::migrationSet).toList();
+        List<MigrationSet> sets =
+                capabilities.stream().map(JdbcSchemaCapability::migrationSet).toList();
         assertThat(sets).extracting(MigrationSet::name).doesNotHaveDuplicates();
         assertThat(sets).extracting(MigrationSet::scope).doesNotHaveDuplicates();
         assertThat(sets).allSatisfy(set -> assertThat(set.migrations()).isNotEmpty());
         assertThat(capabilities).extracting(JdbcSchemaCapability::getName).doesNotHaveDuplicates();
-        assertThat(capabilities).allSatisfy(capability -> assertThat(capability.getOrder()).isNotNegative());
+        assertThat(capabilities)
+                .allSatisfy(capability -> assertThat(capability.getOrder()).isNotNegative());
     }
 }

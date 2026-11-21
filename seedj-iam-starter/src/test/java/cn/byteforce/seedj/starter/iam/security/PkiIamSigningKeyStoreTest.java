@@ -97,8 +97,6 @@ class PkiIamSigningKeyStoreTest {
                                                 new JcaContentSignerBuilder("SHA256withRSA")
                                                         .build(keyPair.getPrivate())));
         return new IssuedCertificate(
-                certificate,
-                List.of(certificate),
-                new KeyMaterial.External(keyPair.getPrivate()));
+                certificate, List.of(certificate), new KeyMaterial.External(keyPair.getPrivate()));
     }
 }
