@@ -18,6 +18,7 @@ import cn.byteforce.seedj.module.ObjectModuleConfigurer;
 import cn.byteforce.seedj.module.ObjectModuleRegistry;
 import cn.byteforce.seedj.module.ObjectModules;
 import cn.byteforce.seedj.read.DataScopeResolver;
+import cn.byteforce.seedj.starter.domain.web.ObjectPageResponse;
 import cn.byteforce.seedj.security.AuthorizationDecision;
 import cn.byteforce.seedj.security.AuthorizationDecisionPoint;
 import java.time.Instant;
@@ -29,6 +30,8 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
 import org.springframework.http.HttpStatus;
@@ -185,6 +188,102 @@ class QueryEndpointAutoConfigurationTest {
     @DisplayName("未知过滤字段由 schema 拒绝，不静默忽略")
     void unknownFilterIsRejected() {
         runner.run(context -> assertInvalid(context, Map.of("unknown", "x"), "unknown"));
+    }
+
+    @Test
+    @DisplayName("声明式查询面接受 sort/direction（与通用面同一套保留字）")
+    void declarativeSurfaceAcceptsSort() {
+        append("E-1", "Alice");
+        append("E-2", "Bob");
+
+        runner.run(
+                context -> {
+                    ServerResponse response =
+                            call(context, Map.of("sort", "employee_no", "direction", "DESC"));
+
+                    assertThat(response.statusCode()).isEqualTo(HttpStatus.OK);
+                    assertThat(body(response).total()).isEqualTo(2);
+                });
+    }
+
+    @Test
+    @DisplayName("列表查询拒绝 min_version 与注入字符")
+    void listRejectsMinVersionAndInjection() {
+        runner.run(
+                context -> {
+                    assertInvalid(context, Map.of("min_version", "2"), "min_version");
+                    assertInvalid(context, Map.of("name", "x' OR 1=1"), "illegal characters");
+                    assertInvalid(context, Map.of("name__nope", "x"), "unknown filter operator");
+                });
+    }
+
+    @ParameterizedTest
+    @MethodSource("parityParams")
+    @DisplayName("同一请求在两个读入口得到相同的状态语义")
+    void bothSurfacesAgree(Map<String, String> params) {
+        append("E-1", "Alice");
+        append("E-2", "Bob");
+
+        runner.run(
+                context -> {
+                    Object generic = genericSurface(context, params);
+                    Object declarative = declarativeSurface(context, params);
+                    if (generic instanceof ContractException genericError) {
+                        assertThat(declarative)
+                                .isInstanceOfSatisfying(
+                                        ContractException.class,
+                                        error ->
+                                                assertThat(error.code())
+                                                        .isEqualTo(genericError.code()));
+                        return;
+                    }
+                    assertThat(declarative).isInstanceOf(QueryEndpointAutoConfiguration.QueryPageResponse.class);
+                    ObjectPageResponse genericPage = (ObjectPageResponse) generic;
+                    QueryEndpointAutoConfiguration.QueryPageResponse declarativePage =
+                            (QueryEndpointAutoConfiguration.QueryPageResponse) declarative;
+                    assertThat(declarativePage.total()).isEqualTo(genericPage.total());
+                    assertThat(declarativePage.page()).isEqualTo(genericPage.page());
+                    assertThat(declarativePage.size()).isEqualTo(genericPage.size());
+                    assertThat(declarativePage.items()).hasSize(genericPage.items().size());
+                });
+    }
+
+    static java.util.stream.Stream<Map<String, String>> parityParams() {
+        return java.util.stream.Stream.of(
+                Map.of(),
+                Map.of("sort", "employee_no", "direction", "DESC"),
+                Map.of("page", "1", "size", "1"),
+                Map.of("name", "Alice"),
+                Map.of("name__in", "Alice,Bob"),
+                Map.of("unknown", "x"),
+                Map.of("min_version", "2"),
+                Map.of("page", "abc"),
+                Map.of("name", "x' OR 1=1"),
+                Map.of("name__nope", "x"));
+    }
+
+    private static Object genericSurface(
+            org.springframework.context.ApplicationContext context, Map<String, String> params) {
+        try {
+            return new cn.byteforce.seedj.starter.domain.web.ObjectQueryController(
+                            context.getBean(cn.byteforce.seedj.read.ReadGateway.class),
+                            context.getBean(CallerProvider.class))
+                    .list("employee", params);
+        } catch (ContractException error) {
+            return error;
+        }
+    }
+
+    private static Object declarativeSurface(
+            org.springframework.context.ApplicationContext context, Map<String, String> params) {
+        try {
+            ServerResponse response = call(context, params);
+            return ((EntityResponse<?>) response).entity();
+        } catch (ContractException error) {
+            return error;
+        } catch (Exception error) {
+            throw new IllegalStateException(error);
+        }
     }
 
     private WebApplicationContextRunner runnerWith(ObjectModuleConfigurer configurer) {

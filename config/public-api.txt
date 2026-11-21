@@ -519,6 +519,7 @@ seedj-biz-starter|cn.byteforce.seedj.starter.observability|MicrometerTracePropag
 seedj-biz-starter|cn.byteforce.seedj.starter.observability|ObservabilityAutoConfiguration
 seedj-biz-starter|cn.byteforce.seedj.starter.observability|TracePropagation
 seedj-biz-starter|cn.byteforce.seedj.starter.read|ObjectModuleAutoConfiguration
+seedj-biz-starter|cn.byteforce.seedj.starter.read|ObjectQueryParameters
 seedj-biz-starter|cn.byteforce.seedj.starter.read|QueryEndpointAutoConfiguration
 seedj-biz-starter|cn.byteforce.seedj.starter.read|ReadAutoConfiguration
 seedj-biz-starter|cn.byteforce.seedj.starter.read|ScopeContextFilter
