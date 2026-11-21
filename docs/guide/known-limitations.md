@@ -65,3 +65,18 @@ IM 的在线状态查询是**节点内**视图：多节点部署时，查询只�
 
 线格式（`/commands/{type}`、`/objects/{type}/{id}`、错误信封 `{code,message,details}`）
 已冻结；Java API 在 1.0.0 前仍可能调整。制品暂未发布到 Maven Central，使用方需从源码构建。
+
+## 1.0 冻结边界：有意保留的复杂度
+
+以下不是缺陷，1.0 之前不再扩展；引用它们的代码不要期待行为变化。
+
+- **两条写路径**：默认是命令 + 当前视图（`CommandRuntime` 双时间轴）；事件溯源
+  （`CommandAgent`）是显式第二选择。只有在需要完整事件历史、可回放聚合时才使用它；1.0
+  前没有生产采用者的场景不要新增依赖。`writeRuntimes` 由 `ConceptBudgetTest` 钉在 2。
+- **workflow 本地 provider 可用，JDBC provider 未完成**：`seedj-workflow-local` 提供完整
+  的内存状态机；PostgreSQL 侧只有 schema、跨连接读与 timer 扫描。1.0 发布说明会写明
+  这一边界，新增能力只走 `default` 方法与 `WorkflowCapabilities`。
+- **四个宿主 + `seedj-it` 夹具**是测试架构的第二套装配：`ClusterExtension`、`IamTestSession`、
+  `OidcIT` 属于测试支撑，不进入产品发布物；`TestSliceBudgetTest` 负责保证 Spring 测试不膨胀。
+- **约 350 处 `@Conditional`**：大部分是 `@ConditionalOnMissingBean`/`@ConditionalOnProperty`
+  的正常用法。不要为了减少注解数量引入自定义条件组合——provider 选择已经局部化到适配器。

@@ -1,15 +1,18 @@
 package cn.byteforce.seedj.infra.local;
 
+import cn.byteforce.seedj.ai.spi.DecisionAdmissionStore;
 import cn.byteforce.seedj.core.clock.Clock;
 import cn.byteforce.seedj.cqrs.spi.CommandStore;
 import cn.byteforce.seedj.domain.ObjectSchemaRegistry;
 import cn.byteforce.seedj.domain.TemporalStore;
+import cn.byteforce.seedj.infra.local.ai.InMemoryDecisionAdmissionStore;
 import cn.byteforce.seedj.infra.local.cqrs.InMemoryCommandStore;
 import cn.byteforce.seedj.infra.local.domain.InMemoryTemporalStore;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import javax.sql.DataSource;
 import org.springframework.context.annotation.Bean;
 
 /**
@@ -71,5 +74,16 @@ public class InMemoryStoreAutoConfiguration {
             matchIfMissing = true)
     public TemporalStore temporalStore(Clock clock, ObjectSchemaRegistry schemas) {
         return new InMemoryTemporalStore(clock, schemas);
+    }
+
+    /**
+     * 无 DataSource 的内存准入存储；有 DataSource 时由 PostgreSQL 配置提供。
+     *
+     * @return 准入存储
+     */
+    @Bean
+    @ConditionalOnMissingBean({DecisionAdmissionStore.class, DataSource.class})
+    public DecisionAdmissionStore decisionAdmissionStore() {
+        return new InMemoryDecisionAdmissionStore();
     }
 }

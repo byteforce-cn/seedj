@@ -1,7 +1,6 @@
-# starter 依赖具体适配器：F1 的已知债务。biz-starter 已归位（0 条），IAM/IM/AI 待迁移。
+# starter 依赖具体适配器：F1 的已知债务。biz-starter 与 ai-starter 已归位（0 条）；
+# 剩余 IAM/IM 的存储配置仍持有具体实现，待抽 capability-autoconfigure 后清空。
 # 格式：rule|origin -> target
-# 其余规则（无）。
-starter-does-not-depend-on-adapters|cn.byteforce.seedj.starter.ai.autoconfigure.AiGuardAutoConfiguration -> cn.byteforce.seedj.infra.local.ai.InMemoryDecisionAdmissionStore
 starter-does-not-depend-on-adapters|cn.byteforce.seedj.starter.iam.abac.IamPolicyAdminController -> cn.byteforce.seedj.infra.jdbc.iam.PolicyConditionCodec
 starter-does-not-depend-on-adapters|cn.byteforce.seedj.starter.iam.authz.IamAuthzConfiguration -> cn.byteforce.seedj.infra.jdbc.iam.JdbcIamBindingStore
 starter-does-not-depend-on-adapters|cn.byteforce.seedj.starter.iam.authz.IamAuthzConfiguration -> cn.byteforce.seedj.infra.local.iam.InMemoryIamAttributeSource

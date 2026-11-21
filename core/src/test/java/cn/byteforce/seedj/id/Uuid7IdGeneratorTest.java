@@ -1,4 +1,4 @@
-package cn.byteforce.seedj.infra.local.id;
+package cn.byteforce.seedj.id;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

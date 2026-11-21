@@ -1,7 +1,11 @@
 {
   "core": {
-    "branch": 0.87,
-    "line": 0.93
+    "branch": 0.83,
+    "line": 0.91
+  },
+  "seedj-ai-contract": {
+    "branch": 0.9,
+    "line": 0.98
   },
   "seedj-ai-starter": {
     "branch": 0.71,
@@ -15,9 +19,17 @@
     "branch": 0.78,
     "line": 0.89
   },
+  "seedj-iam-contract": {
+    "branch": 0.938,
+    "line": 0.993
+  },
   "seedj-iam-starter": {
     "branch": 0.86,
     "line": 0.96
+  },
+  "seedj-im-contract": {
+    "branch": 0.833,
+    "line": 0.855
   },
   "seedj-infra-coord": {
     "branch": 0.57,
@@ -30,6 +42,14 @@
   "seedj-jdbc-postgresql": {
     "branch": 0.75,
     "line": 0.88
+  },
+  "seedj-transit-contract": {
+    "branch": 1.0,
+    "line": 1.0
+  },
+  "seedj-workflow-contract": {
+    "branch": 0.893,
+    "line": 1.0
   },
   "seedj-workflow-local": {
     "branch": 0.57,
