@@ -13,8 +13,8 @@ seedj-server/ai           →  seedj-ai-starter  →  seedj-biz-starter
                           →  core
 ```
 
-`core` 不依赖 Spring，也不依赖任何适配器；适配器只实现 `core` 的 SPI，starter 负责把
-实现装配起来，宿主只做组合。
+`core` 不依赖 Spring，也不依赖任何适配器；适配器只实现 `core` 的 SPI，并自带
+`@AutoConfiguration` 用 `seedj.*.provider` 竞争（starter 不再编译期依赖适配器），宿主只做组合。
 
 AI 这一支的单向性由 ArchUnit 规则守着：`seedj-ai-starter` 依赖 `seedj-biz-starter`（拿
 `CallerProvider`、`CommandCatalog` 与命令入口线格式），**`seedj-biz-starter` 不得反向依赖
@@ -45,8 +45,9 @@ AI 这一支的单向性由 ArchUnit 规则守着：`seedj-ai-starter` 依赖 `s
 - 实现：`cn.byteforce.seedj.infra.*`
 - 装配：`cn.byteforce.seedj.starter.*`
 
-新增能力时保持这个分层：SPI 与值类型进 `core`，实现进 `infra`/`jdbc`，`@AutoConfiguration`
-进对应的 starter，宿主不出现业务装配代码。
+新增能力时保持这个分层：SPI 与值类型进 `core`，实现与“选哪个 provider”的
+`@AutoConfiguration` 进 `infra`/`jdbc`；starter 只装配能力（运行时、HTTP 面、策略），
+宿主不出现业务装配代码。
 
 ## 启动一个宿主
 

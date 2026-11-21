@@ -24,7 +24,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
-import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
  * 读路径装配：网关、审计、请求事实过滤器与通用查询面开关。
@@ -34,7 +33,11 @@ import org.springframework.jdbc.core.JdbcTemplate;
  */
 @AutoConfiguration(
         after = TemporalCommandAutoConfiguration.class,
-        afterName = "cn.byteforce.seedj.starter.read.ObjectModuleAutoConfiguration")
+        afterName = {
+            "cn.byteforce.seedj.starter.read.ObjectModuleAutoConfiguration",
+            "cn.byteforce.seedj.infra.jdbc.store.PostgresStoreAutoConfiguration",
+            "cn.byteforce.seedj.infra.local.InMemoryStoreAutoConfiguration"
+        })
 @ConditionalOnBean({TemporalStore.class, ObjectModuleRegistry.class})
 public class ReadAutoConfiguration {
 
@@ -96,19 +99,6 @@ public class ReadAutoConfiguration {
                 ids.getIfAvailable(() -> UUID::randomUUID),
                 executor.getIfAvailable(),
                 decisions);
-    }
-
-    /**
-     * 自定义查询执行器：只在有 JDBC 数据源时注册（PostgreSQL）。
-     *
-     * @param jdbc JDBC 模板
-     * @return 执行器
-     */
-    @Bean
-    @ConditionalOnMissingBean
-    @ConditionalOnBean(JdbcTemplate.class)
-    public QueryExecutor queryExecutor(JdbcTemplate jdbc) {
-        return new cn.byteforce.seedj.infra.jdbc.read.PostgresQueryExecutor(jdbc);
     }
 
     /**

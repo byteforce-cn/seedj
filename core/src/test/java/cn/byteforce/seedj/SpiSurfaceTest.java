@@ -230,7 +230,11 @@ class SpiSurfaceTest {
                             "InboxStatus",
                             "InboxStore"),
                     "cn.byteforce.seedj.id",
-                    List.of("IdErrorCode", "IdException", "IdGenerator"),
+                    List.of(
+                            "IdErrorCode",
+                            "IdException",
+                            "IdGenerator",
+                            "Uuid7IdGenerator"),
                     "cn.byteforce.seedj.core",
                     List.of(
                             "CodeEnum",

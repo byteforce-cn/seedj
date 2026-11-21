@@ -15,6 +15,8 @@ import cn.byteforce.seedj.domain.ObjectSchema;
 import cn.byteforce.seedj.domain.TemporalStore;
 import cn.byteforce.seedj.infra.jdbc.domain.TemporalTable;
 import cn.byteforce.seedj.infra.jdbc.domain.TemporalTables;
+import cn.byteforce.seedj.infra.local.InMemoryStoreAutoConfiguration;
+import cn.byteforce.seedj.infra.jdbc.store.PostgresStoreAutoConfiguration;
 import cn.byteforce.seedj.infra.local.cqrs.InMemoryCommandStore;
 import cn.byteforce.seedj.infra.local.domain.InMemoryTemporalStore;
 import cn.byteforce.seedj.lock.LockProvider;
@@ -44,7 +46,9 @@ class TemporalCommandAutoConfigurationTest {
     private final ApplicationContextRunner runner =
             new ApplicationContextRunner()
                     .withConfiguration(
-                            AutoConfigurations.of(TemporalCommandAutoConfiguration.class))
+                            AutoConfigurations.of(
+                                    TemporalCommandAutoConfiguration.class,
+                                    InMemoryStoreAutoConfiguration.class))
                     .withBean(BizEnabledMarker.class)
                     .withBean(
                             AuthorizationDecisionPoint.class,
@@ -59,6 +63,7 @@ class TemporalCommandAutoConfigurationTest {
                 .withConfiguration(
                         AutoConfigurations.of(
                                 TemporalCommandAutoConfiguration.class,
+                                InMemoryStoreAutoConfiguration.class,
                                 ObjectModuleAutoConfiguration.class))
                 .withBean(BizEnabledMarker.class)
                 .withBean(
@@ -90,6 +95,7 @@ class TemporalCommandAutoConfigurationTest {
                 .withConfiguration(
                         AutoConfigurations.of(
                                 TemporalCommandAutoConfiguration.class,
+                                InMemoryStoreAutoConfiguration.class,
                                 ObjectModuleAutoConfiguration.class))
                 .withBean(BizEnabledMarker.class)
                 .withBean(
@@ -121,7 +127,9 @@ class TemporalCommandAutoConfigurationTest {
     @DisplayName("缺事务/锁/outbox 默认启动失败，消息指向 degraded-mode")
     void missingDependenciesFailFastByDefault() {
         new ApplicationContextRunner()
-                .withConfiguration(AutoConfigurations.of(TemporalCommandAutoConfiguration.class))
+                .withConfiguration(AutoConfigurations.of(
+                                    TemporalCommandAutoConfiguration.class,
+                                    InMemoryStoreAutoConfiguration.class))
                 .withBean(BizEnabledMarker.class)
                 .withBean(
                         AuthorizationDecisionPoint.class,
@@ -149,7 +157,9 @@ class TemporalCommandAutoConfigurationTest {
     @DisplayName("缺 AuthorizationDecisionPoint：启动失败，不静默回退")
     void missingDecisionPointFailsStartup() {
         new ApplicationContextRunner()
-                .withConfiguration(AutoConfigurations.of(TemporalCommandAutoConfiguration.class))
+                .withConfiguration(AutoConfigurations.of(
+                                    TemporalCommandAutoConfiguration.class,
+                                    InMemoryStoreAutoConfiguration.class))
                 .withBean(BizEnabledMarker.class)
                 .withPropertyValues(
                         "spring.profiles.active=local", "seedj.command.degraded-mode=true")
@@ -163,7 +173,9 @@ class TemporalCommandAutoConfigurationTest {
     @DisplayName("require-outbox=false：允许无 outbox，但仍要求锁与事务")
     void requireOutboxFalseAllowsMissingOutbox() {
         new ApplicationContextRunner()
-                .withConfiguration(AutoConfigurations.of(TemporalCommandAutoConfiguration.class))
+                .withConfiguration(AutoConfigurations.of(
+                                    TemporalCommandAutoConfiguration.class,
+                                    InMemoryStoreAutoConfiguration.class))
                 .withBean(BizEnabledMarker.class)
                 .withBean(TransactionRunner.class, TransactionRunner::direct)
                 .withBean(LockProvider.class, LockProvider::disabled)
@@ -198,6 +210,7 @@ class TemporalCommandAutoConfigurationTest {
                 .withConfiguration(
                         AutoConfigurations.of(
                                 TemporalCommandAutoConfiguration.class,
+                                InMemoryStoreAutoConfiguration.class,
                                 ObjectModuleAutoConfiguration.class))
                 .withBean(BizEnabledMarker.class)
                 .withPropertyValues("seedj.object.enabled=false", "seedj.command.enabled=false")
@@ -219,7 +232,7 @@ class TemporalCommandAutoConfigurationTest {
                 .run(
                         context ->
                                 assertThat(context.getStartupFailure())
-                                        .hasMessageContaining("requires a DataSource"));
+                                        .hasMessageContaining("CommandStore"));
     }
 
     @Test
@@ -230,20 +243,46 @@ class TemporalCommandAutoConfigurationTest {
                 .run(
                         context ->
                                 assertThat(context.getStartupFailure())
-                                        .hasMessageContaining("TemporalTables"));
+                                        .hasMessageContaining("TemporalStore"));
     }
 
     @Test
     @DisplayName("有 DataSource 时注册事件流迁移能力，可显式关闭")
     void eventSchemaCapabilityFollowsSwitch() {
-        runner.withBean(DataSource.class, () -> mock(DataSource.class))
+        new ApplicationContextRunner()
+                .withConfiguration(
+                        AutoConfigurations.of(
+                                TemporalCommandAutoConfiguration.class,
+                                InMemoryStoreAutoConfiguration.class,
+                                PostgresStoreAutoConfiguration.class))
+                .withBean(BizEnabledMarker.class)
+                .withBean(JdbcTemplate.class, () -> mock(JdbcTemplate.class))
+                .withBean(DataSource.class, () -> mock(DataSource.class))
+                .withBean(
+                        AuthorizationDecisionPoint.class,
+                        () -> request -> AuthorizationDecision.allow("test"))
+                .withPropertyValues(
+                        "spring.profiles.active=local", "seedj.command.degraded-mode=true")
                 .run(
                         context -> {
                             assertThat(context).hasNotFailed();
                             assertThat(context).hasBean("postgresEventSchemaCapability");
                         });
-        runner.withBean(DataSource.class, () -> mock(DataSource.class))
-                .withPropertyValues("seedj.event-store.enabled=false")
+        new ApplicationContextRunner()
+                .withConfiguration(
+                        AutoConfigurations.of(
+                                TemporalCommandAutoConfiguration.class,
+                                InMemoryStoreAutoConfiguration.class,
+                                PostgresStoreAutoConfiguration.class))
+                .withBean(BizEnabledMarker.class)
+                .withBean(JdbcTemplate.class, () -> mock(JdbcTemplate.class))
+                .withBean(
+                        AuthorizationDecisionPoint.class,
+                        () -> request -> AuthorizationDecision.allow("test"))
+                .withPropertyValues(
+                        "spring.profiles.active=local",
+                        "seedj.command.degraded-mode=true",
+                        "seedj.event-store.enabled=false")
                 .run(
                         context -> {
                             assertThat(context).hasNotFailed();
@@ -258,7 +297,20 @@ class TemporalCommandAutoConfigurationTest {
                 new TemporalTable(
                         "probe", "probe_object", new LinkedHashMap<>(Map.of("name", "TEXT")));
 
-        runner.withBean(TemporalTable.class, () -> table)
+        new ApplicationContextRunner()
+                .withConfiguration(
+                        AutoConfigurations.of(
+                                TemporalCommandAutoConfiguration.class,
+                                InMemoryStoreAutoConfiguration.class,
+                                PostgresStoreAutoConfiguration.class))
+                .withBean(BizEnabledMarker.class)
+                .withBean(JdbcTemplate.class, () -> mock(JdbcTemplate.class))
+                .withBean(
+                        AuthorizationDecisionPoint.class,
+                        () -> request -> AuthorizationDecision.allow("test"))
+                .withPropertyValues(
+                        "spring.profiles.active=local", "seedj.command.degraded-mode=true")
+                .withBean(TemporalTable.class, () -> table)
                 .run(
                         context -> {
                             assertThat(context).hasNotFailed();
@@ -274,7 +326,20 @@ class TemporalCommandAutoConfigurationTest {
         ObjectSchema schema =
                 ObjectSchema.builder("probe", "probe_object").field("name", FieldType.TEXT).build();
 
-        runner.withBean(ObjectSchema.class, () -> schema)
+        new ApplicationContextRunner()
+                .withConfiguration(
+                        AutoConfigurations.of(
+                                TemporalCommandAutoConfiguration.class,
+                                InMemoryStoreAutoConfiguration.class,
+                                PostgresStoreAutoConfiguration.class))
+                .withBean(BizEnabledMarker.class)
+                .withBean(JdbcTemplate.class, () -> mock(JdbcTemplate.class))
+                .withBean(
+                        AuthorizationDecisionPoint.class,
+                        () -> request -> AuthorizationDecision.allow("test"))
+                .withPropertyValues(
+                        "spring.profiles.active=local", "seedj.command.degraded-mode=true")
+                .withBean(ObjectSchema.class, () -> schema)
                 .run(
                         context -> {
                             assertThat(context).hasNotFailed();
@@ -293,6 +358,7 @@ class TemporalCommandAutoConfigurationTest {
                 .withConfiguration(
                         AutoConfigurations.of(
                                 TemporalCommandAutoConfiguration.class,
+                                InMemoryStoreAutoConfiguration.class,
                                 ObjectModuleAutoConfiguration.class))
                 .withBean(BizEnabledMarker.class)
                 .withBean(

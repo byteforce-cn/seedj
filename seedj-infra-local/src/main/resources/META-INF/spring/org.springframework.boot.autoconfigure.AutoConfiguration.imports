@@ -4,3 +4,4 @@ cn.byteforce.seedj.infra.local.eventbus.EventTransportAutoConfiguration
 cn.byteforce.seedj.infra.local.id.IdAutoConfiguration
 cn.byteforce.seedj.infra.local.lock.InMemoryLockAutoConfiguration
 cn.byteforce.seedj.infra.local.audit.InMemoryAuditAutoConfiguration
+cn.byteforce.seedj.infra.local.InMemoryStoreAutoConfiguration

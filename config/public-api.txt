@@ -249,6 +249,7 @@ core|cn.byteforce.seedj.iam|ScimFilter
 core|cn.byteforce.seedj.id|IdErrorCode
 core|cn.byteforce.seedj.id|IdException
 core|cn.byteforce.seedj.id|IdGenerator
+core|cn.byteforce.seedj.id|Uuid7IdGenerator
 core|cn.byteforce.seedj.im.spi|ImCardActionStore
 core|cn.byteforce.seedj.im.spi|ImConversationStore
 core|cn.byteforce.seedj.im.spi|ImCursorStore
@@ -516,7 +517,6 @@ seedj-biz-starter|cn.byteforce.seedj.starter.observability|MicrometerTracePropag
 seedj-biz-starter|cn.byteforce.seedj.starter.observability|ObservabilityAutoConfiguration
 seedj-biz-starter|cn.byteforce.seedj.starter.observability|TracePropagation
 seedj-biz-starter|cn.byteforce.seedj.starter.read|ObjectModuleAutoConfiguration
-seedj-biz-starter|cn.byteforce.seedj.starter.read|ObjectQueryParameters
 seedj-biz-starter|cn.byteforce.seedj.starter.read|QueryEndpointAutoConfiguration
 seedj-biz-starter|cn.byteforce.seedj.starter.read|ReadAutoConfiguration
 seedj-biz-starter|cn.byteforce.seedj.starter.read|ScopeContextFilter
@@ -536,6 +536,7 @@ seedj-biz-starter|cn.byteforce.seedj.starter.security|SecurityDenialAudit
 seedj-biz-starter|cn.byteforce.seedj.starter.security|ThreadLocalCallerPropagation
 seedj-biz-starter|cn.byteforce.seedj.starter.validation|BeanValidationCommandValidator
 seedj-biz-starter|cn.byteforce.seedj.starter.web|ContractErrorHandler
+seedj-biz-starter|cn.byteforce.seedj.starter.web|ObjectQueryParameters
 seedj-iam-starter|cn.byteforce.seedj.starter.iam.abac|CachingIamPolicyDecisionPoint
 seedj-iam-starter|cn.byteforce.seedj.starter.iam.abac|CompositeAuthorizationDecisionPoint
 seedj-iam-starter|cn.byteforce.seedj.starter.iam.abac|IamAuthorizationFacade
@@ -711,6 +712,7 @@ seedj-infra-local|cn.byteforce.seedj.infra.local.security|InMemorySecurityAuditS
 seedj-infra-local|cn.byteforce.seedj.infra.local.transit|BcTransitProvider
 seedj-infra-local|cn.byteforce.seedj.infra.local.transit|TransitAutoConfiguration
 seedj-infra-local|cn.byteforce.seedj.infra.local.transit|TransitProperties
+seedj-infra-local|cn.byteforce.seedj.infra.local|InMemoryStoreAutoConfiguration
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.ai|AiSchemaCapability
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.ai|PostgresAiAutoConfiguration
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.ai|PostgresDecisionAdmissionStore
@@ -772,6 +774,7 @@ seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.outbox|PostgresOutboxPropert
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.outbox|PostgresOutboxSchemaCapability
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.outbox|PostgresOutboxStore
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.read|PostgresQueryExecutor
+seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.store|PostgresStoreAutoConfiguration
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.workflow|WorkflowMigrations
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.workflow|WorkflowSchemaCapability
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.workflow|WorkflowTimerPoller

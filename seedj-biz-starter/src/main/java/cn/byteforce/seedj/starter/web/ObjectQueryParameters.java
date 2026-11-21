@@ -1,4 +1,4 @@
-package cn.byteforce.seedj.starter.read;
+package cn.byteforce.seedj.starter.web;
 
 import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;

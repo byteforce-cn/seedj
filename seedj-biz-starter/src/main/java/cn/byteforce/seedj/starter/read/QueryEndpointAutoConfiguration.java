@@ -9,6 +9,7 @@ import cn.byteforce.seedj.domain.TemporalRow;
 import cn.byteforce.seedj.module.ObjectModuleRegistry;
 import cn.byteforce.seedj.module.QueryDeclaration;
 import cn.byteforce.seedj.read.ReadGateway;
+import cn.byteforce.seedj.starter.web.ObjectQueryParameters;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;

@@ -25,13 +25,16 @@
             <groupId>cn.byteforce.seedj</groupId>
             <artifactId>core</artifactId>
         </dependency>
+        <!-- 适配器只在测试期出现：生产装配由适配器自己的 @AutoConfiguration 竞争（F1）。 -->
         <dependency>
             <groupId>cn.byteforce.seedj</groupId>
             <artifactId>seedj-infra-local</artifactId>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>cn.byteforce.seedj</groupId>
             <artifactId>seedj-jdbc-postgresql</artifactId>
+            <scope>test</scope>
         </dependency>
 
         <dependency>

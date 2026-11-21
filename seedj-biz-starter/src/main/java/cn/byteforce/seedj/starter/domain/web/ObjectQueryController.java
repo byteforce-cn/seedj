@@ -8,7 +8,7 @@ import cn.byteforce.seedj.domain.Page;
 import cn.byteforce.seedj.domain.TemporalQuery;
 import cn.byteforce.seedj.domain.TemporalRow;
 import cn.byteforce.seedj.read.ReadGateway;
-import cn.byteforce.seedj.starter.read.ObjectQueryParameters;
+import cn.byteforce.seedj.starter.web.ObjectQueryParameters;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;

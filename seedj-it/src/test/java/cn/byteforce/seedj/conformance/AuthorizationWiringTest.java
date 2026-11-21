@@ -64,12 +64,13 @@ class AuthorizationWiringTest {
     }
 
     @Test
-    @DisplayName("契约服务实现决策点；组合实现是唯一对外类型")
-    void iamImplementsDecisionPoint() {
-        assertThat(AuthorizationDecisionPoint.class)
-                .isAssignableFrom(IamContractAuthorizationService.class);
+    @DisplayName("容器里只有一个决策点生产者：组合实现；契约服务不再并行实现")
+    void iamHasSingleDecisionPointProducer() {
         assertThat(AuthorizationDecisionPoint.class)
                 .isAssignableFrom(CompositeAuthorizationDecisionPoint.class);
+        assertThat(AuthorizationDecisionPoint.class.isAssignableFrom(
+                        IamContractAuthorizationService.class))
+                .isFalse();
     }
 
     @Test
