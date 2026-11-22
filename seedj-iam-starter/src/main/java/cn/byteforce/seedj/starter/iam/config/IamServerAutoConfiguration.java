@@ -1,12 +1,12 @@
 package cn.byteforce.seedj.starter.iam.config;
 
+import cn.byteforce.seedj.iam.engine.identity.IamAuthorizationService;
+import cn.byteforce.seedj.iam.engine.identity.IamTotpService;
 import cn.byteforce.seedj.iam.spi.IamSigningKeyStore;
+import cn.byteforce.seedj.iam.spi.IamTokenRevoker;
 import cn.byteforce.seedj.iam.spi.IamUserRepository;
 import cn.byteforce.seedj.id.IdGenerator;
-import cn.byteforce.seedj.infra.local.iam.InMemoryIamTokenRevoker;
 import cn.byteforce.seedj.starter.iam.IamProperties;
-import cn.byteforce.seedj.starter.iam.identity.IamAuthorizationService;
-import cn.byteforce.seedj.starter.iam.identity.IamTotpService;
 import cn.byteforce.seedj.starter.iam.nativeauth.NativeAuthAuthenticationConverter;
 import cn.byteforce.seedj.starter.iam.nativeauth.NativeAuthAuthenticationProvider;
 import cn.byteforce.seedj.starter.iam.nativeauth.NativeAuthErrorResponseHandler;
@@ -159,7 +159,7 @@ public class IamServerAutoConfiguration {
             IamProperties properties,
             RegisteredClientRepository clients,
             ObjectProvider<JdbcTemplate> jdbc,
-            ObjectProvider<InMemoryIamTokenRevoker> revoker) {
+            ObjectProvider<IamTokenRevoker> revoker) {
         if (properties.store() == IamProperties.Store.JDBC) {
             return jdbcAuthorizationService(jdbc.getObject(), clients);
         }

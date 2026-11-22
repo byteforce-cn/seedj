@@ -1,6 +1,7 @@
 package cn.byteforce.seedj.starter.iam.autoconfigure;
 
 import cn.byteforce.seedj.core.InfrastructureCapability;
+import cn.byteforce.seedj.iam.IamEnabledMarker;
 import cn.byteforce.seedj.iam.spi.IamSigningKeyStore;
 import cn.byteforce.seedj.provider.pki.PkiProvider;
 import cn.byteforce.seedj.starter.iam.IamProperties;
@@ -30,7 +31,6 @@ import org.springframework.context.annotation.Import;
 @EnableConfigurationProperties(IamProperties.class)
 @Import({
     IamStoreConfiguration.class,
-    IamJdbcStoreConfiguration.class,
     IamServerAutoConfiguration.class,
     IamNativeAuthConfiguration.class,
     IamRbacConfiguration.class,

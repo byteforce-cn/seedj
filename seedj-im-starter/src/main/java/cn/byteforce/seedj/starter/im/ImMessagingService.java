@@ -87,46 +87,6 @@ public final class ImMessagingService {
     private final ImCardActionRegistry cardHandlers;
 
     /**
-     * 构造服务。
-     *
-     * @param conversationService 会话服务
-     * @param conversations 会话存储
-     * @param messages 消息存储
-     * @param cursors 游标存储
-     * @param numbers 序号分配器
-     * @param push 投递端口
-     * @param policy 会话治理策略
-     * @param transaction 事务边界
-     * @param outbox outbox 写入端口；没有 outbox 时用 {@link OutboxWriter#discard()}
-     * @param properties IM 配置
-     */
-    public ImMessagingService(
-            ImConversationService conversationService,
-            ImConversationStore conversations,
-            ImMessageStore messages,
-            ImCursorStore cursors,
-            ImSequenceAllocator numbers,
-            ImPushProvider push,
-            ImConversationPolicy policy,
-            TransactionRunner transaction,
-            OutboxWriter outbox,
-            ImProperties properties) {
-        this(
-                conversationService,
-                conversations,
-                messages,
-                cursors,
-                numbers,
-                push,
-                policy,
-                transaction,
-                outbox,
-                properties,
-                new cn.byteforce.seedj.infra.local.im.InMemoryImCardActionStore(),
-                new ImCardActionRegistry(List.of()));
-    }
-
-    /**
      * 带卡片动作存储的构造器。
      *
      * @param conversationService 会话服务

@@ -13,6 +13,7 @@ import cn.byteforce.seedj.im.spi.ImCursorStore;
 import cn.byteforce.seedj.im.spi.ImMessageStore;
 import cn.byteforce.seedj.im.spi.ImSequenceAllocator;
 import cn.byteforce.seedj.infra.local.im.AtomicLongSequenceAllocator;
+import cn.byteforce.seedj.infra.local.im.InMemoryImCardActionStore;
 import cn.byteforce.seedj.infra.local.im.InMemoryImConversationStore;
 import cn.byteforce.seedj.infra.local.im.InMemoryImCursorStore;
 import cn.byteforce.seedj.infra.local.im.InMemoryImMessageStore;
@@ -65,7 +66,9 @@ class ImCoordPushTest {
                     policy,
                     TransactionRunner.direct(),
                     OutboxWriter.discard(),
-                    ImProperties.defaults());
+                    ImProperties.defaults(),
+                    new InMemoryImCardActionStore(),
+                    new ImCardActionRegistry(List.of()));
     private final ImCoordPush coord =
             new ImCoordPush("node-a", publisher, TransactionRunner.direct(), local);
 

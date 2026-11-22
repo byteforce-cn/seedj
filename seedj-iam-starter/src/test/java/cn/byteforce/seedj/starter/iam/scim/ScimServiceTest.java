@@ -4,6 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import cn.byteforce.seedj.iam.IamException;
+import cn.byteforce.seedj.iam.engine.identity.IamIdentityService;
+import cn.byteforce.seedj.iam.engine.scim.ScimGroupService;
+import cn.byteforce.seedj.iam.engine.scim.ScimSupport;
+import cn.byteforce.seedj.iam.engine.scim.ScimUserService;
 import cn.byteforce.seedj.iam.spi.IamPasswordHasher;
 import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamAuditSink;
@@ -11,8 +15,6 @@ import cn.byteforce.seedj.infra.local.iam.InMemoryIamAuthorizationRepository;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamGroupRepository;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamTokenRevoker;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamUserRepository;
-import cn.byteforce.seedj.starter.iam.IamProperties;
-import cn.byteforce.seedj.starter.iam.identity.IamIdentityService;
 import cn.byteforce.seedj.starter.iam.identity.IamPasswordHasherAdapter;
 import java.util.List;
 import java.util.Map;
@@ -36,7 +38,7 @@ class ScimServiceTest {
                     new InMemoryIamTokenRevoker(),
                     new InMemoryIamAuditSink(),
                     idGenerator);
-    private final IamProperties properties = IamProperties.defaults();
+    private final ScimSupport.Settings properties = new ScimSupport.Settings("default", "/scim/v2");
     private final ScimUserService userService =
             new ScimUserService(users, groups, hasher, identities, properties, idGenerator);
     private final ScimGroupService groupService =

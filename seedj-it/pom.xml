@@ -44,6 +44,10 @@
             <artifactId>seedj-iam-contract</artifactId>
         </dependency>
         <dependency>
+            <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>seedj-iam-engine</artifactId>
+        </dependency>
+        <dependency>
             <groupId>com.tngtech.archunit</groupId>
             <artifactId>archunit-junit5</artifactId>
             <scope>test</scope>

@@ -1,8 +1,9 @@
 package cn.byteforce.seedj.starter.iam.autoconfigure;
 
+import cn.byteforce.seedj.iam.IamEnabledMarker;
+import cn.byteforce.seedj.iam.engine.identity.IamAuthorizationService;
 import cn.byteforce.seedj.iam.spi.IamUserRepository;
 import cn.byteforce.seedj.starter.iam.IamProperties;
-import cn.byteforce.seedj.starter.iam.identity.IamAuthorizationService;
 import cn.byteforce.seedj.starter.iam.identity.IamUserDetailsService;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;

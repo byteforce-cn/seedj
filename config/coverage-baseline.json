@@ -23,6 +23,10 @@
     "branch": 0.938,
     "line": 0.993
   },
+  "seedj-iam-engine": {
+    "branch": 0.87,
+    "line": 0.97
+  },
   "seedj-iam-starter": {
     "branch": 0.86,
     "line": 0.96

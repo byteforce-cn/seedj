@@ -1,6 +1,6 @@
 package cn.byteforce.seedj.starter.iam.security;
 
-import cn.byteforce.seedj.infra.local.iam.InMemoryIamTokenRevoker;
+import cn.byteforce.seedj.iam.spi.IamTokenRevoker;
 import org.springframework.security.oauth2.server.authorization.OAuth2Authorization;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
@@ -9,10 +9,10 @@ import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
 public class IamRevocableAuthorizationService implements OAuth2AuthorizationService {
 
     private final OAuth2AuthorizationService delegate;
-    private final InMemoryIamTokenRevoker revoker;
+    private final IamTokenRevoker revoker;
 
     public IamRevocableAuthorizationService(
-            OAuth2AuthorizationService delegate, InMemoryIamTokenRevoker revoker) {
+            OAuth2AuthorizationService delegate, IamTokenRevoker revoker) {
         this.delegate = delegate;
         this.revoker = revoker;
     }

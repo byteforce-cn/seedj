@@ -30,6 +30,7 @@ final class ModuleClassPath {
                     "seedj-ai-contract",
                     "seedj-im-contract",
                     "seedj-iam-contract",
+                    "seedj-iam-engine",
                     "seedj-im-protocol",
                     "seedj-infra-coord",
                     "seedj-infra-local",

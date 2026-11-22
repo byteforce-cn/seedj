@@ -160,6 +160,7 @@ assertThat(harness.object("employee", receipt.locator()).fields())
 | `seedj-im-contract` | IM 契约：会话、成员、消息与存储端口 |
 | `seedj-im-protocol` | IM 线路协议：命令字、帧、27 个 body 与 JSON 编解码（无 Spring/Netty） |
 | `seedj-iam-contract` | IAM 契约：用户/组/角色/策略、SCIM 模型与授权值类型 |
+| `seedj-iam-engine` | IAM 纯逻辑引擎：身份/授权判定、TOTP/MFA、SCIM 用例（无 Spring/JDBC） |
 | `seedj-codegen` | 构建期注解处理器：schema / OpenAPI / 迁移候选 / 读视图（不进运行时） |
 | `seedj-infra-local` | 内存、文件、BouncyCastle 适配器 |
 | `seedj-infra-coord` | 分布式协调适配器：ID、编号、锁、EventBus、PKI、KV |
@@ -172,7 +173,7 @@ assertThat(harness.object("employee", receipt.locator()).fields())
 | `seedj-server/{hr,iam,im,ai}` | 可运行宿主（生产可用性见[已知限制](docs/guide/known-limitations.md)） |
 | `seedj-it` | 契约对照、并发与端到端测试 |
 
-依赖方向：`server → starter → infra/jdbc → *-contract → core`；能力之间是
+依赖方向：`server → {starter, infra/jdbc} → *-contract → core`——starter 不依赖适配器，宿主显式选择；能力之间是
 `ai-starter → im-starter → biz-starter`（只允许单向）。契约模块之间不互相依赖。
 
 ## 文档

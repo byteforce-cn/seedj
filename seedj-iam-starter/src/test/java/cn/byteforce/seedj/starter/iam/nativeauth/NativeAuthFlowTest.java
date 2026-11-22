@@ -4,15 +4,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import cn.byteforce.seedj.iam.IamUser;
+import cn.byteforce.seedj.iam.engine.identity.IamIdentityService;
+import cn.byteforce.seedj.iam.engine.identity.IamTotpService;
 import cn.byteforce.seedj.iam.totp.Base32;
 import cn.byteforce.seedj.iam.totp.TotpAlgorithm;
 import cn.byteforce.seedj.iam.totp.TotpGenerator;
 import cn.byteforce.seedj.id.IdGenerator;
+import cn.byteforce.seedj.infra.local.iam.IamMemoryStoreAutoConfiguration;
 import cn.byteforce.seedj.starter.iam.TestIdGenerators;
 import cn.byteforce.seedj.starter.iam.annotation.EnableIamServer;
 import cn.byteforce.seedj.starter.iam.autoconfigure.IamAutoConfiguration;
-import cn.byteforce.seedj.starter.iam.identity.IamIdentityService;
-import cn.byteforce.seedj.starter.iam.identity.IamTotpService;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Set;
@@ -39,7 +40,10 @@ class NativeAuthFlowTest {
     private final WebApplicationContextRunner runner =
             new WebApplicationContextRunner()
                     .withUserConfiguration(TestApplication.class)
-                    .withConfiguration(AutoConfigurations.of(IamAutoConfiguration.class))
+                    .withConfiguration(
+                            AutoConfigurations.of(
+                                    IamAutoConfiguration.class,
+                                    IamMemoryStoreAutoConfiguration.class))
                     .withPropertyValues(
                             "seedj.iam.issuer=https://iam.test",
                             "seedj.iam.store=memory",

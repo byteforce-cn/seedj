@@ -2,6 +2,7 @@ package cn.byteforce.seedj.starter.iam.identity;
 
 import cn.byteforce.seedj.iam.IamSubjectAuthorization;
 import cn.byteforce.seedj.iam.IamUser;
+import cn.byteforce.seedj.iam.engine.identity.IamAuthorizationService;
 import cn.byteforce.seedj.iam.spi.IamUserRepository;
 import java.util.ArrayList;
 import java.util.List;

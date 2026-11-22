@@ -7,6 +7,7 @@ import cn.byteforce.seedj.iam.IamGroup;
 import cn.byteforce.seedj.iam.IamPermission;
 import cn.byteforce.seedj.iam.IamRole;
 import cn.byteforce.seedj.iam.IamUser;
+import cn.byteforce.seedj.iam.engine.identity.IamAuthorizationService;
 import cn.byteforce.seedj.iam.spi.IamPasswordHasher;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamAuthorizationRepository;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamGroupRepository;

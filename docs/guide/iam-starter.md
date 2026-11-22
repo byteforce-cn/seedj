@@ -1,6 +1,9 @@
 # IAM Starter
 
-一个依赖、一个注解启动完整 IAM：
+一个注解启动完整 IAM。`seedj-iam-starter` 只做装配，存储由适配器提供：内存（缺省）用
+`seedj-infra-local`，`store: jdbc` 再加 `seedj-jdbc-postgresql` 与 PostgreSQL 驱动。
+`seedj-infra-local` 始终需要：它提供 JWK/TOTP 的 AES/Transit 密钥保护器与默认
+`IamAttributeSource`（JDBC 模式也不例外）。
 
 ```xml
 <dependency>
@@ -8,11 +11,23 @@
   <artifactId>seedj-iam-starter</artifactId>
 </dependency>
 <dependency>
+  <groupId>cn.byteforce.seedj</groupId>
+  <artifactId>seedj-infra-local</artifactId>
+</dependency>
+<!-- seedj.iam.store=jdbc 时再加下面两个；memory 模式不需要 -->
+<dependency>
+  <groupId>cn.byteforce.seedj</groupId>
+  <artifactId>seedj-jdbc-postgresql</artifactId>
+</dependency>
+<dependency>
   <groupId>org.postgresql</groupId>
   <artifactId>postgresql</artifactId>
   <scope>runtime</scope>
 </dependency>
 ```
+
+纯逻辑（身份/授权判定、TOTP/MFA、SCIM 用例）在 `seedj-iam-engine`，本模块只做 Spring 装配与
+HTTP/OIDC 面；引擎不依赖 Spring/JDBC，可被命令行或其它框架宿主直接复用。
 
 ```java
 @SpringBootApplication

@@ -17,6 +17,7 @@ import cn.byteforce.seedj.im.spi.ImCursorStore;
 import cn.byteforce.seedj.im.spi.ImMessageStore;
 import cn.byteforce.seedj.im.spi.ImSequenceAllocator;
 import cn.byteforce.seedj.infra.local.im.AtomicLongSequenceAllocator;
+import cn.byteforce.seedj.infra.local.im.InMemoryImCardActionStore;
 import cn.byteforce.seedj.infra.local.im.InMemoryImConversationStore;
 import cn.byteforce.seedj.infra.local.im.InMemoryImCursorStore;
 import cn.byteforce.seedj.infra.local.im.InMemoryImMessageStore;
@@ -511,7 +512,9 @@ class ImMessagingServiceTest {
                         policy,
                         TransactionRunner.direct(),
                         records::add,
-                        ImProperties.defaults());
+                        ImProperties.defaults(),
+                        new InMemoryImCardActionStore(),
+                        new ImCardActionRegistry(List.of()));
         ImMessage message =
                 service.send(
                         alice, new ChatSendReq("c-1", null, "u-2", "TEXT", Map.of("text", "hi")));
@@ -630,7 +633,9 @@ class ImMessagingServiceTest {
                 conversationPolicy,
                 TransactionRunner.direct(),
                 OutboxWriter.discard(),
-                properties);
+                properties,
+                new InMemoryImCardActionStore(),
+                new ImCardActionRegistry(List.of()));
     }
 
     private static ImProperties smallBodyProperties() {

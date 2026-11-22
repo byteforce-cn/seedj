@@ -2,6 +2,7 @@ package cn.byteforce.seedj.starter.im;
 
 import cn.byteforce.seedj.cqrs.spi.TransactionRunner;
 import cn.byteforce.seedj.eventbus.EventPublisher;
+import cn.byteforce.seedj.im.ImEnabledMarker;
 import cn.byteforce.seedj.im.spi.ImMessageStore;
 import cn.byteforce.seedj.starter.im.protocol.ImCodec;
 import java.util.Locale;

@@ -1,47 +1,23 @@
 package cn.byteforce.seedj.starter.im;
 
-import cn.byteforce.seedj.im.spi.ImCardActionStore;
-import cn.byteforce.seedj.im.spi.ImConversationStore;
-import cn.byteforce.seedj.im.spi.ImCursorStore;
-import cn.byteforce.seedj.im.spi.ImMessageStore;
-import cn.byteforce.seedj.im.spi.ImSequenceAllocator;
-import cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner;
-import cn.byteforce.seedj.infra.jdbc.im.ImSchemaCapability;
-import cn.byteforce.seedj.infra.jdbc.im.JdbcImCardActionStore;
-import cn.byteforce.seedj.infra.jdbc.im.JdbcImConversationStore;
-import cn.byteforce.seedj.infra.jdbc.im.JdbcImCursorStore;
-import cn.byteforce.seedj.infra.jdbc.im.JdbcImMessageStore;
-import cn.byteforce.seedj.infra.jdbc.im.JdbcImSequenceAllocator;
-import cn.byteforce.seedj.infra.local.im.AtomicLongSequenceAllocator;
-import cn.byteforce.seedj.infra.local.im.InMemoryImCardActionStore;
-import cn.byteforce.seedj.infra.local.im.InMemoryImConversationStore;
-import cn.byteforce.seedj.infra.local.im.InMemoryImCursorStore;
-import cn.byteforce.seedj.infra.local.im.InMemoryImMessageStore;
+import cn.byteforce.seedj.im.ImEnabledMarker;
 import java.time.Clock;
-import javax.sql.DataSource;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
-import org.springframework.boot.jdbc.autoconfigure.JdbcTemplateAutoConfiguration;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
- * IM 存储装配：{@code seedj.im.store} 是唯一的开关。
+ * IM 启停与基础设施：存储实现由适配器自带自动配置提供。
  *
- * <p>两个分支互斥：{@code memory}（默认）用进程内实现，{@code jdbc} 用 PostgreSQL 实现并要求容器里 有 {@link
- * JdbcTemplate}。{@code jdbc} 模式下未就绪的容器会在启动期直接失败，不做「悄悄退回内存」。
+ * <p>{@code seedj.im.store} 的选择在 {@code seedj-infra-local}（memory）与 {@code
+ * seedj-jdbc-postgresql}（jdbc）各自的自动配置里；本类只保留与存储选型无关的时钟和"显式 jdbc 缺数据源必须失败"的前置检查。
  *
  * @author ByteForce
  * @since 1.0.0
  */
-@AutoConfiguration(
-        after = {DataSourceAutoConfiguration.class, JdbcTemplateAutoConfiguration.class},
-        afterName = "cn.byteforce.seedj.starter.cqrs.wiring.TemporalCommandAutoConfiguration")
+@AutoConfiguration
 @ConditionalOnBean(ImEnabledMarker.class)
 @ConditionalOnProperty(
         prefix = "seedj.im",
@@ -61,115 +37,23 @@ public class ImStoreAutoConfiguration {
         return Clock.systemUTC();
     }
 
-    /** 内存分支。 */
-    @Configuration(proxyBeanMethods = false)
-    @ConditionalOnProperty(
-            prefix = "seedj.im",
-            name = "store",
-            havingValue = "memory",
-            matchIfMissing = true)
-    static class MemoryStores {
-
-        @Bean
-        @ConditionalOnMissingBean
-        ImSequenceAllocator imSequenceAllocator() {
-            return new AtomicLongSequenceAllocator();
-        }
-
-        @Bean
-        @ConditionalOnMissingBean
-        ImConversationStore imConversationStore(ImSequenceAllocator numbers, Clock clock) {
-            return new InMemoryImConversationStore(numbers, clock);
-        }
-
-        @Bean
-        @ConditionalOnMissingBean
-        ImMessageStore imMessageStore(Clock clock) {
-            return new InMemoryImMessageStore(clock);
-        }
-
-        @Bean
-        @ConditionalOnMissingBean
-        ImCursorStore imCursorStore() {
-            return new InMemoryImCursorStore();
-        }
-
-        @Bean
-        @ConditionalOnMissingBean
-        ImCardActionStore imCardActionStore() {
-            return new InMemoryImCardActionStore();
-        }
-    }
-
     /**
-     * {@code jdbc} 模式下缺数据源：显式失败。
+     * {@code seedj.im.store=jdbc} 但缺数据源：显式失败。
      *
      * <p>不静默退回内存——那样消息在重启后消失，而运维看不出任何异常。
+     *
+     * @return 前置检查
      */
-    @Configuration(proxyBeanMethods = false)
+    @Bean
     @ConditionalOnProperty(prefix = "seedj.im", name = "store", havingValue = "jdbc")
-    @ConditionalOnMissingBean(JdbcTemplate.class)
-    static class JdbcWithoutDataSource {
-
-        @Bean
-        JdbcImStoreMisconfigured imStoreMisconfigured() {
-            throw new IllegalStateException(
-                    "seedj.im.store=jdbc requires a DataSource/JdbcTemplate; configure"
-                            + " spring.datasource or set seedj.im.store=memory");
-        }
-    }
-
-    /** 缺数据源时的诊断标记，不会真正被创建。 */
-    static final class JdbcImStoreMisconfigured {}
-
-    /** PostgreSQL 分支。 */
-    @Configuration(proxyBeanMethods = false)
-    @ConditionalOnClass({JdbcTemplate.class, DataSource.class})
-    @ConditionalOnBean(JdbcTemplate.class)
-    @ConditionalOnProperty(prefix = "seedj.im", name = "store", havingValue = "jdbc")
-    static class JdbcStores {
-
-        @Bean
-        @ConditionalOnMissingBean
-        JdbcMigrationRunner imJdbcMigrationRunner(DataSource dataSource) {
-            return new JdbcMigrationRunner(dataSource);
-        }
-
-        @Bean
-        @ConditionalOnMissingBean(name = "postgresImSchemaCapability")
-        ImSchemaCapability postgresImSchemaCapability(JdbcMigrationRunner runner) {
-            return new ImSchemaCapability(runner);
-        }
-
-        @Bean
-        @ConditionalOnMissingBean
-        ImSequenceAllocator imSequenceAllocator(JdbcTemplate jdbc) {
-            return new JdbcImSequenceAllocator(jdbc);
-        }
-
-        @Bean
-        @ConditionalOnMissingBean
-        ImConversationStore imConversationStore(
-                JdbcTemplate jdbc, ImSequenceAllocator numbers, Clock clock) {
-            return new JdbcImConversationStore(jdbc, numbers, clock);
-        }
-
-        @Bean
-        @ConditionalOnMissingBean
-        ImMessageStore imMessageStore(JdbcTemplate jdbc, Clock clock) {
-            return new JdbcImMessageStore(jdbc, clock);
-        }
-
-        @Bean
-        @ConditionalOnMissingBean
-        ImCursorStore imCursorStore(JdbcTemplate jdbc, Clock clock) {
-            return new JdbcImCursorStore(jdbc, clock);
-        }
-
-        @Bean
-        @ConditionalOnMissingBean
-        ImCardActionStore imCardActionStore(JdbcTemplate jdbc) {
-            return new JdbcImCardActionStore(jdbc);
-        }
+    static org.springframework.beans.factory.config.BeanFactoryPostProcessor
+            imJdbcStorePrecondition() {
+        return beanFactory -> {
+            if (beanFactory.getBeanNamesForType(javax.sql.DataSource.class).length == 0) {
+                throw new IllegalStateException(
+                        "seedj.im.store=jdbc requires a DataSource/JdbcTemplate; configure"
+                                + " spring.datasource or set seedj.im.store=memory");
+            }
+        };
     }
 }

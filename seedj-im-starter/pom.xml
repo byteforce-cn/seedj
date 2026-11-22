@@ -32,14 +32,17 @@
             <groupId>cn.byteforce.seedj</groupId>
             <artifactId>seedj-im-protocol</artifactId>
         </dependency>
-        <!-- IM 存储装配仍未归位到适配器（F1 剩余项），显式声明而不是吃 biz-starter 的传递依赖。 -->
+        <!-- 适配器只在测试里显式声明：主代码不编译期依赖具体存储（F1 已收尾），
+             生产宿主按 seedj.im.store 自己选 infra-local 或 jdbc-postgresql。 -->
         <dependency>
             <groupId>cn.byteforce.seedj</groupId>
             <artifactId>seedj-infra-local</artifactId>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>cn.byteforce.seedj</groupId>
             <artifactId>seedj-jdbc-postgresql</artifactId>
+            <scope>test</scope>
         </dependency>
 
         <dependency>

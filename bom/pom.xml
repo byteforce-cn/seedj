@@ -159,6 +159,12 @@
 
             <dependency>
                 <groupId>cn.byteforce.seedj</groupId>
+                <artifactId>seedj-iam-engine</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.byteforce.seedj</groupId>
                 <artifactId>seedj-iam-starter</artifactId>
                 <version>${revision}</version>
             </dependency>

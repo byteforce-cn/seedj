@@ -2,6 +2,7 @@ package cn.byteforce.seedj.starter.im;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import cn.byteforce.seedj.im.ImEnabledMarker;
 import cn.byteforce.seedj.starter.security.JwtClaimsMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

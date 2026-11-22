@@ -1,5 +1,6 @@
 package cn.byteforce.seedj.starter.iam.scim;
 
+import cn.byteforce.seedj.iam.engine.scim.ScimSupport;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;

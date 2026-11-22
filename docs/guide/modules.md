@@ -4,6 +4,7 @@
 
 ```text
 seedj-server/{hr,iam,im}  →  seedj-biz-starter / seedj-iam-starter
+seedj-iam-starter         →  seedj-iam-engine  →  seedj-iam-contract
 seedj-server/im           →  seedj-im-starter  →  seedj-biz-starter
                           →  seedj-infra-local / seedj-jdbc-postgresql
                           →  seedj-infra-coord  →  coord-java-sdk
@@ -16,6 +17,10 @@ seedj-server/ai           →  seedj-ai-starter  →  seedj-biz-starter
 能力契约模块只依赖 `core`（`workflow-contract` 连 `core` 都不依赖），彼此不互相依赖；
 `core` 不依赖 Spring，也不依赖任何适配器；适配器只实现 `core` 的 SPI，并自带
 `@AutoConfiguration` 用 `seedj.*.provider` 竞争（starter 不再编译期依赖适配器），宿主只做组合。
+
+`seedj-iam-engine` 是不依赖 Spring/JDBC 的纯逻辑制品（身份/授权判定、TOTP/MFA、SCIM 用例），
+由 starter 装配、适配器提供存储 SPI 实现；这条边界由 ArchUnit 的 “IAM 引擎不依赖 Spring/JDBC”
+规则守着。
 
 AI 这一支的单向性由 ArchUnit 规则守着：`seedj-ai-starter` 依赖 `seedj-biz-starter`（拿
 `CallerProvider`、`CommandCatalog` 与命令入口线格式），**`seedj-biz-starter` 不得反向依赖
@@ -32,6 +37,7 @@ AI 这一支的单向性由 ArchUnit 规则守着：`seedj-ai-starter` 依赖 `s
 | `seedj-ai-contract` | AI 契约：命令指纹、动作分类、策略与账本值类型 | ✅ |
 | `seedj-im-contract` | IM 契约：会话、成员、消息与存储端口 | ✅ |
 | `seedj-iam-contract` | IAM 契约：用户/组/角色/策略、SCIM 与授权值类型 | ✅ |
+| `seedj-iam-engine` | IAM 纯逻辑：身份/授权判定、TOTP/MFA、SCIM 用例（无 Spring/JDBC） | ✅ |
 | `seedj-codegen` | 构建期注解处理器：schema、OpenAPI、迁移候选、可选读视图 | 构建期 |
 | `seedj-infra-local` | 内存、文件、BouncyCastle 适配器 | ✅ |
 | `seedj-workflow-local` | 工作流 SPI 的本地内存实现 | ✅ |

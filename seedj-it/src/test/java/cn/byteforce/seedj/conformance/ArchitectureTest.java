@@ -58,6 +58,19 @@ class ArchitectureTest {
     }
 
     @Test
+    @DisplayName("IAM 纯逻辑引擎不依赖 Spring / JDBC")
+    void iamEngineIsFrameworkFree() {
+        assertNoDependencies(
+                "iam-engine-is-framework-free",
+                ModuleClassPath.classesOf("seedj-iam-engine"),
+                clazz -> clazz.getPackageName().startsWith("cn.byteforce.seedj.iam.engine"),
+                dependency ->
+                        dependency.getPackageName().startsWith("org.springframework")
+                                || dependency.getPackageName().startsWith("java.sql")
+                                || dependency.getPackageName().startsWith("javax.sql"));
+    }
+
+    @Test
     @DisplayName("biz 契约不反向依赖 iam 实现")
     void bizDoesNotDependOnIam() {
         assertNoDependencies(

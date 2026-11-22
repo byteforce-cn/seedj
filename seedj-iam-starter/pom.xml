@@ -39,11 +39,17 @@
         </dependency>
         <dependency>
             <groupId>cn.byteforce.seedj</groupId>
+            <artifactId>seedj-iam-engine</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cn.byteforce.seedj</groupId>
             <artifactId>seedj-infra-local</artifactId>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>cn.byteforce.seedj</groupId>
             <artifactId>seedj-jdbc-postgresql</artifactId>
+            <scope>test</scope>
         </dependency>
 
         <dependency>
