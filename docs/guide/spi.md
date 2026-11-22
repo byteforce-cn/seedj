@@ -39,7 +39,7 @@ Caller caller = callers.find().orElseThrow()     // 当前调用方（未认证�
 |---|---|---|
 | `core` | 内核契约（错误码、时间轴、命令、读模型、安全、`observability` 健康面）、迁移原语、契约测试 TCK（test-jar）、`core/security`（`Caller` / `CallerProvider` / `SecurityAudit*` / `AccessTokenRules`）、`outbox` / `outbox/spi` 契约、`workflow/spi` 工作流契约 | Spring、BouncyCastle、任何存储机制 |
 | `seedj-pki-contract` | PKI 契约：证书/CSR 签发、Transit 签名、吊销/CRL/tidy、按 serial 读证书、alias 映射、TLS 配置描述 | Spring、Coord SDK、任何存储机制 |
-| `seedj-infra-local` | 本地实现：PKI（BC + 状态文件）、Transit（JCE + 状态文件）、EventBus 本地队列（file / memory，含消费者组）、雪花 + 字符串 ID、Lock、Audit memory、IAM memory、本地工作流引擎（v2.4） | outbox、relay、PostgreSQL 存储 |
+| `seedj-infra-local` | 本地实现：PKI（BC + 状态文件）、Transit（JCE + 状态文件）、EventBus 本地队列（file / memory，含消费者组）、雪花 + 字符串 ID、Lock、Audit memory、IAM memory（含 AES/Transit 密钥保护器与默认 `IamAttributeSource`，JDBC IAM 也依赖它）、本地工作流引擎（v2.4） | outbox、relay、PostgreSQL 存储 |
 | `seedj-jdbc-postgresql` | PostgreSQL 实现：Outbox 存储 + 投递装配（`OutboxWriter` / `OutboxRelay` / `OutboxMetrics` / `OutboxInfrastructureInitializer`）、Audit 存储、IAM 存储、版本化迁移 + `InfrastructureCapability`；**允许**自带条件化 `@AutoConfiguration` | 队列 transport、业务逻辑、无条件的 Spring 装配 |
 | `seedj-biz-starter` | 业务服务开箱即用：资源服务器安全（`CallerProvider`、401/403 JSON、拒绝审计）、`CommandAgents`、`EventPublisher`、`EventConsumerContainer`、`EventTopicCapability`、`InfrastructureInitializer`、审计/指标/追踪适配 | 业务逻辑；**不得依赖 `seedj-iam-starter`**（`BizStarterPackageIndependenceTest` 门禁） |
 | `seedj-iam-engine` | IAM 纯逻辑：身份/授权判定、TOTP/MFA、SCIM 用例 | Spring、JDBC、任何存储机制（ArchUnit 门禁） |
@@ -49,7 +49,7 @@ Caller caller = callers.find().orElseThrow()     // 当前调用方（未认证�
 | `seedj-server-im` | IM 参考服务：验证长连接（已落地）、扇出、顺序、幂等等 core 能力 | `seedj-iam-starter` |
 | `seedj-it` | **集成测试聚合**：三个 server + 夹具；`src/main` 不含代码 | 业务逻辑、存储/传输实现 |
 
-依赖方向：`core` ← `seedj-iam-contract` ← `seedj-iam-engine` ← `seedj-iam-starter`；`core` ← `{seedj-infra-local, seedj-jdbc-postgresql}` ← `{seedj-biz-starter, seedj-iam-starter}` ← `seedj-server-*` ← `seedj-it`。
+依赖方向：`core` ← `*-contract` ← `{seedj-iam-engine, seedj-infra-local, seedj-jdbc-postgresql, seedj-biz-starter, seedj-iam-starter}` ← `seedj-server-*` ← `seedj-it`；`seedj-iam-starter` 依赖 `seedj-iam-engine`，但 starter 不依赖适配器（宿主显式选择）。
 两个 starter 之间零依赖；两个实现模块之间零依赖；`core` 永远零 Spring 依赖；outbox 永远不 import `eventbus`。
 
 > 修订：实现模块可以自带 `@AutoConfiguration`，但必须满足 `@ConditionalOnClass`/`@ConditionalOnBean`/`@ConditionalOnProperty`，并在 `AutoConfiguration.imports` 登记；宿主/`seedj-it` 仍负责最终装配与覆盖。

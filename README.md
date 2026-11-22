@@ -173,7 +173,7 @@ assertThat(harness.object("employee", receipt.locator()).fields())
 | `seedj-server/{hr,iam,im,ai}` | 可运行宿主（生产可用性见[已知限制](docs/guide/known-limitations.md)） |
 | `seedj-it` | 契约对照、并发与端到端测试 |
 
-依赖方向：`server → starter → infra/jdbc → *-contract → core`；能力之间是
+依赖方向：`server → {starter, infra/jdbc} → *-contract → core`——starter 不依赖适配器，宿主显式选择；能力之间是
 `ai-starter → im-starter → biz-starter`（只允许单向）。契约模块之间不互相依赖。
 
 ## 文档

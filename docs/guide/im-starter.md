@@ -9,11 +9,19 @@
 
 ## 依赖与启用
 
+`seedj-im-starter` 只做装配，存储由适配器提供：内存（缺省）用 `seedj-infra-local`，
+`seedj.im.store=jdbc` 换用 `seedj-jdbc-postgresql`。
+
 ```xml
 <dependency>
     <groupId>cn.byteforce.seedj</groupId>
     <artifactId>seedj-im-starter</artifactId>
 </dependency>
+<dependency>
+    <groupId>cn.byteforce.seedj</groupId>
+    <artifactId>seedj-infra-local</artifactId>
+</dependency>
+<!-- seedj.im.store=jdbc 时把上面这行换成 seedj-jdbc-postgresql -->
 ```
 
 ```java
