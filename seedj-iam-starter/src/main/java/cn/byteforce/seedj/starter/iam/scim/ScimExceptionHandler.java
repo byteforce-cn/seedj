@@ -1,5 +1,6 @@
 package cn.byteforce.seedj.starter.iam.scim;
 
+import cn.byteforce.seedj.iam.engine.scim.ScimSupport;
 import cn.byteforce.seedj.iam.IamErrorCode;
 import cn.byteforce.seedj.iam.IamException;
 import java.util.Map;

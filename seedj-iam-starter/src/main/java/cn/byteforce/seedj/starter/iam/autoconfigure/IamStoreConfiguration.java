@@ -12,9 +12,9 @@ import cn.byteforce.seedj.iam.spi.IamUserRepository;
 import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.starter.iam.IamProperties;
 import cn.byteforce.seedj.starter.iam.identity.IamBootstrapRunner;
-import cn.byteforce.seedj.starter.iam.identity.IamIdentityService;
-import cn.byteforce.seedj.starter.iam.identity.IamMfaChallengeService;
-import cn.byteforce.seedj.starter.iam.identity.IamTotpService;
+import cn.byteforce.seedj.iam.engine.identity.IamIdentityService;
+import cn.byteforce.seedj.iam.engine.identity.IamMfaChallengeService;
+import cn.byteforce.seedj.iam.engine.identity.IamTotpService;
 import java.time.Clock;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -74,11 +74,11 @@ public class IamStoreConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public cn.byteforce.seedj.starter.iam.identity.IamAuthorizationService iamAuthorizationService(
+    public cn.byteforce.seedj.iam.engine.identity.IamAuthorizationService iamAuthorizationService(
             IamAuthorizationRepository authorization,
             IamGroupRepository groups,
             IamProperties properties) {
-        return new cn.byteforce.seedj.starter.iam.identity.IamAuthorizationService(
+        return new cn.byteforce.seedj.iam.engine.identity.IamAuthorizationService(
                 authorization, groups, properties.rbac().cacheTtl());
     }
 
@@ -98,8 +98,21 @@ public class IamStoreConfiguration {
             SecurityAuditSink audit,
             Clock clock,
             IdGenerator<String> idGenerator) {
+        IamProperties.Totp totpPolicy = properties.mfa().totp();
         return new IamTotpService(
-                totp, users, protector, hasher, properties.mfa().totp(), audit, clock, idGenerator);
+                totp,
+                users,
+                protector,
+                hasher,
+                new IamTotpService.Policy(
+                        totpPolicy.issuer(),
+                        totpPolicy.digits(),
+                        totpPolicy.period(),
+                        totpPolicy.window(),
+                        totpPolicy.recoveryCodes()),
+                audit,
+                clock,
+                idGenerator);
     }
 
     @Bean
@@ -110,7 +123,13 @@ public class IamStoreConfiguration {
             IamProperties properties,
             Clock clock,
             IdGenerator<String> idGenerator) {
-        return new IamMfaChallengeService(totp, properties.nativeAuth(), clock, idGenerator);
+        IamProperties.NativeAuth nativeAuth = properties.nativeAuth();
+        return new IamMfaChallengeService(
+                totp,
+                new IamMfaChallengeService.Policy(
+                        nativeAuth.mfaTokenTtl(), nativeAuth.maxAttempts()),
+                clock,
+                idGenerator);
     }
 
     @Bean
@@ -120,9 +139,9 @@ public class IamStoreConfiguration {
             name = "enabled",
             havingValue = "true",
             matchIfMissing = true)
-    public cn.byteforce.seedj.starter.iam.identity.IamMfaAttemptLimiter iamMfaAttemptLimiter(
+    public cn.byteforce.seedj.iam.engine.identity.IamMfaAttemptLimiter iamMfaAttemptLimiter(
             Clock clock) {
-        return new cn.byteforce.seedj.starter.iam.identity.IamMfaAttemptLimiter(
+        return new cn.byteforce.seedj.iam.engine.identity.IamMfaAttemptLimiter(
                 5, java.time.Duration.ofMinutes(5), clock);
     }
 

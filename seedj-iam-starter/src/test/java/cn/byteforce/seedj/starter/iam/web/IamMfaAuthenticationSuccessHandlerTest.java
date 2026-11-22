@@ -6,7 +6,7 @@ import static org.mockito.Mockito.when;
 
 import cn.byteforce.seedj.iam.IamUser;
 import cn.byteforce.seedj.iam.spi.IamUserRepository;
-import cn.byteforce.seedj.starter.iam.identity.IamTotpService;
+import cn.byteforce.seedj.iam.engine.identity.IamTotpService;
 import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

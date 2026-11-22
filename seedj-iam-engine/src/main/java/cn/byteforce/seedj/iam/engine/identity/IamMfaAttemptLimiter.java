@@ -1,4 +1,4 @@
-package cn.byteforce.seedj.starter.iam.identity;
+package cn.byteforce.seedj.iam.engine.identity;
 
 import java.time.Clock;
 import java.time.Duration;

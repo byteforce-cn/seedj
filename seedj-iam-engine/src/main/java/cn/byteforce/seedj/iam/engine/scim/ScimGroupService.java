@@ -1,4 +1,4 @@
-package cn.byteforce.seedj.starter.iam.scim;
+package cn.byteforce.seedj.iam.engine.scim;
 
 import cn.byteforce.seedj.iam.IamErrorCode;
 import cn.byteforce.seedj.iam.IamException;
@@ -13,7 +13,6 @@ import cn.byteforce.seedj.iam.spi.IamAuthorizationRepository;
 import cn.byteforce.seedj.iam.spi.IamGroupRepository;
 import cn.byteforce.seedj.iam.spi.IamUserRepository;
 import cn.byteforce.seedj.id.IdGenerator;
-import cn.byteforce.seedj.starter.iam.IamProperties;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -26,7 +25,7 @@ public class ScimGroupService {
 
     private final IamGroupRepository groups;
     private final IamUserRepository users;
-    private final IamProperties properties;
+    private final ScimSupport.Settings settings;
     private final IamAuthorizationRepository authorization;
     private final IdGenerator<String> idGenerator;
     private final String basePath;
@@ -34,15 +33,15 @@ public class ScimGroupService {
     public ScimGroupService(
             IamGroupRepository groups,
             IamUserRepository users,
-            IamProperties properties,
+            ScimSupport.Settings settings,
             IamAuthorizationRepository authorization,
             IdGenerator<String> idGenerator) {
         this.groups = groups;
         this.users = users;
-        this.properties = properties;
+        this.settings = settings;
         this.authorization = authorization;
         this.idGenerator = idGenerator;
-        this.basePath = properties.scim().basePath();
+        this.basePath = settings.basePath();
     }
 
     public IamGroup require(String id) {
@@ -67,12 +66,12 @@ public class ScimGroupService {
         IamGroup group =
                 IamGroup.create(
                         idGenerator.id(),
-                        properties.tenantId(),
+                        settings.tenantId(),
                         displayName,
                         ScimSupport.string(body.get("externalId")),
                         members);
         IamGroup created = groups.create(group);
-        authorization.bumpEpoch(properties.tenantId());
+        authorization.bumpEpoch(settings.tenantId());
         return map(created);
     }
 
@@ -97,7 +96,7 @@ public class ScimGroupService {
                                 current.version(),
                                 current.createdAt(),
                                 current.updatedAt()));
-        authorization.bumpEpoch(properties.tenantId());
+        authorization.bumpEpoch(settings.tenantId());
         return map(updated);
     }
 
@@ -123,7 +122,7 @@ public class ScimGroupService {
                                 current.version(),
                                 current.createdAt(),
                                 current.updatedAt()));
-        authorization.bumpEpoch(properties.tenantId());
+        authorization.bumpEpoch(settings.tenantId());
         return map(updated);
     }
 
@@ -131,14 +130,14 @@ public class ScimGroupService {
         IamGroup current = require(id);
         ScimSupport.checkVersion(ScimSupport.parseVersion(ifMatch), current.version());
         groups.delete(id);
-        authorization.bumpEpoch(properties.tenantId());
+        authorization.bumpEpoch(settings.tenantId());
     }
 
     public Map<String, Object> list(String filter, int startIndex, int count) {
         IamPage<IamGroup> page =
                 groups.find(
                         new IamGroupQuery(
-                                properties.tenantId(),
+                                settings.tenantId(),
                                 ScimFilterParser.parse(filter),
                                 startIndex,
                                 count));

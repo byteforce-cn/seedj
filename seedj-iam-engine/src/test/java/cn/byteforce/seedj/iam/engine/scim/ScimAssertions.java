@@ -1,4 +1,4 @@
-package cn.byteforce.seedj.starter.iam.scim;
+package cn.byteforce.seedj.iam.engine.scim;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 

@@ -14,7 +14,7 @@ import cn.byteforce.seedj.infra.local.iam.InMemoryIamAuthorizationRepository;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamUserRepository;
 import cn.byteforce.seedj.starter.iam.IamProperties;
 import cn.byteforce.seedj.starter.iam.TestIdGenerators;
-import cn.byteforce.seedj.starter.iam.identity.IamAuthorizationService;
+import cn.byteforce.seedj.iam.engine.identity.IamAuthorizationService;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;

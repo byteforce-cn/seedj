@@ -1,4 +1,4 @@
-package cn.byteforce.seedj.starter.iam.scim;
+package cn.byteforce.seedj.iam.engine.scim;
 
 import cn.byteforce.seedj.iam.IamErrorCode;
 import cn.byteforce.seedj.iam.IamException;
@@ -14,8 +14,7 @@ import cn.byteforce.seedj.iam.spi.IamPasswordHasher;
 import cn.byteforce.seedj.iam.spi.IamUserRepository;
 import cn.byteforce.seedj.iam.totp.Base32;
 import cn.byteforce.seedj.id.IdGenerator;
-import cn.byteforce.seedj.starter.iam.IamProperties;
-import cn.byteforce.seedj.starter.iam.identity.IamIdentityService;
+import cn.byteforce.seedj.iam.engine.identity.IamIdentityService;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -32,7 +31,7 @@ public class ScimUserService {
     private final IamGroupRepository groups;
     private final IamPasswordHasher hasher;
     private final IamIdentityService identities;
-    private final IamProperties properties;
+    private final ScimSupport.Settings settings;
     private final IdGenerator<String> idGenerator;
     private final String basePath;
 
@@ -41,15 +40,15 @@ public class ScimUserService {
             IamGroupRepository groups,
             IamPasswordHasher hasher,
             IamIdentityService identities,
-            IamProperties properties,
+            ScimSupport.Settings settings,
             IdGenerator<String> idGenerator) {
         this.users = users;
         this.groups = groups;
         this.hasher = hasher;
         this.identities = identities;
-        this.properties = properties;
+        this.settings = settings;
         this.idGenerator = idGenerator;
-        this.basePath = properties.scim().basePath();
+        this.basePath = settings.basePath();
     }
 
     public Map<String, Object> get(String id) {
@@ -73,7 +72,7 @@ public class ScimUserService {
         IamUser user =
                 IamUser.create(
                         idGenerator.id(),
-                        properties.tenantId(),
+                        settings.tenantId(),
                         userName,
                         draft.displayName,
                         draft.email,
@@ -137,7 +136,7 @@ public class ScimUserService {
         IamPage<IamUser> page =
                 users.find(
                         new IamUserQuery(
-                                properties.tenantId(),
+                                settings.tenantId(),
                                 ScimFilterParser.parse(filter),
                                 startIndex,
                                 count));

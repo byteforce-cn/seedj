@@ -1,4 +1,4 @@
-package cn.byteforce.seedj.starter.iam.identity;
+package cn.byteforce.seedj.iam.engine.identity;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -15,7 +15,6 @@ import cn.byteforce.seedj.infra.local.iam.InMemoryIamTokenRevoker;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamUserRepository;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.Test;
-import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 
 class IamIdentityServiceTest {
 
@@ -23,8 +22,7 @@ class IamIdentityServiceTest {
     private final InMemoryIamTokenRevoker revoker = new InMemoryIamTokenRevoker();
     private final InMemoryIamAuditSink audit = new InMemoryIamAuditSink();
     private final IamPasswordHasher hasher =
-            new IamPasswordHasherAdapter(
-                    PasswordEncoderFactories.createDelegatingPasswordEncoder());
+            new cn.byteforce.seedj.iam.engine.TestPasswordHasher();
     private final AtomicLong seq = new AtomicLong();
     private final IdGenerator<String> idGenerator = () -> "id-" + seq.incrementAndGet();
     private final IamIdentityService service =

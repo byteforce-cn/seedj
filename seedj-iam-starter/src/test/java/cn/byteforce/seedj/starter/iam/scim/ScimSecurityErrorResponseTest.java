@@ -1,5 +1,6 @@
 package cn.byteforce.seedj.starter.iam.scim;
 
+import cn.byteforce.seedj.iam.engine.scim.ScimSupport;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;

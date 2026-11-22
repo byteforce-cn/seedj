@@ -1,5 +1,6 @@
 package cn.byteforce.seedj.starter.iam.identity;
 
+import cn.byteforce.seedj.iam.engine.identity.IamIdentityService;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 

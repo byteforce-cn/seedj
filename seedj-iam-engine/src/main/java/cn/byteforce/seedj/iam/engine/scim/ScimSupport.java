@@ -1,4 +1,4 @@
-package cn.byteforce.seedj.starter.iam.scim;
+package cn.byteforce.seedj.iam.engine.scim;
 
 import cn.byteforce.seedj.iam.IamErrorCode;
 import cn.byteforce.seedj.iam.IamException;
@@ -19,6 +19,23 @@ public final class ScimSupport {
     public static final String PATCH_SCHEMA = "urn:ietf:params:scim:api:messages:2.0:PatchOp";
 
     private ScimSupport() {}
+
+    /**
+     * Tenant and base path the SCIM use cases need; bound by the starter from {@code seedj.iam}.
+     *
+     * @param tenantId tenant every SCIM operation is scoped to
+     * @param basePath SCIM v2 base path (for response ids/links)
+     */
+    public record Settings(String tenantId, String basePath) {
+        public Settings {
+            if (tenantId == null || tenantId.isBlank()) {
+                throw new IllegalArgumentException("tenantId must not be blank");
+            }
+            if (basePath == null || basePath.isBlank()) {
+                throw new IllegalArgumentException("basePath must not be blank");
+            }
+        }
+    }
 
     public static String string(Object value) {
         return value == null ? null : String.valueOf(value);

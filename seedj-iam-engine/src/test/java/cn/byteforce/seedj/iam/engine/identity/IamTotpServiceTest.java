@@ -1,4 +1,4 @@
-package cn.byteforce.seedj.starter.iam.identity;
+package cn.byteforce.seedj.iam.engine.identity;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -14,27 +14,24 @@ import cn.byteforce.seedj.infra.local.iam.AesGcmIamSecretProtector;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamAuditSink;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamTotpRepository;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamUserRepository;
-import cn.byteforce.seedj.starter.iam.IamProperties;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import org.junit.jupiter.api.Test;
-import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 
 class IamTotpServiceTest {
 
     private final InMemoryIamUserRepository users = new InMemoryIamUserRepository();
     private final InMemoryIamTotpRepository totp = new InMemoryIamTotpRepository();
     private final IamPasswordHasher hasher =
-            new IamPasswordHasherAdapter(
-                    PasswordEncoderFactories.createDelegatingPasswordEncoder());
+            new cn.byteforce.seedj.iam.engine.TestPasswordHasher();
     private final AesGcmIamSecretProtector protector =
             new AesGcmIamSecretProtector(
                     "0123456789abcdef0123456789abcdef".getBytes(StandardCharsets.UTF_8), "test");
-    private final IamProperties.Totp properties =
-            new IamProperties.Totp(true, "Seedj", 6, Duration.ofSeconds(30), 1, 3, null);
+    private final IamTotpService.Policy properties =
+            new IamTotpService.Policy("Seedj", 6, Duration.ofSeconds(30), 1, 3);
     private final Instant start = Instant.ofEpochSecond(1_700_000_000L);
     private final Clock clock = Clock.fixed(start, ZoneOffset.UTC);
     private final java.util.concurrent.atomic.AtomicLong seq =

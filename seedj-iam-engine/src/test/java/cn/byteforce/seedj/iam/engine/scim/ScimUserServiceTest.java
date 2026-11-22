@@ -1,4 +1,4 @@
-package cn.byteforce.seedj.starter.iam.scim;
+package cn.byteforce.seedj.iam.engine.scim;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.MAP;
@@ -11,14 +11,11 @@ import cn.byteforce.seedj.infra.local.iam.InMemoryIamAuditSink;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamGroupRepository;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamTokenRevoker;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamUserRepository;
-import cn.byteforce.seedj.starter.iam.IamProperties;
-import cn.byteforce.seedj.starter.iam.identity.IamIdentityService;
-import cn.byteforce.seedj.starter.iam.identity.IamPasswordHasherAdapter;
+import cn.byteforce.seedj.iam.engine.identity.IamIdentityService;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.Test;
-import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 
 class ScimUserServiceTest {
 
@@ -26,13 +23,13 @@ class ScimUserServiceTest {
     private final InMemoryIamGroupRepository groups = new InMemoryIamGroupRepository();
     private final InMemoryIamTokenRevoker revoker = new InMemoryIamTokenRevoker();
     private final IamPasswordHasher hasher =
-            new IamPasswordHasherAdapter(
-                    PasswordEncoderFactories.createDelegatingPasswordEncoder());
+            new cn.byteforce.seedj.iam.engine.TestPasswordHasher();
     private final AtomicLong seq = new AtomicLong();
     private final IdGenerator<String> idGenerator = () -> "id-" + seq.incrementAndGet();
     private final IamIdentityService identities =
             new IamIdentityService(users, hasher, revoker, new InMemoryIamAuditSink(), idGenerator);
-    private final IamProperties properties = IamProperties.defaults();
+    private final ScimSupport.Settings properties =
+            new ScimSupport.Settings("default", "/scim/v2");
     private final ScimUserService service =
             new ScimUserService(users, groups, hasher, identities, properties, idGenerator);
 
@@ -526,7 +523,7 @@ class ScimUserServiceTest {
                 service.create(Map.of("userName", "alice", "name", Map.of("givenName", "Alice")));
         IamUser stored = users.findById(String.valueOf(created.get("id"))).orElseThrow();
 
-        assertThat(stored.tenantId()).isEqualTo(IamProperties.defaults().tenantId());
+        assertThat(stored.tenantId()).isEqualTo("default");
         assertThat(stored.attributes()).containsEntry("givenName", "Alice");
         assertThat(stored.active()).isTrue();
     }

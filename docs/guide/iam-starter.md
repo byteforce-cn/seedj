@@ -14,6 +14,9 @@
 </dependency>
 ```
 
+纯逻辑（身份/授权判定、TOTP/MFA、SCIM 用例）在 `seedj-iam-engine`，本模块只做 Spring 装配与
+HTTP/OIDC 面；引擎不依赖 Spring/JDBC，可被命令行或其它框架宿主直接复用。
+
 ```java
 @SpringBootApplication
 @EnableIamServer

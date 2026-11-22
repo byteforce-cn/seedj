@@ -1,4 +1,4 @@
-package cn.byteforce.seedj.starter.iam.identity;
+package cn.byteforce.seedj.iam.engine.identity;
 
 import cn.byteforce.seedj.core.security.SecurityAuditEvent;
 import cn.byteforce.seedj.core.security.SecurityAuditSink;
@@ -16,7 +16,6 @@ import cn.byteforce.seedj.iam.totp.TotpAlgorithm;
 import cn.byteforce.seedj.iam.totp.TotpEnrollment;
 import cn.byteforce.seedj.iam.totp.TotpGenerator;
 import cn.byteforce.seedj.id.IdGenerator;
-import cn.byteforce.seedj.starter.iam.IamProperties;
 import java.security.SecureRandom;
 import java.time.Clock;
 import java.util.ArrayList;
@@ -26,6 +25,33 @@ import java.util.Map;
 /** TOTP enrollment, verification, recovery codes, and disable. */
 public class IamTotpService {
 
+    /**
+     * TOTP policy the engine needs.
+     *
+     * @param issuer issuer shown by authenticator apps
+     * @param digits code digits
+     * @param period step
+     * @param window accepted step skew
+     * @param recoveryCodes number of recovery codes issued on enrollment
+     */
+    public record Policy(
+            String issuer, int digits, java.time.Duration period, int window, int recoveryCodes) {
+        public Policy {
+            if (digits < 6 || digits > 10) {
+                throw new IllegalArgumentException("seedj.iam.mfa.totp.digits must be 6..10");
+            }
+            if (period == null || period.isZero() || period.isNegative()) {
+                throw new IllegalArgumentException("seedj.iam.mfa.totp.period must be positive");
+            }
+            if (window < 0 || window > 10) {
+                throw new IllegalArgumentException("seedj.iam.mfa.totp.window must be 0..10");
+            }
+            if (issuer == null || issuer.isBlank()) {
+                throw new IllegalArgumentException("seedj.iam.mfa.totp.issuer must not be blank");
+            }
+        }
+    }
+
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final String RECOVERY_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
@@ -33,7 +59,7 @@ public class IamTotpService {
     private final IamUserRepository users;
     private final IamSecretProtector protector;
     private final IamPasswordHasher hasher;
-    private final IamProperties.Totp properties;
+    private final Policy properties;
     private final SecurityAuditSink audit;
     private final Clock clock;
     private final IdGenerator<String> idGenerator;
@@ -43,7 +69,7 @@ public class IamTotpService {
             IamUserRepository users,
             IamSecretProtector protector,
             IamPasswordHasher hasher,
-            IamProperties.Totp properties,
+            Policy properties,
             SecurityAuditSink audit,
             Clock clock,
             IdGenerator<String> idGenerator) {

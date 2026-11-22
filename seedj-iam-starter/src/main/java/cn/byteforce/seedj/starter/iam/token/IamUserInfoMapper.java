@@ -3,7 +3,7 @@ package cn.byteforce.seedj.starter.iam.token;
 import cn.byteforce.seedj.iam.IamSubjectAuthorization;
 import cn.byteforce.seedj.iam.IamUser;
 import cn.byteforce.seedj.iam.spi.IamUserRepository;
-import cn.byteforce.seedj.starter.iam.identity.IamAuthorizationService;
+import cn.byteforce.seedj.iam.engine.identity.IamAuthorizationService;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;

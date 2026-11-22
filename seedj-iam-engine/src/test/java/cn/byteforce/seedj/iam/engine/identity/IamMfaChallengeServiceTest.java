@@ -1,4 +1,4 @@
-package cn.byteforce.seedj.starter.iam.identity;
+package cn.byteforce.seedj.iam.engine.identity;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -7,7 +7,6 @@ import cn.byteforce.seedj.iam.IamErrorCode;
 import cn.byteforce.seedj.iam.IamException;
 import cn.byteforce.seedj.iam.IamMfaChallenge;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamTotpRepository;
-import cn.byteforce.seedj.starter.iam.IamProperties;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -18,8 +17,8 @@ import org.junit.jupiter.api.Test;
 class IamMfaChallengeServiceTest {
 
     private final InMemoryIamTotpRepository repository = new InMemoryIamTotpRepository();
-    private final IamProperties.NativeAuth properties =
-            new IamProperties.NativeAuth(true, true, Duration.ofMinutes(5), 2);
+    private final IamMfaChallengeService.Policy properties =
+            new IamMfaChallengeService.Policy(Duration.ofMinutes(5), 2);
     private final Instant start = Instant.parse("2026-01-01T00:00:00Z");
     private final AtomicLong seq = new AtomicLong();
     private final IamMfaChallengeService service =

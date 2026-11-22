@@ -1,4 +1,4 @@
-package cn.byteforce.seedj.starter.iam.scim;
+package cn.byteforce.seedj.iam.engine.scim;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.MAP;
@@ -10,13 +10,10 @@ import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamAuthorizationRepository;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamGroupRepository;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamUserRepository;
-import cn.byteforce.seedj.starter.iam.IamProperties;
-import cn.byteforce.seedj.starter.iam.identity.IamPasswordHasherAdapter;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.Test;
-import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 
 class ScimGroupServiceTest {
 
@@ -25,11 +22,11 @@ class ScimGroupServiceTest {
     private final InMemoryIamAuthorizationRepository authorization =
             new InMemoryIamAuthorizationRepository();
     private final IamPasswordHasher hasher =
-            new IamPasswordHasherAdapter(
-                    PasswordEncoderFactories.createDelegatingPasswordEncoder());
+            new cn.byteforce.seedj.iam.engine.TestPasswordHasher();
     private final AtomicLong seq = new AtomicLong();
     private final IdGenerator<String> idGenerator = () -> "id-" + seq.incrementAndGet();
-    private final IamProperties properties = IamProperties.defaults();
+    private final ScimSupport.Settings properties =
+            new ScimSupport.Settings("default", "/scim/v2");
     private final ScimGroupService service =
             new ScimGroupService(groups, users, properties, authorization, idGenerator);
     private final String alice = userId("alice");

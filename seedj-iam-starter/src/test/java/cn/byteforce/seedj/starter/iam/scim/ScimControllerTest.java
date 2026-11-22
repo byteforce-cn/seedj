@@ -1,5 +1,8 @@
 package cn.byteforce.seedj.starter.iam.scim;
 
+import cn.byteforce.seedj.iam.engine.scim.ScimUserService;
+import cn.byteforce.seedj.iam.engine.scim.ScimGroupService;
+import cn.byteforce.seedj.iam.engine.scim.ScimSupport;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -22,7 +25,7 @@ import cn.byteforce.seedj.starter.iam.IamProperties;
 import cn.byteforce.seedj.starter.iam.TestIdGenerators;
 import cn.byteforce.seedj.starter.iam.annotation.EnableIamServer;
 import cn.byteforce.seedj.starter.iam.autoconfigure.IamAutoConfiguration;
-import cn.byteforce.seedj.starter.iam.identity.IamIdentityService;
+import cn.byteforce.seedj.iam.engine.identity.IamIdentityService;
 import cn.byteforce.seedj.starter.iam.identity.IamPasswordHasherAdapter;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.Test;
@@ -142,6 +145,8 @@ class ScimControllerTest {
 
     private MockMvc standaloneMvc() {
         IamProperties properties = IamProperties.defaults();
+        ScimSupport.Settings scim =
+                new ScimSupport.Settings(properties.tenantId(), properties.scim().basePath());
         return MockMvcBuilders.standaloneSetup(
                         new ScimController(
                                 new ScimUserService(
@@ -149,12 +154,12 @@ class ScimControllerTest {
                                         standaloneGroups,
                                         standaloneHasher,
                                         standaloneIdentities,
-                                        properties,
+                                        scim,
                                         standaloneIds),
                                 new ScimGroupService(
                                         standaloneGroups,
                                         standaloneUsers,
-                                        properties,
+                                        scim,
                                         new InMemoryIamAuthorizationRepository(),
                                         standaloneIds),
                                 properties))

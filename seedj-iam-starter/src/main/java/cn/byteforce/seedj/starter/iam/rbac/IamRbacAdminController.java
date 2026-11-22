@@ -8,7 +8,7 @@ import cn.byteforce.seedj.iam.spi.IamAuthorizationRepository;
 import cn.byteforce.seedj.iam.spi.IamUserRepository;
 import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.starter.iam.IamProperties;
-import cn.byteforce.seedj.starter.iam.identity.IamAuthorizationService;
+import cn.byteforce.seedj.iam.engine.identity.IamAuthorizationService;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;

@@ -1,4 +1,4 @@
-package cn.byteforce.seedj.starter.iam.identity;
+package cn.byteforce.seedj.iam.engine.identity;
 
 import cn.byteforce.seedj.core.security.SecurityAuditEvent;
 import cn.byteforce.seedj.core.security.SecurityAuditSink;

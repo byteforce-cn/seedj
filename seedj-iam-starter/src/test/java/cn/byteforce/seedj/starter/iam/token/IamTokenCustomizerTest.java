@@ -11,7 +11,7 @@ import cn.byteforce.seedj.infra.local.iam.InMemoryIamAuthorizationRepository;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamGroupRepository;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamUserRepository;
 import cn.byteforce.seedj.starter.iam.IamProperties;
-import cn.byteforce.seedj.starter.iam.identity.IamAuthorizationService;
+import cn.byteforce.seedj.iam.engine.identity.IamAuthorizationService;
 import cn.byteforce.seedj.starter.iam.identity.IamPasswordHasherAdapter;
 import java.time.Duration;
 import java.time.Instant;

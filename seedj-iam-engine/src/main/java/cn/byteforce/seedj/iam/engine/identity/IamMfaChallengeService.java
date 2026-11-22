@@ -1,11 +1,10 @@
-package cn.byteforce.seedj.starter.iam.identity;
+package cn.byteforce.seedj.iam.engine.identity;
 
 import cn.byteforce.seedj.iam.IamErrorCode;
 import cn.byteforce.seedj.iam.IamException;
 import cn.byteforce.seedj.iam.IamMfaChallenge;
 import cn.byteforce.seedj.iam.spi.IamTotpRepository;
 import cn.byteforce.seedj.id.IdGenerator;
-import cn.byteforce.seedj.starter.iam.IamProperties;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
@@ -16,16 +15,33 @@ import java.util.HexFormat;
 /** Creates and consumes opaque, single-use native-auth MFA challenges. */
 public class IamMfaChallengeService {
 
+    /**
+     * Challenge policy.
+     *
+     * @param tokenTtl challenge lifetime
+     * @param maxAttempts attempts allowed per challenge
+     */
+    public record Policy(java.time.Duration tokenTtl, int maxAttempts) {
+        public Policy {
+            if (tokenTtl == null || tokenTtl.isZero() || tokenTtl.isNegative()) {
+                throw new IllegalArgumentException("mfaTokenTtl must be positive");
+            }
+            if (maxAttempts < 1) {
+                throw new IllegalArgumentException("maxAttempts must be >= 1");
+            }
+        }
+    }
+
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private final IamTotpRepository repository;
-    private final IamProperties.NativeAuth properties;
+    private final Policy properties;
     private final Clock clock;
     private final IdGenerator<String> idGenerator;
 
     public IamMfaChallengeService(
             IamTotpRepository repository,
-            IamProperties.NativeAuth properties,
+            Policy properties,
             Clock clock,
             IdGenerator<String> idGenerator) {
         this.repository = repository;
@@ -45,7 +61,7 @@ public class IamMfaChallengeService {
                         clientId,
                         deviceId,
                         hash(raw),
-                        clock.instant().plus(properties.mfaTokenTtl()),
+                        clock.instant().plus(properties.tokenTtl()),
                         false,
                         0,
                         properties.maxAttempts());

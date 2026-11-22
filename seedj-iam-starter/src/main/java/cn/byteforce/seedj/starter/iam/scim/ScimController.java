@@ -1,5 +1,8 @@
 package cn.byteforce.seedj.starter.iam.scim;
 
+import cn.byteforce.seedj.iam.engine.scim.ScimGroupService;
+import cn.byteforce.seedj.iam.engine.scim.ScimSupport;
+import cn.byteforce.seedj.iam.engine.scim.ScimUserService;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;

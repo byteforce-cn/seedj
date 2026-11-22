@@ -10,7 +10,7 @@ import cn.byteforce.seedj.security.AuthorizationDecision;
 import cn.byteforce.seedj.security.AuthorizationRequest;
 import cn.byteforce.seedj.security.AuthorizationSubject;
 import cn.byteforce.seedj.starter.iam.IamProperties;
-import cn.byteforce.seedj.starter.iam.identity.IamAuthorizationService;
+import cn.byteforce.seedj.iam.engine.identity.IamAuthorizationService;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;

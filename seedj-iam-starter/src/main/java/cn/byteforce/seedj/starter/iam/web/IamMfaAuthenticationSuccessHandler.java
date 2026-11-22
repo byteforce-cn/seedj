@@ -2,7 +2,7 @@ package cn.byteforce.seedj.starter.iam.web;
 
 import cn.byteforce.seedj.iam.IamUser;
 import cn.byteforce.seedj.iam.spi.IamUserRepository;
-import cn.byteforce.seedj.starter.iam.identity.IamTotpService;
+import cn.byteforce.seedj.iam.engine.identity.IamTotpService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
