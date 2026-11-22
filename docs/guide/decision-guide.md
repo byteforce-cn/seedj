@@ -10,7 +10,7 @@
 ## 1. 能力矩阵
 
 | 能力 | 默认路径（`CommandRuntime` + 双时间轴） | 复杂域路径（`CommandAgent` 事件溯源） | 可复核证据 |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 统一写入口 `/commands/{type}` | ✅ | ✅（同一入口，agent 作为执行模型） | `CommandControllerAdvancedTest`、`seedj-it` |
 | 幂等键 + 指纹冲突检测 | ✅ | ✅ | `CommandRuntimeTest`、`EventSourcedCommandRuntimeTest` |
 | 命令级权限（默认拒绝） | ✅ `CommandDescriptor.permission` | ✅（同一 `CommandCatalog`） | `CommandCatalogTest`、`EventSourcedCommandRuntimeTest` |
@@ -68,7 +68,7 @@ DecisionToken，执行侧 guard 逐字核对请求。它是**给写动作上闸*
 ## 4. 数据结构与查询
 
 | 需求 | 用什么 | 不用什么 |
-|---|---|---|
+| --- | --- | --- |
 | 单表等值 + 排序 + 分页（约 80%） | `TemporalQueryRepository<T>` | 手写 `JdbcTemplate` |
 | join / 聚合 / 特殊排序 | `QuerySpec`（reviewed SQL，网关注入 scope/脱敏/审计） | `TemporalStore`、字符串拼 SQL |
 | 字段声明 | `@SeedjObject` record（`seedj-codegen` 生成 schema；`view = true` 再生成读视图） | 手写 `ObjectSchema.builder` 或第二份 view record |

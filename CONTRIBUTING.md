@@ -6,11 +6,11 @@
 ## 环境
 
 | 项 | 要求 |
-|---|---|
+| --- | --- |
 | JDK | 21（编译目标见根 `pom.xml` 的 `<java.version>`） |
 | 构建 | 仓库自带 Maven Wrapper（`./mvnw`），无需预装 Maven |
 | Docker | 仅 PostgreSQL 集成测试需要（Testcontainers） |
-| Node | 20+，仅文档站使用 |
+| Node | 22+，仅文档站使用 |
 
 ## 常用命令
 

@@ -22,7 +22,7 @@ Caller caller = callers.find().orElseThrow()     // 当前调用方（未认证�
 ## 1. 九条规则
 
 | # | 规则 | 反例（本仓库已修复） |
-|---|---|---|
+| --- | --- | --- |
 | R1 | **一个能力 = 一个业务入口 +（可选）一个实现入口** | `OutboxProvider` 把 relay 的协调方法暴露给业务方 |
 | R2 | **业务入口必须是意图级**：调用方不必理解库内状态机 | 要求业务方填 `sequence` / `leaseId` |
 | R3 | **装配只用 Spring 自动配置**：实现模块自带 `@AutoConfiguration`，bean 名即 provider 名；多实现用 `Map<String,T>` + `seedj.<cap>.provider` 选择 | `ServiceLoader` + `BeanFactory.createBean(Class)` 反射 |
@@ -36,7 +36,7 @@ Caller caller = callers.find().orElseThrow()     // 当前调用方（未认证�
 ## 2. 模块与职责
 
 | 模块 | 提供 | 不该出现 |
-|---|---|---|
+| --- | --- | --- |
 | `core` | 内核契约（错误码、时间轴、命令、读模型、安全、`observability` 健康面）、迁移原语、契约测试 TCK（test-jar）、`core/security`（`Caller` / `CallerProvider` / `SecurityAudit*` / `AccessTokenRules`）、`outbox` / `outbox/spi` 契约、`workflow/spi` 工作流契约 | Spring、BouncyCastle、任何存储机制 |
 | `seedj-pki-contract` | PKI 契约：证书/CSR 签发、Transit 签名、吊销/CRL/tidy、按 serial 读证书、alias 映射、TLS 配置描述 | Spring、Coord SDK、任何存储机制 |
 | `seedj-infra-local` | 本地实现：PKI（BC + 状态文件）、Transit（JCE + 状态文件）、EventBus 本地队列（file / memory，含消费者组）、雪花 + 字符串 ID、Lock、Audit memory、IAM memory（含 AES/Transit 密钥保护器与默认 `IamAttributeSource`，JDBC IAM 也依赖它）、本地工作流引擎（v2.4） | outbox、relay、PostgreSQL 存储 |
@@ -57,7 +57,7 @@ Caller caller = callers.find().orElseThrow()     // 当前调用方（未认证�
 ## 3. 多服务一致性
 
 | 能力 | 多服务共享方式 | 默认路径 |
-|---|---|---|
+| --- | --- | --- |
 | PKI（`provider=local`） | 状态文件（签发 + 吊销 + 签名身份） | `${java.io.tmpdir}/seedj-pki-state.properties` |
 | PKI（`provider=coord`） | CA/吊销/CRL 在 coord；alias → CN/serial 在 coord KV | coord agent + `seedj.coord.pki.identity-prefix` |
 | Transit | 状态文件（密钥 + 版本历史） | `${java.io.tmpdir}/seedj-transit-state.properties` |
@@ -146,7 +146,7 @@ public final class OrderCancelledSubscriber implements EventSubscriber<OrderCanc
 optional 只 WARN。内置能力：
 
 | 能力 | 模块 | 保证的资源 |
-|---|---|---|
+| --- | --- | --- |
 | `postgres-outbox` | `seedj-jdbc-postgresql` | `outbox` / `outbox_audit` / `seedj_schema_history` |
 | `eventbus-topics` | `seedj-biz-starter` | 订阅与配置声明的队列 topic |
 
@@ -209,7 +209,7 @@ public void cancel(OrderId id) {
 5. 在本表加一行，并开一个 `decision` issue 说明"为什么需要第二个适配器"。
 
 | 能力 | 内置适配器 | 契约测试 |
-|---|---|---|
+| --- | --- | --- |
 | PKI | `BcPkiProvider`（BC + 状态文件）/ `CoordPkiProvider`（coord 0.4.4 PKI + Transit） | `seedj-pki-contract` 的 `PkiProviderContractTest` |
 | Transit | `BcTransitProvider`（JCE + 状态文件） | `TransitProviderContractTest` |
 | EventBus 队列（发布） | `FileEventBusTransport` / `MemoryEventBusTransport` | `EventBusTransportContractTest` |

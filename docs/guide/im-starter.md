@@ -52,7 +52,7 @@ seedj:
 ## 配置
 
 | 键 | 默认值 | 说明 |
-|---|---|---|
+| --- | --- | --- |
 | `seedj.im.enabled` | `true` | 总开关；关掉后传输、存储、HTTP 全部不生效 |
 | `seedj.im.store` | `memory` | 存储：`memory` 进程内，`jdbc` PostgreSQL |
 | `seedj.im.push.provider` | `local` | 投递：`local` 只投本节点，`coord` 经 EventBus 广播给其它节点 |
@@ -124,7 +124,7 @@ SEEDJ_IAM_ISSUER=http://localhost:9000 \
 `seedj.im.store` 是唯一开关，两套实现的语义由同一份契约测试约束：
 
 | 模式 | 表/结构 | 适用 |
-|---|---|---|
+| --- | --- | --- |
 | `memory` | 进程内映射与计数器 | 本地开发、单实例测试；重启即丢 |
 | `jdbc` | `im_conversation`、`im_conversation_member`、`im_conversation_event`、`im_message`、`im_read_cursor`、`im_sync_cursor` 与序列 `im_seq` | 生产 |
 
@@ -171,7 +171,7 @@ B.SESSION_SYNC {since_seq}            → 会话快照（last_seq / unread）+ �
 `seedj.im.http.enabled=true`（默认）时注册一组管理端点，授权仍是「已认证 + 会话服务判定」：
 
 | 端点 | 作用 |
-|---|---|
+| --- | --- |
 | `POST /im/conversations` | `{kind: "single"\|"group", peer_id?, title?, member_ids?}` 建会话 |
 | `GET /im/conversations` | 当前调用方的会话视图（`last_seq` / `unread`） |
 | `POST /im/conversations/{id}/members` | `{subject_id, role?}` 加人 |
@@ -244,7 +244,7 @@ notifier.sendCard(tenantId, approverId, card);
 动作回传是新命令字（`0x1C/0x1D/0x1E`）：
 
 | cmd | 方向 | body |
-|---|---|---|
+| --- | --- | --- |
 | `CARD_ACTION_REQ` | 客户端 → 服务端 | `{message_id, action_id}` |
 | `CARD_ACTION_RESP` | 服务端 → 客户端 | `{message_id, action_id, result}` |
 | `CARD_ACTION_NOTIFY` | 服务端广播 | `{message_id, action_id, actor_id, result}` |
@@ -284,7 +284,7 @@ ImCommandHandler<MyBody> myCommand() {
 帧头固定 16 字节、大端：
 
 | 偏移 | 长度 | 字段 | 说明 |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 0 | 4 | `magic` | 固定 `0xCAFEBABE` |
 | 4 | 1 | `version` | 当前为 `1` |
 | 5 | 1 | `serializeType` | JSON 为 `1` |
@@ -298,7 +298,7 @@ body 的 JSON 字段一律蛇形命名；**所有 id 都是字符串**（IAM `su
 UUID）。
 
 | 命令 | 值 | 阶段 1 行为 |
-|---|---|---|
+| --- | --- | --- |
 | `LOGIN_REQ` | `0x01` | 用 `access_token` 握手 |
 | `LOGIN_RESP` | `0x02` | 返回 `code`、`user_id`、`display_name` |
 | `HEARTBEAT_PING` | `0x03` | 回 `HEARTBEAT_PONG` |
@@ -371,7 +371,7 @@ TCP 客户端不要把一次 `read` 当成一帧：先读满 16 字节帧头，�
 ## 排错
 
 | 现象 | 可能原因 |
-|---|---|
+| --- | --- |
 | 登录回 `401` | 令牌缺失/过期，或 IM 的 `issuer-uri` 与 IAM 不一致 |
 | 一直连不上 | IAM 未启动、`seedj.biz.dev-auth.enabled` 仍为 `true`，或端口被占用 |
 | 发业务命令回 `501` | 命令字未注册；内置命令清单见上表 |

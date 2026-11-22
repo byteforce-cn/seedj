@@ -151,7 +151,7 @@ assertThat(harness.object("employee", receipt.locator()).fields())
 ## 模块
 
 | 模块 | 作用 |
-|---|---|
+| --- | --- |
 | `core` | 内核契约：错误码、时间轴、命令、读模型、安全、SPI、`@SeedjObject` |
 | `seedj-workflow-contract` | 工作流契约：定义、实例、任务与动作（零外部依赖） |
 | `seedj-transit-contract` | 传输/加密契约：密钥、签名、HMAC、批量加解密 |

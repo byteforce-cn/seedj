@@ -3,7 +3,7 @@
 ## 支持范围
 
 | 版本 | 支持状态 | 说明 |
-|---|---|---|
+| --- | --- | --- |
 | 1.x 最新 minor | ✅ | 缺陷修复与安全修复 |
 | 更早版本 | ❌ | 建议升级 |
 | `main` | 开发中 | 1.0.0 发布前唯一受支持版本 |
@@ -17,7 +17,7 @@
 ## 渠道
 
 | 事项 | 渠道 |
-|---|---|
+| --- | --- |
 | 缺陷与用法问题 | [GitHub Issues](https://github.com/byteforce-cn/seedj/issues) |
 | 安全漏洞 | [SECURITY.md](SECURITY.md)，走私密报告 |
 | 变更记录 | [CHANGELOG.md](CHANGELOG.md) |

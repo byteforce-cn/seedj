@@ -11,7 +11,7 @@ OAuth2 token 端点使用 RFC 6749 的 `{error,error_description}`。这两类�
 ## 契约错误（ContractException）
 
 | 异常 | HTTP | code | 触发条件 | 调用方动作 |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | `INVALID_PAYLOAD` | 400 | `EIS-400-001` | 请求体/参数结构、类型、日期格式错误；未知命令类型；未知过滤字段 | 修正请求，不要重试 |
 | `COMMAND_REJECTED` | 400 | `EIS-400-002` | 业务规则拒绝（CQRS 事件溯源路径） | 按 `message` 修正 |
 | `TEMPORAL_VIOLATION` | 400 | `EIS-400-003` | 时间区间非法、系统时间轴回改 | 修正业务时间 |
@@ -28,7 +28,7 @@ OAuth2 token 端点使用 RFC 6749 的 `{error,error_description}`。这两类�
 ## 非契约错误
 
 | 异常 | HTTP | code | 说明 |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `CqrsException(COMMAND_REJECTED)` | 400 | `EIS-400-002` | 事件溯源业务拒绝；`details.reason_code=CQRS-COMMAND_REJECTED` |
 | `CqrsException(CONCURRENCY_CONFLICT)` | 409 | `EIS-409-002` | 流版本已变化 |
 | `CqrsException(INVALID_STREAM_ID/INVALID_ID)` | 400 | `EIS-400-001` | 标识/流不合法 |
@@ -44,7 +44,7 @@ IAM 管理端点（`/authz/**`、`/api/iam/**`、`/iam/**`）返回同一信封�
 `IAM-<枚举名>`，`details.reason_code` 保留枚举名：
 
 | 异常 | HTTP | code | 说明 |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `IamException(USER_NOT_FOUND)` 等 `*_NOT_FOUND` | 404 | `IAM-<枚举名>` | 目录/策略/权限不存在 |
 | `IamException(FORBIDDEN)` | 403 | `IAM-FORBIDDEN` | 已认证但无权限 |
 | `IamException(INVALID_CREDENTIALS)` 等认证失败 | 401 | `IAM-<枚举名>` | 凭据、TOTP、MFA 挑战失败 |

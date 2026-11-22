@@ -84,7 +84,7 @@ cn.byteforce.seedj.starter.ai.runtime.AiRuntimeAutoConfiguration
 `seedj-it` 的 `PilotApplication`）。分角色部署时每个开关都显式写出来，不要靠默认值。
 
 | 键 | 默认 | 装配什么 | 什么时候关 |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `seedj.ai.enabled` | `true` | 总闸：连 `AiEnabledMarker` 都不产时三个角色全失效 | 想让进程完全不含 AI |
 | `seedj.ai.plane.enabled` | **`false`** | 决策面 | 执行侧不需要签发 token |
 | `seedj.ai.guard.enabled` | **`true`** | 执行侧 | 只当决策面 |
@@ -107,7 +107,7 @@ cn.byteforce.seedj.starter.ai.runtime.AiRuntimeAutoConfiguration
 启动期校验放在会用它的那个 bean 的构造器里：缺哪个键，启动失败的消息就点名哪个键。
 
 | 键 | 必填时机 | 说明 |
-|---|---|---|
+| --- | --- | --- |
 | `seedj.ai.plane.tenant` | `plane` 开，**启动期 UUID** | 租户只来自配置；账本分区与 token 都用它 |
 | `seedj.ai.plane.permission` | `plane` 开，**启动期非空白**（默认 `agent:decide`） | 调 `/v1/decisions`、读记录与上报 outcome 所需的权限名；空白即启动失败 |
 | `seedj.ai.identity.actor` | `plane` 开，**启动期 UUID** | agent 自身身份；缺失即启动失败 |
@@ -193,7 +193,7 @@ seedj:
 否则调用方能挑最宽松的一档逃过审批。取值只有五档，按「后果可恢复性」排序：
 
 | 值 | 含义 | 审批口径 |
-|---|---|---|
+| --- | --- | --- |
 | `READ_ONLY` | 不改变任何状态 | 无需审批，可直接执行或缓存 |
 | `REVERSIBLE` | 可由同一命令的逆操作撤销 | 无需人工审批，保留撤销入口 |
 | `COMPENSABLE` | 不能直接撤销，需反向事务冲抵 | 需人工审批，留存补偿依据 |
@@ -244,7 +244,7 @@ seedj:
 **守卫判定**（只对 `ActionClass.requiresApproval()` 为 true 的两档）：
 
 | 条件 | 结果 |
-|---|---|
+| --- | --- |
 | `seedj.ai.policy.verify=none`，或动作是 `READ_ONLY` / `REVERSIBLE` / `COMPENSABLE` | 跳过比对 |
 | token 无 `policy`、`bundle` 或 `bundle_version` 缺失 | `policy_unavailable` |
 | 本部署没有该 `engine` + `bundle` 的 head | `policy_unavailable` |
@@ -282,7 +282,7 @@ seedj:
 **工具协议**：请求里带一个 `execute_command` 和三个终结工具——
 
 | 工具 | 参数 | 映射 |
-|---|---|---|
+| --- | --- | --- |
 | `execute_command` | `command_type`（`seedj.ai.tools[]` 的枚举，按任务契约过滤）、`payload`、`rationale`、可选 `targets` / `expected_version` | `EXECUTE_TOOL`；`action_class` 来自配置，不读模型 |
 | `finish` | `reason` | `FINISH` |
 | `ask_user` | `reason` | `ASK_USER` |
@@ -394,7 +394,7 @@ guard 只拦单段 `POST /commands/{type}`：`GET /commands/{id}`、`/queries/**
 `/.well-known/**` 一律放行。拒绝一律 fail-closed：
 
 | 现象 | 原因 |
-|---|---|
+| --- | --- |
 | `401` `unauthenticated` | 安全链没认出让 `CallerProvider` 拿到的调用方 |
 | `401` `token_missing` | 没带 `x-agent-decision`（响应带 `WWW-Authenticate`） |
 | `403` `token_expired` / `token_invalid` | 过期（`exp == now` 即过期）、结构或签名不对 |

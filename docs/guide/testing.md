@@ -6,7 +6,7 @@
 ## 测试分层
 
 | 层 | 位置 | 依赖 | 说明 |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 单元测试 | `<module>/src/test/java` | 无外部服务 | 纯逻辑、值对象、解析器、错误映射 |
 | 业务规则 | `<module>/src/test/java` + `CommandHarness` | 无 Spring | 命令链路、幂等、writeOnly、状态机；见 `HrEmployeeRulesTest` |
 | 契约测试 | `core` 的 `test-jar` | 无外部服务 | SPI 实现共用一套契约，例如 `TemporalStore`、`LockProvider`、`WorkflowProvider` |
@@ -68,7 +68,7 @@ bash config/ci/verify.sh                            # 主门禁：测试 + 覆�
 ## 架构与文档门禁
 
 | 测试 | 断言 |
-|---|---|
+| --- | --- |
 | `ArchitectureTest` | core 无 Spring/JDBC；biz 不反向依赖 IAM；内存实现不依赖 JDBC |
 | `SplitPackageTest` | 同一个包只属于一个模块；允许清单为空 |
 | `PackageCycleTest` | 包级依赖无环；只剩 parent↔spi 白名单 |
