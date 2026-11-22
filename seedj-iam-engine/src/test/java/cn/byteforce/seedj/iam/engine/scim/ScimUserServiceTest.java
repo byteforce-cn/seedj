@@ -1,6 +1,7 @@
 package cn.byteforce.seedj.iam.engine.scim;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.InstanceOfAssertFactories.MAP;
 
 import cn.byteforce.seedj.iam.IamErrorCode;
@@ -526,5 +527,15 @@ class ScimUserServiceTest {
         assertThat(stored.tenantId()).isEqualTo("default");
         assertThat(stored.attributes()).containsEntry("givenName", "Alice");
         assertThat(stored.active()).isTrue();
+    }
+
+    @Test
+    void settingsRequireTenantAndBasePath() {
+        assertThatThrownBy(() -> new ScimSupport.Settings(" ", "/scim/v2"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("tenantId");
+        assertThatThrownBy(() -> new ScimSupport.Settings("default", " "))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("basePath");
     }
 }

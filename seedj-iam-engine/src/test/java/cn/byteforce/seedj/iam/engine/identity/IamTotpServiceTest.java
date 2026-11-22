@@ -274,4 +274,30 @@ class IamTotpServiceTest {
                 .isInstanceOf(IamException.class)
                 .hasMessage("invalid recovery code");
     }
+
+    @Test
+    void policyRejectsOutOfRangeValues() {
+        assertThatThrownBy(
+                        () ->
+                                new IamTotpService.Policy(
+                                        "Seedj", 5, Duration.ofSeconds(30), 1, 3))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("digits");
+        assertThatThrownBy(
+                        () -> new IamTotpService.Policy("Seedj", 6, Duration.ZERO, 1, 3))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("period");
+        assertThatThrownBy(
+                        () ->
+                                new IamTotpService.Policy(
+                                        "Seedj", 6, Duration.ofSeconds(30), 11, 3))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("window");
+        assertThatThrownBy(
+                        () ->
+                                new IamTotpService.Policy(
+                                        " ", 6, Duration.ofSeconds(30), 1, 3))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("issuer");
+    }
 }

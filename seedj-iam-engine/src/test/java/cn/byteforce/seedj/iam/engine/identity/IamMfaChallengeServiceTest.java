@@ -99,4 +99,14 @@ class IamMfaChallengeServiceTest {
                 .extracting(exception -> ((IamException) exception).getCode())
                 .isEqualTo(code);
     }
+
+    @Test
+    void policyRejectsNonPositiveValues() {
+        assertThatThrownBy(() -> new IamMfaChallengeService.Policy(Duration.ZERO, 2))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("mfaTokenTtl");
+        assertThatThrownBy(() -> new IamMfaChallengeService.Policy(Duration.ofMinutes(5), 0))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("maxAttempts");
+    }
 }
