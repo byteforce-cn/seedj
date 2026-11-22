@@ -72,7 +72,7 @@ seedj:
 ## 端点
 
 | 路径 | 认证 | 说明 |
-|---|---|---|
+| --- | --- | --- |
 | `/oauth2/**`, `/.well-known/**`, `/userinfo` | SAS | OIDC / OAuth2 |
 | `/scim/v2/**` | Bearer + `scim.*` scope | SCIM 2.0 User/Group |
 | `/iam/mfa/totp/**` | session 或 Bearer | TOTP 注册/确认/状态/禁用 |
@@ -93,7 +93,7 @@ IAM 走自研路线，但**未达以下退出标准前，不得在 README、决�
 「生产可用 IAM」**。覆盖率不能替代 RFC 一致性，demo 不能替代安全评审。
 
 | 退出标准 | 当前状态 | 证据位置 |
-|---|---|---|
+| --- | --- | --- |
 | 模块覆盖率 ≥ 85%（行覆盖）；分支阈值只升不降 | 已达标：line 0.981 / branch 0.878（2026-11-07） | `seedj-iam-starter/target/site/jacoco/` |
 | OIDC Core / Discovery / PKCE / 令牌撤销 | 授权请求前置校验与 PKCE / 端点参数 / 令牌类型边界已有单元测试；Discovery 与撤销仍是 IT | `seedj-iam-starter/src/test/java/cn/byteforce/seedj/starter/iam/web/`、`OidcIT` |
 | SCIM 2.0 filter / PATCH | 有解析与端点测试 | `ScimFilterParserTest`、SCIM 端点测试 |

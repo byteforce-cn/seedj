@@ -29,7 +29,7 @@ AI 这一支的单向性由 ArchUnit 规则守着：`seedj-ai-starter` 依赖 `s
 ## 模块职责
 
 | 模块 | 职责 | 进发布物 |
-|---|---|---|
+| --- | --- | --- |
 | `core` | 内核契约：错误码、时间轴、命令、读模型、安全、SPI、`@SeedjObject` 注解 | ✅ |
 | `seedj-workflow-contract` | 工作流契约（零外部依赖） | ✅ |
 | `seedj-transit-contract` | 传输/加密契约 | ✅ |

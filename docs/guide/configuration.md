@@ -3,7 +3,7 @@
 ## 两个内置 profile
 
 | | `local` | `postgres` |
-|---|---|---|
+| --- | --- | --- |
 | 数据源 | 无（显式排除自动配置） | `jdbc:postgresql://localhost:5432/seedj` |
 | 命令/对象存储 | 内存，重启清空 | PostgreSQL，版本化迁移 |
 | 锁 | 内存 | PostgreSQL |
@@ -34,7 +34,7 @@ docker compose up -d
 ## 常用配置项
 
 | 配置 | 取值 | 说明 |
-|---|---|---|
+| --- | --- | --- |
 | `seedj.command.provider` | `memory` / `postgres` | 命令运行时与幂等存储 |
 | `seedj.object.provider` | `memory` / `postgres` | 双时间轴对象存储 |
 | `seedj.read.generic-surface` | `enabled` / 关闭 | 通用 `/objects` 面；生产宿主默认关闭 |
@@ -80,7 +80,7 @@ docker compose up -d
 `seedj.coord.enabled=true` 时启动失败（`CoordProviderGuard`），不会悄悄退回本地实现。
 
 | 配置 | 默认 | 说明 |
-|---|---|---|
+| --- | --- | --- |
 | `seedj.coord.enabled` | `false` | coord 总开关；关掉时上面这类 provider 直接判配置错误 |
 | `seedj.coord.agent-host` / `agent-port` | `127.0.0.1` / `19527` | agent 地址；失败消息会点名它 |
 | `seedj.coord.request-timeout` | `5s` | 单次 RPC 超时 |

@@ -109,7 +109,7 @@ public void cancel(String id) { ... }
 ## 与身份服务 / 集成测试的区别
 
 | 依赖 | 携带 | 适用 |
-|---|---|---|
+| --- | --- | --- |
 | `seedj-biz-starter` | 资源服务器 + cqrs + 审计 + eventbus | 业务服务（`seedj-server-hr` / `seedj-server-im`） |
 | `seedj-iam-starter` | OIDC / SCIM / RBAC / ABAC / MFA | 身份服务（`seedj-server-iam`） |
 | `seedj-it` | 三个 server（test scope）+ 夹具 | 集成测试，不进入生产 classpath |

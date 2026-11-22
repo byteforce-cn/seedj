@@ -102,7 +102,7 @@ curl -s 'localhost:8080/objects/employee/<employee-id>?as_of=2026-10-01T12:00:00
 所有错误都是 `{code,message,details}`：
 
 | 场景 | HTTP | code |
-|---|---|---|
+| --- | --- | --- |
 | 未认证 | 401 | `EIS-401-001` |
 | 无 `hr.employee.write` | 403 | `EIS-403-001` |
 | 非法 `hire_date` / 未知命令类型 | 400 | `EIS-400-001` |

@@ -54,7 +54,7 @@ GET /objects/{objectType}?page=1&size=50&sort=name&direction=asc&as_of=...
 保留参数：
 
 | 参数 | 语义 |
-|---|---|
+| --- | --- |
 | `page` | 1 起；非法值 400 |
 | `size` | 1..200；0 或超过 200 返回 400 |
 | `sort` | 必须是 schema 声明的 `sortable` 字段；未知字段 400 |
@@ -76,7 +76,7 @@ GET /objects/{objectType}?page=1&size=50&sort=name&direction=asc&as_of=...
 ## 字段隐私
 
 | 层级 | 默认 | 策略可授予 |
-|---|---|---|
+| --- | --- | --- |
 | `PUBLIC` / `INTERNAL` | FULL | 可收窄 |
 | `SENSITIVE` | HIDDEN | `read.masked` → MASKED（有 masker） |
 | `RESTRICTED` | HIDDEN | `read` → FULL |
