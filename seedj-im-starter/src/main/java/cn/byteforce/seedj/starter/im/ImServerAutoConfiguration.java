@@ -1,5 +1,6 @@
 package cn.byteforce.seedj.starter.im;
 
+import cn.byteforce.seedj.im.ImEnabledMarker;
 import cn.byteforce.seedj.starter.im.protocol.ImCodec;
 import cn.byteforce.seedj.starter.security.JwtClaimsMapper;
 import io.netty.bootstrap.ServerBootstrap;

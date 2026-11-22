@@ -7,6 +7,7 @@ import cn.byteforce.seedj.domain.event.DomainEvent;
 import cn.byteforce.seedj.eventbus.EventEnvelope;
 import cn.byteforce.seedj.eventbus.EventMessage;
 import cn.byteforce.seedj.eventbus.EventPublisher;
+import cn.byteforce.seedj.infra.local.im.InMemoryImCardActionStore;
 import cn.byteforce.seedj.im.ImMessage;
 import cn.byteforce.seedj.im.spi.ImConversationStore;
 import cn.byteforce.seedj.im.spi.ImCursorStore;
@@ -65,7 +66,9 @@ class ImCoordPushTest {
                     policy,
                     TransactionRunner.direct(),
                     OutboxWriter.discard(),
-                    ImProperties.defaults());
+                    ImProperties.defaults(),
+                    new InMemoryImCardActionStore(),
+                    new ImCardActionRegistry(List.of()));
     private final ImCoordPush coord =
             new ImCoordPush("node-a", publisher, TransactionRunner.direct(), local);
 

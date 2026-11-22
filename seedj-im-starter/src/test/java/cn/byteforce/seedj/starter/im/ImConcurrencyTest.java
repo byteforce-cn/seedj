@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import cn.byteforce.seedj.core.security.Caller;
 import cn.byteforce.seedj.cqrs.spi.TransactionRunner;
+import cn.byteforce.seedj.infra.local.im.InMemoryImCardActionStore;
 import cn.byteforce.seedj.im.ImConversation;
 import cn.byteforce.seedj.im.spi.ImConversationStore;
 import cn.byteforce.seedj.im.spi.ImCursorStore;
@@ -64,8 +65,9 @@ class ImConcurrencyTest {
                     policy,
                     TransactionRunner.direct(),
                     OutboxWriter.discard(),
-                    ImProperties.defaults());
-
+                    ImProperties.defaults(),
+                    new InMemoryImCardActionStore(),
+                    new ImCardActionRegistry(List.of()));
     @Test
     @DisplayName("同会话并发发送：序号互不相同，消息全部落库")
     void concurrentSendsGetDistinctSequences() throws Exception {

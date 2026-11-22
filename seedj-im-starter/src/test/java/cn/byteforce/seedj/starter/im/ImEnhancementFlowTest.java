@@ -4,6 +4,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import cn.byteforce.seedj.cqrs.spi.TransactionRunner;
+import cn.byteforce.seedj.infra.local.im.InMemoryImCardActionStore;
 import cn.byteforce.seedj.im.spi.ImConversationStore;
 import cn.byteforce.seedj.im.spi.ImCursorStore;
 import cn.byteforce.seedj.im.spi.ImMessageStore;
@@ -87,7 +88,9 @@ class ImEnhancementFlowTest {
                     policy,
                     TransactionRunner.direct(),
                     OutboxWriter.discard(),
-                    ImProperties.defaults());
+                    ImProperties.defaults(),
+                    new InMemoryImCardActionStore(),
+                    new ImCardActionRegistry(List.of()));
     private final ImPresenceService presence = new ImPresenceService(registry, conversations, push);
     private final ImTypingService typing =
             new ImTypingService(conversationService, conversations, push, CLOCK);

@@ -1,5 +1,6 @@
 package cn.byteforce.seedj.starter.iam.autoconfigure;
 
+import cn.byteforce.seedj.iam.IamEnabledMarker;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

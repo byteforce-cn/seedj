@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import cn.byteforce.seedj.infra.local.iam.IamMemoryStoreAutoConfiguration;
 import cn.byteforce.seedj.iam.spi.IamPasswordHasher;
 import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamAuditSink;
@@ -40,7 +41,8 @@ class ScimControllerTest {
     private final WebApplicationContextRunner runner =
             new WebApplicationContextRunner()
                     .withUserConfiguration(TestApplication.class)
-                    .withConfiguration(AutoConfigurations.of(IamAutoConfiguration.class))
+                    .withConfiguration(AutoConfigurations.of(
+                            IamAutoConfiguration.class, IamMemoryStoreAutoConfiguration.class))
                     .withPropertyValues(
                             "seedj.iam.issuer=https://iam.test",
                             "seedj.iam.store=memory",

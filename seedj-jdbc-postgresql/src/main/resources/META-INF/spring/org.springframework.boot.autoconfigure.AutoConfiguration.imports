@@ -4,3 +4,6 @@ cn.byteforce.seedj.infra.jdbc.audit.PostgresAuditAutoConfiguration
 cn.byteforce.seedj.infra.jdbc.outbox.wiring.OutboxAutoConfiguration
 cn.byteforce.seedj.infra.jdbc.lock.PostgresLockAutoConfiguration
 cn.byteforce.seedj.infra.jdbc.store.PostgresStoreAutoConfiguration
+cn.byteforce.seedj.infra.jdbc.iam.PostgresIamStoreAutoConfiguration
+cn.byteforce.seedj.infra.jdbc.iam.PostgresIamAuthzAutoConfiguration
+cn.byteforce.seedj.infra.jdbc.im.PostgresImStoreAutoConfiguration

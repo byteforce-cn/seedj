@@ -1,6 +1,7 @@
-package cn.byteforce.seedj.starter.iam.autoconfigure;
+package cn.byteforce.seedj.infra.jdbc.iam;
 
 import cn.byteforce.seedj.core.security.SecurityAuditSink;
+import cn.byteforce.seedj.iam.IamEnabledMarker;
 import cn.byteforce.seedj.iam.spi.IamAuthorizationRepository;
 import cn.byteforce.seedj.iam.spi.IamGroupRepository;
 import cn.byteforce.seedj.iam.spi.IamPolicyRepository;
@@ -11,16 +12,6 @@ import cn.byteforce.seedj.iam.spi.IamTotpRepository;
 import cn.byteforce.seedj.iam.spi.IamUserRepository;
 import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.infra.jdbc.JdbcMigrationRunner;
-import cn.byteforce.seedj.infra.jdbc.iam.IamSchemaCapability;
-import cn.byteforce.seedj.infra.jdbc.iam.JdbcIamAuditSink;
-import cn.byteforce.seedj.infra.jdbc.iam.JdbcIamAuthorizationRepository;
-import cn.byteforce.seedj.infra.jdbc.iam.JdbcIamGroupRepository;
-import cn.byteforce.seedj.infra.jdbc.iam.JdbcIamPolicyRepository;
-import cn.byteforce.seedj.infra.jdbc.iam.JdbcIamSigningKeyStore;
-import cn.byteforce.seedj.infra.jdbc.iam.JdbcIamTokenRevoker;
-import cn.byteforce.seedj.infra.jdbc.iam.JdbcIamTotpRepository;
-import cn.byteforce.seedj.infra.jdbc.iam.JdbcIamUserRepository;
-import cn.byteforce.seedj.infra.jdbc.iam.OAuth2SchemaCapability;
 import javax.sql.DataSource;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -28,12 +19,24 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
+import org.springframework.boot.jdbc.autoconfigure.JdbcTemplateAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.jdbc.core.JdbcTemplate;
 
-/** PostgreSQL-backed IAM store. Fails fast when the DataSource is absent. */
-@AutoConfiguration(after = DataSourceAutoConfiguration.class)
-@ConditionalOnBean({IamEnabledMarker.class, DataSource.class})
+/**
+ * PostgreSQL IAM 存储：{@code seedj.iam.store=jdbc} 时由适配器自带装配。
+ *
+ * <p>starter 不再在编译期依赖本模块：它只消费 {@code IamUserRepository} 等 SPI，适配器用
+ * {@code seedj.iam.store} 与 {@link JdbcTemplate} 的存在性竞争。{@code store=memory}（缺省）时本配置整体
+ * 退出，由内存适配器接管。
+ *
+ * @author ByteForce
+ * @since 1.0.0
+ */
+@AutoConfiguration(
+        after = {DataSourceAutoConfiguration.class, JdbcTemplateAutoConfiguration.class},
+        afterName = "cn.byteforce.seedj.starter.iam.autoconfigure.IamAutoConfiguration")
+@ConditionalOnBean({IamEnabledMarker.class, JdbcTemplate.class})
 @ConditionalOnProperty(
         prefix = "seedj.iam",
         name = "enabled",
@@ -41,7 +44,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
         matchIfMissing = true)
 @ConditionalOnProperty(prefix = "seedj.iam", name = "store", havingValue = "jdbc")
 @ConditionalOnClass({JdbcTemplate.class, DataSource.class})
-public class IamJdbcStoreConfiguration {
+public class PostgresIamStoreAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean

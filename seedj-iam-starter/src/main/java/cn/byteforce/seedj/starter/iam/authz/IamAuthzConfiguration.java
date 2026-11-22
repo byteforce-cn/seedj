@@ -7,9 +7,6 @@ import cn.byteforce.seedj.iam.authz.IamPermissionCondition;
 import cn.byteforce.seedj.iam.authz.SodRuleSet;
 import cn.byteforce.seedj.iam.spi.IamAuthorizationRepository;
 import cn.byteforce.seedj.iam.spi.IamPolicyDecisionPoint;
-import cn.byteforce.seedj.infra.jdbc.iam.JdbcIamBindingStore;
-import cn.byteforce.seedj.infra.local.iam.InMemoryIamAttributeSource;
-import cn.byteforce.seedj.infra.local.iam.InMemoryIamBindingStore;
 import cn.byteforce.seedj.security.AuthorizationDecisionPoint;
 import cn.byteforce.seedj.starter.iam.IamProperties;
 import cn.byteforce.seedj.starter.iam.abac.CompositeAuthorizationDecisionPoint;
@@ -17,13 +14,14 @@ import java.util.List;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
- * 授权契约装配：存储 provider、属性源、SoD 规则与解析服务。
+ * 授权契约装配：属性源、SoD 规则与解析服务。
+ *
+ * <p>{@link IamBindingStore} 与 {@link IamAttributeSource} 由适配器按 {@code seedj.authz.provider}
+ * （缺省跟随 {@code seedj.iam.store}）提供；starter 只消费这两个端口，不再持有任何具体实现。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -34,39 +32,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
         name = "enabled",
         havingValue = "true",
         matchIfMissing = true)
-@EnableConfigurationProperties(AuthzProperties.class)
 public class IamAuthzConfiguration {
-
-    @Bean
-    @ConditionalOnMissingBean
-    public IamBindingStore iamBindingStore(
-            AuthzProperties authz, IamProperties iam, ObjectProvider<JdbcTemplate> jdbc) {
-        JdbcTemplate template = jdbc.getIfAvailable();
-        String provider = authz.provider();
-        if (provider == null || provider.isBlank()) {
-            provider =
-                    template != null && iam.store() == IamProperties.Store.JDBC
-                            ? "postgres"
-                            : "memory";
-        }
-        return switch (provider) {
-            case "memory" -> new InMemoryIamBindingStore();
-            case "postgres" -> {
-                if (template == null) {
-                    throw new IllegalStateException(
-                            "seedj.authz.provider=postgres requires a DataSource/JdbcTemplate");
-                }
-                yield new JdbcIamBindingStore(template);
-            }
-            default -> throw new IllegalStateException("unknown seedj.authz.provider: " + provider);
-        };
-    }
-
-    @Bean
-    @ConditionalOnMissingBean
-    public IamAttributeSource iamAttributeSource() {
-        return new InMemoryIamAttributeSource();
-    }
 
     @Bean
     @ConditionalOnMissingBean

@@ -8,6 +8,7 @@ import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;
 import cn.byteforce.seedj.core.security.Caller;
 import cn.byteforce.seedj.cqrs.spi.TransactionRunner;
+import cn.byteforce.seedj.infra.local.im.InMemoryImCardActionStore;
 import cn.byteforce.seedj.im.ImConversation;
 import cn.byteforce.seedj.im.ImMemberRole;
 import cn.byteforce.seedj.im.ImMessage;
@@ -511,7 +512,9 @@ class ImMessagingServiceTest {
                         policy,
                         TransactionRunner.direct(),
                         records::add,
-                        ImProperties.defaults());
+                        ImProperties.defaults(),
+                        new InMemoryImCardActionStore(),
+                        new ImCardActionRegistry(List.of()));
         ImMessage message =
                 service.send(
                         alice, new ChatSendReq("c-1", null, "u-2", "TEXT", Map.of("text", "hi")));
@@ -630,7 +633,9 @@ class ImMessagingServiceTest {
                 conversationPolicy,
                 TransactionRunner.direct(),
                 OutboxWriter.discard(),
-                properties);
+                properties,
+                new InMemoryImCardActionStore(),
+                new ImCardActionRegistry(List.of()));
     }
 
     private static ImProperties smallBodyProperties() {

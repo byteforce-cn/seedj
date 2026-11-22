@@ -7,6 +7,7 @@ import cn.byteforce.seedj.core.exception.ContractErrorCode;
 import cn.byteforce.seedj.core.exception.ContractException;
 import cn.byteforce.seedj.core.security.Caller;
 import cn.byteforce.seedj.cqrs.spi.TransactionRunner;
+import cn.byteforce.seedj.infra.local.im.InMemoryImCardActionStore;
 import cn.byteforce.seedj.im.spi.ImConversationStore;
 import cn.byteforce.seedj.im.spi.ImCursorStore;
 import cn.byteforce.seedj.im.spi.ImMessageStore;
@@ -62,8 +63,9 @@ class ImAdminControllerTest {
                     policy,
                     TransactionRunner.direct(),
                     OutboxWriter.discard(),
-                    ImProperties.defaults());
-
+                    ImProperties.defaults(),
+                    new InMemoryImCardActionStore(),
+                    new ImCardActionRegistry(List.of()));
     private final Caller alice = caller("u-1");
 
     private ImAdminController controller;

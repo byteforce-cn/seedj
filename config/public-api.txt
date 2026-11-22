@@ -402,6 +402,7 @@ seedj-iam-contract|cn.byteforce.seedj.iam.totp|Base32
 seedj-iam-contract|cn.byteforce.seedj.iam.totp|TotpAlgorithm
 seedj-iam-contract|cn.byteforce.seedj.iam.totp|TotpEnrollment
 seedj-iam-contract|cn.byteforce.seedj.iam.totp|TotpGenerator
+seedj-iam-contract|cn.byteforce.seedj.iam|IamEnabledMarker
 seedj-iam-contract|cn.byteforce.seedj.iam|IamErrorCode
 seedj-iam-contract|cn.byteforce.seedj.iam|IamException
 seedj-iam-contract|cn.byteforce.seedj.iam|IamGroup
@@ -430,7 +431,6 @@ seedj-iam-starter|cn.byteforce.seedj.starter.iam.abac|CompositeAuthorizationDeci
 seedj-iam-starter|cn.byteforce.seedj.starter.iam.abac|IamAuthorizationFacade
 seedj-iam-starter|cn.byteforce.seedj.starter.iam.abac|IamPolicyAdminController
 seedj-iam-starter|cn.byteforce.seedj.starter.iam.annotation|EnableIamServer
-seedj-iam-starter|cn.byteforce.seedj.starter.iam.authz|AuthzProperties
 seedj-iam-starter|cn.byteforce.seedj.starter.iam.authz|IamAuthorizationController
 seedj-iam-starter|cn.byteforce.seedj.starter.iam.authz|IamAuthorizationDtos
 seedj-iam-starter|cn.byteforce.seedj.starter.iam.authz|IamAuthzConfiguration
@@ -438,10 +438,8 @@ seedj-iam-starter|cn.byteforce.seedj.starter.iam.authz|IamCallerProvider
 seedj-iam-starter|cn.byteforce.seedj.starter.iam.authz|IamContractAuthorizationService
 seedj-iam-starter|cn.byteforce.seedj.starter.iam.autoconfigure|IamAbacConfiguration
 seedj-iam-starter|cn.byteforce.seedj.starter.iam.autoconfigure|IamAutoConfiguration
-seedj-iam-starter|cn.byteforce.seedj.starter.iam.autoconfigure|IamEnabledMarker
 seedj-iam-starter|cn.byteforce.seedj.starter.iam.autoconfigure|IamEnablementConfiguration
 seedj-iam-starter|cn.byteforce.seedj.starter.iam.autoconfigure|IamInfrastructureInitializer
-seedj-iam-starter|cn.byteforce.seedj.starter.iam.autoconfigure|IamJdbcStoreConfiguration
 seedj-iam-starter|cn.byteforce.seedj.starter.iam.autoconfigure|IamNativeAuthConfiguration
 seedj-iam-starter|cn.byteforce.seedj.starter.iam.autoconfigure|IamRbacConfiguration
 seedj-iam-starter|cn.byteforce.seedj.starter.iam.autoconfigure|IamScimConfiguration
@@ -504,6 +502,7 @@ seedj-im-contract|cn.byteforce.seedj.im.spi|ImSequenceAllocator
 seedj-im-contract|cn.byteforce.seedj.im|ImCardAction
 seedj-im-contract|cn.byteforce.seedj.im|ImConversation
 seedj-im-contract|cn.byteforce.seedj.im|ImConversationKind
+seedj-im-contract|cn.byteforce.seedj.im|ImEnabledMarker
 seedj-im-contract|cn.byteforce.seedj.im|ImMember
 seedj-im-contract|cn.byteforce.seedj.im|ImMemberRole
 seedj-im-contract|cn.byteforce.seedj.im|ImMessage
@@ -582,6 +581,7 @@ seedj-infra-local|cn.byteforce.seedj.infra.local.eventbus|EventTransportProperti
 seedj-infra-local|cn.byteforce.seedj.infra.local.eventbus|FileEventBusTransport
 seedj-infra-local|cn.byteforce.seedj.infra.local.eventbus|MemoryEventBusTransport
 seedj-infra-local|cn.byteforce.seedj.infra.local.iam|AesGcmIamSecretProtector
+seedj-infra-local|cn.byteforce.seedj.infra.local.iam|IamMemoryStoreAutoConfiguration
 seedj-infra-local|cn.byteforce.seedj.infra.local.iam|InMemoryIamAttributeSource
 seedj-infra-local|cn.byteforce.seedj.infra.local.iam|InMemoryIamAuditSink
 seedj-infra-local|cn.byteforce.seedj.infra.local.iam|InMemoryIamAuthorizationRepository
@@ -604,6 +604,7 @@ seedj-infra-local|cn.byteforce.seedj.infra.local.im|InMemoryImCardActionStore
 seedj-infra-local|cn.byteforce.seedj.infra.local.im|InMemoryImConversationStore
 seedj-infra-local|cn.byteforce.seedj.infra.local.im|InMemoryImCursorStore
 seedj-infra-local|cn.byteforce.seedj.infra.local.im|InMemoryImMessageStore
+seedj-infra-local|cn.byteforce.seedj.infra.local.im|InMemoryImStoreAutoConfiguration
 seedj-infra-local|cn.byteforce.seedj.infra.local.lock|InMemoryLockAutoConfiguration
 seedj-infra-local|cn.byteforce.seedj.infra.local.lock|InMemoryLockProvider
 seedj-infra-local|cn.byteforce.seedj.infra.local.numbering|InMemoryNumbering
@@ -651,6 +652,8 @@ seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.iam|JdbcIamTotpRepository
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.iam|JdbcIamUserRepository
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.iam|OAuth2Migrations
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.iam|OAuth2SchemaCapability
+seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.iam|PostgresIamAuthzAutoConfiguration
+seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.iam|PostgresIamStoreAutoConfiguration
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.im|ImMigrations
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.im|ImSchemaCapability
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.im|JdbcImCardActionStore
@@ -658,6 +661,7 @@ seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.im|JdbcImConversationStore
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.im|JdbcImCursorStore
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.im|JdbcImMessageStore
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.im|JdbcImSequenceAllocator
+seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.im|PostgresImStoreAutoConfiguration
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.lock|PostgresLockAutoConfiguration
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.lock|PostgresLockMigrations
 seedj-jdbc-postgresql|cn.byteforce.seedj.infra.jdbc.lock|PostgresLockProvider

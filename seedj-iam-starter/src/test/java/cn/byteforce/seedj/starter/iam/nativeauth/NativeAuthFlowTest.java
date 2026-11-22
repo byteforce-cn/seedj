@@ -3,6 +3,7 @@ package cn.byteforce.seedj.starter.iam.nativeauth;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import cn.byteforce.seedj.infra.local.iam.IamMemoryStoreAutoConfiguration;
 import cn.byteforce.seedj.iam.IamUser;
 import cn.byteforce.seedj.iam.totp.Base32;
 import cn.byteforce.seedj.iam.totp.TotpAlgorithm;
@@ -39,7 +40,8 @@ class NativeAuthFlowTest {
     private final WebApplicationContextRunner runner =
             new WebApplicationContextRunner()
                     .withUserConfiguration(TestApplication.class)
-                    .withConfiguration(AutoConfigurations.of(IamAutoConfiguration.class))
+                    .withConfiguration(AutoConfigurations.of(
+                            IamAutoConfiguration.class, IamMemoryStoreAutoConfiguration.class))
                     .withPropertyValues(
                             "seedj.iam.issuer=https://iam.test",
                             "seedj.iam.store=memory",
