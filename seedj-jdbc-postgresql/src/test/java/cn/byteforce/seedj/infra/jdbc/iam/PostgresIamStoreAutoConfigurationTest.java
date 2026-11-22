@@ -28,14 +28,17 @@ class PostgresIamStoreAutoConfigurationTest {
 
     private final ApplicationContextRunner runner =
             new ApplicationContextRunner()
-                    .withConfiguration(AutoConfigurations.of(
-                            PostgresIamStoreAutoConfiguration.class,
-                            PostgresIamAuthzAutoConfiguration.class))
+                    .withConfiguration(
+                            AutoConfigurations.of(
+                                    PostgresIamStoreAutoConfiguration.class,
+                                    PostgresIamAuthzAutoConfiguration.class))
                     .withBean(IamEnabledMarker.class, IamEnabledMarker::new)
                     .withBean(JdbcTemplate.class, () -> mock(JdbcTemplate.class))
                     .withBean(DataSource.class, () -> mock(DataSource.class))
                     .withBean(IamSecretProtector.class, () -> mock(IamSecretProtector.class))
-                    .withBean(IdGenerator.class, () -> (IdGenerator<String>) () -> UUID.randomUUID().toString());
+                    .withBean(
+                            IdGenerator.class,
+                            () -> (IdGenerator<String>) () -> UUID.randomUUID().toString());
 
     @Test
     @DisplayName("store=jdbc 时装配全部 JDBC 存储、schema 迁移与 PostgreSQL 授权绑定")
@@ -126,7 +129,10 @@ class PostgresIamStoreAutoConfigurationTest {
 
         runner.withPropertyValues("seedj.iam.store=jdbc")
                 .withBean(IamUserRepository.class, () -> users)
-                .run(context -> assertThat(context.getBean(IamUserRepository.class)).isSameAs(users));
+                .run(
+                        context ->
+                                assertThat(context.getBean(IamUserRepository.class))
+                                        .isSameAs(users));
     }
 
     @Test

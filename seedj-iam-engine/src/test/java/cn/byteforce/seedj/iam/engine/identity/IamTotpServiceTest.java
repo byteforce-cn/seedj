@@ -25,8 +25,7 @@ class IamTotpServiceTest {
 
     private final InMemoryIamUserRepository users = new InMemoryIamUserRepository();
     private final InMemoryIamTotpRepository totp = new InMemoryIamTotpRepository();
-    private final IamPasswordHasher hasher =
-            new cn.byteforce.seedj.iam.engine.TestPasswordHasher();
+    private final IamPasswordHasher hasher = new cn.byteforce.seedj.iam.engine.TestPasswordHasher();
     private final AesGcmIamSecretProtector protector =
             new AesGcmIamSecretProtector(
                     "0123456789abcdef0123456789abcdef".getBytes(StandardCharsets.UTF_8), "test");
@@ -278,25 +277,17 @@ class IamTotpServiceTest {
     @Test
     void policyRejectsOutOfRangeValues() {
         assertThatThrownBy(
-                        () ->
-                                new IamTotpService.Policy(
-                                        "Seedj", 5, Duration.ofSeconds(30), 1, 3))
+                        () -> new IamTotpService.Policy("Seedj", 5, Duration.ofSeconds(30), 1, 3))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("digits");
-        assertThatThrownBy(
-                        () -> new IamTotpService.Policy("Seedj", 6, Duration.ZERO, 1, 3))
+        assertThatThrownBy(() -> new IamTotpService.Policy("Seedj", 6, Duration.ZERO, 1, 3))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("period");
         assertThatThrownBy(
-                        () ->
-                                new IamTotpService.Policy(
-                                        "Seedj", 6, Duration.ofSeconds(30), 11, 3))
+                        () -> new IamTotpService.Policy("Seedj", 6, Duration.ofSeconds(30), 11, 3))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("window");
-        assertThatThrownBy(
-                        () ->
-                                new IamTotpService.Policy(
-                                        " ", 6, Duration.ofSeconds(30), 1, 3))
+        assertThatThrownBy(() -> new IamTotpService.Policy(" ", 6, Duration.ofSeconds(30), 1, 3))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("issuer");
     }

@@ -23,8 +23,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * PostgreSQL IM 存储：{@code seedj.im.store=jdbc} 时由适配器自带装配。
  *
  * <p>starter 只消费 {@code Im*Store} SPI；本配置用 {@code seedj.im.store} 与 {@link JdbcTemplate}
- * 的存在性竞争，{@code store=memory} 时整体退出。显式 {@code store=jdbc} 但缺数据源的失败由 starter 的
- * 前置检查报告，不静默退回内存。
+ * 的存在性竞争，{@code store=memory} 时整体退出。显式 {@code store=jdbc} 但缺数据源的失败由 starter 的 前置检查报告，不静默退回内存。
  *
  * @author ByteForce
  * @since 1.0.0

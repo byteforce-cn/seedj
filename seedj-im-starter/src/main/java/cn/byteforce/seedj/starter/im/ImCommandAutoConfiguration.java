@@ -1,8 +1,8 @@
 package cn.byteforce.seedj.starter.im;
 
-import cn.byteforce.seedj.im.ImEnabledMarker;
 import cn.byteforce.seedj.core.security.Caller;
 import cn.byteforce.seedj.cqrs.spi.TransactionRunner;
+import cn.byteforce.seedj.im.ImEnabledMarker;
 import cn.byteforce.seedj.im.spi.ImCardActionStore;
 import cn.byteforce.seedj.im.spi.ImConversationStore;
 import cn.byteforce.seedj.im.spi.ImCursorStore;

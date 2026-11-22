@@ -2,13 +2,13 @@ package cn.byteforce.seedj.infra.local.im;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.time.Clock;
 import cn.byteforce.seedj.im.ImEnabledMarker;
 import cn.byteforce.seedj.im.spi.ImCardActionStore;
 import cn.byteforce.seedj.im.spi.ImConversationStore;
 import cn.byteforce.seedj.im.spi.ImCursorStore;
 import cn.byteforce.seedj.im.spi.ImMessageStore;
 import cn.byteforce.seedj.im.spi.ImSequenceAllocator;
+import java.time.Clock;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -19,7 +19,8 @@ class InMemoryImStoreAutoConfigurationTest {
 
     private final ApplicationContextRunner runner =
             new ApplicationContextRunner()
-                    .withConfiguration(AutoConfigurations.of(InMemoryImStoreAutoConfiguration.class))
+                    .withConfiguration(
+                            AutoConfigurations.of(InMemoryImStoreAutoConfiguration.class))
                     .withBean(ImEnabledMarker.class, ImEnabledMarker::new)
                     .withBean(Clock.class, Clock::systemUTC);
 
@@ -60,7 +61,10 @@ class InMemoryImStoreAutoConfigurationTest {
         ImMessageStore messages = new InMemoryImMessageStore(Clock.systemUTC());
 
         runner.withBean(ImMessageStore.class, () -> messages)
-                .run(context -> assertThat(context.getBean(ImMessageStore.class)).isSameAs(messages));
+                .run(
+                        context ->
+                                assertThat(context.getBean(ImMessageStore.class))
+                                        .isSameAs(messages));
 
         runner.withPropertyValues("seedj.im.enabled=false")
                 .run(

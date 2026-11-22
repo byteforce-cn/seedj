@@ -12,8 +12,7 @@ import org.springframework.context.annotation.Bean;
  * IM 启停与基础设施：存储实现由适配器自带自动配置提供。
  *
  * <p>{@code seedj.im.store} 的选择在 {@code seedj-infra-local}（memory）与 {@code
- * seedj-jdbc-postgresql}（jdbc）各自的自动配置里；本类只保留与存储选型无关的时钟和"显式 jdbc
- * 缺数据源必须失败"的前置检查。
+ * seedj-jdbc-postgresql}（jdbc）各自的自动配置里；本类只保留与存储选型无关的时钟和"显式 jdbc 缺数据源必须失败"的前置检查。
  *
  * @author ByteForce
  * @since 1.0.0

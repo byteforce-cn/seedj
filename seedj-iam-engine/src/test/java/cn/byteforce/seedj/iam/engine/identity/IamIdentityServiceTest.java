@@ -21,8 +21,7 @@ class IamIdentityServiceTest {
     private final InMemoryIamUserRepository users = new InMemoryIamUserRepository();
     private final InMemoryIamTokenRevoker revoker = new InMemoryIamTokenRevoker();
     private final InMemoryIamAuditSink audit = new InMemoryIamAuditSink();
-    private final IamPasswordHasher hasher =
-            new cn.byteforce.seedj.iam.engine.TestPasswordHasher();
+    private final IamPasswordHasher hasher = new cn.byteforce.seedj.iam.engine.TestPasswordHasher();
     private final AtomicLong seq = new AtomicLong();
     private final IdGenerator<String> idGenerator = () -> "id-" + seq.incrementAndGet();
     private final IamIdentityService service =

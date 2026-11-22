@@ -9,8 +9,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import cn.byteforce.seedj.infra.local.iam.IamMemoryStoreAutoConfiguration;
 import cn.byteforce.seedj.id.IdGenerator;
+import cn.byteforce.seedj.infra.local.iam.IamMemoryStoreAutoConfiguration;
 import cn.byteforce.seedj.security.AuthorizationDecisionPoint;
 import cn.byteforce.seedj.starter.iam.TestIdGenerators;
 import cn.byteforce.seedj.starter.iam.abac.CompositeAuthorizationDecisionPoint;
@@ -33,8 +33,10 @@ class IamServerAutoConfigurationTest {
     private final WebApplicationContextRunner runner =
             new WebApplicationContextRunner()
                     .withUserConfiguration(TestApplication.class)
-                    .withConfiguration(AutoConfigurations.of(
-                            IamAutoConfiguration.class, IamMemoryStoreAutoConfiguration.class))
+                    .withConfiguration(
+                            AutoConfigurations.of(
+                                    IamAutoConfiguration.class,
+                                    IamMemoryStoreAutoConfiguration.class))
                     .withPropertyValues(
                             "seedj.iam.issuer=http://localhost",
                             "seedj.iam.store=memory",

@@ -2,6 +2,9 @@ package cn.byteforce.seedj.starter.iam.autoconfigure;
 
 import cn.byteforce.seedj.core.security.SecurityAuditSink;
 import cn.byteforce.seedj.iam.IamEnabledMarker;
+import cn.byteforce.seedj.iam.engine.identity.IamIdentityService;
+import cn.byteforce.seedj.iam.engine.identity.IamMfaChallengeService;
+import cn.byteforce.seedj.iam.engine.identity.IamTotpService;
 import cn.byteforce.seedj.iam.spi.IamAuthorizationRepository;
 import cn.byteforce.seedj.iam.spi.IamGroupRepository;
 import cn.byteforce.seedj.iam.spi.IamPasswordHasher;
@@ -12,9 +15,6 @@ import cn.byteforce.seedj.iam.spi.IamUserRepository;
 import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.starter.iam.IamProperties;
 import cn.byteforce.seedj.starter.iam.identity.IamBootstrapRunner;
-import cn.byteforce.seedj.iam.engine.identity.IamIdentityService;
-import cn.byteforce.seedj.iam.engine.identity.IamMfaChallengeService;
-import cn.byteforce.seedj.iam.engine.identity.IamTotpService;
 import java.time.Clock;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -25,9 +25,8 @@ import org.springframework.context.annotation.Bean;
 /**
  * IAM 服务图：只消费 SPI，不依赖任何适配器。
  *
- * <p>存储、密钥保护器与授权绑定由适配器自带自动配置提供（{@code seedj-infra-local} /
- * {@code seedj-jdbc-postgresql}）。本类保留与存储选型无关的纯服务装配：密码哈希、身份/授权/TOTP 服务、
- * 引导管理员与限流器。
+ * <p>存储、密钥保护器与授权绑定由适配器自带自动配置提供（{@code seedj-infra-local} / {@code
+ * seedj-jdbc-postgresql}）。本类保留与存储选型无关的纯服务装配：密码哈希、身份/授权/TOTP 服务、 引导管理员与限流器。
  *
  * @author ByteForce
  * @since 1.0.0

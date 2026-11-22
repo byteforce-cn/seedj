@@ -2,12 +2,12 @@ package cn.byteforce.seedj.starter.iam;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import cn.byteforce.seedj.infra.local.iam.IamMemoryStoreAutoConfiguration;
-import cn.byteforce.seedj.id.IdGenerator;
-import cn.byteforce.seedj.starter.iam.annotation.EnableIamServer;
-import cn.byteforce.seedj.starter.iam.autoconfigure.IamAutoConfiguration;
 import cn.byteforce.seedj.iam.engine.identity.IamIdentityService;
 import cn.byteforce.seedj.iam.engine.identity.IamTotpService;
+import cn.byteforce.seedj.id.IdGenerator;
+import cn.byteforce.seedj.infra.local.iam.IamMemoryStoreAutoConfiguration;
+import cn.byteforce.seedj.starter.iam.annotation.EnableIamServer;
+import cn.byteforce.seedj.starter.iam.autoconfigure.IamAutoConfiguration;
 import cn.byteforce.seedj.starter.iam.nativeauth.NativeAuthAuthenticationProvider;
 import cn.byteforce.seedj.starter.iam.rbac.IamRbacAdminController;
 import cn.byteforce.seedj.starter.iam.scim.ScimController;
@@ -22,8 +22,9 @@ class IamSubCapabilitySwitchesTest {
     void coreStartsWhenEveryOptionalCapabilityIsDisabled() {
         new WebApplicationContextRunner()
                 .withUserConfiguration(TestApplication.class)
-                .withConfiguration(AutoConfigurations.of(
-                            IamAutoConfiguration.class, IamMemoryStoreAutoConfiguration.class))
+                .withConfiguration(
+                        AutoConfigurations.of(
+                                IamAutoConfiguration.class, IamMemoryStoreAutoConfiguration.class))
                 .withPropertyValues(
                         "seedj.iam.issuer=https://iam.test",
                         "seedj.iam.store=memory",
@@ -56,8 +57,9 @@ class IamSubCapabilitySwitchesTest {
     void jdbcStoreFailsFastWithoutDataSource() {
         new WebApplicationContextRunner()
                 .withUserConfiguration(TestApplication.class)
-                .withConfiguration(AutoConfigurations.of(
-                            IamAutoConfiguration.class, IamMemoryStoreAutoConfiguration.class))
+                .withConfiguration(
+                        AutoConfigurations.of(
+                                IamAutoConfiguration.class, IamMemoryStoreAutoConfiguration.class))
                 .withPropertyValues(
                         "seedj.iam.issuer=https://iam.test",
                         "seedj.iam.store=jdbc",

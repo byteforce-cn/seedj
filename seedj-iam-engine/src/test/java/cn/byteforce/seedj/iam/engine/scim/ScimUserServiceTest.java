@@ -6,13 +6,13 @@ import static org.assertj.core.api.InstanceOfAssertFactories.MAP;
 
 import cn.byteforce.seedj.iam.IamErrorCode;
 import cn.byteforce.seedj.iam.IamUser;
+import cn.byteforce.seedj.iam.engine.identity.IamIdentityService;
 import cn.byteforce.seedj.iam.spi.IamPasswordHasher;
 import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamAuditSink;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamGroupRepository;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamTokenRevoker;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamUserRepository;
-import cn.byteforce.seedj.iam.engine.identity.IamIdentityService;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
@@ -23,14 +23,12 @@ class ScimUserServiceTest {
     private final InMemoryIamUserRepository users = new InMemoryIamUserRepository();
     private final InMemoryIamGroupRepository groups = new InMemoryIamGroupRepository();
     private final InMemoryIamTokenRevoker revoker = new InMemoryIamTokenRevoker();
-    private final IamPasswordHasher hasher =
-            new cn.byteforce.seedj.iam.engine.TestPasswordHasher();
+    private final IamPasswordHasher hasher = new cn.byteforce.seedj.iam.engine.TestPasswordHasher();
     private final AtomicLong seq = new AtomicLong();
     private final IdGenerator<String> idGenerator = () -> "id-" + seq.incrementAndGet();
     private final IamIdentityService identities =
             new IamIdentityService(users, hasher, revoker, new InMemoryIamAuditSink(), idGenerator);
-    private final ScimSupport.Settings properties =
-            new ScimSupport.Settings("default", "/scim/v2");
+    private final ScimSupport.Settings properties = new ScimSupport.Settings("default", "/scim/v2");
     private final ScimUserService service =
             new ScimUserService(users, groups, hasher, identities, properties, idGenerator);
 

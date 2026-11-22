@@ -30,7 +30,9 @@ class IamMemoryStoreAutoConfigurationTest {
             new ApplicationContextRunner()
                     .withConfiguration(AutoConfigurations.of(IamMemoryStoreAutoConfiguration.class))
                     .withBean(IamEnabledMarker.class, IamEnabledMarker::new)
-                    .withBean(IdGenerator.class, () -> (IdGenerator<String>) () -> UUID.randomUUID().toString());
+                    .withBean(
+                            IdGenerator.class,
+                            () -> (IdGenerator<String>) () -> UUID.randomUUID().toString());
 
     @Test
     @DisplayName("默认（store=memory）装配全部内存存储、AES 保护器与内存授权绑定")
@@ -79,7 +81,10 @@ class IamMemoryStoreAutoConfigurationTest {
                                     .isInstanceOf(AesGcmIamSecretProtector.class);
                         });
 
-        runner.withPropertyValues("seedj.iam.store=jdbc", "seedj.iam.secret.key=" + key(), "seedj.authz.provider=memory")
+        runner.withPropertyValues(
+                        "seedj.iam.store=jdbc",
+                        "seedj.iam.secret.key=" + key(),
+                        "seedj.authz.provider=memory")
                 .run(
                         context -> {
                             assertThat(context.getBean(IamBindingStore.class))
@@ -118,7 +123,10 @@ class IamMemoryStoreAutoConfigurationTest {
     void switchesAndExistingBeansAreHonoured() {
         IamUserRepository users = new InMemoryIamUserRepository();
         runner.withBean(IamUserRepository.class, () -> users)
-                .run(context -> assertThat(context.getBean(IamUserRepository.class)).isSameAs(users));
+                .run(
+                        context ->
+                                assertThat(context.getBean(IamUserRepository.class))
+                                        .isSameAs(users));
 
         runner.withPropertyValues("seedj.iam.enabled=false")
                 .run(
@@ -139,8 +147,7 @@ class IamMemoryStoreAutoConfigurationTest {
     @DisplayName("没有 @EnableIamServer 标记时适配器保持惰性")
     void adapterIsInertWithoutTheEnablementMarker() {
         new ApplicationContextRunner()
-                .withConfiguration(
-                        AutoConfigurations.of(IamMemoryStoreAutoConfiguration.class))
+                .withConfiguration(AutoConfigurations.of(IamMemoryStoreAutoConfiguration.class))
                 .withBean(
                         IdGenerator.class,
                         () -> (IdGenerator<String>) () -> UUID.randomUUID().toString())

@@ -1,8 +1,8 @@
 package cn.byteforce.seedj.starter.im;
 
-import cn.byteforce.seedj.im.ImEnabledMarker;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import cn.byteforce.seedj.im.ImEnabledMarker;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;

@@ -1,10 +1,10 @@
 package cn.byteforce.seedj.starter.iam.scim;
 
-import cn.byteforce.seedj.iam.engine.scim.ScimSupport;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import cn.byteforce.seedj.iam.IamErrorCode;
 import cn.byteforce.seedj.iam.IamException;
+import cn.byteforce.seedj.iam.engine.scim.ScimSupport;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;

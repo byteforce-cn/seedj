@@ -35,8 +35,8 @@ import org.springframework.core.type.AnnotatedTypeMetadata;
  * 内存 IAM 适配器：存储、密钥保护与授权绑定的选择都归适配器所有。
  *
  * <p>starter 只消费 {@code IamUserRepository} 等 SPI；本模块在 {@code seedj.iam.store=memory}（缺省）时提供
- * 进程内实现，并保留 Transit/AES 两级密钥保护（Transit 优先，AES 兜底）。{@code store=jdbc} 时内存存储
- * 整体让位给 PostgreSQL 适配器，只有密钥保护器继续生效——它是 JWK/TOTP 材料的加密原语，与存储选型无关。
+ * 进程内实现，并保留 Transit/AES 两级密钥保护（Transit 优先，AES 兜底）。{@code store=jdbc} 时内存存储 整体让位给 PostgreSQL
+ * 适配器，只有密钥保护器继续生效——它是 JWK/TOTP 材料的加密原语，与存储选型无关。
  *
  * @author ByteForce
  * @since 1.0.0
@@ -50,11 +50,12 @@ import org.springframework.core.type.AnnotatedTypeMetadata;
         matchIfMissing = true)
 public class IamMemoryStoreAutoConfiguration {
 
-    private static final Logger log = LoggerFactory.getLogger(IamMemoryStoreAutoConfiguration.class);
+    private static final Logger log =
+            LoggerFactory.getLogger(IamMemoryStoreAutoConfiguration.class);
 
     /**
-     * 密钥保护器：{@code seedj.iam.secret.provider=transit}（缺省）且有 TransitProvider 时用 Transit，
-     * 否则 AES-GCM 兜底。
+     * 密钥保护器：{@code seedj.iam.secret.provider=transit}（缺省）且有 TransitProvider 时用 Transit， 否则 AES-GCM
+     * 兜底。
      */
     @Configuration(proxyBeanMethods = false)
     static class SecretProtectorConfiguration {
@@ -191,7 +192,8 @@ public class IamMemoryStoreAutoConfiguration {
             if (provider != null && !provider.isBlank()) {
                 return "memory".equals(provider);
             }
-            return !"jdbc".equals(context.getEnvironment().getProperty("seedj.iam.store", "memory"));
+            return !"jdbc"
+                    .equals(context.getEnvironment().getProperty("seedj.iam.store", "memory"));
         }
     }
 }

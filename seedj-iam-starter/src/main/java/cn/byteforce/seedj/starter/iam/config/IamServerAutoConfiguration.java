@@ -1,12 +1,12 @@
 package cn.byteforce.seedj.starter.iam.config;
 
+import cn.byteforce.seedj.iam.engine.identity.IamAuthorizationService;
+import cn.byteforce.seedj.iam.engine.identity.IamTotpService;
 import cn.byteforce.seedj.iam.spi.IamSigningKeyStore;
 import cn.byteforce.seedj.iam.spi.IamTokenRevoker;
 import cn.byteforce.seedj.iam.spi.IamUserRepository;
 import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.starter.iam.IamProperties;
-import cn.byteforce.seedj.iam.engine.identity.IamAuthorizationService;
-import cn.byteforce.seedj.iam.engine.identity.IamTotpService;
 import cn.byteforce.seedj.starter.iam.nativeauth.NativeAuthAuthenticationConverter;
 import cn.byteforce.seedj.starter.iam.nativeauth.NativeAuthAuthenticationProvider;
 import cn.byteforce.seedj.starter.iam.nativeauth.NativeAuthErrorResponseHandler;

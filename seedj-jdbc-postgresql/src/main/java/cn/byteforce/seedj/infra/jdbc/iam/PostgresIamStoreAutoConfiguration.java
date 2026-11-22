@@ -26,9 +26,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 /**
  * PostgreSQL IAM 存储：{@code seedj.iam.store=jdbc} 时由适配器自带装配。
  *
- * <p>starter 不再在编译期依赖本模块：它只消费 {@code IamUserRepository} 等 SPI，适配器用
- * {@code seedj.iam.store} 与 {@link JdbcTemplate} 的存在性竞争。{@code store=memory}（缺省）时本配置整体
- * 退出，由内存适配器接管。
+ * <p>starter 不再在编译期依赖本模块：它只消费 {@code IamUserRepository} 等 SPI，适配器用 {@code seedj.iam.store} 与 {@link
+ * JdbcTemplate} 的存在性竞争。{@code store=memory}（缺省）时本配置整体 退出，由内存适配器接管。
  *
  * @author ByteForce
  * @since 1.0.0

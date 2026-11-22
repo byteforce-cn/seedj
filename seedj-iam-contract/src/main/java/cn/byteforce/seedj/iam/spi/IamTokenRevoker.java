@@ -3,9 +3,9 @@ package cn.byteforce.seedj.iam.spi;
 /**
  * Immediately invalidates all refresh/authorization records for a principal.
  *
- * <p>Revocation is primarily forward-only: implementations are required to drop what they can
- * drop. A store that keeps its own revocation list may additionally answer {@link #isRevoked} so
- * read paths can hide already-issued records; the default keeps the contract usable by stores whose
+ * <p>Revocation is primarily forward-only: implementations are required to drop what they can drop.
+ * A store that keeps its own revocation list may additionally answer {@link #isRevoked} so read
+ * paths can hide already-issued records; the default keeps the contract usable by stores whose
  * revocation is a delete (nothing left to hide).
  */
 public interface IamTokenRevoker {

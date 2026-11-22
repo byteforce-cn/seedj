@@ -3,13 +3,13 @@ package cn.byteforce.seedj.infra.jdbc.im;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
-import java.time.Clock;
 import cn.byteforce.seedj.im.ImEnabledMarker;
 import cn.byteforce.seedj.im.spi.ImCardActionStore;
 import cn.byteforce.seedj.im.spi.ImConversationStore;
 import cn.byteforce.seedj.im.spi.ImCursorStore;
 import cn.byteforce.seedj.im.spi.ImMessageStore;
 import cn.byteforce.seedj.im.spi.ImSequenceAllocator;
+import java.time.Clock;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -22,7 +22,8 @@ class PostgresImStoreAutoConfigurationTest {
 
     private final ApplicationContextRunner runner =
             new ApplicationContextRunner()
-                    .withConfiguration(AutoConfigurations.of(PostgresImStoreAutoConfiguration.class))
+                    .withConfiguration(
+                            AutoConfigurations.of(PostgresImStoreAutoConfiguration.class))
                     .withBean(ImEnabledMarker.class, ImEnabledMarker::new)
                     .withBean(JdbcTemplate.class, () -> mock(JdbcTemplate.class))
                     .withBean(DataSource.class, () -> mock(DataSource.class))
@@ -85,6 +86,9 @@ class PostgresImStoreAutoConfigurationTest {
 
         runner.withPropertyValues("seedj.im.store=jdbc")
                 .withBean(ImMessageStore.class, () -> messages)
-                .run(context -> assertThat(context.getBean(ImMessageStore.class)).isSameAs(messages));
+                .run(
+                        context ->
+                                assertThat(context.getBean(ImMessageStore.class))
+                                        .isSameAs(messages));
     }
 }

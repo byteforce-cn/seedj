@@ -45,7 +45,8 @@ class IamAuthzConfigurationTest {
                 .run(
                         context -> {
                             assertThat(context).hasNotFailed();
-                            assertThat(context).doesNotHaveBean(IamContractAuthorizationService.class);
+                            assertThat(context)
+                                    .doesNotHaveBean(IamContractAuthorizationService.class);
                             assertThat(context).doesNotHaveBean(IamAuthorizationController.class);
                         });
     }
@@ -54,7 +55,8 @@ class IamAuthzConfigurationTest {
     @DisplayName("缺少绑定存储时不静默降级：启动期直接失败")
     void missingBindingStoreFailsFast() {
         new ApplicationContextRunner()
-                .withUserConfiguration(IamAuthzConfiguration.class, IamPropertiesConfiguration.class)
+                .withUserConfiguration(
+                        IamAuthzConfiguration.class, IamPropertiesConfiguration.class)
                 .run(
                         context -> {
                             assertThat(context).hasFailed();

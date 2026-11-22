@@ -1,8 +1,5 @@
 package cn.byteforce.seedj.starter.iam.scim;
 
-import cn.byteforce.seedj.iam.engine.scim.ScimUserService;
-import cn.byteforce.seedj.iam.engine.scim.ScimGroupService;
-import cn.byteforce.seedj.iam.engine.scim.ScimSupport;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -13,9 +10,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import cn.byteforce.seedj.infra.local.iam.IamMemoryStoreAutoConfiguration;
+import cn.byteforce.seedj.iam.engine.identity.IamIdentityService;
+import cn.byteforce.seedj.iam.engine.scim.ScimGroupService;
+import cn.byteforce.seedj.iam.engine.scim.ScimSupport;
+import cn.byteforce.seedj.iam.engine.scim.ScimUserService;
 import cn.byteforce.seedj.iam.spi.IamPasswordHasher;
 import cn.byteforce.seedj.id.IdGenerator;
+import cn.byteforce.seedj.infra.local.iam.IamMemoryStoreAutoConfiguration;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamAuditSink;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamAuthorizationRepository;
 import cn.byteforce.seedj.infra.local.iam.InMemoryIamGroupRepository;
@@ -25,7 +26,6 @@ import cn.byteforce.seedj.starter.iam.IamProperties;
 import cn.byteforce.seedj.starter.iam.TestIdGenerators;
 import cn.byteforce.seedj.starter.iam.annotation.EnableIamServer;
 import cn.byteforce.seedj.starter.iam.autoconfigure.IamAutoConfiguration;
-import cn.byteforce.seedj.iam.engine.identity.IamIdentityService;
 import cn.byteforce.seedj.starter.iam.identity.IamPasswordHasherAdapter;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.Test;
@@ -44,8 +44,10 @@ class ScimControllerTest {
     private final WebApplicationContextRunner runner =
             new WebApplicationContextRunner()
                     .withUserConfiguration(TestApplication.class)
-                    .withConfiguration(AutoConfigurations.of(
-                            IamAutoConfiguration.class, IamMemoryStoreAutoConfiguration.class))
+                    .withConfiguration(
+                            AutoConfigurations.of(
+                                    IamAutoConfiguration.class,
+                                    IamMemoryStoreAutoConfiguration.class))
                     .withPropertyValues(
                             "seedj.iam.issuer=https://iam.test",
                             "seedj.iam.store=memory",

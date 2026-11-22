@@ -1,6 +1,7 @@
 package cn.byteforce.seedj.starter.iam.autoconfigure;
 
 import cn.byteforce.seedj.core.security.SecurityAuditSink;
+import cn.byteforce.seedj.iam.engine.identity.IamAuthorizationService;
 import cn.byteforce.seedj.iam.policy.DefaultIamPolicyDecisionPoint;
 import cn.byteforce.seedj.iam.spi.IamPolicyDecisionPoint;
 import cn.byteforce.seedj.iam.spi.IamPolicyRepository;
@@ -11,7 +12,6 @@ import cn.byteforce.seedj.starter.iam.IamProperties;
 import cn.byteforce.seedj.starter.iam.abac.CachingIamPolicyDecisionPoint;
 import cn.byteforce.seedj.starter.iam.abac.IamAuthorizationFacade;
 import cn.byteforce.seedj.starter.iam.abac.IamPolicyAdminController;
-import cn.byteforce.seedj.iam.engine.identity.IamAuthorizationService;
 import java.util.List;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;

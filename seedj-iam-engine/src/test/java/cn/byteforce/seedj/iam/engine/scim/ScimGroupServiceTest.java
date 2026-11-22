@@ -21,12 +21,10 @@ class ScimGroupServiceTest {
     private final InMemoryIamGroupRepository groups = new InMemoryIamGroupRepository();
     private final InMemoryIamAuthorizationRepository authorization =
             new InMemoryIamAuthorizationRepository();
-    private final IamPasswordHasher hasher =
-            new cn.byteforce.seedj.iam.engine.TestPasswordHasher();
+    private final IamPasswordHasher hasher = new cn.byteforce.seedj.iam.engine.TestPasswordHasher();
     private final AtomicLong seq = new AtomicLong();
     private final IdGenerator<String> idGenerator = () -> "id-" + seq.incrementAndGet();
-    private final ScimSupport.Settings properties =
-            new ScimSupport.Settings("default", "/scim/v2");
+    private final ScimSupport.Settings properties = new ScimSupport.Settings("default", "/scim/v2");
     private final ScimGroupService service =
             new ScimGroupService(groups, users, properties, authorization, idGenerator);
     private final String alice = userId("alice");

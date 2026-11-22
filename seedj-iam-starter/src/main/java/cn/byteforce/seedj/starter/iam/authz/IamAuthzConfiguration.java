@@ -20,8 +20,8 @@ import org.springframework.context.annotation.Configuration;
 /**
  * 授权契约装配：属性源、SoD 规则与解析服务。
  *
- * <p>{@link IamBindingStore} 与 {@link IamAttributeSource} 由适配器按 {@code seedj.authz.provider}
- * （缺省跟随 {@code seedj.iam.store}）提供；starter 只消费这两个端口，不再持有任何具体实现。
+ * <p>{@link IamBindingStore} 与 {@link IamAttributeSource} 由适配器按 {@code seedj.authz.provider} （缺省跟随
+ * {@code seedj.iam.store}）提供；starter 只消费这两个端口，不再持有任何具体实现。
  *
  * @author ByteForce
  * @since 1.0.0
