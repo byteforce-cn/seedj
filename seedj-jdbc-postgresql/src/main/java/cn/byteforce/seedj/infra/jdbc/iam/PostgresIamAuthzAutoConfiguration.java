@@ -27,6 +27,11 @@ import org.springframework.jdbc.core.JdbcTemplate;
 @AutoConfiguration(after = {DataSourceAutoConfiguration.class, JdbcTemplateAutoConfiguration.class})
 @ConditionalOnBean({IamEnabledMarker.class, JdbcTemplate.class})
 @ConditionalOnProperty(
+        prefix = "seedj.iam",
+        name = "enabled",
+        havingValue = "true",
+        matchIfMissing = true)
+@ConditionalOnProperty(
         prefix = "seedj.authz",
         name = "enabled",
         havingValue = "true",

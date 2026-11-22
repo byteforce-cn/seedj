@@ -134,4 +134,21 @@ class IamMemoryStoreAutoConfigurationTest {
     private static String key() {
         return java.util.Base64.getEncoder().encodeToString(new byte[32]);
     }
+
+    @Test
+    @DisplayName("没有 @EnableIamServer 标记时适配器保持惰性")
+    void adapterIsInertWithoutTheEnablementMarker() {
+        new ApplicationContextRunner()
+                .withConfiguration(
+                        AutoConfigurations.of(IamMemoryStoreAutoConfiguration.class))
+                .withBean(
+                        IdGenerator.class,
+                        () -> (IdGenerator<String>) () -> UUID.randomUUID().toString())
+                .run(
+                        context -> {
+                            assertThat(context).hasNotFailed();
+                            assertThat(context).doesNotHaveBean(IamUserRepository.class);
+                            assertThat(context).doesNotHaveBean(IamSecretProtector.class);
+                        });
+    }
 }

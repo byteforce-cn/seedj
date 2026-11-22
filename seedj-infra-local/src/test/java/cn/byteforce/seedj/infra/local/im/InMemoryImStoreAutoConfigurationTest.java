@@ -69,4 +69,13 @@ class InMemoryImStoreAutoConfigurationTest {
                             assertThat(context).doesNotHaveBean(ImConversationStore.class);
                         });
     }
+
+    @Test
+    @DisplayName("没有 @EnableImServer 标记时适配器保持惰性")
+    void adapterIsInertWithoutTheEnablementMarker() {
+        new ApplicationContextRunner()
+                .withConfiguration(AutoConfigurations.of(InMemoryImStoreAutoConfiguration.class))
+                .withBean(Clock.class, Clock::systemUTC)
+                .run(context -> assertThat(context).doesNotHaveBean(ImConversationStore.class));
+    }
 }

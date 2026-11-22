@@ -128,4 +128,11 @@ class PostgresIamStoreAutoConfigurationTest {
                 .withBean(IamUserRepository.class, () -> users)
                 .run(context -> assertThat(context.getBean(IamUserRepository.class)).isSameAs(users));
     }
+
+    @Test
+    @DisplayName("seedj.iam.enabled=false 时连授权绑定也不装配")
+    void disabledIamBacksOffAuthzBinding() {
+        runner.withPropertyValues("seedj.iam.store=jdbc", "seedj.iam.enabled=false")
+                .run(context -> assertThat(context).doesNotHaveBean(IamBindingStore.class));
+    }
 }
