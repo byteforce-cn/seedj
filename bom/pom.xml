@@ -25,7 +25,7 @@
         <bouncycastle.version>1.87</bouncycastle.version>
         <archunit.version>1.5.1</archunit.version>
         <!-- 收敛锚点版本（见下方 dependencyManagement 中的 error_prone_annotations 注释） -->
-        <error-prone.version>2.52.0</error-prone.version>
+        <error-prone.version>2.53.0</error-prone.version>
 
     </properties>
 
