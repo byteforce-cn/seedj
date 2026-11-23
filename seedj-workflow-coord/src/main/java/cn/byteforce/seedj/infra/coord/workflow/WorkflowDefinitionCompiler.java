@@ -118,13 +118,13 @@ final class WorkflowDefinitionCompiler {
             case WAIT_SIGNAL -> body.put("listen", listen(step));
             case ACTIVITY, COMPENSATION -> body.put("set", set(step));
         }
-        if (step.kind() != StepKind.HUMAN_TASK) {
-            if (step.timeout() != null) {
-                body.put("timeout", WorkflowDsl.timeout(step.timeout()));
-            }
-            if (step.retryPolicy() != null) {
-                body.put("retry", retry(step.retryPolicy()));
-            }
+        // approve 节点也写步骤 timeout：审批自身的 deadline 只管轮次截止，
+        // 运行时的 ResumeWorkflow 时间预算取 task_meta.timeout（coord 0.4.6）。
+        if (step.timeout() != null) {
+            body.put("timeout", WorkflowDsl.timeout(step.timeout()));
+        }
+        if (step.kind() != StepKind.HUMAN_TASK && step.retryPolicy() != null) {
+            body.put("retry", retry(step.retryPolicy()));
         }
         return body;
     }

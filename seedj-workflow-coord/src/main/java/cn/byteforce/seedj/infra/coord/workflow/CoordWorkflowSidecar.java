@@ -111,10 +111,6 @@ final class CoordWorkflowSidecar {
     void putAction(String instanceId, String actionId, Map<String, String> extras) {
         try {
             byte[] encoded = MAPPER.writeValueAsBytes(new TreeMap<>(extras));
-            if (System.getProperty("workflow.debug") != null) {
-                System.out.println(
-                        "DEBUG putAction " + actionId + " -> " + new String(encoded, StandardCharsets.UTF_8));
-            }
             kv.put(bytes(actionKey(instanceId, actionId)), encoded);
         } catch (CoordException e) {
             // coord 命令才是权威；审计补充写失败不阻断动作。
@@ -128,7 +124,8 @@ final class CoordWorkflowSidecar {
         if (result.kvs().isEmpty()) {
             return Map.of();
         }
-        return parseAction(result.kvs().get(0).value());
+        Map<String, String> parsed = parseAction(result.kvs().get(0).value());
+        return parsed == null ? Map.of() : parsed;
     }
 
     Map<String, Map<String, String>> actions(String instanceId) {
@@ -137,7 +134,10 @@ final class CoordWorkflowSidecar {
         for (KvClient.KeyValue entry : scan(prefix)) {
             String key = new String(entry.key(), StandardCharsets.UTF_8);
             String actionId = key.substring(prefix.length());
-            values.put(actionId, parseAction(entry.value()));
+            Map<String, String> parsed = parseAction(entry.value());
+            if (parsed != null) {
+                values.put(actionId, parsed);
+            }
         }
         return values;
     }
@@ -155,7 +155,7 @@ final class CoordWorkflowSidecar {
             return values;
         } catch (RuntimeException e) {
             log.warn("ignoring corrupt coord workflow sidecar action entry: {}", e.getMessage());
-            return Map.of();
+            return null;
         }
     }
 

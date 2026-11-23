@@ -123,17 +123,16 @@ final class CoordWorkflowActions {
                         action.targetStep()));
         int currentIndex = stepIndex(definition, roundNode(detail, round));
         int targetIndex = stepIndex(definition, action.targetStep());
-        boolean explicitForward = targetIndex > currentIndex;
+        boolean forward = targetIndex > currentIndex;
         StepDefinition targetStep =
                 CoordWorkflowReads.stepOf(definition, action.targetStep());
-        boolean targetHasSeats = targetStep != null && targetStep.kind() == cn.byteforce.seedj.workflow.spi.StepKind.HUMAN_TASK;
-        boolean nonApprovalTarget = !explicitForward && !targetHasSeats;
-        boolean rollbackNow =
-                explicitForward
-                        || nonApprovalTarget
-                        || rollbackNow(step, detail, round, seat, action.targetStep());
-        String rollbackTarget = nonApprovalTarget ? roundNode(detail, round) : action.targetStep();
-        if (!rollbackNow) {
+        boolean targetReopenable =
+                targetStep != null
+                        && targetStep.kind() == cn.byteforce.seedj.workflow.spi.StepKind.HUMAN_TASK
+                        && detail.branches().stream()
+                                .anyMatch(branch -> action.targetStep().equals(branch.node()));
+        if (forward) {
+            // 前向目标由编译期 onReject 路由；rejectToNode 只能重开已进入的审批节点。
             invoke(
                     ActionKind.VOTE,
                     () ->
@@ -143,18 +142,35 @@ final class CoordWorkflowActions {
                                     action.comment(),
                                     action.actionId(),
                                     action.assignee()));
-        } else {
+            return;
+        }
+        boolean rollback =
+                !targetReopenable
+                        || rollbackNow(step, detail, round, seat, action.targetStep());
+        if (!rollback) {
             invoke(
                     ActionKind.VOTE,
                     () ->
-                            workflows.rejectToNodeOnBehalfOf(
+                            workflows.rejectOnBehalfOf(
                                     instanceId.value(),
                                     seat.id(),
-                                    rollbackTarget,
                                     action.comment(),
                                     action.actionId(),
                                     action.assignee()));
+            return;
         }
+        // 上游/非审批目标：coord 只能重开「已进入的审批节点」；不可重开时回退到当前节点。
+        String rollbackTarget = targetReopenable ? action.targetStep() : roundNode(detail, round);
+        invoke(
+                ActionKind.VOTE,
+                () ->
+                        workflows.rejectToNodeOnBehalfOf(
+                                instanceId.value(),
+                                seat.id(),
+                                rollbackTarget,
+                                action.comment(),
+                                action.actionId(),
+                                action.assignee()));
     }
 
     void transfer(WorkflowInstanceId instanceId, TransferAction action) {
@@ -444,15 +460,8 @@ final class CoordWorkflowActions {
         if (dueInMs <= 0) {
             throw new WorkflowStateConflictException("resume requires a positive newDueIn");
         }
-        // coord 的 ResumeWorkflow 用 approve.deadline（seedj 的 dueIn）当预算；seedj 的预算
-        // 是 StepDefinition.timeout，通常更长。超出 coord 预算时按剩余预算续期，seedj 侧
-        // 的可见 dueAt 由 sidecar 保持（见 known-limitations）。
-        ApprovalInstanceDetail detail = detail(instanceId);
-        long budget = remainingBudget(detail, dueInMs);
-        long due =
-                budget > 0
-                        ? Math.min(dueInMs, Math.max(1, budget - 50))
-                        : Math.min(dueInMs, 100);
+        // 时间预算由 coord 校验（步骤 task_meta.timeout）：超出时 INVALID_ARGUMENT →
+        // WorkflowStateConflictException，且零副作用。适配器不裁剪 newDueIn。
         sidecar.putAction(
                 instanceId.value(),
                 action.actionId(),
@@ -461,36 +470,15 @@ final class CoordWorkflowActions {
                         action.operator(),
                         "dueInMs",
                         Long.toString(dueInMs)));
-        long requested = due;
         invoke(
                 ActionKind.ADMIN,
                 () ->
                         workflows.resumeWorkflowOnBehalfOf(
                                 instanceId.value(),
-                                requested,
+                                dueInMs,
                                 action.reason(),
                                 action.actionId(),
                                 action.operator()));
-    }
-
-    private long remainingBudget(ApprovalInstanceDetail detail, long requested) {
-        long now = System.currentTimeMillis();
-        long remaining = Long.MAX_VALUE;
-        for (ApprovalRound round : detail.rounds()) {
-            if ("open".equalsIgnoreCase(round.status()) && round.openedAtMs() > 0) {
-                // 席位 deadline 是 coord 的预算来源；取最近 deadline 与当前时间的差。
-                long deadline =
-                        CoordWorkflowReads.roundSeats(detail, round.id()).stream()
-                                .mapToLong(seat -> seat.deadlineMs())
-                                .filter(value -> value > 0)
-                                .min()
-                                .orElse(0);
-                if (deadline > 0) {
-                    remaining = Math.min(remaining, deadline - now);
-                }
-            }
-        }
-        return remaining == Long.MAX_VALUE ? -1 : remaining;
     }
 
     // ──── 控制面 ────
