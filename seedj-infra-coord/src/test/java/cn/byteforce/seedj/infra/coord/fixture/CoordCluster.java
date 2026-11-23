@@ -28,7 +28,7 @@ import org.testcontainers.utility.DockerImageName;
 public final class CoordCluster implements AutoCloseable {
 
     private static final String IMAGE =
-            System.getProperty("seedj.coord.test.image", "ghcr.io/byteforce-cn/coord:v0.4.5");
+            System.getProperty("seedj.coord.test.image", "ghcr.io/byteforce-cn/coord:v0.4.6");
     private static final Duration STARTUP = Duration.ofSeconds(90);
 
     private final GenericContainer<?> server;
@@ -61,7 +61,7 @@ public final class CoordCluster implements AutoCloseable {
     /**
      * 带认证的集群：server 启用 CCT、agent 用 bootstrap token 自注册；返回的 client 携带 root CCT。
      *
-     * <p>审批的 {@code on_behalf_of} 只在调用方主体非 {@code anonymous} 时可用（coord 0.4.5），
+     * <p>审批的 {@code on_behalf_of} 只在调用方主体非 {@code anonymous} 时可用（coord 0.4.6），
      * 所以 workflow 契约测试必须跑在认证集群上。
      */
     public static CoordCluster startWithAuth() {

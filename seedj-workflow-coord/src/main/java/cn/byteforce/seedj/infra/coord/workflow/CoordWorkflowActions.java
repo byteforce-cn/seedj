@@ -393,11 +393,11 @@ final class CoordWorkflowActions {
                         action.targetStep(),
                         "withdrawInstance",
                         "true"));
-        // coord 0.4.5 的实例撤回带 target_node 时会先提交撤回、再在回退驱动上报
+        // coord 0.4.6 的实例撤回带 target_node 时会先提交撤回、再在回退驱动上报
         // 「instance is not suspended on an approval」，实例停在 RUNNING。撤回本身
         // 与回退目标无关：先按无目标撤回（可靠地把实例收口为 CANCELLED），
         // INSTANCE_ROLLED_BACK 由 sidecar 的 targetStep 在读面补齐。
-        // coord 0.4.5 的实例撤回会在回退驱动阶段把 workflow 置 FAILED；seedj 要求 CANCELLED。
+        // coord 0.4.6 的实例撤回会在回退驱动阶段把 workflow 置 FAILED；seedj 要求 CANCELLED。
         // 走工作流 Cancel（审批聚合同事务收口为 CANCELLED），席位/事件的 WITHDRAWN
         // 词汇由读面按 sidecar 的撤回记录补齐（见 known-limitations）。
         invoke(

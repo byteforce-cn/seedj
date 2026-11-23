@@ -55,7 +55,7 @@ import tools.jackson.databind.json.JsonMapper;
 /**
  * 读面：coord 的 round/seat/assignment 投影成 seedj 的实例 / HumanTask / history。
  *
- * <p>seedj 的 {@code TaskId} 是 coord 的 round id；seat 只是 assignment。coord 0.4.5 起
+ * <p>seedj 的 {@code TaskId} 是 coord 的 round id；seat 只是 assignment。coord 0.4.5 起（当前基线 0.4.6）
  * 撤回投影与多值状态过滤已由服务端提供（#451/#452），本类不再做客户端补偿投影。
  */
 final class CoordWorkflowReads {
@@ -409,7 +409,7 @@ final class CoordWorkflowReads {
     }
 
     /**
-     * sidecar 里记下「原始任务已完成」的后加签：coord 0.4.5 只能在 open 分支上创建 AFTER
+     * sidecar 里记下「原始任务已完成」的后加签：coord 0.4.6 只能在 open 分支上创建 AFTER
      * 轮次，适配器把派生轮次挂在当前分支并在 sidecar 写真正的原始任务 id。读面据此把
      * scheduled 轮次投影成待办（直到 coord 支持已完成任务的后加签）。
      */

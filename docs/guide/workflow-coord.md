@@ -78,7 +78,7 @@ coord 不建模、但 seedj 契约需要的补充事实写在 coord KV：
   `targetStep` 补齐 `TASK_WITHDRAWN` / `INSTANCE_ROLLED_BACK`；coord 补齐后删除投影。
 - **实例级 Cc** 的 operator 仍受 coord 授权面约束（initiator / `sign-admins` / 席位持有人）；
   任务级 Cc 由 `allowCc` 约束。
-- **retry**：coord 0.4.5+ 支持 `maxDelay` 与 `multiplier`；seedj 的退避序列按 `delay ×
+- **retry**：coord 0.4.6 支持 `maxDelay` 与 `multiplier`；seedj 的退避序列按 `delay ×
   multiplier^(n-1)` 落进 coord，不再需要 fail-closed。
 
 ## 验证
