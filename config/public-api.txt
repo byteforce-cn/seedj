@@ -817,6 +817,8 @@ seedj-workflow-contract|cn.byteforce.seedj.workflow.spi|WorkflowStateConflictExc
 seedj-workflow-contract|cn.byteforce.seedj.workflow.spi|WorkflowStatus
 seedj-workflow-contract|cn.byteforce.seedj.workflow.spi|WorkflowTimeoutException
 seedj-workflow-contract|cn.byteforce.seedj.workflow.spi|WorkflowVersionConflictException
+seedj-workflow-coord|cn.byteforce.seedj.infra.coord.workflow|CoordWorkflowAutoConfiguration
+seedj-workflow-coord|cn.byteforce.seedj.infra.coord.workflow|CoordWorkflowProperties
 seedj-workflow-local|cn.byteforce.seedj.infra.local.workflow|InMemoryWorkflowProvider
 seedj-workflow-local|cn.byteforce.seedj.infra.local.workflow|WorkflowAutoConfiguration
 seedj-workflow-local|cn.byteforce.seedj.infra.local.workflow|WorkflowProperties

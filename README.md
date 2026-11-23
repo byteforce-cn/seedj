@@ -165,6 +165,7 @@ assertThat(harness.object("employee", receipt.locator()).fields())
 | `seedj-infra-local` | 内存、文件、BouncyCastle 适配器 |
 | `seedj-infra-coord` | 分布式协调适配器：ID、编号、锁、EventBus、PKI、KV |
 | `seedj-workflow-local` | 工作流 SPI 的本地实现（库模块，不启动 server） |
+| `seedj-workflow-coord` | 工作流 SPI 的 coord workflow v2 适配器（库模块，不启动 server） |
 | `seedj-jdbc-postgresql` | PostgreSQL 适配器、DDL、版本化迁移、生产事件存储 |
 | `seedj-biz-starter` | 业务装配：认证 / 命令 / 查询 / 审计 / 事件总线 |
 | `seedj-iam-starter` | IAM 装配：OIDC / SCIM / RBAC / ABAC（生产边界见[已知限制](docs/guide/known-limitations.md)） |
