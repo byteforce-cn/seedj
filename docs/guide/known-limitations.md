@@ -36,8 +36,10 @@ PostgreSQL 的 workflow schema。
 
 coord 适配器的读面投影在 coord 对应能力落地后删除：
 
-- **实例撤回的回退事件**：coord 的实例撤回不投影完整的席位级 `TASK_WITHDRAWN` /
-  `INSTANCE_ROLLED_BACK`，适配器按 sidecar 的 `targetStep` 补齐；coord 补齐后删除。
+- **实例撤回的回退事件**：coord 0.4.6 的实例撤回带目标节点会把实例落为 `FAILED`，seedj 要求
+  `CANCELLED`；适配器走工作流 `Cancel`，再按 sidecar 的 `targetStep` 补齐席位级
+  `TASK_WITHDRAWN` / `INSTANCE_ROLLED_BACK`。coord 的撤回保持 `CANCELLED` 且直接投影
+  席位事件后删除。
 - **任务撤回的事件序**：coord 把回退副作用排在审计投影的 `TASK_WITHDRAWN` 之前；适配器
   在同一时间片内按 seedj 词汇重排。coord 直接按契约顺序投影后删除。
 - **恢复的事件序与状态读面**：恢复在 coord 里分两次提交——桥侧先建新轮次，runtime 的

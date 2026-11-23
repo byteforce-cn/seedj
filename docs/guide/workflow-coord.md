@@ -74,8 +74,10 @@ coord 不建模、但 seedj 契约需要的补充事实写在 coord KV：
 - **完成后加签**：coord 只允许在 open 分支上创建 AFTER 轮次。适配器把对已完成步骤的后加签
   挂到当前 open 分支，sidecar 记录真正的原始任务；该轮次在上游回退时同样被取消，但它不会
   回填到已完成步骤的当前状态里。coord 支持后删除这条投影。
-- **实例撤回的回退事件**：coord 的实例撤回不投影完整的席位级事件，适配器按 sidecar 的
-  `targetStep` 补齐 `TASK_WITHDRAWN` / `INSTANCE_ROLLED_BACK`；coord 补齐后删除投影。
+- **实例撤回**：coord 0.4.6 的实例撤回带目标节点会在回退驱动阶段把实例落为 `FAILED`，而
+  seedj 要求 `CANCELLED`；适配器因此走工作流 `Cancel`，席位级 `TASK_WITHDRAWN` /
+  `INSTANCE_ROLLED_BACK` 由 sidecar 的 `targetStep` 补齐。coord 的撤回能保持 `CANCELLED`
+  并直接投影席位事件后删除这条适配器投影。
 - **恢复的两段提交**：coord 先建新轮次、随后才落库 `INSTANCE_RESUMED` 与 runtime 的
   `SUSPENDED`，`GetStatus` 还可能滞后 2–3s。适配器以 `GetInstanceDetail` 为权威读面，
   把 `INSTANCE_RESUMED` 前移到本轮次事件之前，并据此修正「恢复后仍报 WAITING」与

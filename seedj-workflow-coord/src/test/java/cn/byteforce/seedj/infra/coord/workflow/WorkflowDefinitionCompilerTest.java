@@ -138,6 +138,159 @@ class WorkflowDefinitionCompilerTest {
                 .hasMessageContaining("exceeds 1024 bytes");
     }
 
+    @Test
+    void compilesEveryStepKindIntoItsCoordNode() throws Exception {
+        StepDefinition compensate =
+                new StepDefinition(
+                        "compensate",
+                        StepKind.COMPENSATION,
+                        Duration.ofSeconds(10),
+                        RetryPolicy.noRetry(),
+                        List.of(),
+                        Map.of());
+        WorkflowDefinition definition =
+                definition(
+                        List.of(
+                                activity("start"),
+                                StepDefinition.waitSignal(
+                                        "wait", "go", Duration.ofSeconds(5), List.of()),
+                                compensate,
+                                human(
+                                        "review",
+                                        spec(
+                                                List.of("u1"),
+                                                new AllApprove(),
+                                                null,
+                                                Set.of(),
+                                                null,
+                                                Map.of("timeoutPolicy", "none")),
+                                        Duration.ofSeconds(30))));
+
+        JsonNode root = MAPPER.readTree(compiler.compile(definition));
+        JsonNode tasks = root.get("do");
+
+        assertThat(tasks.get(0).get("start").get("set").get("_seedjStep").stringValue())
+                .isEqualTo("start");
+        assertThat(
+                        tasks.get(1)
+                                .get("wait")
+                                .get("listen")
+                                .get("to")
+                                .get("one")
+                                .get("with")
+                                .get("type")
+                                .stringValue())
+                .isEqualTo("go");
+        assertThat(tasks.get(2).get("compensate").get("set").get("_seedjStep").stringValue())
+                .isEqualTo("compensate");
+        assertThat(tasks.get(3).get("review").get("approve")).isNotNull();
+        assertThat(tasks.get(3).get("review").get("timeout").get("after").stringValue())
+                .isEqualTo("PT30S");
+    }
+
+    @Test
+    void choosesTheEarliestUpstreamRejectTargetWhenThereIsNoForwardTarget() throws Exception {
+        WorkflowDefinition definition =
+                definition(
+                        List.of(
+                                activity("start"),
+                                human(
+                                        "middle",
+                                        spec(
+                                                List.of("u9"),
+                                                new AllApprove(),
+                                                null,
+                                                Set.of(),
+                                                null,
+                                                Map.of()),
+                                        Duration.ofSeconds(30)),
+                                human(
+                                        "review",
+                                        spec(
+                                                List.of("u1"),
+                                                new AllApprove(),
+                                                new AnyRejectTerminates(),
+                                                Set.of("middle", "start"),
+                                                null,
+                                                Map.of("timeoutPolicy", "waiting")),
+                                        Duration.ofSeconds(30))));
+
+        JsonNode root = MAPPER.readTree(compiler.compile(definition));
+
+        assertThat(root.get("do").get(2).get("review").get("approve").get("onReject").stringValue())
+                .isEqualTo("start");
+    }
+
+    @Test
+    void dueInOverridesTheStepTimeoutAsTheApproveDeadline() throws Exception {
+        WorkflowDefinition definition =
+                definition(
+                        List.of(
+                                human(
+                                        "review",
+                                        spec(
+                                                List.of("u1"),
+                                                new AllApprove(),
+                                                null,
+                                                Set.of(),
+                                                Duration.ofSeconds(10),
+                                                Map.of("timeoutPolicy", "waiting")),
+                                        Duration.ofSeconds(30))));
+
+        JsonNode node =
+                MAPPER.readTree(compiler.compile(definition)).get("do").get(0).get("review");
+
+        assertThat(node.get("approve").get("deadline").stringValue()).isEqualTo("PT10S");
+        assertThat(node.get("timeout").get("after").stringValue()).isEqualTo("PT30S");
+    }
+
+    @Test
+    void retryMapsMultiplierAndMaxBackoffToTheCoordRetryNode() throws Exception {
+        StepDefinition retrying =
+                new StepDefinition(
+                        "call",
+                        StepKind.ACTIVITY,
+                        Duration.ofSeconds(30),
+                        new RetryPolicy(3, Duration.ofSeconds(1), Duration.ofSeconds(10), 1.5),
+                        List.of(),
+                        Map.of());
+
+        JsonNode retry =
+                MAPPER.readTree(compiler.compile(definition(List.of(retrying))))
+                        .get("do")
+                        .get(0)
+                        .get("call")
+                        .get("retry");
+
+        assertThat(retry.get("limit").intValue()).isEqualTo(3);
+        assertThat(retry.get("delay").stringValue()).isEqualTo("PT1S");
+        assertThat(retry.get("backoff").stringValue()).isEqualTo("exponential");
+        assertThat(retry.get("maxDelay").stringValue()).isEqualTo("PT10S");
+        assertThat(retry.get("multiplier").doubleValue()).isEqualTo(1.5);
+    }
+
+    @Test
+    void aMultiplierOfOneCompilesToConstantBackoff() throws Exception {
+        StepDefinition retrying =
+                new StepDefinition(
+                        "call",
+                        StepKind.ACTIVITY,
+                        Duration.ofSeconds(30),
+                        new RetryPolicy(2, Duration.ofSeconds(1), Duration.ofSeconds(1), 1.0),
+                        List.of(),
+                        Map.of());
+
+        JsonNode retry =
+                MAPPER.readTree(compiler.compile(definition(List.of(retrying))))
+                        .get("do")
+                        .get(0)
+                        .get("call")
+                        .get("retry");
+
+        assertThat(retry.get("backoff").stringValue()).isEqualTo("constant");
+        assertThat(retry.get("multiplier").doubleValue()).isEqualTo(1.0);
+    }
+
     private WorkflowDefinition approvalDefinition(
             Set<String> rejectTargets, Map<String, String> metadata) {
         Map<String, String> effective = new java.util.TreeMap<>(metadata);

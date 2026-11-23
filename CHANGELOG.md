@@ -118,6 +118,11 @@
 
 ### Fixed
 
+- `seedj-workflow-coord` 的分派动作补全定义静态开关：`transfer` / `delegate` / `withdraw` /
+  `urge` 在步骤未声明 `allowTransfer` / `allowDelegate` / `allowWithdraw` / `allowUrge` 时
+  于调用 coord 之前 fail-closed（与 `addAssignee` / `removeAssignee` / `cc` 同口径）。
+- 契约 TCK 在整包并发（31 个命名空间共享容器）下偶发 `start` 返回 `PENDING`：驱动等待
+  从 5s 放宽到 15s，与动作落定判定同口径。
 - 集群 IT 的服务身份：`spring.application.name` 改由命令行参数注入，不再被各服务的
   `application.yml` 覆盖；coord 消息的 producer 与默认命名空间因此按服务区分，而不是全部
   串到同一个名字。

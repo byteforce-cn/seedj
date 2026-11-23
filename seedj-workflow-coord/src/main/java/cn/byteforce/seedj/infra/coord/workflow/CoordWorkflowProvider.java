@@ -258,7 +258,9 @@ final class CoordWorkflowProvider implements WorkflowProvider {
      * not suspended on an approval」。有 open 轮次时必须等到状态真正落为 SUSPENDED。
      */
     private void awaitDriven(WorkflowInstanceId instanceId) {
-        long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(5);
+        // 5s 在整包 TCK（31 个命名空间 + 共享容器）下不够：驱动被抢占时 PENDING→SUSPENDED
+        // 会超过 5s，start 会返回一个尚未挂起的快照。与动作落定判定同口径给 15s。
+        long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(15);
         while (System.nanoTime() < deadline) {
             try {
                 var status = workflows.getStatus(instanceId.value());
