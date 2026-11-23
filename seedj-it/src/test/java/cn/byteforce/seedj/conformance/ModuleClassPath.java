@@ -35,6 +35,7 @@ final class ModuleClassPath {
                     "seedj-infra-coord",
                     "seedj-infra-local",
                     "seedj-workflow-local",
+                    "seedj-workflow-coord",
                     "seedj-jdbc-postgresql",
                     "seedj-biz-starter",
                     "seedj-im-starter",

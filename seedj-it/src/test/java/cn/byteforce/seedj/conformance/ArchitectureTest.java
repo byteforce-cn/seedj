@@ -100,6 +100,22 @@ class ArchitectureTest {
     }
 
     @Test
+    @DisplayName("workflow coord 适配器不依赖 JDBC / local / starter / server")
+    void workflowCoordDoesNotDependOnBusinessStores() {
+        assertNoDependencies(
+                "workflow-coord-does-not-depend-on-business-stores",
+                ModuleClassPath.classesOf("seedj-workflow-coord"),
+                clazz -> clazz.getPackageName().startsWith("cn.byteforce.seedj.infra.coord.workflow"),
+                dependency -> {
+                    String pkg = dependency.getPackageName();
+                    return pkg.startsWith("cn.byteforce.seedj.infra.jdbc")
+                            || pkg.startsWith("cn.byteforce.seedj.infra.local")
+                            || pkg.startsWith("cn.byteforce.seedj.starter")
+                            || pkg.startsWith("cn.byteforce.seedj.server");
+                });
+    }
+
+    @Test
     @DisplayName("starter 不依赖具体适配器（换存储的 seam 必须真实存在）")
     void startersDoNotDependOnAdapters() {
         Set<String> allowed = ModuleClassPath.readLines(ALLOWLIST);
