@@ -166,9 +166,13 @@ final class CoordWorkflowActions {
     }
 
     void transfer(WorkflowInstanceId instanceId, TransferAction action) {
-        requireUserPrincipal(action.toAssignee(), "transfer");
         ApprovalInstanceDetail detail = detail(instanceId);
         ApprovalRound round = round(detail, action.taskId().value());
+        String node = roundNode(detail, round);
+        if (!requireStep(detail, node).humanTask().allowTransfer()) {
+            throw new WorkflowStateConflictException("transfer is not allowed at " + node);
+        }
+        requireUserPrincipal(action.toAssignee(), "transfer");
         Seat seat = seatFor(detail, round, action.fromAssignee());
         invoke(
                 ActionKind.VOTE,
@@ -183,9 +187,13 @@ final class CoordWorkflowActions {
     }
 
     void delegate(WorkflowInstanceId instanceId, DelegateAction action) {
-        requireUserPrincipal(action.toAssignee(), "delegate");
         ApprovalInstanceDetail detail = detail(instanceId);
         ApprovalRound round = round(detail, action.taskId().value());
+        String node = roundNode(detail, round);
+        if (!requireStep(detail, node).humanTask().allowDelegate()) {
+            throw new WorkflowStateConflictException("delegate is not allowed at " + node);
+        }
+        requireUserPrincipal(action.toAssignee(), "delegate");
         Seat seat = seatFor(detail, round, action.fromAssignee());
         long delegateForMs = action.delegateFor().toMillis();
         invoke(
@@ -342,6 +350,10 @@ final class CoordWorkflowActions {
     void withdrawTask(WorkflowInstanceId instanceId, WithdrawAction action) {
         ApprovalInstanceDetail detail = detail(instanceId);
         ApprovalRound round = round(detail, action.taskId().value());
+        String node = roundNode(detail, round);
+        if (!requireStep(detail, node).humanTask().allowWithdraw()) {
+            throw new WorkflowStateConflictException("withdraw is not allowed at " + node);
+        }
         ApprovalTask seat = seatWithApproveRecord(detail, round, action.operator());
         // coord 的撤回只能在「已进入的审批节点」上重开分支：活动/未进入的目标没有
         // prior seats（FAILED_PRECONDITION）。此时回退到当前审批节点（可逆投影：
@@ -392,6 +404,10 @@ final class CoordWorkflowActions {
     void urge(WorkflowInstanceId instanceId, UrgeAction action) {
         ApprovalInstanceDetail detail = detail(instanceId);
         ApprovalRound round = round(detail, action.taskId().value());
+        String node = roundNode(detail, round);
+        if (!requireStep(detail, node).humanTask().allowUrge()) {
+            throw new WorkflowStateConflictException("urge is not allowed at " + node);
+        }
         ApprovalTask seat = seatByOwnerOrAny(detail, round, action.operator());
         invoke(
                 ActionKind.SEAT,
