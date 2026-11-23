@@ -8,10 +8,6 @@ final class CoordNamespaces {
     private CoordNamespaces() {}
 
     static String of(CoordProperties properties, Environment environment) {
-        String namespace = properties.getNamespace();
-        if (namespace == null || namespace.isBlank()) {
-            return "seedj:" + environment.getProperty("spring.application.name", "default");
-        }
-        return namespace;
+        return properties.resolveNamespace(environment);
     }
 }

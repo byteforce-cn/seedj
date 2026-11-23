@@ -17,3 +17,5 @@ transit = true
 policy = true
 workflow = true
 workflow_durable = true
+# 服务代终端用户白名单（auth 关闭时调用方主体是 anonymous）；seedj 适配器所有席位动作都靠 on_behalf_of。
+workflow_on_behalf_services = ["anonymous", "root"]
