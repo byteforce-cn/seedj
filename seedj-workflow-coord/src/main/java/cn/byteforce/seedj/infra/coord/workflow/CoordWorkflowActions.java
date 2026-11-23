@@ -1,7 +1,6 @@
 package cn.byteforce.seedj.infra.coord.workflow;
 
 import cn.byteforce.coord.sdk.CoordException;
-
 import cn.byteforce.coord.sdk.workflow.ApprovalAssignment;
 import cn.byteforce.coord.sdk.workflow.ApprovalInstanceDetail;
 import cn.byteforce.coord.sdk.workflow.ApprovalRound;
@@ -42,8 +41,8 @@ import tools.jackson.databind.json.JsonMapper;
 /**
  * 12 个动作 + cancel/terminate → coord SDK。
  *
- * <p>actor 策略：席位动作以 seedj 终端用户 {@code on_behalf_of}（调用方服务须在 agent 白名单内）；
- * 管理动作（加签/减签/终止）以服务主体执行，真实 operator 落 sidecar，审计可还原。
+ * <p>actor 策略：席位动作以 seedj 终端用户 {@code on_behalf_of}（调用方服务须在 agent 白名单内）； 管理动作（加签/减签/终止）以服务主体执行，真实
+ * operator 落 sidecar，审计可还原。
  */
 final class CoordWorkflowActions {
 
@@ -105,8 +104,7 @@ final class CoordWorkflowActions {
         Seat seat = seatFor(detail, round, action.assignee());
         WorkflowDefinition definition = reads.definitionOf(detail);
         StepDefinition step = CoordWorkflowReads.stepOf(definition, roundNode(detail, round));
-        if (step == null
-                || !step.humanTask().rejectTargets().contains(action.targetStep())) {
+        if (step == null || !step.humanTask().rejectTargets().contains(action.targetStep())) {
             throw new RejectTargetNotAllowedException(
                     "reject target '"
                             + action.targetStep()
@@ -116,16 +114,11 @@ final class CoordWorkflowActions {
         writeAction(
                 instanceId.value(),
                 action.actionId(),
-                Map.of(
-                        "operator",
-                        action.assignee(),
-                        "targetStep",
-                        action.targetStep()));
+                Map.of("operator", action.assignee(), "targetStep", action.targetStep()));
         int currentIndex = stepIndex(definition, roundNode(detail, round));
         int targetIndex = stepIndex(definition, action.targetStep());
         boolean forward = targetIndex > currentIndex;
-        StepDefinition targetStep =
-                CoordWorkflowReads.stepOf(definition, action.targetStep());
+        StepDefinition targetStep = CoordWorkflowReads.stepOf(definition, action.targetStep());
         boolean targetReopenable =
                 targetStep != null
                         && targetStep.kind() == cn.byteforce.seedj.workflow.spi.StepKind.HUMAN_TASK
@@ -145,8 +138,7 @@ final class CoordWorkflowActions {
             return;
         }
         boolean rollback =
-                !targetReopenable
-                        || rollbackNow(step, detail, round, seat, action.targetStep());
+                !targetReopenable || rollbackNow(step, detail, round, seat, action.targetStep());
         if (!rollback) {
             invoke(
                     ActionKind.VOTE,
@@ -232,9 +224,7 @@ final class CoordWorkflowActions {
         String node = roundNode(detail, round);
         StepDefinition step = requireStep(detail, node);
         if (!step.humanTask().allowAddAssignee()
-                || !step.humanTask()
-                        .allowedAddPositions()
-                        .contains(action.position())) {
+                || !step.humanTask().allowedAddPositions().contains(action.position())) {
             throw new WorkflowStateConflictException(
                     "add-assignee position " + action.position() + " is not allowed at " + node);
         }
@@ -312,8 +302,7 @@ final class CoordWorkflowActions {
     private static ApprovalRound currentOpenRound(ApprovalInstanceDetail detail) {
         ApprovalRound latest = null;
         for (ApprovalRound round : detail.rounds()) {
-            if (!"open".equalsIgnoreCase(round.status())
-                    || !branchOpen(detail, round.branchId())) {
+            if (!"open".equalsIgnoreCase(round.status()) || !branchOpen(detail, round.branchId())) {
                 continue;
             }
             if (latest == null || round.openedAtMs() >= latest.openedAtMs()) {
@@ -329,8 +318,7 @@ final class CoordWorkflowActions {
         String node = roundNode(detail, round);
         StepDefinition step = requireStep(detail, node);
         if (!step.humanTask().allowRemoveAssignee()) {
-            throw new WorkflowStateConflictException(
-                    "remove-assignee is not allowed at " + node);
+            throw new WorkflowStateConflictException("remove-assignee is not allowed at " + node);
         }
         ApprovalTask anchor = anchorSeat(detail, round, action.operator());
         Map<String, String> extras = new LinkedHashMap<>();
@@ -365,11 +353,7 @@ final class CoordWorkflowActions {
         writeAction(
                 instanceId.value(),
                 action.actionId(),
-                Map.of(
-                        "operator",
-                        action.operator(),
-                        "targetStep",
-                        action.targetStep()));
+                Map.of("operator", action.operator(), "targetStep", action.targetStep()));
         invoke(
                 ActionKind.WITHDRAW,
                 () ->
@@ -465,11 +449,7 @@ final class CoordWorkflowActions {
         sidecar.putAction(
                 instanceId.value(),
                 action.actionId(),
-                Map.of(
-                        "operator",
-                        action.operator(),
-                        "dueInMs",
-                        Long.toString(dueInMs)));
+                Map.of("operator", action.operator(), "dueInMs", Long.toString(dueInMs)));
         invoke(
                 ActionKind.ADMIN,
                 () ->
@@ -539,8 +519,8 @@ final class CoordWorkflowActions {
     }
 
     /**
-     * 是否需要在本票后立即回退：AnyReject 总是；AtLeastRejects 达到阈值时；
-     * RecordAndContinue 只在「本轮已无其他未决席位」时（seedj 死锁口径）。
+     * 是否需要在本票后立即回退：AnyReject 总是；AtLeastRejects 达到阈值时； RecordAndContinue 只在「本轮已无其他未决席位」时（seedj
+     * 死锁口径）。
      */
     private static boolean rollbackNow(
             StepDefinition step,
@@ -571,7 +551,8 @@ final class CoordWorkflowActions {
                                                             vote ->
                                                                     "reject"
                                                                             .equalsIgnoreCase(
-                                                                                    vote.decision())))
+                                                                                    vote
+                                                                                            .decision())))
                             .count();
             return rejectVotes + 1 >= rejects.count();
         }
@@ -621,7 +602,8 @@ final class CoordWorkflowActions {
                                                                                 .principal()
                                                                                 .equals(actor)))
                         .findFirst();
-        return delegated.map(Seat::new)
+        return delegated
+                .map(Seat::new)
                 .orElseThrow(
                         () ->
                                 new AssigneeNotAllowedException(
@@ -635,10 +617,7 @@ final class CoordWorkflowActions {
             throw new HumanTaskNotFoundException("no seats in round " + round.id());
         }
         return seats.stream()
-                .filter(
-                        seat ->
-                                actor.equals(seat.assignee())
-                                        || seat.candidates().contains(actor))
+                .filter(seat -> actor.equals(seat.assignee()) || seat.candidates().contains(actor))
                 .findFirst()
                 .orElseGet(
                         () ->
@@ -680,10 +659,7 @@ final class CoordWorkflowActions {
                 .orElseGet(
                         () ->
                                 seats.stream()
-                                        .filter(
-                                                seat ->
-                                                        OPEN_SEAT_STATUSES.contains(
-                                                                seat.status()))
+                                        .filter(seat -> OPEN_SEAT_STATUSES.contains(seat.status()))
                                         .findFirst()
                                         .orElse(seats.get(0)));
     }

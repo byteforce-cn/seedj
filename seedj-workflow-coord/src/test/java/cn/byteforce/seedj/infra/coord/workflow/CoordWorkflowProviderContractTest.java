@@ -10,8 +10,8 @@ import org.junit.jupiter.api.BeforeAll;
 /**
  * 契约 TCK：31 个用例跑在真 coord 集群（v0.4.6）上。
  *
- * <p>集群开认证：coord 0.4.5 的 {@code on_behalf_of} 只在调用方主体非 {@code anonymous} 时可用，
- * 而 seedj 的席位动作全部靠服务代终端用户。每个实现用例用独立 base namespace 隔离定义/实例。
+ * <p>集群开认证：coord 0.4.5 的 {@code on_behalf_of} 只在调用方主体非 {@code anonymous} 时可用， 而 seedj
+ * 的席位动作全部靠服务代终端用户。每个实现用例用独立 base namespace 隔离定义/实例。
  */
 class CoordWorkflowProviderContractTest extends WorkflowProviderContractTest {
 

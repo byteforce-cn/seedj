@@ -105,7 +105,9 @@ class ArchitectureTest {
         assertNoDependencies(
                 "workflow-coord-does-not-depend-on-business-stores",
                 ModuleClassPath.classesOf("seedj-workflow-coord"),
-                clazz -> clazz.getPackageName().startsWith("cn.byteforce.seedj.infra.coord.workflow"),
+                clazz ->
+                        clazz.getPackageName()
+                                .startsWith("cn.byteforce.seedj.infra.coord.workflow"),
                 dependency -> {
                     String pkg = dependency.getPackageName();
                     return pkg.startsWith("cn.byteforce.seedj.infra.jdbc")

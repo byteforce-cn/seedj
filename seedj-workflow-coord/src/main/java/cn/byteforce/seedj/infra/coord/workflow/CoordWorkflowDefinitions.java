@@ -49,11 +49,11 @@ final class CoordWorkflowDefinitions {
         }
     }
 
-    Optional<WorkflowDefinition> find(
-            WorkflowDefinitionId id, WorkflowDefinitionVersion version) {
+    Optional<WorkflowDefinition> find(WorkflowDefinitionId id, WorkflowDefinitionVersion version) {
         String namespace = ids.coordNamespace(id.namespace());
         String name = ids.coordName(id);
-        String coordVersion = version == null ? latestVersion(namespace, name) : ids.coordVersion(version);
+        String coordVersion =
+                version == null ? latestVersion(namespace, name) : ids.coordVersion(version);
         if (coordVersion == null) {
             return Optional.empty();
         }

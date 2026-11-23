@@ -34,9 +34,7 @@ class CoordWorkflowSidecarTest {
         when(kv.put(any(byte[].class), any(byte[].class)))
                 .thenAnswer(
                         invocation -> {
-                            store.put(
-                                    text(invocation.getArgument(0)),
-                                    invocation.getArgument(1));
+                            store.put(text(invocation.getArgument(0)), invocation.getArgument(1));
                             return null;
                         });
         when(kv.range(any(), any(), anyLong(), anyLong(), anyBoolean(), anyBoolean()))
@@ -81,7 +79,9 @@ class CoordWorkflowSidecarTest {
                 .containsExactlyInAnyOrderEntriesOf(
                         Map.of("operator", "u1", "targetStep", "start"));
 
-        store.put("ns:workflow:sidecar:wf-1:action:broken", "{not-json".getBytes(StandardCharsets.UTF_8));
+        store.put(
+                "ns:workflow:sidecar:wf-1:action:broken",
+                "{not-json".getBytes(StandardCharsets.UTF_8));
         assertThat(sidecar.action("wf-1", "broken")).isEmpty();
         assertThat(sidecar.actions("wf-1")).containsKey("a1").doesNotContainKey("broken");
     }

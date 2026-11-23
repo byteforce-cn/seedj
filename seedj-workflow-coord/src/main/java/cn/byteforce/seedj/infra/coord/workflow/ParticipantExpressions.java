@@ -10,8 +10,8 @@ import java.util.Map;
 /**
  * seedj 参与者表达式：{@code ${x}} 的解析与 coord jq 改写。
  *
- * <p>coord 的 {@code approve} 节点用 jq 形状 {@code ${ $context.x }}；seedj 的表达式是裸变量名
- * {@code ${x}}。两者只在编译期改写，运行期仍由 coord 求值（数组结果展开为多个席位）。
+ * <p>coord 的 {@code approve} 节点用 jq 形状 {@code ${ $context.x }}；seedj 的表达式是裸变量名 {@code
+ * ${x}}。两者只在编译期改写，运行期仍由 coord 求值（数组结果展开为多个席位）。
  */
 final class ParticipantExpressions {
 

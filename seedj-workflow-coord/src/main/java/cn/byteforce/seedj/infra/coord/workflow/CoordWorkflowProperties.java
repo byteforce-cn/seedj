@@ -5,8 +5,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 /**
  * {@code seedj.workflow.coord.*} 配置。
  *
- * <p>连接参数复用 {@code seedj.coord.*}（agent 地址、TLS、token、namespace）；这里只放适配器自己的
- * 语义开关。
+ * <p>连接参数复用 {@code seedj.coord.*}（agent 地址、TLS、token、namespace）；这里只放适配器自己的 语义开关。
  */
 @ConfigurationProperties(prefix = "seedj.workflow.coord")
 public class CoordWorkflowProperties {
@@ -43,9 +42,9 @@ public class CoordWorkflowProperties {
         if (signAdmin == null || signAdmin.isBlank()) {
             throw new IllegalStateException(
                     "seedj.workflow.coord.sign-admin is required: it is compiled into every"
-                        + " approve.signAdmins and authorizes add-sign/remove-sign/terminate."
-                        + " Set it to the seedj service principal listed in the coord agent's"
-                        + " services.workflow_on_behalf_services.");
+                            + " approve.signAdmins and authorizes add-sign/remove-sign/terminate."
+                            + " Set it to the seedj service principal listed in the coord agent's"
+                            + " services.workflow_on_behalf_services.");
         }
         if (maxDefinitionBytes < 1024) {
             throw new IllegalStateException(

@@ -37,10 +37,10 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
 import org.springframework.boot.builder.SpringApplicationBuilder;
-import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.testcontainers.DockerClientFactory;
 
@@ -105,13 +105,16 @@ class WorkflowCoordIT {
 
         ApprovalSnapshot approved = service.act(decisionId, ApprovalAction.APPROVE, APPROVER, "ok");
         assertThat(approved.status()).isEqualTo(ApprovalStatus.APPROVED);
-        assertThat(workflows.history(new cn.byteforce.seedj.workflow.spi.WorkflowInstanceId(
-                        approved.instanceId())))
+        assertThat(
+                        workflows.history(
+                                new cn.byteforce.seedj.workflow.spi.WorkflowInstanceId(
+                                        approved.instanceId())))
                 .extracting(cn.byteforce.seedj.workflow.spi.WorkflowHistoryEvent::eventType)
                 .contains("INSTANCE_STARTED", "TASK_CREATED", "TASK_COMPLETED");
 
         String token = service.grant(decisionId);
-        String payload = new String(JWSObject.parse(token).getPayload().toBytes(), StandardCharsets.UTF_8);
+        String payload =
+                new String(JWSObject.parse(token).getPayload().toBytes(), StandardCharsets.UTF_8);
         assertThat(payload).contains("\"status\":\"approved\"").contains(ARGS_HASH);
     }
 
@@ -146,8 +149,7 @@ class WorkflowCoordIT {
     @DisplayName("deadline 到期 → APPROVAL(EXPIRED)，grant 拒绝")
     void deadlineExpiresApproval() {
         InMemoryDecisionLedger ledger = new InMemoryDecisionLedger();
-        ApprovalService service =
-                service(ledger, "agent-approval-short", Duration.ofSeconds(5));
+        ApprovalService service = service(ledger, "agent-approval-short", Duration.ofSeconds(5));
         service.registerDefinition();
         UUID decisionId = UUID.randomUUID();
         ledger.appendIntent(intent(decisionId));
@@ -157,11 +159,8 @@ class WorkflowCoordIT {
         assertThat(ledger.byDecision(TENANT, decisionId))
                 .filteredOn(record -> record.kind() == DecisionRecordKind.APPROVAL)
                 .last()
-                .satisfies(
-                        record ->
-                                assertThat(record.body().toString()).contains("expired"));
-        assertThatThrownBy(() -> service.grant(decisionId))
-                .isInstanceOf(ContractException.class);
+                .satisfies(record -> assertThat(record.body().toString()).contains("expired"));
+        assertThatThrownBy(() -> service.grant(decisionId)).isInstanceOf(ContractException.class);
     }
 
     private static ApprovalService service(

@@ -16,12 +16,9 @@ class CoordWorkflowProviderWiringTest {
 
     private final ApplicationContextRunner runner =
             new ApplicationContextRunner()
-                    .withConfiguration(
-                            AutoConfigurations.of(CoordWorkflowAutoConfiguration.class))
+                    .withConfiguration(AutoConfigurations.of(CoordWorkflowAutoConfiguration.class))
                     .withBean(CoordProperties.class)
-                    .withBean(
-                            CoordClient.class,
-                            () -> mock(CoordClient.class, RETURNS_DEEP_STUBS));
+                    .withBean(CoordClient.class, () -> mock(CoordClient.class, RETURNS_DEEP_STUBS));
 
     @Test
     void providerCoordWiresTheCoordBean() {
@@ -90,8 +87,7 @@ class CoordWorkflowProviderWiringTest {
 
     @Test
     void guardRejectsCoordProviderWhenCoordIsDisabled() {
-        runner.withConfiguration(
-                        AutoConfigurations.of(CoordProviderGuardAutoConfiguration.class))
+        runner.withConfiguration(AutoConfigurations.of(CoordProviderGuardAutoConfiguration.class))
                 .withPropertyValues(
                         "seedj.workflow.provider=coord",
                         "seedj.workflow.coord.sign-admin=sign-admin",

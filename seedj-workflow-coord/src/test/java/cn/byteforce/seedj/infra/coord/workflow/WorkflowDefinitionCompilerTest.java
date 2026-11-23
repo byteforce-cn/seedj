@@ -205,8 +205,7 @@ class WorkflowDefinitionCompilerTest {
                 metadata);
     }
 
-    private static StepDefinition human(
-            String name, HumanTaskSpec spec, Duration timeout) {
+    private static StepDefinition human(String name, HumanTaskSpec spec, Duration timeout) {
         return new StepDefinition(
                 name,
                 StepKind.HUMAN_TASK,

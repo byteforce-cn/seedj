@@ -34,9 +34,8 @@ import tools.jackson.databind.json.JsonMapper;
 /**
  * seedj 定义的确定性 JSON 编解码。
  *
- * <p>定义原样内嵌进 coord 定义的 {@code document.tags["seedj.definition"]}；coord 的
- * {@code definition_hash} 覆盖 tags，序列化必须逐字稳定（固定字段顺序、Map 按键排序、无缩进）。
- * 这里不用数据绑定注解：显式字段表让 schema 变更在编译期可见。
+ * <p>定义原样内嵌进 coord 定义的 {@code document.tags["seedj.definition"]}；coord 的 {@code definition_hash} 覆盖
+ * tags，序列化必须逐字稳定（固定字段顺序、Map 按键排序、无缩进）。 这里不用数据绑定注解：显式字段表让 schema 变更在编译期可见。
  */
 final class WorkflowDefinitionCodec {
 
@@ -139,9 +138,7 @@ final class WorkflowDefinitionCodec {
         node.put("assignees", assignees);
         node.put("signCompletion", signCompletion(spec.signCompletion()));
         node.put("rejectCompletion", rejectCompletion(spec.rejectCompletion()));
-        node.put(
-                "rejectTargets",
-                new ArrayList<>(new java.util.TreeSet<>(spec.rejectTargets())));
+        node.put("rejectTargets", new ArrayList<>(new java.util.TreeSet<>(spec.rejectTargets())));
         node.put("formKey", spec.formKey());
         node.put("formSchema", sorted(spec.formSchema()));
         node.put("allowAddAssignee", spec.allowAddAssignee());
@@ -230,8 +227,7 @@ final class WorkflowDefinitionCodec {
         for (String position : strings(required(node, "allowedAddPositions"))) {
             positions.add(AddAssigneePosition.valueOf(position));
         }
-        Set<String> rejectTargets =
-                new LinkedHashSet<>(strings(required(node, "rejectTargets")));
+        Set<String> rejectTargets = new LinkedHashSet<>(strings(required(node, "rejectTargets")));
         return new HumanTaskSpec(
                 assignees,
                 signCompletion(required(node, "signCompletion")),
@@ -257,8 +253,7 @@ final class WorkflowDefinitionCodec {
             case "ALL_APPROVE" -> new AllApprove();
             case "ANY_APPROVE" -> new AnyApprove();
             case "AT_LEAST_COUNT" -> new AtLeastCount(requiredInt(node, "count"));
-            case "AT_LEAST_PERCENTAGE" ->
-                    new AtLeastPercentage(requiredDouble(node, "percentage"));
+            case "AT_LEAST_PERCENTAGE" -> new AtLeastPercentage(requiredDouble(node, "percentage"));
             default -> throw new WorkflowProviderException("unknown signCompletion type: " + type);
         };
     }
@@ -269,7 +264,8 @@ final class WorkflowDefinitionCodec {
             case "ANY_REJECT_TERMINATES" -> new AnyRejectTerminates();
             case "RECORD_AND_CONTINUE" -> new RecordAndContinue();
             case "AT_LEAST_REJECTS" -> new AtLeastRejects(requiredInt(node, "count"));
-            default -> throw new WorkflowProviderException("unknown rejectCompletion type: " + type);
+            default ->
+                    throw new WorkflowProviderException("unknown rejectCompletion type: " + type);
         };
     }
 

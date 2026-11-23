@@ -32,9 +32,8 @@ import tools.jackson.databind.json.JsonMapper;
 /**
  * seedj 定义 → coord 原生方言（{@code document} + {@code do}）的编译器。
  *
- * <p>定义原样 JSON 写进 {@code document.tags["seedj.definition"]}（随 Deploy 一次原子写入，内容进
- * {@code definition_hash}）；运行语义只映射 coord 能表达的部分，表达不了的在 register 期 fail-closed，
- * 不静默丢弃。
+ * <p>定义原样 JSON 写进 {@code document.tags["seedj.definition"]}（随 Deploy 一次原子写入，内容进 {@code
+ * definition_hash}）；运行语义只映射 coord 能表达的部分，表达不了的在 register 期 fail-closed， 不静默丢弃。
  */
 final class WorkflowDefinitionCompiler {
 
@@ -90,8 +89,7 @@ final class WorkflowDefinitionCompiler {
         document.put("namespace", ids.coordNamespace(definition.id().namespace()));
         document.put("name", ids.coordName(definition.id()));
         document.put("version", ids.coordVersion(definition.version()));
-        document.put(
-                "title", definition.id().namespace() + "/" + definition.id().name());
+        document.put("title", definition.id().namespace() + "/" + definition.id().name());
         Map<String, Object> tags = new TreeMap<>();
         tags.put("seedj.definition", embedded);
         tags.put("seedj.namespace", definition.id().namespace());
@@ -170,8 +168,7 @@ final class WorkflowDefinitionCompiler {
                 case USER -> approvers.add(participant.value());
                 case ROLE -> roles.add(participant.value());
                 case GROUP, DEPARTMENT -> pool.add(participant.value());
-                case EXPRESSION ->
-                        approvers.add(ParticipantExpressions.toJq(participant.value()));
+                case EXPRESSION -> approvers.add(ParticipantExpressions.toJq(participant.value()));
             }
         }
         if (!approvers.isEmpty()) {
@@ -244,8 +241,8 @@ final class WorkflowDefinitionCompiler {
         return switch (completion) {
             case AnyRejectTerminates ignored -> "anyReject";
             case AtLeastRejects rejects -> "atLeastRejects:" + rejects.count();
-            // seedj 的 RecordAndContinue 在「全部席位投完」才判死锁；coord 的 onExhausted
-            // 是同一口径（recordAndContinue 会提前按 unsatisfiable 回退，与 seedj TCK 不符）。
+                // seedj 的 RecordAndContinue 在「全部席位投完」才判死锁；coord 的 onExhausted
+                // 是同一口径（recordAndContinue 会提前按 unsatisfiable 回退，与 seedj TCK 不符）。
             case RecordAndContinue ignored -> "onExhausted";
         };
     }
@@ -278,8 +275,7 @@ final class WorkflowDefinitionCompiler {
     /**
      * 编译出的 {@code onReject} 目标（同时供动作层判断「plain reject 是否会路由到该目标」）。
      *
-     * <p>前向目标优先（唯一）；否则选下标最小的**非自身**上游目标——非审批上游只能靠
-     * 节点转场回退（coord 的 {@code rejectToNode} 要求目标曾是审批节点）。
+     * <p>前向目标优先（唯一）；否则选下标最小的**非自身**上游目标——非审批上游只能靠 节点转场回退（coord 的 {@code rejectToNode} 要求目标曾是审批节点）。
      */
     static String rejectTarget(StepDefinition step, Map<String, Integer> indices) {
         if (step.humanTask() == null || step.humanTask().rejectTargets().isEmpty()) {
@@ -350,8 +346,7 @@ final class WorkflowDefinitionCompiler {
                         prefix + name + ": step name is reserved by the coord DSL");
             }
             if (!names.add(name)) {
-                throw new WorkflowProviderException(
-                        prefix + name + ": duplicate step name");
+                throw new WorkflowProviderException(prefix + name + ": duplicate step name");
             }
             byName.put(name, step);
         }

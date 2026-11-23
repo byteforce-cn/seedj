@@ -19,9 +19,8 @@ import tools.jackson.databind.json.JsonMapper;
 /**
  * coord KV sidecar：存 coord 不建模、但 seedj 契约需要的补充事实。
  *
- * <p>键空间 {@code <coordNamespace>:workflow:sidecar:<instanceId>:...}。coord 命令是权威，
- * sidecar 只是审计/读面补充：读失败（坏 JSON）忽略并 WARN；{@code formData} 是例外——
- * 写失败必须拒绝动作，否则表单数据静默丢失。
+ * <p>键空间 {@code <coordNamespace>:workflow:sidecar:<instanceId>:...}。coord 命令是权威， sidecar
+ * 只是审计/读面补充：读失败（坏 JSON）忽略并 WARN；{@code formData} 是例外—— 写失败必须拒绝动作，否则表单数据静默丢失。
  *
  * <p>无 TTL：coord KV 当前没有 TTL 面，保留策略由运维负责。
  */

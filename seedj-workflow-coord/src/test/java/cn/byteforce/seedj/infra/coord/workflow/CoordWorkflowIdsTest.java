@@ -19,12 +19,10 @@ class CoordWorkflowIdsTest {
     void instanceIdMustBeResolvableFromRoundId() {
         ids.requireValidInstanceId(new WorkflowInstanceId("agent-approval-1234"));
 
-        assertThatThrownBy(
-                        () -> ids.requireValidInstanceId(new WorkflowInstanceId("a:b")))
+        assertThatThrownBy(() -> ids.requireValidInstanceId(new WorkflowInstanceId("a:b")))
                 .isInstanceOf(WorkflowProviderException.class)
                 .hasMessageContaining("[A-Za-z0-9._-]{1,128}");
-        assertThatThrownBy(
-                        () -> ids.requireValidInstanceId(new WorkflowInstanceId("a/b")))
+        assertThatThrownBy(() -> ids.requireValidInstanceId(new WorkflowInstanceId("a/b")))
                 .isInstanceOf(WorkflowProviderException.class);
         assertThatThrownBy(
                         () -> ids.requireValidInstanceId(new WorkflowInstanceId("a".repeat(129))))
@@ -44,8 +42,7 @@ class CoordWorkflowIdsTest {
 
     @Test
     void namespaceAndVersionRoundTrip() {
-        assertThat(ids.coordNamespace("contract"))
-                .isEqualTo("seedj:workflow:contract");
+        assertThat(ids.coordNamespace("contract")).isEqualTo("seedj:workflow:contract");
         assertThat(ids.seedjNamespace("seedj:workflow:contract")).isEqualTo("contract");
         assertThat(ids.seedjNamespace("other:workflow:contract")).isNull();
 
@@ -60,8 +57,7 @@ class CoordWorkflowIdsTest {
     void definitionPartsRejectSlashAndControlCharacters() {
         assertThatThrownBy(() -> ids.coordNamespace("a/b"))
                 .isInstanceOf(WorkflowProviderException.class);
-        assertThatThrownBy(
-                        () -> ids.coordName(new WorkflowDefinitionId("contract", "a b")))
+        assertThatThrownBy(() -> ids.coordName(new WorkflowDefinitionId("contract", "a b")))
                 .isInstanceOf(WorkflowProviderException.class);
     }
 }

@@ -62,7 +62,8 @@ final class CoordWorkflowReads {
 
     private static final JsonMapper MAPPER = JsonMapper.builder().build();
     private static final Comparator<HumanTask> TASK_ORDER =
-            Comparator.comparing(HumanTask::createdAt, Comparator.nullsFirst(Comparator.naturalOrder()))
+            Comparator.comparing(
+                            HumanTask::createdAt, Comparator.nullsFirst(Comparator.naturalOrder()))
                     .thenComparing(task -> task.id().value());
 
     private final WorkflowClient workflows;
@@ -103,7 +104,8 @@ final class CoordWorkflowReads {
             return new Snapshot(status, detail);
         } catch (CoordException e) {
             if (e.getErrorCode() == ErrorCode.NOT_FOUND) {
-                throw new WorkflowNotFoundException("workflow instance not found: " + instanceId.value());
+                throw new WorkflowNotFoundException(
+                        "workflow instance not found: " + instanceId.value());
             }
             throw e;
         }
@@ -118,7 +120,8 @@ final class CoordWorkflowReads {
         }
         List<String> statuses = coordStatuses(query.status());
         long startedAfter = query.startedAfter() == null ? 0 : query.startedAfter().toEpochMilli();
-        long startedBefore = query.startedBefore() == null ? 0 : query.startedBefore().toEpochMilli();
+        long startedBefore =
+                query.startedBefore() == null ? 0 : query.startedBefore().toEpochMilli();
         int offset = cursorOffset(query.cursor());
         List<WorkflowInstance> matches = new ArrayList<>();
         String token = "";
@@ -191,7 +194,12 @@ final class CoordWorkflowReads {
                 summary.initiator() == null ? "" : summary.initiator(),
                 instant(summary.startedAt()),
                 instant(summary.updatedAt()),
-                terminal ? instant(summary.completedAt() > 0 ? summary.completedAt() : summary.updatedAt()) : null,
+                terminal
+                        ? instant(
+                                summary.completedAt() > 0
+                                        ? summary.completedAt()
+                                        : summary.updatedAt())
+                        : null,
                 variables,
                 null);
     }
@@ -224,13 +232,11 @@ final class CoordWorkflowReads {
     }
 
     /**
-     * 当前步骤：GetStatus 走本地缓存投影（驱动推进后 2–3s 内可能仍报旧节点），
-     * GetInstanceDetail 直接读存储是权威读面。存在 open 分支且缓存状态落后时以分支节点为准，
-     * 让动作返回的快照与刚创建的轮次一致（例如驳回回退后重新进入审批节点）。
+     * 当前步骤：GetStatus 走本地缓存投影（驱动推进后 2–3s 内可能仍报旧节点）， GetInstanceDetail 直接读存储是权威读面。存在 open
+     * 分支且缓存状态落后时以分支节点为准， 让动作返回的快照与刚创建的轮次一致（例如驳回回退后重新进入审批节点）。
      */
     private static String currentStep(
-            cn.byteforce.coord.sdk.workflow.WorkflowStatus status,
-            ApprovalInstanceDetail detail) {
+            cn.byteforce.coord.sdk.workflow.WorkflowStatus status, ApprovalInstanceDetail detail) {
         String reported = blankToNull(status.currentStateName());
         String openNode = openBranchNode(detail);
         if (openNode != null && !openNode.equals(reported)) {
@@ -256,16 +262,16 @@ final class CoordWorkflowReads {
         try {
             page =
                     workflows.listTaskGroups(
-                        new TaskQueryFilter(
-                                status.workflowId(),
-                                null,
-                                null,
-                                null,
-                                null,
-                                null,
-                                null,
-                                List.of("created", "claimed"),
-                                List.of()),
+                            new TaskQueryFilter(
+                                    status.workflowId(),
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    List.of("created", "claimed"),
+                                    List.of()),
                             200,
                             "");
         } catch (CoordException e) {
@@ -275,12 +281,10 @@ final class CoordWorkflowReads {
             }
             throw e;
         }
-        Map<String, String> deferred =
-                deferredAfterPredecessors(status.workflowId());
+        Map<String, String> deferred = deferredAfterPredecessors(status.workflowId());
         List<TaskId> pending = new ArrayList<>();
         for (TaskGroup group : page.groups()) {
-            if ("scheduled".equalsIgnoreCase(group.status())
-                    && !deferredAfter(group, deferred)) {
+            if ("scheduled".equalsIgnoreCase(group.status()) && !deferredAfter(group, deferred)) {
                 continue;
             }
             pending.add(new TaskId(group.roundId()));
@@ -370,7 +374,8 @@ final class CoordWorkflowReads {
                             token);
             Map<String, List<TaskGroup>> byInstance = new java.util.LinkedHashMap<>();
             for (TaskGroup group : page.groups()) {
-                byInstance.computeIfAbsent(group.instanceId(), ignored -> new ArrayList<>())
+                byInstance
+                        .computeIfAbsent(group.instanceId(), ignored -> new ArrayList<>())
                         .add(group);
             }
             for (var entry : byInstance.entrySet()) {
@@ -402,15 +407,13 @@ final class CoordWorkflowReads {
     }
 
     private static boolean hidden(TaskGroup group, Map<String, String> deferred) {
-        return ("scheduled".equalsIgnoreCase(group.status())
-                        && !deferredAfter(group, deferred))
+        return ("scheduled".equalsIgnoreCase(group.status()) && !deferredAfter(group, deferred))
                 || "suspended".equalsIgnoreCase(group.status());
     }
 
     /**
-     * sidecar 里记下「原始任务已完成」的后加签：coord 0.4.6 只能在 open 分支上创建 AFTER
-     * 轮次，适配器把派生轮次挂在当前分支并在 sidecar 写真正的原始任务 id。读面据此把
-     * scheduled 轮次投影成待办（直到 coord 支持已完成任务的后加签）。
+     * sidecar 里记下「原始任务已完成」的后加签：coord 0.4.6 只能在 open 分支上创建 AFTER 轮次，适配器把派生轮次挂在当前分支并在 sidecar
+     * 写真正的原始任务 id。读面据此把 scheduled 轮次投影成待办（直到 coord 支持已完成任务的后加签）。
      */
     private Map<String, String> deferredAfterPredecessors(String instanceId) {
         Map<String, String> byAction = new HashMap<>();
@@ -474,14 +477,7 @@ final class CoordWorkflowReads {
         do {
             TaskGroupPage page =
                     workflows.listTaskGroups(
-                            new TaskQueryFilter(
-                                    instanceId,
-                                    null,
-                                    null,
-                                    null,
-                                    null,
-                                    null,
-                                    null),
+                            new TaskQueryFilter(instanceId, null, null, null, null, null, null),
                             200,
                             token);
             groups.addAll(page.groups());
@@ -535,8 +531,7 @@ final class CoordWorkflowReads {
                                                             == ParticipantType.DEPARTMENT)
                             .anyMatch(
                                     participant ->
-                                            query.candidateGroups()
-                                                    .contains(participant.value()));
+                                            query.candidateGroups().contains(participant.value()));
             if (!matched) {
                 return false;
             }
@@ -562,12 +557,15 @@ final class CoordWorkflowReads {
         ApprovalTask derived =
                 derivedRound
                         ? seats.stream()
-                                .filter(seat -> seat.predecessorTaskId() != null
-                                        && !seat.predecessorTaskId().isBlank())
+                                .filter(
+                                        seat ->
+                                                seat.predecessorTaskId() != null
+                                                        && !seat.predecessorTaskId().isBlank())
                                 .findFirst()
                                 .orElse(first)
                         : null;
-        ApprovalTask kindSource = derivedRound ? derived : primarySeats.stream().findFirst().orElse(first);
+        ApprovalTask kindSource =
+                derivedRound ? derived : primarySeats.stream().findFirst().orElse(first);
         HumanTaskKind kind = kind(kindSource);
         String seedjStep = group.node();
         String deferredPredecessor = null;
@@ -587,8 +585,9 @@ final class CoordWorkflowReads {
                                         seatRounds.getOrDefault(
                                                 derived.predecessorTaskId(), group.roundId()));
         TaskId successor =
-                first == null || first.successorTaskId() == null
-                        || first.successorTaskId().isBlank()
+                first == null
+                                || first.successorTaskId() == null
+                                || first.successorTaskId().isBlank()
                         ? null
                         : new TaskId(
                                 seatRounds.getOrDefault(first.successorTaskId(), group.roundId()));
@@ -636,8 +635,7 @@ final class CoordWorkflowReads {
         }
         if (status == AssignmentStatus.CANCELLED
                 && "TASK_CANCELLED".equals(reason)
-                && sidecar.removed(
-                        group.instanceId(), group.roundId(), assignment.principal())) {
+                && sidecar.removed(group.instanceId(), group.roundId(), assignment.principal())) {
             reason = "REMOVED";
         }
         if (openSeat
@@ -654,8 +652,7 @@ final class CoordWorkflowReads {
                 reason = null;
             }
         }
-        ApproveRecord record =
-                status == AssignmentStatus.COMPLETED ? approveRecord(vote) : null;
+        ApproveRecord record = status == AssignmentStatus.COMPLETED ? approveRecord(vote) : null;
         return new TaskAssignment(
                 participant,
                 status,
@@ -699,8 +696,7 @@ final class CoordWorkflowReads {
         };
     }
 
-    private boolean withdrawInstanceRecorded(
-            ApprovalInstanceDetail detail, TaskGroup group) {
+    private boolean withdrawInstanceRecorded(ApprovalInstanceDetail detail, TaskGroup group) {
         if (detail == null) {
             return false;
         }
@@ -907,10 +903,8 @@ final class CoordWorkflowReads {
                     "TASK_AFTER_SPAWN_DISCARDED");
 
     /**
-     * 任务级撤回：coord 把回退的副作用（席位自动取消、轮次取消/重开、丢弃后加签）与
-     * 审计投影的 TASK_WITHDRAWN 放在同一时间片但顺序不同，seedj 契约要求
-     * TASK_WITHDRAWN → 取消 → INSTANCE_ROLLED_BACK。对同一时间片的回退事件按 seedj
-     * 词汇稳定重排，事件内容不变。
+     * 任务级撤回：coord 把回退的副作用（席位自动取消、轮次取消/重开、丢弃后加签）与 审计投影的 TASK_WITHDRAWN 放在同一时间片但顺序不同，seedj 契约要求
+     * TASK_WITHDRAWN → 取消 → INSTANCE_ROLLED_BACK。对同一时间片的回退事件按 seedj 词汇稳定重排，事件内容不变。
      */
     private static List<WorkflowHistoryEvent> withdrawTaskFirst(
             List<WorkflowHistoryEvent> history) {
@@ -939,9 +933,7 @@ final class CoordWorkflowReads {
         }
         List<WorkflowHistoryEvent> ordered = new ArrayList<>(history.subList(0, start));
         List<WorkflowHistoryEvent> window = new ArrayList<>(history.subList(start, end + 1));
-        window.sort(
-                java.util.Comparator.comparingInt(
-                        event -> withdrawRank(event.eventType())));
+        window.sort(java.util.Comparator.comparingInt(event -> withdrawRank(event.eventType())));
         ordered.addAll(window);
         ordered.addAll(history.subList(end + 1, history.size()));
         return ordered;
@@ -989,9 +981,9 @@ final class CoordWorkflowReads {
     }
 
     /**
-     * 恢复在 coord 里分两次提交：桥侧先写新轮次（{@code TASK_CREATED}/{@code ROUND_OPENED}），
-     * runtime 的 {@code INSTANCE_RESUMED} 随后落库。seedj 契约规定先恢复再建任务，故把每条
-     * 恢复事件前移到它所属轮次（{@code attributes.round_id}）的第一条事件之前。
+     * 恢复在 coord 里分两次提交：桥侧先写新轮次（{@code TASK_CREATED}/{@code ROUND_OPENED}）， runtime 的 {@code
+     * INSTANCE_RESUMED} 随后落库。seedj 契约规定先恢复再建任务，故把每条 恢复事件前移到它所属轮次（{@code
+     * attributes.round_id}）的第一条事件之前。
      *
      * <p>B1 projection, remove after coord 在同一提交内按契约事件序落库。
      */
@@ -1113,13 +1105,13 @@ final class CoordWorkflowReads {
     // ──── 状态/字段映射 ────
 
     /**
-     * seedj 状态以<b>权威读面</b>为准：{@code GetInstanceDetail} 直读存储，{@code GetStatus} 是
-     * runtime 的本地缓存投影（驱动后 2–3s 内可能仍报旧值）。两个跨提交窗口在这里收口：
+     * seedj 状态以<b>权威读面</b>为准：{@code GetInstanceDetail} 直读存储，{@code GetStatus} 是 runtime 的本地缓存投影（驱动后
+     * 2–3s 内可能仍报旧值）。两个跨提交窗口在这里收口：
      *
      * <ul>
      *   <li>恢复后 runtime 仍报 {@code WAITING}、桥侧已有可收集的新轮次 → {@code RUNNING}；
-     *   <li>极短期限的审批超时里 runtime 的 {@code Waiting} 落库被丢弃、桥侧已 {@code Waiting}
-     *       且没有可收集轮次 → {@code WAITING}。
+     *   <li>极短期限的审批超时里 runtime 的 {@code Waiting} 落库被丢弃、桥侧已 {@code Waiting} 且没有可收集轮次 → {@code
+     *       WAITING}。
      * </ul>
      *
      * <p>B1 projection, remove after coord 把恢复/超时处置与 runtime 状态写进同一提交。
@@ -1176,8 +1168,7 @@ final class CoordWorkflowReads {
     }
 
     /** 显式终止与「审批聚合因超时/驳回收口」共用 approval_status=TERMINATED，用 fault 区分。 */
-    static WorkflowStatus status(
-            WorkflowState state, String approvalStatus, WorkflowFault fault) {
+    static WorkflowStatus status(WorkflowState state, String approvalStatus, WorkflowFault fault) {
         if (state == null) {
             return WorkflowStatus.PENDING;
         }
@@ -1247,8 +1238,7 @@ final class CoordWorkflowReads {
             cn.byteforce.coord.sdk.workflow.WorkflowStatus status, String currentStep) {
         WorkflowFault fault = status.fault();
         if (fault == null) {
-            if (status.state() == WorkflowState.FAILED
-                    || status.state() == WorkflowState.FAULTED) {
+            if (status.state() == WorkflowState.FAILED || status.state() == WorkflowState.FAULTED) {
                 return new WorkflowFailure(
                         "WORKFLOW_FAILED",
                         status.errorMessage() == null ? "workflow failed" : status.errorMessage(),
@@ -1303,8 +1293,7 @@ final class CoordWorkflowReads {
                     continue;
                 }
                 variables.put(
-                        field.getKey(),
-                        value.isString() ? value.stringValue() : value.toString());
+                        field.getKey(), value.isString() ? value.stringValue() : value.toString());
             }
         } catch (RuntimeException e) {
             // 非 JSON input：不暴露原始字节，返回空变量集。

@@ -14,8 +14,7 @@ class ParticipantExpressionsTest {
 
     @Test
     void bareExpressionIsRewrittenToContextJq() {
-        assertThat(ParticipantExpressions.toJq("${approver}"))
-                .isEqualTo("${ $context.approver }");
+        assertThat(ParticipantExpressions.toJq("${approver}")).isEqualTo("${ $context.approver }");
         assertThat(ParticipantExpressions.toJq("${ $input.x }")).isEqualTo("${ $input.x }");
         assertThat(ParticipantExpressions.toJq("${ .x }")).isEqualTo("${ .x }");
         assertThat(ParticipantExpressions.toJq("literal")).isEqualTo("literal");
@@ -31,9 +30,7 @@ class ParticipantExpressionsTest {
         List<ParticipantSpec> many =
                 ParticipantExpressions.resolve(
                         "${approver}", ParticipantType.USER, Map.of("approver", " u7, u8 ,"));
-        assertThat(many)
-                .extracting(ParticipantSpec::value)
-                .containsExactly("u7", "u8");
+        assertThat(many).extracting(ParticipantSpec::value).containsExactly("u7", "u8");
     }
 
     @Test
@@ -49,9 +46,7 @@ class ParticipantExpressionsTest {
     @Test
     void blankResolutionFailsClosed() {
         assertThatThrownBy(
-                        () ->
-                                ParticipantExpressions.resolve(
-                                        " , ", ParticipantType.USER, Map.of()))
+                        () -> ParticipantExpressions.resolve(" , ", ParticipantType.USER, Map.of()))
                 .isInstanceOf(ParticipantResolutionException.class);
     }
 }

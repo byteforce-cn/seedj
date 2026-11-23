@@ -50,8 +50,8 @@ import tools.jackson.databind.json.JsonMapper;
 /**
  * {@link WorkflowProvider} 的 coord 门面：校验实例 id、分派动作、返回 describe 快照。
  *
- * <p>15 个方法全部实现，{@code capabilities()} 返回 21 项全 true；{@code close()} 是 no-op
- * （{@link cn.byteforce.coord.sdk.CoordClient} 由 {@code CoordAutoConfiguration} 拥有）。
+ * <p>15 个方法全部实现，{@code capabilities()} 返回 21 项全 true；{@code close()} 是 no-op （{@link
+ * cn.byteforce.coord.sdk.CoordClient} 由 {@code CoordAutoConfiguration} 拥有）。
  */
 final class CoordWorkflowProvider implements WorkflowProvider {
 
@@ -80,7 +80,8 @@ final class CoordWorkflowProvider implements WorkflowProvider {
         CoordWorkflowSidecar sidecar = new CoordWorkflowSidecar(kv, namespace);
         this.reads = new CoordWorkflowReads(workflows, ids, definitions, sidecar, clock);
         this.actions =
-                new CoordWorkflowActions(workflows, reads, sidecar, clock, properties.getSignAdmin());
+                new CoordWorkflowActions(
+                        workflows, reads, sidecar, clock, properties.getSignAdmin());
         this.settlement = new CoordWorkflowSettlement(workflows, reads);
     }
 
@@ -109,7 +110,8 @@ final class CoordWorkflowProvider implements WorkflowProvider {
                                                                 "workflow definition not found: "
                                                                         + request.definitionId()
                                                                         + "@"
-                                                                        + request.definitionVersion())),
+                                                                        + request
+                                                                                .definitionVersion())),
                         ActionKind.DEFINITION);
         validateExpressions(definition, request.initialVariables());
         String deploymentId =
@@ -252,9 +254,8 @@ final class CoordWorkflowProvider implements WorkflowProvider {
     /**
      * coord 的 Start 先落 PENDING 再由运行时驱动；契约要求返回可读的当前步骤。
      *
-     * <p>审批桥先提交审批轮次、运行时后提交「挂起在审批」：只等 currentStateName 会在
-     * 两者之间的窗口返回，调用方立刻 approve 会得到「instance is not suspended on an
-     * approval」。有 open 轮次时必须等到状态真正落为 SUSPENDED。
+     * <p>审批桥先提交审批轮次、运行时后提交「挂起在审批」：只等 currentStateName 会在 两者之间的窗口返回，调用方立刻 approve 会得到「instance is
+     * not suspended on an approval」。有 open 轮次时必须等到状态真正落为 SUSPENDED。
      */
     private void awaitDriven(WorkflowInstanceId instanceId) {
         long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(5);
@@ -265,15 +266,14 @@ final class CoordWorkflowProvider implements WorkflowProvider {
                     return;
                 }
                 boolean named =
-                        status.currentStateName() != null
-                                && !status.currentStateName().isBlank();
+                        status.currentStateName() != null && !status.currentStateName().isBlank();
                 if (named) {
                     boolean openRound = false;
                     try {
                         openRound =
-                                workflows.listTaskGroups(
-                                                new cn.byteforce.coord.sdk.workflow
-                                                        .TaskQueryFilter(
+                                workflows
+                                        .listTaskGroups(
+                                                new cn.byteforce.coord.sdk.workflow.TaskQueryFilter(
                                                         instanceId.value(),
                                                         null,
                                                         null,
@@ -283,12 +283,9 @@ final class CoordWorkflowProvider implements WorkflowProvider {
                                                         null),
                                                 20,
                                                 "")
-                                        .groups().stream()
-                                        .anyMatch(
-                                                group ->
-                                                        "open"
-                                                                .equalsIgnoreCase(
-                                                                        group.status()));
+                                        .groups()
+                                        .stream()
+                                        .anyMatch(group -> "open".equalsIgnoreCase(group.status()));
                     } catch (CoordException e) {
                         // 审批桥尚未提交首轮：继续等运行时驱动。
                         if (e.getErrorCode() != ErrorCode.NOT_FOUND) {
@@ -297,12 +294,10 @@ final class CoordWorkflowProvider implements WorkflowProvider {
                     }
                     boolean terminal = status.state().isTerminal();
                     boolean waiting =
-                            status.state()
-                                    == cn.byteforce.coord.sdk.workflow.WorkflowState.WAITING;
+                            status.state() == cn.byteforce.coord.sdk.workflow.WorkflowState.WAITING;
                     boolean suspended =
                             status.state()
-                                    == cn.byteforce.coord.sdk.workflow.WorkflowState
-                                            .SUSPENDED;
+                                    == cn.byteforce.coord.sdk.workflow.WorkflowState.SUSPENDED;
                     if (terminal || waiting || (openRound && suspended)) {
                         return;
                     }
@@ -319,8 +314,7 @@ final class CoordWorkflowProvider implements WorkflowProvider {
         }
     }
 
-    private void validateExpressions(
-            WorkflowDefinition definition, Map<String, String> variables) {
+    private void validateExpressions(WorkflowDefinition definition, Map<String, String> variables) {
         for (var step : definition.steps()) {
             if (step.humanTask() == null) {
                 continue;
@@ -349,5 +343,4 @@ final class CoordWorkflowProvider implements WorkflowProvider {
             throw CoordWorkflowErrors.toSeedj(e, kind);
         }
     }
-
 }

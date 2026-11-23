@@ -4,21 +4,20 @@ import cn.byteforce.coord.sdk.CoordException;
 import cn.byteforce.coord.sdk.workflow.WorkflowClient;
 import cn.byteforce.seedj.workflow.spi.AddAssigneeAction;
 import cn.byteforce.seedj.workflow.spi.ApproveAction;
+import cn.byteforce.seedj.workflow.spi.DelegateAction;
 import cn.byteforce.seedj.workflow.spi.RejectAction;
 import cn.byteforce.seedj.workflow.spi.RemoveAssigneeAction;
 import cn.byteforce.seedj.workflow.spi.ResumeWorkflowAction;
 import cn.byteforce.seedj.workflow.spi.SignalAction;
 import cn.byteforce.seedj.workflow.spi.TransferAction;
-import cn.byteforce.seedj.workflow.spi.DelegateAction;
 import cn.byteforce.seedj.workflow.spi.WithdrawAction;
 import cn.byteforce.seedj.workflow.spi.WithdrawInstanceAction;
 import cn.byteforce.seedj.workflow.spi.WorkflowAction;
 import cn.byteforce.seedj.workflow.spi.WorkflowInstanceId;
 
 /**
- * 动作返回前的落定判定：coord 的命令同步提交，但工作流推进由后台驱动完成，且
- * {@code GetStatus} 是 runtime 的本地缓存投影、{@code GetInstanceDetail} 才是权威读面。
- * 这里把三个节奏收敛成一次可读快照，避免把陈旧读面当成动作结果返回。
+ * 动作返回前的落定判定：coord 的命令同步提交，但工作流推进由后台驱动完成，且 {@code GetStatus} 是 runtime 的本地缓存投影、{@code
+ * GetInstanceDetail} 才是权威读面。 这里把三个节奏收敛成一次可读快照，避免把陈旧读面当成动作结果返回。
  */
 final class CoordWorkflowSettlement {
 
@@ -31,9 +30,8 @@ final class CoordWorkflowSettlement {
     }
 
     /**
-     * coord 的命令同步提交，但工作流推进由后台驱动完成；{@code GetStatus} 还有 2–3s 的本地
-     * 缓存投影，{@code GetInstanceDetail} 才是权威读面。动作返回前等到「detail 的 open 分支
-     * 节点」与「状态报告的 currentStateName」一致，或轮次仍开放（票已落库、无需等驱动）。
+     * coord 的命令同步提交，但工作流推进由后台驱动完成；{@code GetStatus} 还有 2–3s 的本地 缓存投影，{@code GetInstanceDetail}
+     * 才是权威读面。动作返回前等到「detail 的 open 分支 节点」与「状态报告的 currentStateName」一致，或轮次仍开放（票已落库、无需等驱动）。
      */
     void await(WorkflowInstanceId instanceId, WorkflowAction action) {
         long capMillis =
@@ -126,7 +124,8 @@ final class CoordWorkflowSettlement {
             cn.byteforce.coord.sdk.workflow.WorkflowStatus status,
             cn.byteforce.coord.sdk.workflow.ApprovalInstanceDetail detail,
             String targetRound) {
-        boolean consistent = openNode(detail) == null || openNode(detail).equals(status.currentStateName());
+        boolean consistent =
+                openNode(detail) == null || openNode(detail).equals(status.currentStateName());
         if (action == null || action instanceof WithdrawInstanceAction) {
             // cancel / terminate / 实例撤回：只在终态收口。
             return false;
@@ -137,12 +136,10 @@ final class CoordWorkflowSettlement {
         }
         if (action instanceof SignalAction) {
             // 信号恢复 wait/listen：等驱动推进到终态或下一个审批挂起，不能停在 WAITING。
-            if (status.state()
-                    == cn.byteforce.coord.sdk.workflow.WorkflowState.WAITING) {
+            if (status.state() == cn.byteforce.coord.sdk.workflow.WorkflowState.WAITING) {
                 return false;
             }
-            if (status.state()
-                    == cn.byteforce.coord.sdk.workflow.WorkflowState.SUSPENDED) {
+            if (status.state() == cn.byteforce.coord.sdk.workflow.WorkflowState.SUSPENDED) {
                 String liveNode = liveRoundNode(detail);
                 return liveNode != null && liveNode.equals(status.currentStateName());
             }
@@ -152,8 +149,7 @@ final class CoordWorkflowSettlement {
             if (roundOpen(detail, targetRound)) {
                 // 票/续期已同步落库，节点仍在收集：不需要等驱动。读面可能落后于命令提交，
                 // 所以「轮次仍 open」要带上已计票的证据，否则会把收口前的旧轮次当成已落库。
-                return action instanceof ResumeWorkflowAction
-                        || roundCounted(detail, targetRound);
+                return action instanceof ResumeWorkflowAction || roundCounted(detail, targetRound);
             }
             // 目标轮次已收口：必须等驱动推进到下一个节点。分支/轮次在「轮次已通过、
             // 驱动尚未推进」的窗口里仍是旧节点，只看 open 分支会过早返回。
@@ -238,8 +234,7 @@ final class CoordWorkflowSettlement {
                         .filter(
                                 candidate ->
                                         "open".equalsIgnoreCase(candidate.status())
-                                                || "suspended"
-                                                        .equalsIgnoreCase(candidate.status()))
+                                                || "suspended".equalsIgnoreCase(candidate.status()))
                         .filter(
                                 candidate ->
                                         detail.branches().stream()
@@ -253,8 +248,9 @@ final class CoordWorkflowSettlement {
                                                                                 .equalsIgnoreCase(
                                                                                         branch
                                                                                                 .status())))
-                        .max(java.util.Comparator.comparingLong(
-                                cn.byteforce.coord.sdk.workflow.ApprovalRound::openedAtMs))
+                        .max(
+                                java.util.Comparator.comparingLong(
+                                        cn.byteforce.coord.sdk.workflow.ApprovalRound::openedAtMs))
                         .orElse(null);
         if (round == null) {
             return null;

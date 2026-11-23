@@ -11,6 +11,7 @@ import cn.byteforce.seedj.workflow.spi.HumanTaskSpec;
 import cn.byteforce.seedj.workflow.spi.ParticipantSpec;
 import cn.byteforce.seedj.workflow.spi.ParticipantType;
 import cn.byteforce.seedj.workflow.spi.RetryPolicy;
+import cn.byteforce.seedj.workflow.spi.StartWorkflowRequest;
 import cn.byteforce.seedj.workflow.spi.StepDefinition;
 import cn.byteforce.seedj.workflow.spi.StepKind;
 import cn.byteforce.seedj.workflow.spi.TaskQuery;
@@ -20,7 +21,6 @@ import cn.byteforce.seedj.workflow.spi.WorkflowDefinitionVersion;
 import cn.byteforce.seedj.workflow.spi.WorkflowInstance;
 import cn.byteforce.seedj.workflow.spi.WorkflowInstanceId;
 import cn.byteforce.seedj.workflow.spi.WorkflowStatus;
-import cn.byteforce.seedj.workflow.spi.StartWorkflowRequest;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -54,10 +54,7 @@ class CoordWorkflowSmokeTest {
         properties.setSignAdmin("root");
         CoordWorkflowProvider provider =
                 new CoordWorkflowProvider(
-                        client.workflow(),
-                        client.kv(),
-                        properties,
-                        "smoke-" + UUID.randomUUID());
+                        client.workflow(), client.kv(), properties, "smoke-" + UUID.randomUUID());
 
         HumanTaskSpec spec =
                 new HumanTaskSpec(
@@ -102,8 +99,7 @@ class CoordWorkflowSmokeTest {
                         null,
                         Map.of());
         String dsl =
-                new WorkflowDefinitionCompiler(
-                                new CoordWorkflowIds("probe"), "root", 64 * 1024)
+                new WorkflowDefinitionCompiler(new CoordWorkflowIds("probe"), "root", 64 * 1024)
                         .compile(definition);
         System.out.println("=== DSL " + dsl);
         provider.register(definition);
@@ -150,13 +146,7 @@ class CoordWorkflowSmokeTest {
                 client.workflow()
                         .listTaskGroups(
                                 new cn.byteforce.coord.sdk.workflow.TaskQueryFilter(
-                                        id.value(),
-                                        null,
-                                        null,
-                                        null,
-                                        null,
-                                        null,
-                                        null),
+                                        id.value(), null, null, null, null, null, null),
                                 200,
                                 "");
         System.out.println("=== GROUPS " + groups.groups());
@@ -241,7 +231,8 @@ class CoordWorkflowSmokeTest {
                                     ("/_workflow/v3/drivers/" + id.value())
                                             .getBytes(java.nio.charset.StandardCharsets.UTF_8));
             if (!seen.kvs().isEmpty()) {
-                System.out.println("=== DRIVE SEEN at " + i * 50 + "ms " + seen.kvs().get(0).leaseId());
+                System.out.println(
+                        "=== DRIVE SEEN at " + i * 50 + "ms " + seen.kvs().get(0).leaseId());
                 break;
             }
             try {
@@ -262,8 +253,9 @@ class CoordWorkflowSmokeTest {
                                     .map(
                                             kv ->
                                                     new String(
-                                                            kv.key(),
-                                                            java.nio.charset.StandardCharsets.UTF_8)
+                                                                    kv.key(),
+                                                                    java.nio.charset
+                                                                            .StandardCharsets.UTF_8)
                                                             + " lease="
                                                             + kv.leaseId()
                                                             + " ver="

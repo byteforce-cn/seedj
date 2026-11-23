@@ -12,8 +12,8 @@ import java.util.regex.Pattern;
 /**
  * seedj 标识与 coord 标识的编解码。
  *
- * <p>coord 的实例 id 同时是 round/seat id 的前缀（{@code <instanceId>:round-NNNN}）， 所以实例 id 只允许
- * {@code [A-Za-z0-9._-]{1,128}}：含 {@code :} 会让 round 解码产生歧义。
+ * <p>coord 的实例 id 同时是 round/seat id 的前缀（{@code <instanceId>:round-NNNN}）， 所以实例 id 只允许 {@code
+ * [A-Za-z0-9._-]{1,128}}：含 {@code :} 会让 round 解码产生歧义。
  */
 final class CoordWorkflowIds {
 
