@@ -61,8 +61,8 @@ public final class CoordCluster implements AutoCloseable {
     /**
      * 带认证的集群：server 启用 CCT、agent 用 bootstrap token 自注册；返回的 client 携带 root CCT。
      *
-     * <p>审批的 {@code on_behalf_of} 只在调用方主体非 {@code anonymous} 时可用（coord 0.4.6），
-     * 所以 workflow 契约测试必须跑在认证集群上。
+     * <p>审批的 {@code on_behalf_of} 只在调用方主体非 {@code anonymous} 时可用（coord 0.4.6）， 所以 workflow
+     * 契约测试必须跑在认证集群上。
      */
     public static CoordCluster startWithAuth() {
         return start(true);
@@ -249,13 +249,11 @@ public final class CoordCluster implements AutoCloseable {
                         root, null, "coord-cct-ed25519-v1".getBytes(StandardCharsets.UTF_8)));
         byte[] seed = new byte[32];
         hkdf.generateBytes(seed, 0, seed.length);
-        var privateKey =
-                new org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters(seed, 0);
+        var privateKey = new org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters(seed, 0);
         return java.util.HexFormat.of().formatHex(privateKey.generatePublicKey().getEncoded());
     }
 
-    private static void grantWorkflowMq(
-            GenericContainer<?> server, int grpc, String rootToken) {
+    private static void grantWorkflowMq(GenericContainer<?> server, int grpc, String rootToken) {
         try {
             server.execInContainer(
                     "coord",
@@ -293,10 +291,7 @@ public final class CoordCluster implements AutoCloseable {
                                 "127.0.0.1:" + grpc);
                 if (result.getExitCode() != 0) {
                     System.out.println(
-                            "[coord-server] grant "
-                                    + capability
-                                    + " retry: "
-                                    + result.getStderr());
+                            "[coord-server] grant " + capability + " retry: " + result.getStderr());
                     sleep(500);
                 }
             } catch (Exception e) {
@@ -305,8 +300,7 @@ public final class CoordCluster implements AutoCloseable {
         }
     }
 
-    private static void bootstrapAgentRole(
-            GenericContainer<?> server, int grpc, String rootToken) {
+    private static void bootstrapAgentRole(GenericContainer<?> server, int grpc, String rootToken) {
         for (int attempt = 0; attempt < 30; attempt++) {
             try {
                 var result =
@@ -322,8 +316,7 @@ public final class CoordCluster implements AutoCloseable {
                     System.out.println("[coord-server] agent bootstrap role ready");
                     return;
                 }
-                System.out.println(
-                        "[coord-server] bootstrap-role retry: " + result.getStderr());
+                System.out.println("[coord-server] bootstrap-role retry: " + result.getStderr());
             } catch (Exception e) {
                 System.out.println("[coord-server] bootstrap-role retry: " + e.getMessage());
             }

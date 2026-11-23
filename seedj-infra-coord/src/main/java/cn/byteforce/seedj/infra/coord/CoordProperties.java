@@ -111,8 +111,7 @@ public class CoordProperties {
     }
 
     /**
-     * 解析本应用在 coord 的命名空间：显式配置优先，否则 {@code seedj:<spring.application.name>}， 应用名为空时
-     * {@code default}。
+     * 解析本应用在 coord 的命名空间：显式配置优先，否则 {@code seedj:<spring.application.name>}， 应用名为空时 {@code default}。
      *
      * <p>所有 coord provider 共用这一入口，避免各自复制默认值逻辑。
      */
