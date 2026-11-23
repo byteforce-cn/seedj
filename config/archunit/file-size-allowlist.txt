@@ -12,3 +12,8 @@ seedj-workflow-local/src/main/java/cn/byteforce/seedj/infra/local/workflow/InMem
 seedj-ai-starter/src/main/java/cn/byteforce/seedj/starter/ai/plane/DecisionService.java
 # D7 卡片动作后越过 600 行；下一次把卡片相关方法拆到 ImCardMessaging 后再移出。
 seedj-im-starter/src/main/java/cn/byteforce/seedj/starter/im/ImMessagingService.java
+# 2026-11-23 seedj-workflow-coord 首版：读面投影与 seat/round 映射集中在一个类，
+# 下一轮拆出 B1Projection 与 SeatResolution 后移出名单。
+seedj-workflow-coord/src/main/java/cn/byteforce/seedj/infra/coord/workflow/CoordWorkflowReads.java
+# 动作映射 + 静态开关校验 + sidecar 写入先集中；下一轮拆出 WorkflowActionGuards。
+seedj-workflow-coord/src/main/java/cn/byteforce/seedj/infra/coord/workflow/CoordWorkflowActions.java

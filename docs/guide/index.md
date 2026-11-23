@@ -23,6 +23,7 @@ Seedj 的开发者文档。第一次来，从[快速开始](quickstart.md)开始
 - [IAM 装配](iam-starter.md)：OIDC / SCIM / RBAC / ABAC
 - [IM 装配](im-starter.md)：长连接、帧协议、握手与在线状态
 - [AI 装配](ai-starter.md)：决策账本、DecisionToken、guard 与有界 agent 循环
+- [工作流 coord 适配器](workflow-coord.md)：workflow SPI 的 coord 生产实现与边界
 - [上游诉求](ai-upstream.md)：AI 依赖的外部契约与 T0 收敛路径
 - [基础设施 SPI](spi.md)：新增适配器的契约
 - [配置说明](configuration.md)：profile 与常用配置项

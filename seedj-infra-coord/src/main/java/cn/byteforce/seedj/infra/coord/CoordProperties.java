@@ -2,6 +2,7 @@ package cn.byteforce.seedj.infra.coord;
 
 import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.core.env.Environment;
 
 /**
  * coord 连接与能力配置。
@@ -107,6 +108,18 @@ public class CoordProperties {
 
     public void setNamespace(String namespace) {
         this.namespace = namespace;
+    }
+
+    /**
+     * 解析本应用在 coord 的命名空间：显式配置优先，否则 {@code seedj:<spring.application.name>}， 应用名为空时 {@code default}。
+     *
+     * <p>所有 coord provider 共用这一入口，避免各自复制默认值逻辑。
+     */
+    public String resolveNamespace(Environment environment) {
+        if (namespace != null && !namespace.isBlank()) {
+            return namespace;
+        }
+        return "seedj:" + environment.getProperty("spring.application.name", "default");
     }
 
     public Tls getTls() {

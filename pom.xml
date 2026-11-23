@@ -57,6 +57,7 @@
         <module>seedj-infra-local</module>
         <module>seedj-infra-coord</module>
         <module>seedj-workflow-local</module>
+        <module>seedj-workflow-coord</module>
         <module>seedj-jdbc-postgresql</module>
         <module>seedj-iam-starter</module>
         <module>seedj-biz-starter</module>

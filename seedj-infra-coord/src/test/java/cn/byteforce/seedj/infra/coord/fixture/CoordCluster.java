@@ -28,7 +28,7 @@ import org.testcontainers.utility.DockerImageName;
 public final class CoordCluster implements AutoCloseable {
 
     private static final String IMAGE =
-            System.getProperty("seedj.coord.test.image", "ghcr.io/byteforce-cn/coord:v0.4.4");
+            System.getProperty("seedj.coord.test.image", "ghcr.io/byteforce-cn/coord:v0.4.6");
     private static final Duration STARTUP = Duration.ofSeconds(90);
 
     private final GenericContainer<?> server;
@@ -37,20 +37,38 @@ public final class CoordCluster implements AutoCloseable {
     private final CoordClient client;
     private final Path workDir;
 
+    private final String token;
+
     private CoordCluster(
             GenericContainer<?> server,
             GenericContainer<?> agent,
             int agentPort,
             CoordClient client,
-            Path workDir) {
+            Path workDir,
+            String token) {
         this.server = server;
         this.agent = agent;
         this.agentPort = agentPort;
         this.client = client;
         this.workDir = workDir;
+        this.token = token;
     }
 
     public static CoordCluster start() {
+        return start(false);
+    }
+
+    /**
+     * 带认证的集群：server 启用 CCT、agent 用 bootstrap token 自注册；返回的 client 携带 root CCT。
+     *
+     * <p>审批的 {@code on_behalf_of} 只在调用方主体非 {@code anonymous} 时可用（coord 0.4.6）， 所以 workflow
+     * 契约测试必须跑在认证集群上。
+     */
+    public static CoordCluster startWithAuth() {
+        return start(true);
+    }
+
+    private static CoordCluster start(boolean auth) {
         Assumptions.assumeTrue(
                 System.getProperty("os.name", "").toLowerCase().contains("linux"),
                 "coord host-network fixture requires Linux");
@@ -83,6 +101,9 @@ public final class CoordCluster implements AutoCloseable {
                             http,
                             agentPort,
                             agentHttp);
+            if (auth) {
+                enableAuth(serverConfig, agentConfig);
+            }
 
             GenericContainer<?> server =
                     new GenericContainer<>(DockerImageName.parse(IMAGE))
@@ -110,8 +131,18 @@ public final class CoordCluster implements AutoCloseable {
                                                     "[coord-server] "
                                                             + frame.getUtf8StringWithoutLineEnding()
                                                             + System.lineSeparator()));
+            String logLevel = System.getProperty("seedj.coord.test.log", "");
+            if (!logLevel.isBlank()) {
+                server.withEnv("RUST_LOG", logLevel);
+            }
             server.start();
             awaitHealth(http);
+
+            String token = auth ? loginRoot(server, grpc) : null;
+            if (token != null) {
+                bootstrapAgentRole(server, grpc, token);
+                grantWorkflowMq(server, grpc, token);
+            }
 
             GenericContainer<?> agent =
                     new GenericContainer<>(DockerImageName.parse(IMAGE))
@@ -131,19 +162,25 @@ public final class CoordCluster implements AutoCloseable {
                                                     "[coord-agent] "
                                                             + frame.getUtf8StringWithoutLineEnding()
                                                             + System.lineSeparator()));
+            if (!logLevel.isBlank()) {
+                agent.withEnv("RUST_LOG", logLevel);
+            }
             agent.start();
 
-            CoordClient client =
-                    CoordClient.create(
-                            CoordConfig.builder()
-                                    .agentHost("127.0.0.1")
-                                    .agentPort(agentPort)
-                                    .requestTimeout(Duration.ofSeconds(5))
-                                    .allowInsecurePlaintext(true)
-                                    .build());
+            CoordConfig.Builder config =
+                    CoordConfig.builder()
+                            .agentHost("127.0.0.1")
+                            .agentPort(agentPort)
+                            .requestTimeout(Duration.ofSeconds(5))
+                            .allowInsecurePlaintext(true);
+            if (token != null) {
+                String cct = token;
+                config.authTokenSupplier(() -> cct);
+            }
+            CoordClient client = CoordClient.create(config.build());
             awaitIdgen(client);
             awaitKv(client);
-            return new CoordCluster(server, agent, agentPort, client, workDir);
+            return new CoordCluster(server, agent, agentPort, client, workDir, token);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
@@ -161,6 +198,11 @@ public final class CoordCluster implements AutoCloseable {
         return client;
     }
 
+    /** 认证集群的 root CCT；未启用认证时为 {@code null}。 */
+    public String token() {
+        return token;
+    }
+
     @Override
     public void close() {
         try {
@@ -169,6 +211,146 @@ public final class CoordCluster implements AutoCloseable {
             agent.stop();
             server.stop();
         }
+    }
+
+    private static void enableAuth(Path serverConfig, Path agentConfig) throws IOException {
+        byte[] key = new byte[32];
+        new java.security.SecureRandom().nextBytes(key);
+        String rootKey = java.util.HexFormat.of().formatHex(key);
+        String verifyingKey = verifyingKey(rootKey);
+        String server = Files.readString(serverConfig, StandardCharsets.UTF_8);
+        server =
+                server.replace(
+                        "[security]\nauth_enabled = false",
+                        "[security]\nauth_enabled = true\nauth_root_key = \""
+                                + rootKey
+                                + "\"\nroot_password = \"root-test-password\"\n"
+                                + "agent_bootstrap_tokens = [\"bootstrap-token-for-tests\"]");
+        Files.writeString(serverConfig, server, StandardCharsets.UTF_8);
+
+        String agent = Files.readString(agentConfig, StandardCharsets.UTF_8);
+        agent =
+                agent.replace(
+                        "[auth]\nenabled = false",
+                        "[auth]\nenabled = true\nverifying_key_hex = \""
+                                + verifyingKey
+                                + "\"\nbootstrap_token = \"bootstrap-token-for-tests\"");
+        Files.writeString(agentConfig, agent, StandardCharsets.UTF_8);
+    }
+
+    /** 与服务端 `TokenSigningKeyring` 同一 HKDF 路径派生 Ed25519 公钥。 */
+    private static String verifyingKey(String rootKeyHex) {
+        byte[] root = java.util.HexFormat.of().parseHex(rootKeyHex);
+        var hkdf =
+                new org.bouncycastle.crypto.generators.HKDFBytesGenerator(
+                        new org.bouncycastle.crypto.digests.SHA256Digest());
+        hkdf.init(
+                new org.bouncycastle.crypto.params.HKDFParameters(
+                        root, null, "coord-cct-ed25519-v1".getBytes(StandardCharsets.UTF_8)));
+        byte[] seed = new byte[32];
+        hkdf.generateBytes(seed, 0, seed.length);
+        var privateKey = new org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters(seed, 0);
+        return java.util.HexFormat.of().formatHex(privateKey.generatePublicKey().getEncoded());
+    }
+
+    private static void grantWorkflowMq(GenericContainer<?> server, int grpc, String rootToken) {
+        try {
+            server.execInContainer(
+                    "coord",
+                    "auth",
+                    "role",
+                    "add",
+                    "agent-self-role",
+                    "--token",
+                    rootToken,
+                    "--addr",
+                    "127.0.0.1:" + grpc);
+        } catch (Exception e) {
+            System.out.println("[coord-server] agent-self-role add failed: " + e);
+        }
+        for (String capability :
+                java.util.List.of(
+                        "coord:mq:manage",
+                        "coord:mq:publish",
+                        "coord:mq:subscribe",
+                        "coord:mq:consume",
+                        "data:lease:grant",
+                        "data:lease:read")) {
+            try {
+                var result =
+                        server.execInContainer(
+                                "coord",
+                                "auth",
+                                "role",
+                                "grant-capability",
+                                "agent-self-role",
+                                capability,
+                                "--token",
+                                rootToken,
+                                "--addr",
+                                "127.0.0.1:" + grpc);
+                if (result.getExitCode() != 0) {
+                    System.out.println(
+                            "[coord-server] grant " + capability + " retry: " + result.getStderr());
+                    sleep(500);
+                }
+            } catch (Exception e) {
+                System.out.println("[coord-server] grant " + capability + " failed: " + e);
+            }
+        }
+    }
+
+    private static void bootstrapAgentRole(GenericContainer<?> server, int grpc, String rootToken) {
+        for (int attempt = 0; attempt < 30; attempt++) {
+            try {
+                var result =
+                        server.execInContainer(
+                                "coord",
+                                "security",
+                                "bootstrap-role",
+                                "--token",
+                                rootToken,
+                                "--addr",
+                                "127.0.0.1:" + grpc);
+                if (result.getExitCode() == 0) {
+                    System.out.println("[coord-server] agent bootstrap role ready");
+                    return;
+                }
+                System.out.println("[coord-server] bootstrap-role retry: " + result.getStderr());
+            } catch (Exception e) {
+                System.out.println("[coord-server] bootstrap-role retry: " + e.getMessage());
+            }
+            sleep(500);
+        }
+        throw new IllegalStateException("coord bootstrap-role did not succeed");
+    }
+
+    private static String loginRoot(GenericContainer<?> server, int grpc) {
+        for (int attempt = 0; attempt < 30; attempt++) {
+            try {
+                var result =
+                        server.execInContainer(
+                                "coord",
+                                "auth",
+                                "login",
+                                "root",
+                                "--password",
+                                "root-test-password",
+                                "--token-only",
+                                "--no-save",
+                                "--addr",
+                                "127.0.0.1:" + grpc);
+                String token = result.getStdout().trim();
+                if (result.getExitCode() == 0 && !token.isEmpty()) {
+                    return token.lines().reduce((first, second) -> second).orElse(token).trim();
+                }
+                System.out.println("[coord-server] auth login retry: " + result.getStderr());
+            } catch (Exception e) {
+                System.out.println("[coord-server] auth login retry: " + e.getMessage());
+            }
+            sleep(500);
+        }
+        throw new IllegalStateException("coord root login did not succeed");
     }
 
     private static void awaitHealth(int httpPort) {

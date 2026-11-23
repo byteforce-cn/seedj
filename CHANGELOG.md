@@ -7,6 +7,13 @@
 
 ### Added
 
+- `seedj-workflow-coord`：`WorkflowProvider` 到 coord workflow v2 的全量适配器（定义编译进
+  `document.tags`、round 级读面、12 个动作 + cancel/terminate、coord KV sidecar、
+  `seedj.workflow.provider=coord` 装配）。契约 TCK 31 个用例跑真 coord 集群；coord 测试
+  基线升到 0.4.6（Resume 时间预算取步骤 `timeout`）。
+- `seedj-infra-coord`：`CoordProperties.resolveNamespace(Environment)` 统一命名空间解析
+  （显式配置 → `seedj:<spring.application.name>` → `default`），lock/id/eventbus/workflow
+  适配器共用同一入口。
 - `seedj-pki-contract`：PKI 契约 v2（包 `cn.byteforce.seedj.provider.pki`）。覆盖
   `issue` / `signCsr`、Transit `sign` / `verify`、`revoke` / CRL / `tidy`、按 serial 读证书、
   `issuer` 查询、alias → 身份映射与 `sslConfig`；`IssuedCertificate` 用

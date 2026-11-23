@@ -29,8 +29,32 @@ IAM 的退出标准与当前状态见 [IAM 装配 §生产可用性边界](iam-s
 
 ## 工作流
 
-`seedj-workflow-local` 是内存实现；PostgreSQL 侧已固定存储 schema、跨连接可读与 timer
-扫描三个语义，完整的 JDBC 状态机（定义注册、动作推进）仍未交付。
+`seedj-workflow-local` 是默认的内存实现；PostgreSQL 侧已固定存储 schema、跨连接可读与
+timer 扫描三个语义，完整的 JDBC 状态机（定义注册、动作推进）仍未交付。生产可用路径是
+`seedj.workflow.provider=coord`（[工作流 coord 适配器](workflow-coord.md)），它不复用
+PostgreSQL 的 workflow schema。
+
+coord 适配器的读面投影在 coord 对应能力落地后删除：
+
+- **实例撤回的回退事件**：coord 的实例撤回不投影完整的席位级 `TASK_WITHDRAWN` /
+  `INSTANCE_ROLLED_BACK`，适配器按 sidecar 的 `targetStep` 补齐；coord 补齐后删除。
+- **任务撤回的事件序**：coord 把回退副作用排在审计投影的 `TASK_WITHDRAWN` 之前；适配器
+  在同一时间片内按 seedj 词汇重排。coord 直接按契约顺序投影后删除。
+- **恢复的事件序与状态读面**：恢复在 coord 里分两次提交——桥侧先建新轮次，runtime 的
+  `INSTANCE_RESUMED` / `WAITING→SUSPENDED` 随后落库；`GetStatus` 又是 runtime 的本地缓存
+  投影（驱动后 2–3s 内可能仍报旧值）。适配器以直读存储的 `GetInstanceDetail` 为准：
+  `INSTANCE_RESUMED` 前移到本轮次事件之前，且状态按「有可收集轮次 → RUNNING，桥侧
+  WAITING 且无可收集轮次 → WAITING」收口。coord 把恢复与超时处置和 runtime 状态写进同一
+  提交后删除。
+- **`ListInstances` 单值状态过滤**：旧集群没有 `status_in` 时走客户端过滤；coord 0.4.5+
+  已提供多值过滤，慢路径只作为兼容分支保留。
+- **已完成步骤的后加签**：coord 只允许在 open 分支上创建 AFTER 轮次；适配器把派生轮次挂到
+  当前分支并在 sidecar 记录原始任务。coord 支持已完成任务的后加签后删除。
+- **完成后加签的派发时点**：派生任务在当前步骤之后、下一步之前执行，而不是回填到已完成
+  步骤的当前状态里。
+- **非 USER 受让方**：`Transfer/Delegate` 的组/部门/角色受让方 fail-closed（coord#454）。
+- **实例级 Cc**：operator 仍受 coord 授权面约束（initiator / `sign-admins` / 席位持有人）。
+- **sidecar 无 TTL**：`formData`、真实 operator、撤回目标保存在 coord KV，保留策略由运维负责。
 
 ## coord 锁依赖实例时钟
 

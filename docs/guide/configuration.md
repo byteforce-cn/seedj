@@ -93,6 +93,9 @@ docker compose up -d
 | `seedj.coord.eventbus.consumer-scan-limit` | `1000` | 每次 poll 扫描投递账本的上界（账本大小 ≈ 在飞消息数） |
 | `seedj.coord.lock.holder-id` | 空 | 锁持有者标识；空 = `host:pid:<随机后缀>`（每个 JVM 唯一，重启变化） |
 | `seedj.coord.auth.token` / `token-file` | 空 | 鉴权令牌；也读 `COORD_AUTH_TOKEN`，不要写进配置文件 |
+| `seedj.workflow.provider` | `memory` | `coord` 选择 coord workflow v2 适配器（[说明](workflow-coord.md)） |
+| `seedj.workflow.coord.sign-admin` | ——（必填） | 服务主体；编译进 `approve.signAdmins`，管理动作以它执行 |
+| `seedj.workflow.coord.max-definition-bytes` | `65536` | 内嵌 seedj 定义的上限 |
 
 agent 不可达时装配仍然成功（客户端惰性连接），失败发生在首次取号，并且消息里带
 `host:port`。
@@ -111,6 +114,9 @@ seedj:
   lock:
     provider: coord
 ```
+
+`seedj.workflow.provider=coord` 还要求 agent 的 `services.workflow_on_behalf_services`
+包含 `sign-admin` 服务主体；完整示例与映射见 [工作流 coord 适配器](workflow-coord.md)。
 
 `seedj.eventbus.transport=coord` 同时装配发布与消费：消费状态（租约、重试延迟、attempts、死信）
 写在 coord KV 的投递账本里，消息本体仍在 MQ。租约与 `retry(delay)` 由本地时钟判定（毫秒级），

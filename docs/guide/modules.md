@@ -8,6 +8,7 @@ seedj-iam-starter         →  seedj-iam-engine  →  seedj-iam-contract
 seedj-server/im           →  seedj-im-starter  →  seedj-biz-starter
                           →  seedj-infra-local / seedj-jdbc-postgresql
                           →  seedj-infra-coord  →  coord-java-sdk
+                          →  seedj-workflow-coord  →  seedj-workflow-contract
                           →  core
 seedj-server/ai           →  seedj-ai-starter  →  seedj-biz-starter
                           →  seedj-infra-local / seedj-jdbc-postgresql
@@ -41,6 +42,7 @@ AI 这一支的单向性由 ArchUnit 规则守着：`seedj-ai-starter` 依赖 `s
 | `seedj-codegen` | 构建期注解处理器：schema、OpenAPI、迁移候选、可选读视图 | 构建期 |
 | `seedj-infra-local` | 内存、文件、BouncyCastle 适配器 | ✅ |
 | `seedj-workflow-local` | 工作流 SPI 的本地内存实现 | ✅ |
+| `seedj-workflow-coord` | 工作流 SPI 的 coord workflow v2 适配器（[说明](workflow-coord.md)） | ✅ |
 | `seedj-jdbc-postgresql` | PostgreSQL 适配器、DDL、版本化迁移、生产事件存储 | ✅ |
 | `seedj-infra-coord` | coord 适配器（组合 coord 原语）：ID、编号、全局序列、EventBus 发布/消费、分布式锁、PKI/Transit | ✅ |
 | `seedj-biz-starter` | 业务装配：本地开发认证、命令、查询、审计、事件总线 | ✅ |

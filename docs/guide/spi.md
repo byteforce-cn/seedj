@@ -40,6 +40,7 @@ Caller caller = callers.find().orElseThrow()     // 当前调用方（未认证�
 | `core` | 内核契约（错误码、时间轴、命令、读模型、安全、`observability` 健康面）、迁移原语、契约测试 TCK（test-jar）、`core/security`（`Caller` / `CallerProvider` / `SecurityAudit*` / `AccessTokenRules`）、`outbox` / `outbox/spi` 契约、`workflow/spi` 工作流契约 | Spring、BouncyCastle、任何存储机制 |
 | `seedj-pki-contract` | PKI 契约：证书/CSR 签发、Transit 签名、吊销/CRL/tidy、按 serial 读证书、alias 映射、TLS 配置描述 | Spring、Coord SDK、任何存储机制 |
 | `seedj-infra-local` | 本地实现：PKI（BC + 状态文件）、Transit（JCE + 状态文件）、EventBus 本地队列（file / memory，含消费者组）、雪花 + 字符串 ID、Lock、Audit memory、IAM memory（含 AES/Transit 密钥保护器与默认 `IamAttributeSource`，JDBC IAM 也依赖它）、本地工作流引擎（v2.4） | outbox、relay、PostgreSQL 存储 |
+| `seedj-workflow-coord` | coord workflow v2 适配器：定义编译、读面投影、12 个动作与 sidecar（[说明](workflow-coord.md)） | 业务逻辑；不得依赖 jdbc / starter / server |
 | `seedj-jdbc-postgresql` | PostgreSQL 实现：Outbox 存储 + 投递装配（`OutboxWriter` / `OutboxRelay` / `OutboxMetrics` / `OutboxInfrastructureInitializer`）、Audit 存储、IAM 存储、版本化迁移 + `InfrastructureCapability`；**允许**自带条件化 `@AutoConfiguration` | 队列 transport、业务逻辑、无条件的 Spring 装配 |
 | `seedj-biz-starter` | 业务服务开箱即用：资源服务器安全（`CallerProvider`、401/403 JSON、拒绝审计）、`CommandAgents`、`EventPublisher`、`EventConsumerContainer`、`EventTopicCapability`、`InfrastructureInitializer`、审计/指标/追踪适配 | 业务逻辑；**不得依赖 `seedj-iam-starter`**（`BizStarterPackageIndependenceTest` 门禁） |
 | `seedj-iam-engine` | IAM 纯逻辑：身份/授权判定、TOTP/MFA、SCIM 用例 | Spring、JDBC、任何存储机制（ArchUnit 门禁） |
@@ -175,6 +176,9 @@ workflowProvider.act(new ActionRequest(instance.id(), new ApproveAction(
 ```
 
 - `start` 按 `instanceId` 幂等；`act` 按 `actionId` 幂等，重复调用返回当前快照。
+- provider 选择：`seedj.workflow.provider=memory`（默认，`seedj-workflow-local`）或
+  `coord`（`seedj-workflow-coord`）。coord 适配器的装配、映射与生产边界见
+  [工作流 coord 适配器](workflow-coord.md)。
 - 可选能力（加签/减签/转办/委托/撤回/抄送/催办/恢复）必须先查 `capabilities()`；当前内存实现 21 项全为 `true`。
 - 超时、`dueAt`、`delegateFor` 全部使用 Provider 时钟；审计对账用 `provider.now()`。
 - 会签/或签/驳回/死锁由 Provider 计算，业务方不得自行聚合（口径见契约 §1.5.1）。
