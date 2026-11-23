@@ -205,8 +205,7 @@ final class CoordWorkflowReads {
                         status.definitionNamespace(),
                         status.definitionName() == null ? "" : status.definitionName());
         WorkflowDefinitionVersion version = ids.seedjVersion(status.definitionVersion());
-        WorkflowStatus seedjStatus =
-                status(status.state(), status.approvalStatus(), status.fault());
+        WorkflowStatus seedjStatus = effectiveStatus(status, detail);
         boolean terminal = isTerminal(seedjStatus);
         String currentStep = terminal ? null : currentStep(status, detail);
         return new WorkflowInstance(
@@ -874,6 +873,7 @@ final class CoordWorkflowReads {
         }
         history = withdrawTaskFirst(history);
         history = withdrawnFirst(history);
+        history = resumedFirst(history);
         boolean rolledBack =
                 history.stream().anyMatch(e -> "INSTANCE_ROLLED_BACK".equals(e.eventType()));
         if (withdrawn && !rolledBack && withdrawExtras != null) {
@@ -988,6 +988,34 @@ final class CoordWorkflowReads {
         return ordered;
     }
 
+    /**
+     * 恢复在 coord 里分两次提交：桥侧先写新轮次（{@code TASK_CREATED}/{@code ROUND_OPENED}），
+     * runtime 的 {@code INSTANCE_RESUMED} 随后落库。seedj 契约规定先恢复再建任务，故把每条
+     * 恢复事件前移到它所属轮次（{@code attributes.round_id}）的第一条事件之前。
+     *
+     * <p>B1 projection, remove after coord 在同一提交内按契约事件序落库。
+     */
+    private static List<WorkflowHistoryEvent> resumedFirst(List<WorkflowHistoryEvent> history) {
+        List<WorkflowHistoryEvent> ordered = new ArrayList<>(history);
+        for (int i = ordered.size() - 1; i >= 0; i--) {
+            WorkflowHistoryEvent event = ordered.get(i);
+            if (!"INSTANCE_RESUMED".equals(event.eventType())) {
+                continue;
+            }
+            String roundId = event.attributes().get("round_id");
+            if (roundId == null || roundId.isBlank()) {
+                continue;
+            }
+            for (int target = 0; target < i; target++) {
+                if (roundId.equals(ordered.get(target).attributes().get("round_id"))) {
+                    ordered.add(target, ordered.remove(i));
+                    break;
+                }
+            }
+        }
+        return ordered;
+    }
+
     private Map<String, String> attributes(String eventType, String json) {
         Map<String, String> attributes = new TreeMap<>();
         if (json == null || json.isBlank()) {
@@ -1083,6 +1111,65 @@ final class CoordWorkflowReads {
     }
 
     // ──── 状态/字段映射 ────
+
+    /**
+     * seedj 状态以<b>权威读面</b>为准：{@code GetInstanceDetail} 直读存储，{@code GetStatus} 是
+     * runtime 的本地缓存投影（驱动后 2–3s 内可能仍报旧值）。两个跨提交窗口在这里收口：
+     *
+     * <ul>
+     *   <li>恢复后 runtime 仍报 {@code WAITING}、桥侧已有可收集的新轮次 → {@code RUNNING}；
+     *   <li>极短期限的审批超时里 runtime 的 {@code Waiting} 落库被丢弃、桥侧已 {@code Waiting}
+     *       且没有可收集轮次 → {@code WAITING}。
+     * </ul>
+     *
+     * <p>B1 projection, remove after coord 把恢复/超时处置与 runtime 状态写进同一提交。
+     */
+    private static WorkflowStatus effectiveStatus(
+            cn.byteforce.coord.sdk.workflow.WorkflowStatus status, ApprovalInstanceDetail detail) {
+        WorkflowStatus mapped = status(status.state(), status.approvalStatus(), status.fault());
+        if (detail == null || isTerminal(mapped)) {
+            return mapped;
+        }
+        if (collectable(detail)) {
+            return mapped == WorkflowStatus.WAITING ? WorkflowStatus.RUNNING : mapped;
+        }
+        if ("WAITING".equalsIgnoreCase(detail.status())) {
+            return WorkflowStatus.WAITING;
+        }
+        return mapped;
+    }
+
+    /** 仍有可收集票的轮次：轮次 open/suspended、所在分支 open，且轮次里有未收口席位。 */
+    private static boolean collectable(ApprovalInstanceDetail detail) {
+        return detail.rounds().stream()
+                .filter(
+                        round ->
+                                "open".equalsIgnoreCase(round.status())
+                                        || "suspended".equalsIgnoreCase(round.status()))
+                .filter(
+                        round ->
+                                detail.branches().stream()
+                                        .anyMatch(
+                                                branch ->
+                                                        branch.id().equals(round.branchId())
+                                                                && "open"
+                                                                        .equalsIgnoreCase(
+                                                                                branch.status())))
+                .anyMatch(
+                        round ->
+                                detail.tasks().stream()
+                                        .anyMatch(
+                                                task ->
+                                                        task.roundId().equals(round.id())
+                                                                && ("created"
+                                                                                .equalsIgnoreCase(
+                                                                                        task
+                                                                                                .status())
+                                                                        || "claimed"
+                                                                                .equalsIgnoreCase(
+                                                                                        task
+                                                                                                .status()))));
+    }
 
     static WorkflowStatus status(WorkflowState state, String approvalStatus) {
         return status(state, approvalStatus, null);

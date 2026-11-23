@@ -367,8 +367,10 @@ final class CoordWorkflowProvider implements WorkflowProvider {
         }
         if (action instanceof ApproveAction || action instanceof ResumeWorkflowAction) {
             if (roundOpen(detail, targetRound)) {
-                // 票/续期已同步落库，节点仍在收集：不需要等驱动。
-                return true;
+                // 票/续期已同步落库，节点仍在收集：不需要等驱动。读面可能落后于命令提交，
+                // 所以「轮次仍 open」要带上已计票的证据，否则会把收口前的旧轮次当成已落库。
+                return action instanceof ResumeWorkflowAction
+                        || roundCounted(detail, targetRound);
             }
             // 目标轮次已收口：必须等驱动推进到下一个节点。分支/轮次在「轮次已通过、
             // 驱动尚未推进」的窗口里仍是旧节点，只看 open 分支会过早返回。
@@ -378,7 +380,14 @@ final class CoordWorkflowProvider implements WorkflowProvider {
                 return liveNode.equals(status.currentStateName());
             }
             // 下一步不是审批（活动/完成）：等终态或 runtime 进入 WAITING（wait/listen）。
-            return status.state() == cn.byteforce.coord.sdk.workflow.WorkflowState.WAITING;
+            // GetStatus 是 runtime 的缓存投影：本轮收口后可能仍读到**收口前**的 WAITING。
+            // 用 updatedAt 与轮次 closedAt 比较，确认读面已越过本轮收口再认这个 WAITING，
+            // 否则会把陈旧的等待态当成「已推进到 listen」，动作返回错误快照。
+            if (status.state() != cn.byteforce.coord.sdk.workflow.WorkflowState.WAITING) {
+                return false;
+            }
+            long closedAt = roundClosedAt(detail, targetRound);
+            return closedAt <= 0 || status.updatedAt() >= closedAt;
         }
         // 加/减席位、催办、抄送、转办、委托、信号：新轮次出现后等缓存状态追上；
         // 没有状态机变化时两拍即返回。
@@ -397,6 +406,30 @@ final class CoordWorkflowProvider implements WorkflowProvider {
             }
         }
         return false;
+    }
+
+    /** 轮次里已有席位收口（通过或否决）：读面已看到命令效果的证据。 */
+    private static boolean roundCounted(
+            cn.byteforce.coord.sdk.workflow.ApprovalInstanceDetail detail, String roundId) {
+        if (detail == null || roundId == null) {
+            return false;
+        }
+        return detail.rounds().stream()
+                .filter(round -> round.id().equals(roundId))
+                .anyMatch(round -> round.completedCount() > 0 || round.rejectedCount() > 0);
+    }
+
+    /** 轮次收口时间（ms）；轮次不存在或未收口返回 0。 */
+    private static long roundClosedAt(
+            cn.byteforce.coord.sdk.workflow.ApprovalInstanceDetail detail, String roundId) {
+        if (detail == null || roundId == null) {
+            return 0;
+        }
+        return detail.rounds().stream()
+                .filter(round -> round.id().equals(roundId))
+                .mapToLong(cn.byteforce.coord.sdk.workflow.ApprovalRound::closedAtMs)
+                .findFirst()
+                .orElse(0);
     }
 
     private static String openNode(cn.byteforce.coord.sdk.workflow.ApprovalInstanceDetail detail) {

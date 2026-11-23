@@ -40,6 +40,12 @@ coord 适配器的读面投影在 coord 对应能力落地后删除：
   `INSTANCE_ROLLED_BACK`，适配器按 sidecar 的 `targetStep` 补齐；coord 补齐后删除。
 - **任务撤回的事件序**：coord 把回退副作用排在审计投影的 `TASK_WITHDRAWN` 之前；适配器
   在同一时间片内按 seedj 词汇重排。coord 直接按契约顺序投影后删除。
+- **恢复的事件序与状态读面**：恢复在 coord 里分两次提交——桥侧先建新轮次，runtime 的
+  `INSTANCE_RESUMED` / `WAITING→SUSPENDED` 随后落库；`GetStatus` 又是 runtime 的本地缓存
+  投影（驱动后 2–3s 内可能仍报旧值）。适配器以直读存储的 `GetInstanceDetail` 为准：
+  `INSTANCE_RESUMED` 前移到本轮次事件之前，且状态按「有可收集轮次 → RUNNING，桥侧
+  WAITING 且无可收集轮次 → WAITING」收口。coord 把恢复与超时处置和 runtime 状态写进同一
+  提交后删除。
 - **`ListInstances` 单值状态过滤**：旧集群没有 `status_in` 时走客户端过滤；coord 0.4.5+
   已提供多值过滤，慢路径只作为兼容分支保留。
 - **已完成步骤的后加签**：coord 只允许在 open 分支上创建 AFTER 轮次；适配器把派生轮次挂到

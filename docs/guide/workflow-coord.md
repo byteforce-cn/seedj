@@ -76,6 +76,10 @@ coord 不建模、但 seedj 契约需要的补充事实写在 coord KV：
   回填到已完成步骤的当前状态里。coord 支持后删除这条投影。
 - **实例撤回的回退事件**：coord 的实例撤回不投影完整的席位级事件，适配器按 sidecar 的
   `targetStep` 补齐 `TASK_WITHDRAWN` / `INSTANCE_ROLLED_BACK`；coord 补齐后删除投影。
+- **恢复的两段提交**：coord 先建新轮次、随后才落库 `INSTANCE_RESUMED` 与 runtime 的
+  `SUSPENDED`，`GetStatus` 还可能滞后 2–3s。适配器以 `GetInstanceDetail` 为权威读面，
+  把 `INSTANCE_RESUMED` 前移到本轮次事件之前，并据此修正「恢复后仍报 WAITING」与
+  「极短期限超时丢掉 runtime Waiting」两个窗口；coord 合并提交后删除投影。
 - **实例级 Cc** 的 operator 仍受 coord 授权面约束（initiator / `sign-admins` / 席位持有人）；
   任务级 Cc 由 `allowCc` 约束。
 - **retry**：coord 0.4.6 支持 `maxDelay` 与 `multiplier`；seedj 的退避序列按 `delay ×
