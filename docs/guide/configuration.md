@@ -92,6 +92,9 @@ docker compose up -d
 | `seedj.coord.eventbus.consumer-max-messages` | `0` | 每次 poll 向 agent 要的最大条数；0 = agent 默认 |
 | `seedj.coord.eventbus.consumer-scan-limit` | `1000` | 每次 poll 扫描投递账本的上界（账本大小 ≈ 在飞消息数） |
 | `seedj.coord.lock.holder-id` | 空 | 锁持有者标识；空 = `host:pid:<随机后缀>`（每个 JVM 唯一，重启变化） |
+| `seedj.file.provider` | 空 | `coord` 选择 coord 对象存储文件服务 |
+| `seedj.coord.file.bucket` | `seedj-files` | 文件数据/元数据对象所在 bucket |
+| `seedj.coord.file.max-object-bytes` | `33554432` | 单文件上限；SDK 整块缓冲，取值 ≤256MiB |
 | `seedj.coord.auth.token` / `token-file` | 空 | 鉴权令牌；也读 `COORD_AUTH_TOKEN`，不要写进配置文件 |
 | `seedj.workflow.provider` | `memory` | `coord` 选择 coord workflow v2 适配器（[说明](workflow-coord.md)） |
 | `seedj.workflow.coord.sign-admin` | ——（必填） | 服务主体；编译进 `approve.signAdmins`，管理动作以它执行 |
@@ -99,6 +102,13 @@ docker compose up -d
 
 agent 不可达时装配仍然成功（客户端惰性连接），失败发生在首次取号，并且消息里带
 `host:port`。
+
+文件服务（`seedj.file.provider=coord`）把内容写成随机 objectId 的数据对象，再用
+`sha256(命名空间, key)` 定位的元数据对象保存 key→objectId/content-type/时间。契约是
+create-only：同 key 再次写入返回 `ALREADY_EXISTS`，要替换先 `delete`。coord 0.4.6 的 v1 对象
+存储要求 `[object_storage] enabled=true` 且 `[kv_t] enabled=false`（v2 集群不注册 v1
+`coord.storage`）；SDK 整块缓冲，`max-object-bytes` 默认 32MiB、上限 256MiB。没有 list /
+预签名；写数据成功但元数据失败会留下不可见的孤儿数据对象，v1 不做后台 GC。
 
 分布式锁用 coord 的 KV + 事务组合，而不是 `LockClient`：coord 的锁租约只到秒级，而
 `LockProvider` 契约要求毫秒级 TTL。记录里带 `expiresAt`，由**各实例本地时钟**判定过期，

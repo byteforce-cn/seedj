@@ -27,6 +27,12 @@ import org.testcontainers.utility.DockerImageName;
  */
 public final class CoordCluster implements AutoCloseable {
 
+    private enum Mode {
+        V2,
+        AUTH_V2,
+        V1_STORAGE
+    }
+
     private static final String IMAGE =
             System.getProperty("seedj.coord.test.image", "ghcr.io/byteforce-cn/coord:v0.4.6");
     private static final Duration STARTUP = Duration.ofSeconds(90);
@@ -55,7 +61,7 @@ public final class CoordCluster implements AutoCloseable {
     }
 
     public static CoordCluster start() {
-        return start(false);
+        return start(Mode.V2);
     }
 
     /**
@@ -65,10 +71,20 @@ public final class CoordCluster implements AutoCloseable {
      * 契约测试必须跑在认证集群上。
      */
     public static CoordCluster startWithAuth() {
-        return start(true);
+        return start(Mode.AUTH_V2);
     }
 
-    private static CoordCluster start(boolean auth) {
+    /**
+     * v1 对象存储集群：{@code [object_storage] enabled=true} 且 {@code [kv_t] enabled=false}。
+     *
+     * <p>coord 0.4.6 在 kv_t 开启时不注册 v1 {@code coord.storage}，而 Java SDK 只有 v1 对象存储客户端。
+     */
+    public static CoordCluster startV1WithObjectStorage() {
+        return start(Mode.V1_STORAGE);
+    }
+
+    private static CoordCluster start(Mode mode) {
+        boolean auth = mode == Mode.AUTH_V2;
         Assumptions.assumeTrue(
                 System.getProperty("os.name", "").toLowerCase().contains("linux"),
                 "coord host-network fixture requires Linux");
@@ -83,10 +99,14 @@ public final class CoordCluster implements AutoCloseable {
 
         try {
             Path workDir = Files.createTempDirectory("seedj-coord-cluster-");
+            String serverTemplate =
+                    mode == Mode.V1_STORAGE ? "coord/server-v1.toml" : "coord/server.toml";
+            String agentTemplate =
+                    mode == Mode.V1_STORAGE ? "coord/agent-v1.toml" : "coord/agent.toml";
             Path serverConfig =
                     render(
                             workDir.resolve("server.toml"),
-                            "coord/server.toml",
+                            serverTemplate,
                             grpc,
                             raft,
                             http,
@@ -95,7 +115,7 @@ public final class CoordCluster implements AutoCloseable {
             Path agentConfig =
                     render(
                             workDir.resolve("agent.toml"),
-                            "coord/agent.toml",
+                            agentTemplate,
                             grpc,
                             raft,
                             http,
@@ -179,7 +199,11 @@ public final class CoordCluster implements AutoCloseable {
             }
             CoordClient client = CoordClient.create(config.build());
             awaitIdgen(client);
-            awaitKv(client);
+            if (mode == Mode.V1_STORAGE) {
+                awaitObjectStore(client);
+            } else {
+                awaitKv(client);
+            }
             return new CoordCluster(server, agent, agentPort, client, workDir, token);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
@@ -419,6 +443,23 @@ public final class CoordCluster implements AutoCloseable {
             }
         }
         throw new IllegalStateException("coord kv not ready within 60s", last);
+    }
+
+    /** v1 对象存储就绪：stat 一个不存在的对象，storage 关闭时会抛 FAILED_PRECONDITION。 */
+    private static void awaitObjectStore(CoordClient client) {
+        long deadline = System.nanoTime() + Duration.ofSeconds(60).toNanos();
+        CoordException last = null;
+        while (System.nanoTime() < deadline) {
+            try {
+                client.objectStore()
+                        .stat("seedj-fixture", "ready".getBytes(StandardCharsets.UTF_8));
+                return;
+            } catch (CoordException e) {
+                last = e;
+                sleep(200);
+            }
+        }
+        throw new IllegalStateException("coord object storage not ready within 60s", last);
     }
 
     private static void awaitIdgen(CoordClient client) {

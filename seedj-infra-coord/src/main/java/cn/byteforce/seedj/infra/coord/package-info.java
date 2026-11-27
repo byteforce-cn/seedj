@@ -1,5 +1,5 @@
 /**
- * coord 基础设施实现：ID、编号、全局序列、EventBus、锁、PKI、Transit 与策略判定。
+ * coord 基础设施实现：ID、编号、全局序列、EventBus、锁、PKI、Transit、策略判定与文件服务。
  *
  * <p><b>职责</b>：把 coord 0.4.3 的 Java SDK 接到 seedj 的能力契约上；只交付库与 Spring 自动配置， 不启动 coord
  * server、不产出可执行制品。

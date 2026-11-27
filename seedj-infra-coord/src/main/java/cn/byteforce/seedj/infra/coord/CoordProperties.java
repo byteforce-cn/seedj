@@ -45,6 +45,7 @@ public class CoordProperties {
     private final EventBus eventbus = new EventBus();
     private final Lock lock = new Lock();
     private final Pki pki = new Pki();
+    private final File file = new File();
 
     public boolean isEnabled() {
         return enabled;
@@ -152,6 +153,10 @@ public class CoordProperties {
 
     public Lock getLock() {
         return lock;
+    }
+
+    public File getFile() {
+        return file;
     }
 
     /** TLS 配置；启用时 CA/客户端证书路径由 SDK fail-closed 校验。 */
@@ -275,6 +280,32 @@ public class CoordProperties {
 
         public void setHolderId(String holderId) {
             this.holderId = holderId;
+        }
+    }
+
+    /** 文件能力配置。 */
+    public static class File {
+
+        /** blob 所在 coord bucket。 */
+        private String bucket = "seedj-files";
+
+        /** 单文件上限；SDK 整块缓冲，默认 32MiB，最大 256MiB。 */
+        private long maxObjectBytes = 33_554_432L;
+
+        public String getBucket() {
+            return bucket;
+        }
+
+        public void setBucket(String bucket) {
+            this.bucket = bucket;
+        }
+
+        public long getMaxObjectBytes() {
+            return maxObjectBytes;
+        }
+
+        public void setMaxObjectBytes(long maxObjectBytes) {
+            this.maxObjectBytes = maxObjectBytes;
         }
     }
 

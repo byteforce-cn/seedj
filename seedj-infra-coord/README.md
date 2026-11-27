@@ -1,7 +1,7 @@
 # seedj-infra-coord
 
-coord 0.4.3 的 seedj 基础设施实现。当前交付 ID、编号、全局序列、EventBus 发布与分布式锁；
-不启动 coord server，也不产出可执行制品。
+coord 0.4.6 的 seedj 基础设施实现。当前交付 ID、编号、全局序列、EventBus 发布与消费、
+分布式锁、PKI、Transit 与文件服务；不启动 coord server，也不产出可执行制品。
 
 能力都用 coord 的**基础原语**组合，而不是等 coord 提供每项成品：锁用 KV + OCC 事务
 （coord 的锁租约只到秒级，满足不了 150ms TTL 的契约），EventBus 发布用 MQ v2。
@@ -59,6 +59,8 @@ seedj:
     transport: coord
   lock:
     provider: coord
+  file:
+    provider: coord
 ```
 
 鉴权 token 优先读 `seedj.coord.auth.token`，其次 `seedj.coord.auth.token-file`，最后环境变量
@@ -67,14 +69,19 @@ seedj:
 ## 已交付 / 下一步
 
 - 已交付：`IdGenerator<String>`、`Numbering`、`GlobalSequencer`、`EventBusTransport.send`
-  （MQ v2 `Publish`，eventId 幂等 + 稳定分区）、`LockProvider`、`EventConsumerStore`。
+  （MQ v2 `Publish`，eventId 幂等 + 稳定分区）、`LockProvider`、`EventConsumerStore`、
+  `FileService`（coord 对象存储 + 元数据对象，create-only）。
 - 锁的组合方式：持有者/租约/`expiresAt` 写进 KV 记录，`TxnClient` 读集校验保证只有一个
   持有者能写成功；过期由本地时钟判定（亚秒级），释放只删自己那份记录。Redis/Postgres 锁
   的语义与它一致，时钟漂移的边界见「已知限制」。
 - 消费的组合方式：`MqV2Consumer`（join/poll/ack）+ KV 投递账本。领取时先写账本再 ack 位点，
   所以崩溃不丢消息、retry 不阻塞分区；租约与重试延迟用记录里的 `leaseUntil/retryAfter` 由本地
   时钟判定；死信写 KV（带 group 与 failure）。到期重投按位点回读 MQ，retention 已清掉时转死信。
-- 下一步：PKI、Transit、Workflow、Policy（Rego）。每一项都继续使用 coord 原语，不引入本地兜底。
+- 文件的组合方式：内容写随机 objectId 的数据对象，`sha256(scope, key)` 定位的元数据对象
+  create-only 写入作为创建线性化点；删除先删元数据再清理数据对象。coord 0.4.6 的 v1 对象存储
+  要求 `[object_storage] enabled=true` 且 `[kv_t] enabled=false`；单文件默认上限 32MiB（整块缓冲）。
+  没有 list / 预签名；孤儿数据对象由运维清理。
+- 下一步：Policy（Rego）等剩余能力。每一项都继续使用 coord 原语，不引入本地兜底。
 
 ## 测试夹具（v2）
 
