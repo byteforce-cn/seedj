@@ -21,8 +21,8 @@ import org.junit.jupiter.api.Test;
 /**
  * {@link FileService} 契约测试套件。
  *
- * <p>只断言语义，不碰物理实现：create-only、元数据、缺失语义、长度校验、非法 key、并发只成功一个。
- * 实现方只需要提供 {@link #newFileService()}，并保证每个用例拿到干净的存储。
+ * <p>只断言语义，不碰物理实现：create-only、元数据、缺失语义、长度校验、非法 key、并发只成功一个。 实现方只需要提供 {@link
+ * #newFileService()}，并保证每个用例拿到干净的存储。
  */
 public abstract class FileServiceContractTest {
 
@@ -48,7 +48,8 @@ public abstract class FileServiceContractTest {
             payload[index] = (byte) index;
         }
 
-        service.put("contract/binary.bin", "application/octet-stream", payload.length, stream(payload));
+        service.put(
+                "contract/binary.bin", "application/octet-stream", payload.length, stream(payload));
 
         assertThat(readAll(service.open("contract/binary.bin"))).isEqualTo(payload);
     }
@@ -71,18 +72,10 @@ public abstract class FileServiceContractTest {
     void secondPutOnSameKeyFailsWithoutTouchingFirst() {
         service.put("contract/one.bin", "application/octet-stream", 4, stream("AAAA"));
 
-        assertThatThrownBy(
-                        () ->
-                                service.put(
-                                        "contract/one.bin",
-                                        "text/plain",
-                                        3,
-                                        stream("BBB")))
+        assertThatThrownBy(() -> service.put("contract/one.bin", "text/plain", 3, stream("BBB")))
                 .isInstanceOfSatisfying(
                         FileException.class,
-                        e ->
-                                assertThat(e.getErrorCode())
-                                        .isEqualTo(FileErrorCode.ALREADY_EXISTS));
+                        e -> assertThat(e.getErrorCode()).isEqualTo(FileErrorCode.ALREADY_EXISTS));
 
         assertThat(readAll(service.open("contract/one.bin")))
                 .isEqualTo("AAAA".getBytes(StandardCharsets.UTF_8));
@@ -136,9 +129,7 @@ public abstract class FileServiceContractTest {
         assertThatThrownBy(() -> service.put("contract/empty.bin", "text/plain", 0, stream("")))
                 .isInstanceOfSatisfying(
                         FileException.class,
-                        e ->
-                                assertThat(e.getErrorCode())
-                                        .isEqualTo(FileErrorCode.INVALID_REQUEST));
+                        e -> assertThat(e.getErrorCode()).isEqualTo(FileErrorCode.INVALID_REQUEST));
 
         assertThat(service.stat("contract/empty.bin")).isEmpty();
     }
@@ -150,22 +141,17 @@ public abstract class FileServiceContractTest {
             assertThatThrownBy(() -> service.put(key, "text/plain", 1, stream("a")))
                     .isInstanceOfSatisfying(
                             FileException.class,
-                            e ->
-                                    assertThat(e.getErrorCode())
-                                            .isEqualTo(FileErrorCode.INVALID_KEY));
+                            e -> assertThat(e.getErrorCode()).isEqualTo(FileErrorCode.INVALID_KEY));
         }
     }
 
     @Test
     @DisplayName("流比声明短时拒绝且不落盘")
     void rejectsStreamShorterThanDeclaredLength() {
-        assertThatThrownBy(
-                        () -> service.put("contract/short.bin", "text/plain", 5, stream("abc")))
+        assertThatThrownBy(() -> service.put("contract/short.bin", "text/plain", 5, stream("abc")))
                 .isInstanceOfSatisfying(
                         FileException.class,
-                        e ->
-                                assertThat(e.getErrorCode())
-                                        .isEqualTo(FileErrorCode.INVALID_REQUEST));
+                        e -> assertThat(e.getErrorCode()).isEqualTo(FileErrorCode.INVALID_REQUEST));
 
         assertThat(service.stat("contract/short.bin")).isEmpty();
     }
@@ -173,13 +159,10 @@ public abstract class FileServiceContractTest {
     @Test
     @DisplayName("流比声明长时拒绝且不落盘")
     void rejectsStreamLongerThanDeclaredLength() {
-        assertThatThrownBy(
-                        () -> service.put("contract/long.bin", "text/plain", 3, stream("abcd")))
+        assertThatThrownBy(() -> service.put("contract/long.bin", "text/plain", 3, stream("abcd")))
                 .isInstanceOfSatisfying(
                         FileException.class,
-                        e ->
-                                assertThat(e.getErrorCode())
-                                        .isEqualTo(FileErrorCode.INVALID_REQUEST));
+                        e -> assertThat(e.getErrorCode()).isEqualTo(FileErrorCode.INVALID_REQUEST));
 
         assertThat(service.stat("contract/long.bin")).isEmpty();
     }

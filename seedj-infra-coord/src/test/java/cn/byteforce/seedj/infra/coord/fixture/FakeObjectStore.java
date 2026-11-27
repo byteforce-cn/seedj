@@ -10,8 +10,8 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * 内存版 coord 对象存储：对齐 SDK 的三条语义——create-only、空数据被拒、缺失对象 stat 为空 /
- * get 抛 {@code NOT_FOUND}。测试夹具只保留 {@code FileService} 用到的行为。
+ * 内存版 coord 对象存储：对齐 SDK 的三条语义——create-only、空数据被拒、缺失对象 stat 为空 / get 抛 {@code NOT_FOUND}。测试夹具只保留
+ * {@code FileService} 用到的行为。
  */
 public final class FakeObjectStore implements ObjectStoreClient {
 
@@ -155,13 +155,7 @@ public final class FakeObjectStore implements ObjectStoreClient {
 
     private ObjectInfo info(Key key, long size) {
         return new ObjectInfo(
-                key.bucket(),
-                key.objectId(),
-                size,
-                1,
-                revisions.getOrDefault(key, 0L),
-                true,
-                true);
+                key.bucket(), key.objectId(), size, 1, revisions.getOrDefault(key, 0L), true, true);
     }
 
     private static void failIf(ErrorCode code, String action) {

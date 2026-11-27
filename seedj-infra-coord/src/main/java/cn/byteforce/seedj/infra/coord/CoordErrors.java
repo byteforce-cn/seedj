@@ -82,7 +82,8 @@ final class CoordErrors {
                 e);
     }
 
-    static EventBusException consumer(CoordException e, CoordEndpoint endpoint) {        EventBusErrorCode mapped =
+    static EventBusException consumer(CoordException e, CoordEndpoint endpoint) {
+        EventBusErrorCode mapped =
                 switch (e.getErrorCode()) {
                     case UNAVAILABLE,
                                     DEADLINE_EXCEEDED,

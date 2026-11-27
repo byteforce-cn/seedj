@@ -64,15 +64,11 @@ class CoordFileServiceTest {
         assertThatThrownBy(() -> service.put("short.bin", "text/plain", 5, stream("abc")))
                 .isInstanceOfSatisfying(
                         FileException.class,
-                        e ->
-                                assertThat(e.getErrorCode())
-                                        .isEqualTo(FileErrorCode.INVALID_REQUEST));
+                        e -> assertThat(e.getErrorCode()).isEqualTo(FileErrorCode.INVALID_REQUEST));
         assertThatThrownBy(() -> service.put("long.bin", "text/plain", 3, stream("abcd")))
                 .isInstanceOfSatisfying(
                         FileException.class,
-                        e ->
-                                assertThat(e.getErrorCode())
-                                        .isEqualTo(FileErrorCode.INVALID_REQUEST));
+                        e -> assertThat(e.getErrorCode()).isEqualTo(FileErrorCode.INVALID_REQUEST));
 
         assertThat(objects.putCount()).isZero();
     }
@@ -85,22 +81,15 @@ class CoordFileServiceTest {
         assertThatThrownBy(() -> service.put("empty.bin", "text/plain", 0, stream("")))
                 .isInstanceOfSatisfying(
                         FileException.class,
-                        e ->
-                                assertThat(e.getErrorCode())
-                                        .isEqualTo(FileErrorCode.INVALID_REQUEST));
+                        e -> assertThat(e.getErrorCode()).isEqualTo(FileErrorCode.INVALID_REQUEST));
         assertThatThrownBy(() -> service.put("blank-type.bin", " ", 1, stream("a")))
                 .isInstanceOfSatisfying(
                         FileException.class,
-                        e ->
-                                assertThat(e.getErrorCode())
-                                        .isEqualTo(FileErrorCode.INVALID_REQUEST));
-        assertThatThrownBy(
-                        () -> service.put("long-type.bin", "a".repeat(256), 1, stream("a")))
+                        e -> assertThat(e.getErrorCode()).isEqualTo(FileErrorCode.INVALID_REQUEST));
+        assertThatThrownBy(() -> service.put("long-type.bin", "a".repeat(256), 1, stream("a")))
                 .isInstanceOfSatisfying(
                         FileException.class,
-                        e ->
-                                assertThat(e.getErrorCode())
-                                        .isEqualTo(FileErrorCode.INVALID_REQUEST));
+                        e -> assertThat(e.getErrorCode()).isEqualTo(FileErrorCode.INVALID_REQUEST));
 
         assertThat(objects.putCount()).isZero();
     }
@@ -151,15 +140,11 @@ class CoordFileServiceTest {
         assertThatThrownBy(() -> service.stat("bad.bin"))
                 .isInstanceOfSatisfying(
                         FileException.class,
-                        e ->
-                                assertThat(e.getErrorCode())
-                                        .isEqualTo(FileErrorCode.INTERNAL_ERROR));
+                        e -> assertThat(e.getErrorCode()).isEqualTo(FileErrorCode.INTERNAL_ERROR));
         assertThatThrownBy(() -> service.open("bad.bin"))
                 .isInstanceOfSatisfying(
                         FileException.class,
-                        e ->
-                                assertThat(e.getErrorCode())
-                                        .isEqualTo(FileErrorCode.INTERNAL_ERROR));
+                        e -> assertThat(e.getErrorCode()).isEqualTo(FileErrorCode.INTERNAL_ERROR));
     }
 
     @Test
@@ -167,15 +152,12 @@ class CoordFileServiceTest {
     void missingBlobIsInternalError() {
         CoordFileService service = service(1024);
         String dataObjectId = HexFormat.of().formatHex(new byte[] {1, 2, 3});
-        seedMetadata(
-                new CoordFileRecord("gone.bin", dataObjectId, 3, "text/plain", 1, 0));
+        seedMetadata(new CoordFileRecord("gone.bin", dataObjectId, 3, "text/plain", 1, 0));
 
         assertThatThrownBy(() -> service.open("gone.bin"))
                 .isInstanceOfSatisfying(
                         FileException.class,
-                        e ->
-                                assertThat(e.getErrorCode())
-                                        .isEqualTo(FileErrorCode.INTERNAL_ERROR));
+                        e -> assertThat(e.getErrorCode()).isEqualTo(FileErrorCode.INTERNAL_ERROR));
     }
 
     @Test
@@ -216,9 +198,7 @@ class CoordFileServiceTest {
         assertThatThrownBy(() -> service.open("read.bin"))
                 .isInstanceOfSatisfying(
                         FileException.class,
-                        e ->
-                                assertThat(e.getErrorCode())
-                                        .isEqualTo(FileErrorCode.INVALID_REQUEST));
+                        e -> assertThat(e.getErrorCode()).isEqualTo(FileErrorCode.INVALID_REQUEST));
     }
 
     @Test

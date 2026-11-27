@@ -281,8 +281,7 @@ public class CoordAutoConfiguration {
                     "seedj.coord.file.bucket must not exceed 255 UTF-8 bytes");
         }
         if (file.getBucket().indexOf('/') >= 0 || file.getBucket().indexOf('\u0000') >= 0) {
-            throw new IllegalStateException(
-                    "seedj.coord.file.bucket must not contain '/' or NUL");
+            throw new IllegalStateException("seedj.coord.file.bucket must not contain '/' or NUL");
         }
         if (file.getMaxObjectBytes() < 1
                 || file.getMaxObjectBytes() > CoordFileService.MAX_OBJECT_BYTES) {

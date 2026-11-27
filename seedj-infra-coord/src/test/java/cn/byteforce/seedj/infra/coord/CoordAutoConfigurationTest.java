@@ -171,7 +171,11 @@ class CoordAutoConfigurationTest {
                         "seedj.coord.file.max-object-bytes=268435457")) {
             freshRunner()
                     .withPropertyValues("seedj.coord.enabled=true", invalid)
-                    .run(context -> assertThat(context.getStartupFailure()).as(invalid).isNotNull());
+                    .run(
+                            context ->
+                                    assertThat(context.getStartupFailure())
+                                            .as(invalid)
+                                            .isNotNull());
         }
     }
 

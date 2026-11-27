@@ -452,9 +452,7 @@ public final class CoordCluster implements AutoCloseable {
         while (System.nanoTime() < deadline) {
             try {
                 client.objectStore()
-                        .stat(
-                                "seedj-fixture",
-                                "ready".getBytes(StandardCharsets.UTF_8));
+                        .stat("seedj-fixture", "ready".getBytes(StandardCharsets.UTF_8));
                 return;
             } catch (CoordException e) {
                 last = e;

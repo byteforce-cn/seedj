@@ -22,18 +22,7 @@ class FileKeysTest {
 
     @ParameterizedTest
     @ValueSource(
-            strings = {
-                "",
-                " ",
-                "/a",
-                "a/",
-                "a//b",
-                "a/./b",
-                "a/../b",
-                "a\u0000b",
-                "a\tb",
-                "a\nb"
-            })
+            strings = {"", " ", "/a", "a/", "a//b", "a/./b", "a/../b", "a\u0000b", "a\tb", "a\nb"})
     @DisplayName("拒绝空、绝对路径、空段、点段与控制字符")
     void rejectsInvalidKeys(String key) {
         assertThatThrownBy(() -> FileKeys.requireValid(key))

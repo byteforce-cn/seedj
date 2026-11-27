@@ -28,18 +28,15 @@ import tools.jackson.core.JacksonException;
 /**
  * 用 coord 对象存储（{@code ObjectStoreClient}）实现 seedj 的文件契约。
  *
- * <p>coord 对象不可覆盖、没有 content-type 与时间戳，所以每个文件写两个对象：随机 objectId 的
- * **数据对象**，和用 {@code sha256(scope, key)} 定位的 **元数据对象**（{@link CoordFileRecord}）。
- * 元数据对象是可见性的线性化点：数据先写、元数据 create-only 后写；元数据已存在时只删除本次的
- * 随机数据对象，不碰已有文件。删除相反，先删元数据对象（原子地让文件不可见），再尽力清理数据
- * 对象。
+ * <p>coord 对象不可覆盖、没有 content-type 与时间戳，所以每个文件写两个对象：随机 objectId 的 **数据对象**，和用 {@code sha256(scope,
+ * key)} 定位的 **元数据对象**（{@link CoordFileRecord}）。 元数据对象是可见性的线性化点：数据先写、元数据 create-only
+ * 后写；元数据已存在时只删除本次的 随机数据对象，不碰已有文件。删除相反，先删元数据对象（原子地让文件不可见），再尽力清理数据 对象。
  *
  * <p>元数据不放 coord KV：0.4.6 的 Java SDK 只有 Txn v2，而 v1 对象存储要求 {@code kv_t} 关闭，
  * 两者不能同时满足。放在同一对象存储里也让本实现只依赖 {@code coord.storage}。
  *
  * <p>已知限制：SDK 只接受整块 {@code byte[]}，所以本实现按 {@code maxObjectBytes} 整块缓冲；
- * 超过上限在写入前失败。数据写成功而元数据写失败（进程崩溃等）会留下不可见的孤儿数据对象，
- * v1 不做后台 GC。
+ * 超过上限在写入前失败。数据写成功而元数据写失败（进程崩溃等）会留下不可见的孤儿数据对象， v1 不做后台 GC。
  */
 final class CoordFileService implements FileService {
 
@@ -52,7 +49,8 @@ final class CoordFileService implements FileService {
 
     private static final int MAX_CONTENT_TYPE_CHARACTERS = 255;
 
-    private static final byte[] META_DOMAIN = "seedj-file-meta\u0000".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] META_DOMAIN =
+            "seedj-file-meta\u0000".getBytes(StandardCharsets.UTF_8);
 
     private final ObjectStoreClient objects;
     private final CoordEndpoint endpoint;

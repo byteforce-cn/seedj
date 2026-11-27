@@ -38,6 +38,7 @@
 ### Task 1: core SPI、错误模型与 key 校验
 
 **Files:**
+
 - Create: `core/src/main/java/cn/byteforce/seedj/file/FileService.java`
 - Create: `core/src/main/java/cn/byteforce/seedj/file/FileMetadata.java`
 - Create: `core/src/main/java/cn/byteforce/seedj/file/FileKeys.java`
@@ -49,6 +50,7 @@
 - Modify: `config/public-api.txt`
 
 **Interfaces:**
+
 - Produces:
   - `interface FileService { FileMetadata put(String key, String contentType, long contentLength, InputStream content); InputStream open(String key); Optional<FileMetadata> stat(String key); boolean delete(String key); }`
   - `record FileMetadata(String key, long size, String contentType, String version, Instant createdAt)`
@@ -129,6 +131,7 @@ git commit -m "feat(core): add FileService SPI and error model"
 ### Task 2: coord 适配器与契约测试
 
 **Files:**
+
 - Create: `core/src/test/java/cn/byteforce/seedj/file/FileServiceContractTest.java`
 - Create: `seedj-infra-coord/src/test/java/cn/byteforce/seedj/infra/coord/fixture/FakeObjectStore.java`
 - Create: `seedj-infra-coord/src/test/java/cn/byteforce/seedj/infra/coord/CoordFileServiceContractTest.java`
@@ -138,6 +141,7 @@ git commit -m "feat(core): add FileService SPI and error model"
 - Modify: `seedj-infra-coord/src/main/java/cn/byteforce/seedj/infra/coord/CoordErrors.java`
 
 **Interfaces:**
+
 - Consumes: Task 1 的全部类型；`CoordJson`、`CoordEndpoint`。
 - Produces:
   - `abstract class FileServiceContractTest { protected abstract FileService newFileService(); }`（12 个用例，见 Step 1）
@@ -287,12 +291,14 @@ git commit -m "feat(coord): implement FileService over coord object storage"
 ### Task 3: 自动配置、配置项与 guard
 
 **Files:**
+
 - Modify: `seedj-infra-coord/src/main/java/cn/byteforce/seedj/infra/coord/CoordProperties.java`（新增 `File` 段与 `getFile()`）
 - Modify: `seedj-infra-coord/src/main/java/cn/byteforce/seedj/infra/coord/CoordAutoConfiguration.java`（bean + 校验）
 - Modify: `seedj-infra-coord/src/main/java/cn/byteforce/seedj/infra/coord/CoordProviderGuard.java`（`seedj.file.provider`）
 - Modify: `seedj-infra-coord/src/test/java/cn/byteforce/seedj/infra/coord/CoordAutoConfigurationTest.java`
 
 **Interfaces:**
+
 - Produces:
   - `CoordProperties.File { String bucket; long maxObjectBytes; }`（默认 `seedj-files` / `33554432`）
   - `@Bean FileService coordFileService(CoordClient, CoordProperties, Environment)`，条件 `seedj.file.provider=coord`
@@ -390,12 +396,14 @@ git commit -m "feat(coord): wire FileService auto-configuration and guard"
 ### Task 4: 真集群 v1 夹具与集群用例
 
 **Files:**
+
 - Create: `seedj-infra-coord/src/test/resources/coord/server-v1.toml`
 - Create: `seedj-infra-coord/src/test/resources/coord/agent-v1.toml`
 - Modify: `seedj-infra-coord/src/test/java/cn/byteforce/seedj/infra/coord/fixture/CoordCluster.java`（新增 `startV1WithObjectStorage()`）
 - Create: `seedj-infra-coord/src/test/java/cn/byteforce/seedj/infra/coord/CoordFileServiceClusterTest.java`
 
 **Interfaces:**
+
 - Produces: `static CoordCluster startV1WithObjectStorage()`；其余 API 与 `start()` 相同（`client()`、`agentHost()`、`agentPort()`、`close()`）。
 
 - [ ] **Step 1: 写集群用例**
@@ -470,6 +478,7 @@ git commit -m "test(coord): cover FileService on a v1 object-storage cluster"
 ### Task 5: 文档、覆盖率与全量门禁
 
 **Files:**
+
 - Modify: `docs/guide/configuration.md`
 - Modify: `seedj-infra-coord/README.md`
 - Modify: `seedj-infra-coord/src/main/java/cn/byteforce/seedj/infra/coord/package-info.java`
@@ -477,6 +486,7 @@ git commit -m "test(coord): cover FileService on a v1 object-storage cluster"
 - Modify: `config/public-api.txt`（若 Task 1 之后还有新增 public 类型）
 
 **Interfaces:**
+
 - 无新代码接口。
 
 - [ ] **Step 1: 更新文档**
@@ -501,10 +511,12 @@ Expected: 全绿；若覆盖率 gate 失败，运行 `bash config/ci/check-cover
 - [ ] **Step 3: 跑公共 API 与格式门禁**
 
 Run:
+
 ```bash
 ./mvnw -o -B -pl seedj-it -am test -Dtest=PublicApiSurfaceTest -Dsurefire.failIfNoSpecifiedTests=false
 ./mvnw -o -B spotless:check
 ```
+
 Expected: 全绿。
 
 - [ ] **Step 4: 提交**
