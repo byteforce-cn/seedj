@@ -52,6 +52,15 @@ class CoordFileServiceClusterTest {
 
             assertThat(files.delete("cluster/file.bin")).isTrue();
             assertThat(files.stat("cluster/file.bin")).isEmpty();
+
+            // 元数据对象 id 是确定的：删除后必须能重建同一个 key。
+            byte[] rebuilt = "rebuilt".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            files.put(
+                    "cluster/file.bin",
+                    "text/plain",
+                    rebuilt.length,
+                    new ByteArrayInputStream(rebuilt));
+            assertThat(files.open("cluster/file.bin").readAllBytes()).isEqualTo(rebuilt);
         }
     }
 
