@@ -1,4 +1,4 @@
-package cn.byteforce.seedj.infra.coord;
+package cn.byteforce.seedj.infra.coord.file;
 
 import cn.byteforce.seedj.file.FileService;
 import cn.byteforce.seedj.file.FileServiceContractTest;
@@ -12,7 +12,7 @@ class CoordFileServiceContractTest extends FileServiceContractTest {
     protected FileService newFileService() {
         return new CoordFileService(
                 new FakeObjectStore(),
-                new CoordEndpoint("127.0.0.1:19527"),
+                "127.0.0.1:19527",
                 "seedj:contract",
                 "seedj-files",
                 1024 * 1024,

@@ -1,4 +1,4 @@
-package cn.byteforce.seedj.infra.coord;
+package cn.byteforce.seedj.infra.coord.file;
 
 /**
  * coord KV 里的文件 sidecar：逻辑 key → blob objectId 与元数据。

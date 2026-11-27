@@ -1,4 +1,4 @@
-package cn.byteforce.seedj.infra.coord;
+package cn.byteforce.seedj.infra.coord.file;
 
 import cn.byteforce.coord.sdk.CoordException;
 import cn.byteforce.coord.sdk.ErrorCode;
@@ -38,12 +38,12 @@ import tools.jackson.core.JacksonException;
  * <p>已知限制：SDK 只接受整块 {@code byte[]}，所以本实现按 {@code maxObjectBytes} 整块缓冲；
  * 超过上限在写入前失败。数据写成功而元数据写失败（进程崩溃等）会留下不可见的孤儿数据对象， v1 不做后台 GC。
  */
-final class CoordFileService implements FileService {
+public final class CoordFileService implements FileService {
 
     private static final Logger LOG = LoggerFactory.getLogger(CoordFileService.class);
 
     /** coord 默认的单对象上限（{@code [object_storage].max_object_size_bytes}）。 */
-    static final long MAX_OBJECT_BYTES = 268_435_456L;
+    public static final long MAX_OBJECT_BYTES = 268_435_456L;
 
     private static final int MAX_BUCKET_BYTES = 255;
 
@@ -53,21 +53,24 @@ final class CoordFileService implements FileService {
             "seedj-file-meta\u0000".getBytes(StandardCharsets.UTF_8);
 
     private final ObjectStoreClient objects;
-    private final CoordEndpoint endpoint;
+    private final String endpoint;
     private final String scope;
     private final String bucket;
     private final long maxObjectBytes;
     private final Clock clock;
 
-    CoordFileService(
+    public CoordFileService(
             ObjectStoreClient objects,
-            CoordEndpoint endpoint,
+            String endpoint,
             String scope,
             String bucket,
             long maxObjectBytes,
             Clock clock) {
         this.objects = Objects.requireNonNull(objects, "objects");
-        this.endpoint = Objects.requireNonNull(endpoint, "endpoint");
+        if (endpoint == null || endpoint.isBlank()) {
+            throw new IllegalArgumentException("coord file endpoint must not be blank");
+        }
+        this.endpoint = endpoint;
         if (scope == null || scope.isBlank()) {
             throw new IllegalArgumentException("coord file scope must not be blank");
         }
@@ -111,16 +114,16 @@ final class CoordFileService implements FileService {
                         revision,
                         createdAt);
         try {
-            objects.put(bucket, metadataObjectId(scope, key), CoordJson.write(record));
+            objects.put(bucket, metadataObjectId(scope, key), FileJson.write(record));
         } catch (CoordException e) {
             deleteBlobQuietly(dataObjectId);
             if (e.getErrorCode() == ErrorCode.ALREADY_EXISTS) {
                 throw new FileException(
                         FileErrorCode.ALREADY_EXISTS, "file already exists: " + key);
             }
-            throw CoordErrors.file(e, endpoint, "put " + key);
+            throw CoordFileErrors.file(e, endpoint, "put " + key);
         }
-        return metadata(record);
+        return toMetadata(record);
     }
 
     @Override
@@ -138,14 +141,14 @@ final class CoordFileService implements FileService {
                         "file record points to a missing object: " + key,
                         e);
             }
-            throw CoordErrors.file(e, endpoint, "get " + key);
+            throw CoordFileErrors.file(e, endpoint, "get " + key);
         }
     }
 
     @Override
     public Optional<FileMetadata> stat(String key) {
         FileKeys.requireValid(key);
-        return metadata(key).map(CoordFileService::metadata);
+        return metadata(key).map(CoordFileService::toMetadata);
     }
 
     @Override
@@ -160,7 +163,7 @@ final class CoordFileService implements FileService {
                 return false;
             }
         } catch (CoordException e) {
-            throw CoordErrors.file(e, endpoint, "delete " + key);
+            throw CoordFileErrors.file(e, endpoint, "delete " + key);
         }
         deleteBlobQuietly(parseObjectId(current.get().objectId()));
         return true;
@@ -188,7 +191,7 @@ final class CoordFileService implements FileService {
             if (e.getErrorCode() == ErrorCode.NOT_FOUND) {
                 return Optional.empty();
             }
-            throw CoordErrors.file(e, endpoint, "stat " + key);
+            throw CoordFileErrors.file(e, endpoint, "stat " + key);
         }
     }
 
@@ -196,13 +199,13 @@ final class CoordFileService implements FileService {
         try {
             return objects.put(bucket, objectId, data).revision();
         } catch (CoordException e) {
-            throw CoordErrors.file(e, endpoint, action);
+            throw CoordFileErrors.file(e, endpoint, action);
         }
     }
 
     private static CoordFileRecord parse(byte[] value) {
         try {
-            CoordFileRecord record = CoordJson.read(value, CoordFileRecord.class);
+            CoordFileRecord record = FileJson.read(value, CoordFileRecord.class);
             if (record.key() == null
                     || record.objectId() == null
                     || record.objectId().isEmpty()
@@ -217,7 +220,7 @@ final class CoordFileService implements FileService {
         }
     }
 
-    private static FileMetadata metadata(CoordFileRecord record) {
+    private static FileMetadata toMetadata(CoordFileRecord record) {
         return new FileMetadata(
                 record.key(),
                 record.size(),

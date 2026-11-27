@@ -573,6 +573,7 @@ seedj-im-starter|cn.byteforce.seedj.starter.im|ImSystemProperties
 seedj-infra-coord|cn.byteforce.seedj.infra.coord|CoordAutoConfiguration
 seedj-infra-coord|cn.byteforce.seedj.infra.coord|CoordProperties
 seedj-infra-coord|cn.byteforce.seedj.infra.coord|CoordProviderGuardAutoConfiguration
+seedj-infra-coord|cn.byteforce.seedj.infra.coord.file|CoordFileService
 seedj-infra-local|cn.byteforce.seedj.infra.local.ai|InMemoryDecisionAdmissionStore
 seedj-infra-local|cn.byteforce.seedj.infra.local.ai|InMemoryDecisionLedger
 seedj-infra-local|cn.byteforce.seedj.infra.local.ai|InMemoryExternalEffectStore

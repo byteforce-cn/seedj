@@ -6,6 +6,7 @@ import cn.byteforce.coord.sdk.CoordClient;
 import cn.byteforce.seedj.eventbus.spi.EventConsumerStore;
 import cn.byteforce.seedj.file.FileService;
 import cn.byteforce.seedj.id.IdGenerator;
+import cn.byteforce.seedj.infra.coord.file.CoordFileService;
 import cn.byteforce.seedj.lock.LockProvider;
 import java.util.List;
 import org.junit.jupiter.api.Test;

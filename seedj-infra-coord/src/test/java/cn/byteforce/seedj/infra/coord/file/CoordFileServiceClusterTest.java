@@ -1,4 +1,4 @@
-package cn.byteforce.seedj.infra.coord;
+package cn.byteforce.seedj.infra.coord.file;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -67,7 +67,7 @@ class CoordFileServiceClusterTest {
     private static FileService service(CoordCluster cluster) {
         return new CoordFileService(
                 cluster.client().objectStore(),
-                CoordTestFixture.clusterEndpoint(cluster),
+                cluster.agentHost() + ":" + cluster.agentPort(),
                 "seedj:cluster-test",
                 "seedj-files",
                 8 * 1024 * 1024,

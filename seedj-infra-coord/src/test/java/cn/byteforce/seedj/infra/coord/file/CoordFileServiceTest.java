@@ -1,4 +1,4 @@
-package cn.byteforce.seedj.infra.coord;
+package cn.byteforce.seedj.infra.coord.file;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -24,7 +24,7 @@ class CoordFileServiceTest {
     private static final String SCOPE = "seedj:test";
 
     private final FakeObjectStore objects = new FakeObjectStore();
-    private final CoordEndpoint endpoint = new CoordEndpoint("127.0.0.1:19527");
+    private final String endpoint = "127.0.0.1:19527";
 
     @Test
     @DisplayName("同 key 冲突只回滚本次数据对象，已有文件不变")
@@ -248,7 +248,7 @@ class CoordFileServiceTest {
         objects.put(
                 BUCKET,
                 CoordFileService.metadataObjectId(SCOPE, record.key()),
-                CoordJson.write(record));
+                FileJson.write(record));
     }
 
     private static InputStream stream(String value) {

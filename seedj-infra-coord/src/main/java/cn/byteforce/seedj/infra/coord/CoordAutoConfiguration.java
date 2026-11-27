@@ -7,6 +7,7 @@ import cn.byteforce.seedj.eventbus.spi.EventBusTransport;
 import cn.byteforce.seedj.eventbus.spi.EventConsumerStore;
 import cn.byteforce.seedj.file.FileService;
 import cn.byteforce.seedj.id.IdGenerator;
+import cn.byteforce.seedj.infra.coord.file.CoordFileService;
 import cn.byteforce.seedj.lock.LockProvider;
 import cn.byteforce.seedj.numbering.Numbering;
 import cn.byteforce.seedj.provider.pki.PkiProvider;
@@ -166,7 +167,7 @@ public class CoordAutoConfiguration {
         CoordProperties.File file = properties.getFile();
         return new CoordFileService(
                 client.objectStore(),
-                CoordEndpoint.of(properties),
+                CoordEndpoint.of(properties).toString(),
                 CoordNamespaces.of(properties, environment),
                 file.getBucket(),
                 file.getMaxObjectBytes(),
