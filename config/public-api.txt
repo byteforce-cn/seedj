@@ -149,6 +149,11 @@ core|cn.byteforce.seedj.eventbus|EventMessage
 core|cn.byteforce.seedj.eventbus|EventPublisher
 core|cn.byteforce.seedj.eventbus|EventSubscriber
 core|cn.byteforce.seedj.eventbus|EventSubscription
+core|cn.byteforce.seedj.file|FileErrorCode
+core|cn.byteforce.seedj.file|FileException
+core|cn.byteforce.seedj.file|FileKeys
+core|cn.byteforce.seedj.file|FileMetadata
+core|cn.byteforce.seedj.file|FileService
 core|cn.byteforce.seedj.id|IdErrorCode
 core|cn.byteforce.seedj.id|IdException
 core|cn.byteforce.seedj.id|IdGenerator
