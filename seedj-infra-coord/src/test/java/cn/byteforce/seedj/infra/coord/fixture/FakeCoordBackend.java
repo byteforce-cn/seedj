@@ -168,15 +168,17 @@ public final class FakeCoordBackend {
                 boolean keysOnly,
                 boolean countOnly) {
             failIfDown();
-            long snapshot = readTs == 0 ? revision : readTs;
-            List<KeyValue> matched = new ArrayList<>();
-            for (Map.Entry<Bytes, Cell> entry : rangeSlice(key, rangeEnd).entrySet()) {
-                if (entry.getValue().modRevision() <= snapshot) {
-                    matched.add(keyValue(entry.getKey(), entry.getValue(), keysOnly));
+            synchronized (data) {
+                long snapshot = readTs == 0 ? revision : readTs;
+                List<KeyValue> matched = new ArrayList<>();
+                for (Map.Entry<Bytes, Cell> entry : rangeSlice(key, rangeEnd).entrySet()) {
+                    if (entry.getValue().modRevision() <= snapshot) {
+                        matched.add(keyValue(entry.getKey(), entry.getValue(), keysOnly));
+                    }
                 }
+                int end = limit > 0 ? Math.min((int) limit, matched.size()) : matched.size();
+                return new RangeResult(matched.subList(0, end), matched.size(), snapshot);
             }
-            int end = limit > 0 ? Math.min((int) limit, matched.size()) : matched.size();
-            return new RangeResult(matched.subList(0, end), matched.size(), snapshot);
         }
 
         @Override
@@ -230,62 +232,73 @@ public final class FakeCoordBackend {
             @Override
             public ReadResult read(byte[] key, byte[] rangeEnd, long limit, boolean keysOnly) {
                 failIfDown();
-                Bytes start = new Bytes(key);
-                List<KvClient.KeyValue> kvs = new ArrayList<>();
-                if (rangeEnd == null || rangeEnd.length == 0) {
-                    readPoints.put(start, modRevision(start));
-                    Cell cell = data.get(start);
-                    if (cell != null && cell.modRevision() <= snapshot) {
-                        kvs.add(keyValue(start, cell, keysOnly));
-                    }
-                } else {
-                    Range range = new Range(start, new Bytes(rangeEnd));
-                    readRanges.put(range, fingerprint(range));
-                    for (Map.Entry<Bytes, Cell> entry :
-                            data.subMap(start, true, range.end(), false).entrySet()) {
-                        if (entry.getValue().modRevision() > snapshot) {
-                            continue;
+                synchronized (data) {
+                    Bytes start = new Bytes(key);
+                    List<KvClient.KeyValue> kvs = new ArrayList<>();
+                    if (rangeEnd == null || rangeEnd.length == 0) {
+                        Cell cell = data.get(start);
+                        Long observed =
+                                cell == null || cell.modRevision() > snapshot
+                                        ? null
+                                        : cell.modRevision();
+                        readPoints.put(start, observed);
+                        if (observed != null) {
+                            kvs.add(keyValue(start, cell, keysOnly));
                         }
-                        if (limit > 0 && kvs.size() >= limit) {
-                            break;
+                    } else {
+                        Range range = new Range(start, new Bytes(rangeEnd));
+                        readRanges.put(range, fingerprint(range));
+                        for (Map.Entry<Bytes, Cell> entry :
+                                data.subMap(start, true, range.end(), false).entrySet()) {
+                            if (entry.getValue().modRevision() > snapshot) {
+                                continue;
+                            }
+                            if (limit > 0 && kvs.size() >= limit) {
+                                break;
+                            }
+                            kvs.add(keyValue(entry.getKey(), entry.getValue(), keysOnly));
                         }
-                        kvs.add(keyValue(entry.getKey(), entry.getValue(), keysOnly));
                     }
+                    return new ReadResult(kvs, snapshot);
                 }
-                return new ReadResult(kvs, snapshot);
             }
 
             @Override
             public CommitResult commit(List<Mutation> mutations, byte[] requestId) {
                 failIfDown();
                 Objects.requireNonNull(mutations, "mutations");
-                if (!valid()) {
-                    return CommitResult.CONFLICT;
-                }
-                long revision = nextRevision();
-                for (Mutation mutation : mutations) {
-                    switch (mutation.op()) {
-                        case PUT ->
-                                data.put(
-                                        new Bytes(mutation.key()),
-                                        new Cell(mutation.value(), revision, mutation.leaseId()));
-                        case DELETE -> data.remove(new Bytes(mutation.key()));
-                        case DELETE_RANGE -> {
-                            List<Bytes> keys = new ArrayList<>();
-                            for (Bytes candidate :
-                                    data.subMap(
-                                                    new Bytes(mutation.key()),
-                                                    true,
-                                                    new Bytes(mutation.rangeEnd()),
-                                                    false)
-                                            .keySet()) {
-                                keys.add(candidate);
+                synchronized (data) {
+                    if (!valid()) {
+                        return CommitResult.CONFLICT;
+                    }
+                    long revision = nextRevision();
+                    for (Mutation mutation : mutations) {
+                        switch (mutation.op()) {
+                            case PUT ->
+                                    data.put(
+                                            new Bytes(mutation.key()),
+                                            new Cell(
+                                                    mutation.value(),
+                                                    revision,
+                                                    mutation.leaseId()));
+                            case DELETE -> data.remove(new Bytes(mutation.key()));
+                            case DELETE_RANGE -> {
+                                List<Bytes> keys = new ArrayList<>();
+                                for (Bytes candidate :
+                                        data.subMap(
+                                                        new Bytes(mutation.key()),
+                                                        true,
+                                                        new Bytes(mutation.rangeEnd()),
+                                                        false)
+                                                .keySet()) {
+                                    keys.add(candidate);
+                                }
+                                data.keySet().removeAll(keys);
                             }
-                            data.keySet().removeAll(keys);
                         }
                     }
+                    return new CommitResult(true, revision);
                 }
-                return new CommitResult(true, revision);
             }
 
             @Override
