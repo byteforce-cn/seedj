@@ -7,7 +7,6 @@ import cn.byteforce.coord.sdk.ErrorCode;
 import cn.byteforce.seedj.file.FileErrorCode;
 import cn.byteforce.seedj.file.FileException;
 import cn.byteforce.seedj.file.FileMetadata;
-import cn.byteforce.seedj.infra.coord.fixture.FakeCoordBackend;
 import cn.byteforce.seedj.infra.coord.fixture.FakeObjectStore;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -22,14 +21,14 @@ class CoordFileServiceTest {
 
     private static final String BUCKET = "seedj-files";
 
-    private final FakeCoordBackend backend = new FakeCoordBackend();
+    private static final String SCOPE = "seedj:test";
+
     private final FakeObjectStore objects = new FakeObjectStore();
-    private final CoordKeySpace keys = CoordKeySpace.of("seedj:test", "file");
     private final CoordEndpoint endpoint = new CoordEndpoint("127.0.0.1:19527");
 
     @Test
-    @DisplayName("同 key 冲突只回滚本次 blob，已有文件不变")
-    void sidecarConflictRollsBackOwnBlob() {
+    @DisplayName("同 key 冲突只回滚本次数据对象，已有文件不变")
+    void sameKeyConflictRollsBackOwnDataObject() {
         CoordFileService service = service(1024);
         service.put("conflict.bin", "text/plain", 5, stream("first"));
 
@@ -38,8 +37,8 @@ class CoordFileServiceTest {
                         FileException.class,
                         e -> assertThat(e.getErrorCode()).isEqualTo(FileErrorCode.ALREADY_EXISTS));
 
-        assertThat(objects.objectCount()).isEqualTo(1);
-        assertThat(objects.putCount()).isEqualTo(2);
+        assertThat(objects.objectCount()).isEqualTo(2);
+        assertThat(objects.putCount()).isEqualTo(3);
         assertThat(readAll(service.open("conflict.bin"))).isEqualTo(bytes("first"));
     }
 
@@ -96,12 +95,7 @@ class CoordFileServiceTest {
                                 assertThat(e.getErrorCode())
                                         .isEqualTo(FileErrorCode.INVALID_REQUEST));
         assertThatThrownBy(
-                        () ->
-                                service.put(
-                                        "long-type.bin",
-                                        "a".repeat(256),
-                                        1,
-                                        stream("a")))
+                        () -> service.put("long-type.bin", "a".repeat(256), 1, stream("a")))
                 .isInstanceOfSatisfying(
                         FileException.class,
                         e ->
@@ -112,10 +106,10 @@ class CoordFileServiceTest {
     }
 
     @Test
-    @DisplayName("sidecar 写失败时回滚 blob")
-    void sidecarWriteFailureRollsBackBlob() {
+    @DisplayName("数据对象写失败时什么都不留")
+    void dataWriteFailureLeavesNothing() {
         CoordFileService service = service(1024);
-        backend.down(true);
+        objects.failNextPut(ErrorCode.UNAVAILABLE);
 
         assertThatThrownBy(() -> service.put("down.bin", "text/plain", 3, stream("abc")))
                 .isInstanceOfSatisfying(
@@ -130,10 +124,29 @@ class CoordFileServiceTest {
     }
 
     @Test
-    @DisplayName("sidecar 损坏是内部错误，不是 NOT_FOUND")
+    @DisplayName("元数据对象写失败时回滚数据对象")
+    void metadataWriteFailureRollsBackDataObject() {
+        CoordFileService service = service(1024);
+        objects.failPutOnCall(2, ErrorCode.UNAVAILABLE);
+
+        assertThatThrownBy(() -> service.put("meta-down.bin", "text/plain", 3, stream("abc")))
+                .isInstanceOfSatisfying(
+                        FileException.class,
+                        e ->
+                                assertThat(e.getErrorCode())
+                                        .isEqualTo(FileErrorCode.PROVIDER_UNAVAILABLE));
+
+        assertThat(objects.objectCount()).isZero();
+    }
+
+    @Test
+    @DisplayName("元数据损坏是内部错误，不是 NOT_FOUND")
     void corruptRecordIsInternalError() {
         CoordFileService service = service(1024);
-        backend.seed(keys.key("bad.bin"), "{oops");
+        objects.put(
+                BUCKET,
+                CoordFileService.metadataObjectId(SCOPE, "bad.bin"),
+                "{oops".getBytes(StandardCharsets.UTF_8));
 
         assertThatThrownBy(() -> service.stat("bad.bin"))
                 .isInstanceOfSatisfying(
@@ -150,13 +163,12 @@ class CoordFileServiceTest {
     }
 
     @Test
-    @DisplayName("sidecar 指向缺失 blob 是内部错误")
+    @DisplayName("元数据指向缺失的数据对象是内部错误")
     void missingBlobIsInternalError() {
         CoordFileService service = service(1024);
-        String objectId = HexFormat.of().formatHex(new byte[] {1, 2, 3});
-        backend.seed(
-                keys.key("gone.bin"),
-                json(new CoordFileRecord("gone.bin", objectId, 3, "text/plain", 1, 0)));
+        String dataObjectId = HexFormat.of().formatHex(new byte[] {1, 2, 3});
+        seedMetadata(
+                new CoordFileRecord("gone.bin", dataObjectId, 3, "text/plain", 1, 0));
 
         assertThatThrownBy(() -> service.open("gone.bin"))
                 .isInstanceOfSatisfying(
@@ -167,11 +179,11 @@ class CoordFileServiceTest {
     }
 
     @Test
-    @DisplayName("删除时 blob 清理失败不影响结果，映射已摘除")
-    void deleteToleratesBlobDeleteFailure() {
+    @DisplayName("删除时数据清理失败不影响结果，元数据已摘除")
+    void deleteToleratesDataBlobDeleteFailure() {
         CoordFileService service = service(1024);
         service.put("orphan.bin", "text/plain", 3, stream("abc"));
-        objects.failNextDelete(ErrorCode.INTERNAL);
+        objects.failDeleteOnCall(2, ErrorCode.INTERNAL);
 
         assertThat(service.delete("orphan.bin")).isTrue();
 
@@ -210,14 +222,16 @@ class CoordFileServiceTest {
     }
 
     @Test
-    @DisplayName("构造期校验 bucket 与单文件上限")
+    @DisplayName("构造期校验 scope、bucket 与单文件上限")
     void validatesConfiguration() {
         assertThatThrownBy(() -> service(0)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> service(CoordFileService.MAX_OBJECT_BYTES + 1))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> serviceWithBucket("a/b"))
+        assertThatThrownBy(() -> serviceWithScopeAndBucket(" ", BUCKET))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> serviceWithBucket(" "))
+        assertThatThrownBy(() -> serviceWithScopeAndBucket(SCOPE, "a/b"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> serviceWithScopeAndBucket(SCOPE, " "))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -237,26 +251,24 @@ class CoordFileServiceTest {
     }
 
     private CoordFileService service(long maxObjectBytes) {
-        return serviceWithBucketAndLimit(BUCKET, maxObjectBytes);
+        return serviceWithScopeAndBucket(SCOPE, BUCKET, maxObjectBytes);
     }
 
-    private CoordFileService serviceWithBucket(String bucket) {
-        return serviceWithBucketAndLimit(bucket, 1024);
+    private CoordFileService serviceWithScopeAndBucket(String scope, String bucket) {
+        return serviceWithScopeAndBucket(scope, bucket, 1024);
     }
 
-    private CoordFileService serviceWithBucketAndLimit(String bucket, long maxObjectBytes) {
+    private CoordFileService serviceWithScopeAndBucket(
+            String scope, String bucket, long maxObjectBytes) {
         return new CoordFileService(
-                objects,
-                new CoordKvStore(backend.kv(), backend.txn()),
-                keys,
-                endpoint,
-                bucket,
-                maxObjectBytes,
-                Clock.systemUTC());
+                objects, endpoint, scope, bucket, maxObjectBytes, Clock.systemUTC());
     }
 
-    private static String json(CoordFileRecord record) {
-        return new String(CoordJson.write(record), StandardCharsets.UTF_8);
+    private void seedMetadata(CoordFileRecord record) {
+        objects.put(
+                BUCKET,
+                CoordFileService.metadataObjectId(SCOPE, record.key()),
+                CoordJson.write(record));
     }
 
     private static InputStream stream(String value) {

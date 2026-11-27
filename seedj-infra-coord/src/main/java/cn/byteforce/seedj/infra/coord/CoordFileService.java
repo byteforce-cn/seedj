@@ -13,6 +13,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.HexFormat;
@@ -26,14 +28,18 @@ import tools.jackson.core.JacksonException;
 /**
  * 用 coord 对象存储（{@code ObjectStoreClient}）实现 seedj 的文件契约。
  *
- * <p>blob 不可覆盖、没有 content-type 与时间戳，所以元数据放在 coord KV 的 sidecar 里：{@code
- * <namespace>:coord:file:<key>} → {@link CoordFileRecord}。写入顺序是 blob 先、sidecar 的 {@code
- * putIfAbsent} 后：CAS 成功才是创建成功的线性化点；CAS 失败只删除本次上传的随机 objectId，不碰已有
- * 文件。删除相反，先摘 sidecar（原子地让对象不可见），再尽力清理 blob。
+ * <p>coord 对象不可覆盖、没有 content-type 与时间戳，所以每个文件写两个对象：随机 objectId 的
+ * **数据对象**，和用 {@code sha256(scope, key)} 定位的 **元数据对象**（{@link CoordFileRecord}）。
+ * 元数据对象是可见性的线性化点：数据先写、元数据 create-only 后写；元数据已存在时只删除本次的
+ * 随机数据对象，不碰已有文件。删除相反，先删元数据对象（原子地让文件不可见），再尽力清理数据
+ * 对象。
+ *
+ * <p>元数据不放 coord KV：0.4.6 的 Java SDK 只有 Txn v2，而 v1 对象存储要求 {@code kv_t} 关闭，
+ * 两者不能同时满足。放在同一对象存储里也让本实现只依赖 {@code coord.storage}。
  *
  * <p>已知限制：SDK 只接受整块 {@code byte[]}，所以本实现按 {@code maxObjectBytes} 整块缓冲；
- * 超过上限在写入前失败。blob 写成功而 sidecar 写失败（进程崩溃等）会留下不可见的孤儿 blob，v1
- * 不做后台 GC。
+ * 超过上限在写入前失败。数据写成功而元数据写失败（进程崩溃等）会留下不可见的孤儿数据对象，
+ * v1 不做后台 GC。
  */
 final class CoordFileService implements FileService {
 
@@ -46,28 +52,28 @@ final class CoordFileService implements FileService {
 
     private static final int MAX_CONTENT_TYPE_CHARACTERS = 255;
 
-    private static final int DELETE_ATTEMPTS = 3;
+    private static final byte[] META_DOMAIN = "seedj-file-meta\u0000".getBytes(StandardCharsets.UTF_8);
 
     private final ObjectStoreClient objects;
-    private final CoordKvStore store;
-    private final CoordKeySpace keys;
     private final CoordEndpoint endpoint;
+    private final String scope;
     private final String bucket;
     private final long maxObjectBytes;
     private final Clock clock;
 
     CoordFileService(
             ObjectStoreClient objects,
-            CoordKvStore store,
-            CoordKeySpace keys,
             CoordEndpoint endpoint,
+            String scope,
             String bucket,
             long maxObjectBytes,
             Clock clock) {
         this.objects = Objects.requireNonNull(objects, "objects");
-        this.store = Objects.requireNonNull(store, "store");
-        this.keys = Objects.requireNonNull(keys, "keys");
         this.endpoint = Objects.requireNonNull(endpoint, "endpoint");
+        if (scope == null || scope.isBlank()) {
+            throw new IllegalArgumentException("coord file scope must not be blank");
+        }
+        this.scope = scope;
         this.bucket = requireValidBucket(bucket);
         if (maxObjectBytes < 1 || maxObjectBytes > MAX_OBJECT_BYTES) {
             throw new IllegalArgumentException(
@@ -95,26 +101,26 @@ final class CoordFileService implements FileService {
             throw new FileException(FileErrorCode.INVALID_REQUEST, "file content is required");
         }
         byte[] data = readExactly(content, contentLength);
-        byte[] objectId = newObjectId();
-        long revision = putBlob(key, objectId, data);
+        byte[] dataObjectId = newDataObjectId();
+        long revision = putBlob(dataObjectId, data, "put " + key);
         long createdAt = clock.millis();
         CoordFileRecord record =
                 new CoordFileRecord(
                         key,
-                        HexFormat.of().formatHex(objectId),
+                        HexFormat.of().formatHex(dataObjectId),
                         data.length,
                         contentType,
                         revision,
                         createdAt);
         try {
-            if (!store.putIfAbsent(keys.key(key), CoordJson.write(record))) {
-                deleteBlobQuietly(objectId);
+            objects.put(bucket, metadataObjectId(scope, key), CoordJson.write(record));
+        } catch (CoordException e) {
+            deleteBlobQuietly(dataObjectId);
+            if (e.getErrorCode() == ErrorCode.ALREADY_EXISTS) {
                 throw new FileException(
                         FileErrorCode.ALREADY_EXISTS, "file already exists: " + key);
             }
-        } catch (CoordException e) {
-            deleteBlobQuietly(objectId);
-            throw CoordErrors.file(e, endpoint, "put");
+            throw CoordErrors.file(e, endpoint, "put " + key);
         }
         return metadata(record);
     }
@@ -122,10 +128,10 @@ final class CoordFileService implements FileService {
     @Override
     public InputStream open(String key) {
         FileKeys.requireValid(key);
-        CoordFileRecord record = record(key).orElseThrow(() -> notFound(key));
-        byte[] objectId = parseObjectId(record.objectId());
+        CoordFileRecord record = metadata(key).orElseThrow(() -> notFound(key));
+        byte[] dataObjectId = parseObjectId(record.objectId());
         try {
-            ObjectStoreClient.GetResult result = objects.get(bucket, objectId);
+            ObjectStoreClient.GetResult result = objects.get(bucket, dataObjectId);
             return new ByteArrayInputStream(result.data());
         } catch (CoordException e) {
             if (e.getErrorCode() == ErrorCode.NOT_FOUND) {
@@ -134,60 +140,71 @@ final class CoordFileService implements FileService {
                         "file record points to a missing object: " + key,
                         e);
             }
-            throw CoordErrors.file(e, endpoint, "get");
+            throw CoordErrors.file(e, endpoint, "get " + key);
         }
     }
 
     @Override
     public Optional<FileMetadata> stat(String key) {
         FileKeys.requireValid(key);
-        return record(key).map(CoordFileService::metadata);
+        return metadata(key).map(CoordFileService::metadata);
     }
 
     @Override
     public boolean delete(String key) {
         FileKeys.requireValid(key);
-        String recordKey = keys.key(key);
-        try {
-            for (int attempt = 0; attempt < DELETE_ATTEMPTS; attempt++) {
-                Optional<CoordKvStore.Entry> current = store.readCurrent(recordKey);
-                if (current.isEmpty()) {
-                    return false;
-                }
-                CoordFileRecord record = record(current.get());
-                if (!store.removeIfMatch(recordKey, current.get().value())) {
-                    continue;
-                }
-                deleteBlobQuietly(parseObjectId(record.objectId()));
-                return true;
-            }
+        Optional<CoordFileRecord> current = metadata(key);
+        if (current.isEmpty()) {
             return false;
+        }
+        try {
+            if (!objects.delete(bucket, metadataObjectId(scope, key)).deleted()) {
+                return false;
+            }
         } catch (CoordException e) {
-            throw CoordErrors.file(e, endpoint, "delete");
+            throw CoordErrors.file(e, endpoint, "delete " + key);
+        }
+        deleteBlobQuietly(parseObjectId(current.get().objectId()));
+        return true;
+    }
+
+    /** 元数据对象 id：{@code sha256("meta" | scope | key)}，固定 32 字节，不受 key 长度影响。 */
+    static byte[] metadataObjectId(String scope, String key) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            digest.update(META_DOMAIN);
+            digest.update(scope.getBytes(StandardCharsets.UTF_8));
+            digest.update((byte) 0);
+            digest.update(key.getBytes(StandardCharsets.UTF_8));
+            return digest.digest();
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 is not available", e);
         }
     }
 
-    private long putBlob(String key, byte[] objectId, byte[] data) {
+    private Optional<CoordFileRecord> metadata(String key) {
+        try {
+            ObjectStoreClient.GetResult result = objects.get(bucket, metadataObjectId(scope, key));
+            return Optional.of(parse(result.data()));
+        } catch (CoordException e) {
+            if (e.getErrorCode() == ErrorCode.NOT_FOUND) {
+                return Optional.empty();
+            }
+            throw CoordErrors.file(e, endpoint, "stat " + key);
+        }
+    }
+
+    private long putBlob(byte[] objectId, byte[] data, String action) {
         try {
             return objects.put(bucket, objectId, data).revision();
         } catch (CoordException e) {
-            throw CoordErrors.file(e, endpoint, "put " + key);
+            throw CoordErrors.file(e, endpoint, action);
         }
     }
 
-    private Optional<CoordFileRecord> record(String key) {
-        Optional<CoordKvStore.Entry> entry;
+    private static CoordFileRecord parse(byte[] value) {
         try {
-            entry = store.get(keys.key(key));
-        } catch (CoordException e) {
-            throw CoordErrors.file(e, endpoint, "stat " + key);
-        }
-        return entry.map(value -> record(value));
-    }
-
-    private CoordFileRecord record(CoordKvStore.Entry entry) {
-        try {
-            CoordFileRecord record = CoordJson.read(entry.value(), CoordFileRecord.class);
+            CoordFileRecord record = CoordJson.read(value, CoordFileRecord.class);
             if (record.key() == null
                     || record.objectId() == null
                     || record.objectId().isEmpty()
@@ -235,7 +252,7 @@ final class CoordFileService implements FileService {
         }
     }
 
-    private static byte[] newObjectId() {
+    private static byte[] newDataObjectId() {
         UUID uuid = UUID.randomUUID();
         return ByteBuffer.allocate(16)
                 .putLong(uuid.getMostSignificantBits())

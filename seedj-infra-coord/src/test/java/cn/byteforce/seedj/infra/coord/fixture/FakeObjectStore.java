@@ -19,9 +19,15 @@ public final class FakeObjectStore implements ObjectStoreClient {
     private final Map<Key, Long> revisions = new HashMap<>();
     private long revision;
     private long putCount;
+    private long putCalls;
+    private long deleteCalls;
     private ErrorCode nextPutError;
     private ErrorCode nextGetError;
     private ErrorCode nextDeleteError;
+    private long failPutOnCall;
+    private ErrorCode failPutOnCallError;
+    private long failDeleteOnCall;
+    private ErrorCode failDeleteOnCallError;
 
     @Override
     public synchronized PutResult put(String bucket, byte[] objectId, byte[] data) {
@@ -34,6 +40,11 @@ public final class FakeObjectStore implements ObjectStoreClient {
         ErrorCode putError = nextPutError;
         nextPutError = null;
         failIf(putError, "put");
+        putCalls++;
+        if (putCalls == failPutOnCall) {
+            failPutOnCall = 0;
+            throw new CoordException(failPutOnCallError, "fake object store put failed");
+        }
         if (bucket == null || bucket.isEmpty()) {
             throw new CoordException(ErrorCode.INTERNAL, "bucket must not be empty");
         }
@@ -83,6 +94,11 @@ public final class FakeObjectStore implements ObjectStoreClient {
         ErrorCode deleteError = nextDeleteError;
         nextDeleteError = null;
         failIf(deleteError, "delete");
+        deleteCalls++;
+        if (deleteCalls == failDeleteOnCall) {
+            failDeleteOnCall = 0;
+            throw new CoordException(failDeleteOnCallError, "fake object store delete failed");
+        }
         Key key = new Key(bucket, objectId);
         boolean removed = objects.remove(key) != null;
         revisions.remove(key);
@@ -118,6 +134,18 @@ public final class FakeObjectStore implements ObjectStoreClient {
 
     public synchronized void failNextDelete(ErrorCode code) {
         nextDeleteError = code;
+    }
+
+    /** 第 {@code call} 次 put（从 1 开始）失败；用于测「数据已写、元数据写失败」的回滚。 */
+    public synchronized void failPutOnCall(long call, ErrorCode code) {
+        failPutOnCall = call;
+        failPutOnCallError = code;
+    }
+
+    /** 第 {@code call} 次 delete（从 1 开始）失败；用于测删除时数据清理失败。 */
+    public synchronized void failDeleteOnCall(long call, ErrorCode code) {
+        failDeleteOnCall = call;
+        failDeleteOnCallError = code;
     }
 
     public synchronized void clear() {

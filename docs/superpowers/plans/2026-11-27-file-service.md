@@ -4,11 +4,15 @@
 
 **Goal:** 在 `core` 定义与供应商无关的 `FileService` SPI，并在 `seedj-infra-coord` 提供基于 coord 对象存储的实现、自动配置与契约测试。
 
-**Architecture:** core 放四个方法的 S3 形状契约（create-only、流式入参、元数据）与错误模型；`seedj-infra-coord` 用 coord 的 `ObjectStoreClient` 存 blob、用 KV sidecar 存 key→objectId/contentType 映射，`putIfAbsent` 作为创建成功的线性化点；真集群用例用独立 v1 夹具（coord 0.4.6 的 v1 对象存储要求 `kv_t.enabled=false`）。
+**Architecture:** core 放四个方法的 S3 形状契约（create-only、流式入参、元数据）与错误模型；`seedj-infra-coord` 用 coord 的 `ObjectStoreClient` 存数据对象，并用 `sha256(scope,key)` 定位的元数据对象做 create-only 的创建线性化点；真集群用例用独立 v1 夹具（coord 0.4.6 的 v1 对象存储要求 `kv_t.enabled=false`）。
 
 **Tech Stack:** Java 21、Maven wrapper、Spring Boot 自动配置、coord-java-sdk 0.4.6、JUnit 5 + AssertJ、Testcontainers（真集群用例）。
 
 **Spec:** `docs/superpowers/specs/2026-11-27-file-service-design.md`
+
+**Ruling（实现期）:** 元数据从「coord KV sidecar」改成「同 bucket 的元数据对象」。原因：coord 0.4.6
+的 Java SDK `TxnClient` 是 Txn v2（要求 `kv_t` 开启），而 v1 对象存储要求 `kv_t` 关闭，sidecar
+在真集群上不可用。代价：`stat` 多一次小对象 GET；收益：实现只依赖 `coord.storage`，v1/v2 集群都能跑。
 
 ## Global Constraints
 
@@ -23,11 +27,11 @@
 
 ## Review Focus
 
-- 同 key 冲突时只回滚**本次**写入的 blob，不碰已有文件的 blob/sidecar（`CoordFileServiceTest.sidecarConflictRollsBackOwnBlob`）。
+- 同 key 冲突时只回滚**本次**写入的数据对象，不碰已有文件的数据/元数据对象（`CoordFileServiceTest.sameKeyConflictRollsBackOwnDataObject`）。
 - 精确长度：短流、长流都必须拒绝且不落盘（契约测试 `rejectsStreamShorterThanDeclaredLength`、`rejectsStreamLongerThanDeclaredLength`）。
 - 超限在写入前失败，fake 的 `putCount()` 保持 0（`oversizeIsRejectedBeforeWriting`）。
-- `delete` 与重建竞争：删除只摘除自己读到的 sidecar、只删对应 objectId 的 blob（`deleteRemovesFileAndIsIdempotent`、实现注释 + `deleteToleratesBlobDeleteFailure`）。
-- sidecar 损坏 / sidecar 指向缺失 blob → `INTERNAL_ERROR`，不能是 `NOT_FOUND` 或 NPE（`corruptRecordIsInternalError`、`missingBlobIsInternalError`）。
+- `delete` 与重建竞争：删除只删自己读到的元数据对象与对应数据 objectId，不碰重建后的新数据对象（`deleteRemovesFileAndIsIdempotent`、`deleteToleratesDataBlobDeleteFailure`）。
+- 元数据对象损坏 / 元数据指向缺失数据对象 → `INTERNAL_ERROR`，不能是 `NOT_FOUND` 或 NPE（`corruptRecordIsInternalError`、`missingBlobIsInternalError`）。
 
 ---
 
@@ -134,13 +138,13 @@ git commit -m "feat(core): add FileService SPI and error model"
 - Modify: `seedj-infra-coord/src/main/java/cn/byteforce/seedj/infra/coord/CoordErrors.java`
 
 **Interfaces:**
-- Consumes: Task 1 的全部类型；`CoordKvStore`（`get` / `readCurrent` / `putIfAbsent` / `removeIfMatch`）、`CoordKeySpace.of(namespace, "file")`、`CoordJson`、`CoordEndpoint`。
+- Consumes: Task 1 的全部类型；`CoordJson`、`CoordEndpoint`。
 - Produces:
   - `abstract class FileServiceContractTest { protected abstract FileService newFileService(); }`（12 个用例，见 Step 1）
-  - `final class FakeObjectStore implements ObjectStoreClient`：`long putCount()`、`boolean contains(String bucket, byte[] objectId)`、`void failNextPut(ErrorCode)`、`void failNextGet(ErrorCode)`、`void failNextDelete(ErrorCode)`、`void remove(String bucket, byte[] objectId)`、`void clear()`
-  - `final class CoordFileService implements FileService`，构造函数 `CoordFileService(ObjectStoreClient objects, CoordKvStore store, CoordKeySpace keys, CoordEndpoint endpoint, String bucket, long maxObjectBytes, Clock clock)`
+  - `final class FakeObjectStore implements ObjectStoreClient`：`long putCount()`、`int objectCount()`、`boolean contains(String bucket, byte[] objectId)`、`void failNextPut/Get/Delete(ErrorCode)`、`void failPutOnCall(long, ErrorCode)`、`void failDeleteOnCall(long, ErrorCode)`、`void remove(String bucket, byte[] objectId)`、`void clear()`
+  - `final class CoordFileService implements FileService`，构造函数 `CoordFileService(ObjectStoreClient objects, CoordEndpoint endpoint, String scope, String bucket, long maxObjectBytes, Clock clock)`；包内静态 `byte[] metadataObjectId(String scope, String key)`
   - `record CoordFileRecord(String key, String objectId, long size, String contentType, long revision, long createdAtEpochMilli)`
-  - `CoordErrors.file(CoordException e, CoordEndpoint endpoint)` → `FileException`
+  - `CoordErrors.file(CoordException e, CoordEndpoint endpoint, String action)` → `FileException`
 
 - [ ] **Step 1: 写 core 契约测试（先失败）**
 
@@ -220,9 +224,8 @@ public abstract class FileServiceContractTest {
 ```java
 new CoordFileService(
         new FakeObjectStore(),
-        new CoordKvStore(new FakeCoordBackend().kv(), backend.txn()),
-        CoordKeySpace.of("seedj:contract", "file"),
         new CoordEndpoint("127.0.0.1:19527"),
+        "seedj:contract",
         "seedj-files",
         1024 * 1024,
         Clock.systemUTC());
@@ -237,12 +240,12 @@ Expected: 编译失败（`CoordFileService` 不存在）。
 
 - key 校验先调 `FileKeys.requireValid`；`contentType` 非空时 ≤255 字符；
 - 精确读：`content.readNBytes((int) contentLength)`（上限已保证 ≤256MiB）+ 再 `read()` 一次判断长流；短流或长流抛 `INVALID_REQUEST`；
-- 每次 `put` 生成 16 字节随机 objectId（`UUID.randomUUID()` 两个 long 写进 `ByteBuffer`，或 `SecureRandom`）；`objects.put(bucket, objectId, data)` 后 `store.putIfAbsent(keys.key(key), CoordJson.write(record))`；
-- sidecar 写失败（CAS false 或 `CoordException`）时对本次 objectId 调 `objects.delete` 并吞掉删除异常，然后抛 `ALREADY_EXISTS` / 映射后的 `FileException`；
-- `open` 用 `store.get`（快路径足够；sidecar 只写一次不更新）、`objects.get`、`new ByteArrayInputStream(data)`；
-- `stat` 用 `store.get`；记录 JSON 解析失败 → `INTERNAL_ERROR`；
-- `delete` 用 `store.readCurrent` + `removeIfMatch`，摘除映射后尽力 `objects.delete`（失败只 `logger.warn`），返回 true；
-- 所有 `CoordException` 经 `CoordErrors.file(e, endpoint)` 转换；`CoordErrors.file` 的映射按设计 §6。
+- 每次 `put` 生成 16 字节随机数据 objectId（`UUID.randomUUID()` 两个 long 写进 `ByteBuffer`）；先 `objects.put(bucket, dataObjectId, data)`，再把 `CoordFileRecord` 写到 `metadataObjectId(scope, key)`（`sha256("seedj-file-meta\0" + scope + "\0" + key)`）；
+- 元数据对象已存在或写失败时，对本次 dataObjectId 调 `objects.delete` 并吞掉删除异常，然后抛 `ALREADY_EXISTS` / 映射后的 `FileException`；
+- `open` / `stat` 读元数据对象（`NOT_FOUND` → empty / `NOT_FOUND`），再 `objects.get` 数据对象；数据对象缺失 → `INTERNAL_ERROR`；
+- 记录 JSON 解析失败 → `INTERNAL_ERROR`；
+- `delete` 先读元数据取得 dataObjectId，删元数据对象（返回 false 则 false），再尽力 `objects.delete` 数据对象（失败只 `logger.warn`）；
+- 所有 `CoordException` 经 `CoordErrors.file(e, endpoint, action)` 转换；映射按设计 §6。
 
 - [ ] **Step 4: 运行契约测试**
 
@@ -254,14 +257,14 @@ Expected: 12 个用例全绿。
 `CoordFileServiceTest` 覆盖 Review Focus 与边界：
 
 ```java
-@Test void sidecarConflictRollsBackOwnBlob() { /* 预置 sidecar；put → ALREADY_EXISTS；fake.putCount()==1 且 fake 中没有本次新 blob */ }
+@Test void sameKeyConflictRollsBackOwnDataObject() { /* 第二次 put → ALREADY_EXISTS；已有数据/元数据对象不变 */ }
 @Test void oversizeIsRejectedBeforeWriting() { /* max=4，put 5 字节 → TOO_LARGE，fake.putCount()==0 */ }
-@Test void shortStreamLeavesNoBlob() { /* INVALID_REQUEST，putCount()==0 */ }
-@Test void longStreamLeavesNoBlob() { /* INVALID_REQUEST，putCount()==0 */ }
-@Test void sidecarWriteFailureRollsBackBlob() { /* backend.down(true) → PROVIDER_UNAVAILABLE，fake 空 */ }
-@Test void corruptRecordIsInternalError() { /* seed KV "{oops" → stat/open 抛 INTERNAL_ERROR */ }
-@Test void missingBlobIsInternalError() { /* put 后 fake.remove(blob) → open INTERNAL_ERROR */ }
-@Test void deleteToleratesBlobDeleteFailure() { /* failNextDelete(INTERNAL) → delete 返回 true，stat empty */ }
+@Test void lengthMismatchLeavesNoBlob() { /* 短流/长流 → INVALID_REQUEST，putCount()==0 */ }
+@Test void dataWriteFailureLeavesNothing() { /* 数据对象 put 失败 → PROVIDER_UNAVAILABLE，fake 空 */ }
+@Test void metadataWriteFailureRollsBackDataObject() { /* failPutOnCall(2) → 数据已写、元数据失败，回滚数据对象 */ }
+@Test void corruptRecordIsInternalError() { /* 预置 "{oops" 元数据对象 → stat/open 抛 INTERNAL_ERROR */ }
+@Test void missingBlobIsInternalError() { /* 元数据指向不存在的 objectId → open INTERNAL_ERROR */ }
+@Test void deleteToleratesDataBlobDeleteFailure() { /* failDeleteOnCall(2, INTERNAL) → delete true，stat empty */ }
 @Test void mapsQuotaExceededToTooLarge() { /* failNextPut(QUOTA_EXCEEDED) → TOO_LARGE */ }
 @Test void mapsUnavailableToProviderUnavailable() { /* failNextGet(UNAVAILABLE) → PROVIDER_UNAVAILABLE，可重试 */ }
 ```
@@ -357,9 +360,8 @@ public FileService coordFileService(
     CoordProperties.File file = properties.getFile();
     return new CoordFileService(
             client.objectStore(),
-            new CoordKvStore(client.kv(), client.tx()),
-            CoordKeySpace.of(CoordNamespaces.of(properties, environment), "file"),
             CoordEndpoint.of(properties),
+            CoordNamespaces.of(properties, environment),
             file.getBucket(),
             file.getMaxObjectBytes(),
             Clock.systemUTC());
@@ -428,7 +430,7 @@ class CoordFileServiceClusterTest {
 }
 ```
 
-`service(cluster)` 构造与 `CoordFileServiceContractTest` 相同，但用 `cluster.client()`、`CoordTestFixture.clusterEndpoint(cluster)`、`CoordKeySpace.of("seedj:cluster-test", "file")`、`Clock.systemUTC()`。
+`service(cluster)` 构造与 `CoordFileServiceContractTest` 相同，但用 `cluster.client().objectStore()`、`CoordTestFixture.clusterEndpoint(cluster)`、scope `"seedj:cluster-test"`、`Clock.systemUTC()`。
 
 Run: `./mvnw -o -B -pl seedj-infra-coord -am test -Dtest=CoordFileServiceClusterTest`
 Expected: 有 Docker 时失败（夹具方法不存在）；无 Docker 时同样先编译失败。
@@ -487,7 +489,7 @@ git commit -m "test(coord): cover FileService on a v1 object-storage cluster"
 | `seedj.coord.file.bucket` | `seedj-files` | blob 所在 bucket |
 | `seedj.coord.file.max-object-bytes` | `33554432` | 单文件上限（SDK 整块缓冲）；取值 ≤256MiB |
 
-再加一段说明：create-only（同 key 需先 delete）、sidecar 元数据、无 list/预签名、v0.4.6 要求 `object_storage.enabled=true` 且 `kv_t.enabled=false`。
+再加一段说明：create-only（同 key 需先 delete）、元数据对象、无 list/预签名、v0.4.6 要求 `object_storage.enabled=true` 且 `kv_t.enabled=false`。
 
 `README.md` 的「已交付」加 `FileService` 与配置示例；`package-info` 的能力清单加「文件」。
 
@@ -519,6 +521,6 @@ git commit -m "docs(coord): document FileService contract and limits"
 ## 自检
 
 - 设计 §5 的每个错误码都有测试（Task 1/2）；§6 的每个实现点对应 Task 2 步骤；§7 的测试矩阵对应 Task 2/3/4；§8 的限制写进 Task 5。
-- 签名一致性：`put(String, String, long, InputStream)`、`FileMetadata(String, long, String, String, Instant)`、`CoordFileService(ObjectStoreClient, CoordKvStore, CoordKeySpace, CoordEndpoint, String, long, Clock)` 在 Task 2/3/4 中一致。
+- 签名一致性：`put(String, String, long, InputStream)`、`FileMetadata(String, long, String, String, Instant)`、`CoordFileService(ObjectStoreClient, CoordEndpoint, String, String, long, Clock)` 在 Task 2/3/4 中一致。
 - Review Focus 五条都有对应测试。
 - 没有 Task 依赖未定义的符号。

@@ -166,9 +166,8 @@ public class CoordAutoConfiguration {
         CoordProperties.File file = properties.getFile();
         return new CoordFileService(
                 client.objectStore(),
-                new CoordKvStore(client.kv(), client.tx()),
-                CoordKeySpace.of(CoordNamespaces.of(properties, environment), "file"),
                 CoordEndpoint.of(properties),
+                CoordNamespaces.of(properties, environment),
                 file.getBucket(),
                 file.getMaxObjectBytes(),
                 Clock.systemUTC());

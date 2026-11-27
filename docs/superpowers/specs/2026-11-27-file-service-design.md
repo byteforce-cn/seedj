@@ -42,6 +42,8 @@ seedj 目前没有文件能力：IM 只保存附件引用（`IMAGE` / `FILE` 的
   `QUOTA_EXCEEDED` / `RESOURCE_EXHAUSTED`。
 - coord 0.4.6 只在 `object_storage.enabled=true && kv_t.enabled=false` 时注册 v1
   `coord.storage`；现有测试夹具是 kv_t v2，不能直接复用。
+- 0.4.6 的 Java SDK `TxnClient` 走 Txn v2，只在 `kv_t` 开启时可用；v1 对象存储又要求
+  `kv_t.enabled=false`。两者不能同时满足，因此文件元数据不能放 coord KV。
 - `core` 禁止 Spring / 监控框架（`CorePurityTest`）；新 public 类型要登记
   `config/public-api.txt`；每个模块至少一个 `package-info`；单文件 ≤ 600 行。
 - 改动走分支 → PR；CI 门禁为 `verify` + 覆盖率 ratchet + Spotless + SpotBugs。
@@ -51,7 +53,7 @@ seedj 目前没有文件能力：IM 只保存附件引用（`IMAGE` / `FILE` 的
 | 方案 | 形态 | 取舍 |
 | --- | --- | --- |
 | A. 薄封装 | `byte[]` 入参、无 content-type，映射 coord 四个调用 | 最省事；SPI 泄漏 coord 的内存模型，换 MinIO 仍要改调用方 |
-| B. 可移植核心 + 可选能力接口 | S3 形状的四个方法；list/预签名以后做成独立可选接口 | 调用方与 provider 解耦；coord 侧多一条 KV sidecar |
+| B. 可移植核心 + 可选能力接口 | S3 形状的四个方法；list/预签名以后做成独立可选接口 | 调用方与 provider 解耦；coord 侧多一个元数据对象 |
 | C. 自建文件平台 | bucket/版本/列举/预签名/配额全上 | v1 过度设计，且 list/预签名 coord 无法实现 |
 
 采用 **B**。关键决策：
@@ -61,12 +63,13 @@ seedj 目前没有文件能力：IM 只保存附件引用（`IMAGE` / `FILE` 的
    coord 只能 delete+put，中途失败会丢文件。需要替换时由调用方显式 `delete` 后 `put`。
 2. **`InputStream` + `contentLength`**：SPI 面向大文件；coord 实现必须整块缓冲，因此设
    `max-object-bytes`（默认 32MiB，硬顶 256MiB）。以后 MinIO 实现可以真流式，调用方不变。
-3. **元数据**：coord 只有 size/revision，没有 content-type/时间。coord 侧用 KV 存 sidecar：
-   `key → {objectId, size, contentType, revision, createdAt}`。blob 先写，`putIfAbsent` 是
-   创建成功的线性化点；CAS 失败删除本次 blob 并返回 `ALREADY_EXISTS`，不会出现半可见文件。
-   `stat` 只读 KV，不下载对象。
-4. **随机 objectId**：每次 `put` 生成 16 字节随机 id，避免重试/并发撞上已有 blob；key 与
-   objectId 的映射只在 sidecar 里。删除后重建自然拿到新 id。
+3. **元数据对象**：coord 只有 size/revision，没有 content-type/时间。coord 侧为每个文件写第二个
+   对象：`sha256(scope, key)` 定位的元数据对象（JSON），内容对象用随机 objectId。数据对象先写，
+   元数据对象 create-only 后写，后者是创建成功的线性化点；已存在时只删除本次的数据对象。
+   `stat` 只下载这个很小的元数据对象；元数据不放 coord KV——0.4.6 的 SDK Txn 是 v2（要求
+   `kv_t` 开启），而 v1 对象存储要求 `kv_t` 关闭，两者不能同时满足。
+4. **随机数据 objectId**：每次 `put` 生成 16 字节随机 id，避免重试/并发撞上已有对象；key 与
+   objectId 的映射只在元数据对象里。删除后重建自然拿到新 id。
 5. **list / 预签名不进核心接口**：coord 无对应原语；以后用 `FileLister` / `FileUrlSigner`
    可选接口扩展，核心四个方法保持所有 provider 可实现。
 
@@ -110,7 +113,7 @@ public record FileMetadata(
 | `ALREADY_EXISTS` | CLIENT_ERROR | 否 | create-only 冲突 |
 | `TOO_LARGE` | LIMIT_EXCEEDED | 否 | 超过 `max-object-bytes` / 服务端对象上限 |
 | `PROVIDER_UNAVAILABLE` | BACKEND_ERROR | 是 | agent/网络/选主/安全时间戳滞后 |
-| `INTERNAL_ERROR` | BACKEND_ERROR | 否 | sidecar 损坏、sidecar 指向缺失 blob |
+| `INTERNAL_ERROR` | BACKEND_ERROR | 否 | 元数据对象损坏、元数据指向缺失的数据对象 |
 
 语义：
 
@@ -119,30 +122,32 @@ public record FileMetadata(
   **不写入**。
 - `open`：不存在抛 `NOT_FOUND`；返回的流读完即 EOF，`close` 幂等。
 - `stat`：不存在返回 `Optional.empty()`。
-- `delete`：存在返回 true（删除映射；blob 清理尽力而为），不存在 false；重复删除 false。
+- `delete`：存在返回 true（删除元数据；数据对象清理尽力而为），不存在 false；重复删除 false。
 - 实现线程安全；`FileService` 不持有需要关闭的客户端（coord client 由自动配置管理）。
 
 ## 6. coord 实现
 
 `CoordFileService`（package-private）：
 
-- 构造参数：`ObjectStoreClient`、`CoordKvStore`、`CoordKeySpace`（capability=`file`）、
-  `CoordEndpoint`、`bucket`、`maxObjectBytes`、`Clock`。
-- key → sidecar KV key `<namespace>:coord:file:<key>`；blob 落 `<bucket>`，objectId 随机 16 字节。
-- sidecar 记录（JSON，随模块版本走，不承诺跨版本兼容）：
+- 构造参数：`ObjectStoreClient`、`CoordEndpoint`、`scope`（命名空间）、`bucket`、
+  `maxObjectBytes`、`Clock`。
+- 数据对象：`<bucket>` 下随机 16 字节 objectId；元数据对象：`sha256("seedj-file-meta\0" + scope +
+  "\0" + key)`（32 字节，scope = coord 命名空间），同一 bucket。
+- 元数据对象内容（JSON，随模块版本走，不承诺跨版本兼容）：
 
   ```json
   {"key":"...","objectId":"<hex>","size":123,"contentType":"image/png",
    "revision":42,"createdAtEpochMilli":1790000000000}
   ```
 
-- `put`：校验 → 精确读取 `contentLength` 字节（上限内）→ `objects.put` → `putIfAbsent`
-  sidecar；sidecar CAS 失败时尽力删除本次 blob，抛 `ALREADY_EXISTS`；sidecar 写异常同样回滚
-  blob 后映射错误。
-- `open`：sidecar → `objects.get` → `ByteArrayInputStream`；blob 缺失视为内部不一致。
-- `stat`：sidecar → `FileMetadata`（`version` = revision 十进制字符串）。
-- `delete`：事务读当前 sidecar → `removeIfMatch` 摘除映射（线性化点）→ 尽力删除 blob；
-  sidecar 已不存在返回 false。删除 blob 失败只记 WARN，映射已不可见，最多留下孤儿 blob。
+- `put`：校验 → 精确读取 `contentLength` 字节（上限内）→ 写数据对象 → create-only 写元数据
+  对象；元数据已存在时只删除本次数据对象并抛 `ALREADY_EXISTS`；元数据写异常同样回滚数据对象后
+  映射错误。
+- `open`：读元数据对象 → `objects.get` 数据对象 → `ByteArrayInputStream`；数据对象缺失视为
+  内部不一致。
+- `stat`：读元数据对象 → `FileMetadata`（`version` = 数据对象 revision 十进制字符串）。
+- `delete`：读元数据取得数据 objectId → 删除元数据对象（线性化点，未删除返回 false）→
+  尽力删除数据对象。数据清理失败只记 WARN，元数据已不可见，最多留下孤儿数据对象。
 - 错误映射集中在 `CoordErrors.file(...)`：
   `NOT_FOUND→NOT_FOUND`、`ALREADY_EXISTS→ALREADY_EXISTS`、
   `INVALID_ARGUMENT/OUT_OF_RANGE→INVALID_REQUEST`、`MESSAGE_TOO_LARGE/QUOTA_EXCEEDED→TOO_LARGE`、
@@ -168,10 +173,10 @@ public record FileMetadata(
   空内容、非法 key、长度不符（短/长）、超限不落盘、并发 put 只成功一个。
 - `seedj-infra-coord`：
   - `fixture/FakeObjectStore`：内存版 `ObjectStoreClient`，保留 create-only/缺失语义，
-    可注入下一次调用的错误码；
+    可注入指定次序调用的错误码；
   - `CoordFileServiceContractTest extends FileServiceContractTest`；
   - `CoordFileServiceTest`：key/contentType 校验、`max-object-bytes`、短读/长读、
-    sidecar CAS 失败回滚 blob、sidecar 损坏、blob 缺失、错误码映射；
+    元数据写失败回滚数据对象、元数据损坏、数据对象缺失、错误码映射；
   - `CoordAutoConfigurationTest`：装配 / 非 coord 不装配 / guard 拦截；
   - `CoordFileServiceClusterTest`（Docker/Linux 才跑）：独立 v1 夹具
     （`[object_storage] enabled=true`、`[kv_t] enabled=false`）跑真集群 put/get/stat/delete。
@@ -183,8 +188,10 @@ public record FileMetadata(
 - coord 实现整块缓冲，默认上限 32MiB、硬顶 256MiB；更大的文件要等 MinIO/OSS 适配器。
 - create-only，没有覆盖；要替换请先 `delete`。
 - 没有 list / 预签名；coord 侧没有对应原语。
-- blob 写入成功、sidecar 写入前崩溃会留下不可见孤儿 blob；v1 不做后台 GC，需要时由运维修。
-- 同一 key 并发 put 会都上传 blob，只有一个 sidecar 成功，另一个立即删除自己的 blob。
+- 数据对象写入成功、元数据对象写入前崩溃会留下不可见孤儿数据对象；v1 不做后台 GC，
+  需要时由运维修。
+- `stat` 需要下载很小的元数据对象（一次额外 GET），不依赖任何索引。
+- 同一 key 并发 put 会都上传数据对象，只有元数据对象 create-only 成功，另一个立即删除自己的数据对象。
 - `createdAt` 用实例本地时钟；多实例时钟漂移会反映在元数据里。
 - coord v0.4.6 的 v1 对象存储要求 `object_storage.enabled=true` 且 `kv_t.enabled=false`；
   v2 集群不注册 v1 `coord.storage`（SDK 目前也只有 v1 客户端）。
