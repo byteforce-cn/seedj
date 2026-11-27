@@ -5,6 +5,7 @@ import cn.byteforce.coord.sdk.CoordConfig;
 import cn.byteforce.seedj.core.clock.spi.GlobalSequencer;
 import cn.byteforce.seedj.eventbus.spi.EventBusTransport;
 import cn.byteforce.seedj.eventbus.spi.EventConsumerStore;
+import cn.byteforce.seedj.file.FileService;
 import cn.byteforce.seedj.id.IdGenerator;
 import cn.byteforce.seedj.lock.LockProvider;
 import cn.byteforce.seedj.numbering.Numbering;
@@ -157,6 +158,22 @@ public class CoordAutoConfiguration {
                 Clock.systemUTC());
     }
 
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "seedj.file", name = "provider", havingValue = "coord")
+    public FileService coordFileService(
+            CoordClient client, CoordProperties properties, Environment environment) {
+        CoordProperties.File file = properties.getFile();
+        return new CoordFileService(
+                client.objectStore(),
+                new CoordKvStore(client.kv(), client.tx()),
+                CoordKeySpace.of(CoordNamespaces.of(properties, environment), "file"),
+                CoordEndpoint.of(properties),
+                file.getBucket(),
+                file.getMaxObjectBytes(),
+                Clock.systemUTC());
+    }
+
     private static CoordConfig toConfig(CoordProperties properties) {
         CoordProperties.Tls tls = properties.getTls();
         CoordConfig.Builder builder =
@@ -255,6 +272,25 @@ public class CoordAutoConfiguration {
         if (properties.getEventbus().getConsumerScanLimit() < 1) {
             throw new IllegalStateException(
                     "seedj.coord.eventbus.consumer-scan-limit must be >= 1");
+        }
+        CoordProperties.File file = properties.getFile();
+        if (file.getBucket() == null || file.getBucket().isBlank()) {
+            throw new IllegalStateException("seedj.coord.file.bucket must not be blank");
+        }
+        if (file.getBucket().getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 255) {
+            throw new IllegalStateException(
+                    "seedj.coord.file.bucket must not exceed 255 UTF-8 bytes");
+        }
+        if (file.getBucket().indexOf('/') >= 0 || file.getBucket().indexOf('\u0000') >= 0) {
+            throw new IllegalStateException(
+                    "seedj.coord.file.bucket must not contain '/' or NUL");
+        }
+        if (file.getMaxObjectBytes() < 1
+                || file.getMaxObjectBytes() > CoordFileService.MAX_OBJECT_BYTES) {
+            throw new IllegalStateException(
+                    "seedj.coord.file.max-object-bytes must be in [1, "
+                            + CoordFileService.MAX_OBJECT_BYTES
+                            + "]");
         }
     }
 

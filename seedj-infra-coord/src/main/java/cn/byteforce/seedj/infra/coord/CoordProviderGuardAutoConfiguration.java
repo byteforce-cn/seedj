@@ -38,6 +38,7 @@ final class CoordProviderGuard implements InitializingBean {
                     "seedj.clock.provider",
                     "seedj.eventbus.transport",
                     "seedj.lock.provider",
+                    "seedj.file.provider",
                     "seedj.pki.provider",
                     "seedj.transit.provider",
                     "seedj.workflow.provider");
